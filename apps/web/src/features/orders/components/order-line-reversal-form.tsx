@@ -1,7 +1,7 @@
 import { allocateRefund, lineKey } from "@fresclean/api/rules";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { UseMutationResult } from "@tanstack/react-query";
-import { Fragment, useMemo } from "react";
+import { Fragment } from "react";
 import {
 	Controller,
 	FormProvider,
@@ -101,13 +101,29 @@ const buildReversalSchema = (verb: string, reasons: readonly string[]) =>
 			}
 		});
 
-type ReversalFormValues = z.infer<ReturnType<typeof buildReversalSchema>>;
+type ReversalSchema = ReturnType<typeof buildReversalSchema>;
+
+type ReversalFormValues = z.infer<ReversalSchema>;
+
+interface Reversal<R extends string> {
+	reasons: readonly R[];
+	schema: ReversalSchema;
+}
+
+const buildReversal = <R extends string>(
+	verb: string,
+	reasons: readonly R[],
+): Reversal<R> => ({ reasons, schema: buildReversalSchema(verb, reasons) });
+
+const REVERSALS = {
+	cancel: buildReversal("cancel", CANCEL_REASONS),
+	refund: buildReversal("refund", REFUND_REASONS),
+};
 
 const kindLabel = (kind: "service" | "product" | undefined) =>
 	kind === "product" ? "Products" : "Services";
 
 interface ReversalCopy {
-	verb: string;
 	confirm: string;
 	pending: string;
 }
@@ -119,7 +135,7 @@ interface OrderLineReversalFormProps<R extends string> {
 	formatReason: (reason: R) => string;
 	isPending: boolean;
 	products: ReversalProductOption[];
-	reasons: readonly R[];
+	reversal: Reversal<R>;
 	services: ReversalServiceOption[];
 	submitItems: (items: ReversalSubmitItem<R>[]) => Promise<unknown>;
 	// Refund only: what each line can still refund; turns on the amount preview.
@@ -133,7 +149,7 @@ const OrderLineReversalForm = <R extends string>({
 	formatReason,
 	isPending,
 	products,
-	reasons,
+	reversal,
 	services,
 	submitItems,
 	capsByLineKey,
@@ -159,16 +175,12 @@ const OrderLineReversalForm = <R extends string>({
 		})),
 	];
 	const hasBothKinds = services.length > 0 && products.length > 0;
-	const reasonItems = reasons.map((reason) => ({
+	const reasonItems = reversal.reasons.map((reason) => ({
 		value: reason as string,
 		label: formatReason(reason),
 	}));
-	const schema = useMemo(
-		() => buildReversalSchema(copy.verb, reasons),
-		[copy.verb, reasons],
-	);
 	const form = useForm<ReversalFormValues>({
-		resolver: zodResolver(schema),
+		resolver: zodResolver(reversal.schema),
 		defaultValues: {
 			items: lines.map((line) => ({
 				id: line.id,
@@ -193,11 +205,8 @@ const OrderLineReversalForm = <R extends string>({
 	// Amounts come from the same allocateRefund the server runs at submit.
 	// Selected lines are allocated together (leftover rupiah shift with the
 	// set); unselected lines preview what they'd refund alone.
-	const previewAmounts = useMemo(() => {
-		const amounts = new Map<string, number>();
-		if (!capsByLineKey) {
-			return amounts;
-		}
+	const previewAmounts = new Map<string, number>();
+	if (capsByLineKey) {
 		const items = watchedItems ?? [];
 		const selected = items.filter(
 			(item) =>
@@ -206,14 +215,14 @@ const OrderLineReversalForm = <R extends string>({
 		);
 		if (selected.length > 0) {
 			for (const line of allocateRefund({ capsByLineKey, lines: selected })) {
-				amounts.set(lineKey(line.kind, line.id), line.amount);
+				previewAmounts.set(lineKey(line.kind, line.id), line.amount);
 			}
 		}
 		for (const item of items) {
 			const key = lineKey(item.kind, item.id);
-			if (!amounts.has(key)) {
+			if (!previewAmounts.has(key)) {
 				const cap = capsByLineKey.get(key) ?? 0;
-				amounts.set(
+				previewAmounts.set(
 					key,
 					cap > 0
 						? allocateRefund({
@@ -224,8 +233,7 @@ const OrderLineReversalForm = <R extends string>({
 				);
 			}
 		}
-		return amounts;
-	}, [watchedItems, capsByLineKey]);
+	}
 	const totalRefund = (watchedItems ?? []).reduce(
 		(sum, item) =>
 			item.selected
@@ -556,12 +564,12 @@ export const CancelOrderForm = ({
 }: CancelOrderFormProps) => (
 	<OrderLineReversalForm
 		closeDialog={closeDialog}
-		copy={{ verb: "cancel", confirm: "Confirm Cancel", pending: "Cancelling…" }}
+		copy={{ confirm: "Confirm Cancel", pending: "Cancelling…" }}
 		defaultReason="customer_request"
 		formatReason={formatCancelReason}
 		isPending={cancelOrderMutation.isPending}
 		products={cancellableProducts}
-		reasons={CANCEL_REASONS}
+		reversal={REVERSALS.cancel}
 		services={cancellableServices}
 		submitItems={(items) => cancelOrderMutation.mutateAsync({ items })}
 	/>
@@ -594,12 +602,12 @@ export const RefundOrderForm = ({
 	<OrderLineReversalForm
 		capsByLineKey={capsByLineKey}
 		closeDialog={closeDialog}
-		copy={{ verb: "refund", confirm: "Confirm Refund", pending: "Refunding…" }}
+		copy={{ confirm: "Confirm Refund", pending: "Refunding…" }}
 		defaultReason="damaged"
 		formatReason={formatRefundReason}
 		isPending={refundMutation.isPending}
 		products={refundableProducts}
-		reasons={REFUND_REASONS}
+		reversal={REVERSALS.refund}
 		services={refundableServices}
 		submitItems={(items) =>
 			refundMutation.mutateAsync({ orderId, payload: { items } })

@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { type Product, productsQueries } from "@/features/products/api";
 import { type Service, servicesQueries } from "@/features/services/api";
@@ -289,41 +288,39 @@ export interface Cart extends CartOps {
 	count: number;
 }
 
+const useProductMap = () => {
+	const productsQuery = useQuery(productsQueries.list());
+	return buildActiveItemMap(productsQuery.data ?? []);
+};
+
+const useServiceMap = () => {
+	const servicesQuery = useQuery(servicesQueries.list());
+	return buildActiveItemMap(servicesQuery.data ?? []);
+};
+
+const useProductRows = (productCart: ProductCartLine[]) => {
+	const productMap = useProductMap();
+	return enrichProductCart(productCart, productMap);
+};
+
+const useItemRows = (itemCart: ItemCartLine[]) => {
+	const serviceMap = useServiceMap();
+	const itemRows = enrichItemCart(itemCart, serviceMap);
+	return { itemRows, serviceRows: itemRows.flatMap((item) => item.services) };
+};
+
 export function useCart(): Cart {
 	const ops = useCartOps();
 
-	const [
-		productCart = [] as ProductCartLine[],
-		itemCart = [] as ItemCartLine[],
-	] = useWatch<TransactionDraftValues, ["productCart", "itemCart"]>({
-		name: ["productCart", "itemCart"],
+	const productCart = useWatch<TransactionDraftValues, "productCart">({
+		name: "productCart",
+	});
+	const itemCart = useWatch<TransactionDraftValues, "itemCart">({
+		name: "itemCart",
 	});
 
-	const productsQuery = useQuery(productsQueries.list());
-	const servicesQuery = useQuery(servicesQueries.list());
-
-	const productMap = useMemo(
-		() => buildActiveItemMap(productsQuery.data ?? []),
-		[productsQuery.data],
-	);
-	const serviceMap = useMemo(
-		() => buildActiveItemMap(servicesQuery.data ?? []),
-		[servicesQuery.data],
-	);
-
-	const productRows = useMemo(
-		() => enrichProductCart(productCart, productMap),
-		[productCart, productMap],
-	);
-	const itemRows = useMemo(
-		() => enrichItemCart(itemCart, serviceMap),
-		[itemCart, serviceMap],
-	);
-
-	const serviceRows = useMemo(
-		() => itemRows.flatMap((item) => item.services),
-		[itemRows],
-	);
+	const productRows = useProductRows(productCart);
+	const { itemRows, serviceRows } = useItemRows(itemCart);
 
 	const subtotal = getCartSubtotal(productRows, serviceRows);
 

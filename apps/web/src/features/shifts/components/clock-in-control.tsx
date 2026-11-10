@@ -1,8 +1,12 @@
-import { clockInRequiresLocation, distanceKm } from "@fresclean/api/rules";
+import {
+	type ClockInCoordinates,
+	clockInRequiresLocation,
+	distanceKm,
+} from "@fresclean/api/rules";
 import { Alert02Icon, Login03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,14 +41,55 @@ export const ClockSkeleton = () => (
 	</div>
 );
 
+const useAllowedStoreIds = (isSignedIn: boolean) => {
+	const meQuery = useQuery({ ...usersQueries.me(), enabled: isSignedIn });
+
+	// Only the Stores this person is assigned to. Preselecting another only hands
+	// them a 403 with no clue which Store to pick instead.
+	return meQuery.data === undefined || meQuery.data.role === "admin"
+		? undefined
+		: (meQuery.data.userStores?.map((item) => item.store_id) ?? []);
+};
+
+const useClockInStores = (
+	isSignedIn: boolean,
+	coordinates: ClockInCoordinates | undefined,
+) => {
+	const storesQuery = useQuery(storesQueries.list());
+	const allowedStoreIds = useAllowedStoreIds(isSignedIn);
+
+	// Closest Store first, by the server's own formula, so the Store offered is the
+	// one the server checks against. A courier is never located, so stays unsorted.
+	const open = (storesQuery.data ?? []).filter(
+		(store) =>
+			store.is_active &&
+			(allowedStoreIds === undefined || allowedStoreIds.includes(store.id)),
+	);
+	const ranked: { km?: number; store: Store }[] = coordinates
+		? open
+				.map((store) => ({
+					store,
+					km: distanceKm(coordinates, {
+						latitude: Number(store.latitude),
+						longitude: Number(store.longitude),
+					}),
+				}))
+				.sort((a, b) => a.km - b.km)
+		: open.map((store) => ({ store }));
+
+	return { allowedStoreIds, ranked };
+};
+
 export const ClockInControl = () => {
 	const queryClient = useQueryClient();
 	const user = getCurrentUser();
 	const needsLocation = clockInRequiresLocation(user?.role ?? "worker");
 
 	const { status, coordinates, retry } = useGeolocation(needsLocation);
-	const storesQuery = useQuery(storesQueries.list());
-	const meQuery = useQuery({ ...usersQueries.me(), enabled: Boolean(user) });
+	const { allowedStoreIds, ranked } = useClockInStores(
+		Boolean(user),
+		coordinates,
+	);
 	const [picked, setPicked] = useState<string>();
 
 	const clockInMutation = useMutation({
@@ -57,40 +102,6 @@ export const ClockInControl = () => {
 		// while they walk to the Store, not a toast that is gone when they look up.
 		onError: () => undefined,
 	});
-
-	// Only the Stores this person is assigned to. Preselecting another only hands
-	// them a 403 with no clue which Store to pick instead.
-	const allowedStoreIds = useMemo(
-		() =>
-			meQuery.data === undefined || meQuery.data.role === "admin"
-				? undefined
-				: (meQuery.data.userStores?.map((item) => item.store_id) ?? []),
-		[meQuery.data],
-	);
-
-	// Closest Store first, by the server's own formula, so the Store offered is the
-	// one the server checks against. A courier is never located, so stays unsorted.
-	const ranked = useMemo((): { km?: number; store: Store }[] => {
-		const open = (storesQuery.data ?? []).filter(
-			(store) =>
-				store.is_active &&
-				(allowedStoreIds === undefined || allowedStoreIds.includes(store.id)),
-		);
-
-		if (!coordinates) {
-			return open.map((store) => ({ store }));
-		}
-
-		return open
-			.map((store) => ({
-				store,
-				km: distanceKm(coordinates, {
-					latitude: Number(store.latitude),
-					longitude: Number(store.longitude),
-				}),
-			}))
-			.sort((a, b) => a.km - b.km);
-	}, [storesQuery.data, allowedStoreIds, coordinates]);
 
 	// Keyed per state, so the Clock in button is never reused as another state's
 	// button and animated from one size to the other.

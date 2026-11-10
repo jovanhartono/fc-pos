@@ -8,8 +8,7 @@ import {
 	ViewIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { EmptyState } from "@/components/empty-state";
 import { CurrencyInput } from "@/components/form/currency-input";
@@ -29,7 +28,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { categoriesQueries } from "@/features/categories/api";
+import { useCategoryMap } from "@/features/categories/hooks/useCategoryMap";
 import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
 import {
@@ -66,14 +65,7 @@ export const CheckoutItemsStep = () => {
 	const { removeProduct, updateProductQty, productRows, itemRows, addItem } =
 		useCart();
 	const form = useFormContext<TransactionDraftValues>();
-	const categoriesQuery = useQuery(categoriesQueries.list());
-	const categoryMap = useMemo(
-		() =>
-			new Map(
-				(categoriesQuery.data ?? []).map((category) => [category.id, category]),
-			),
-		[categoriesQuery.data],
-	);
+	const categoryMap = useCategoryMap();
 
 	return (
 		<div className="grid gap-5">

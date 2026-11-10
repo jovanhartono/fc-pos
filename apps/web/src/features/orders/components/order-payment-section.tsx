@@ -1,4 +1,5 @@
 import {
+	type DiscountLine,
 	GATEWAY_LABELS,
 	isBogoSlot,
 	isDiscountSettled,
@@ -8,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
 	Controller,
 	FormProvider,
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { WaitingLabel } from "@/components/waiting-label";
-import { campaignsQueries } from "@/features/campaigns/api";
+import type { Campaign } from "@/features/campaigns/api";
 import {
 	fetchPaymentCharge,
 	type OrderDetail,
@@ -58,7 +59,7 @@ import {
 } from "@/features/transactions/cart/cart";
 import { CampaignTileGroup } from "@/features/transactions/components/campaign-tile-group";
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
-import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
+import { useAvailableCampaigns } from "@/features/transactions/hooks/useCheckoutPricing";
 import { onQrisPaid } from "@/lib/cache-events";
 import { formatClock } from "@/lib/dayjs";
 import { formatMoney, parseMoney } from "@/shared/money";
@@ -447,6 +448,111 @@ const collectPaymentSchema = paymentMethodSchema.extend({
 
 type CollectPaymentValues = z.infer<typeof collectPaymentSchema>;
 
+interface VoucherFieldProps {
+	lines: DiscountLine[];
+	storeId: number | undefined;
+	subtotal: number;
+}
+
+const VoucherField = ({ lines, storeId, subtotal }: VoucherFieldProps) => {
+	const { setValue } = useFormContext<CollectPaymentValues>();
+	const vouchers = useWatch<CollectPaymentValues, "vouchers">({
+		name: "vouchers",
+	});
+
+	return (
+		<VoucherCodeEntry
+			appliedVouchers={vouchers}
+			onChange={(next) =>
+				setValue("vouchers", next, {
+					shouldDirty: true,
+					shouldValidate: true,
+				})
+			}
+			lines={lines}
+			storeId={storeId}
+			subtotal={subtotal}
+		/>
+	);
+};
+
+interface CollectPaymentTotalsProps {
+	detail: OrderDetail;
+	eligibleCampaigns: Campaign[];
+	grossTotal: number;
+	serviceLines: DiscountLine[];
+}
+
+const CollectPaymentTotals = ({
+	detail,
+	eligibleCampaigns,
+	grossTotal,
+	serviceLines,
+}: CollectPaymentTotalsProps) => {
+	const campaignIds = useWatch<CollectPaymentValues, "campaignIds">({
+		name: "campaignIds",
+	});
+	const vouchers = useWatch<CollectPaymentValues, "vouchers">({
+		name: "vouchers",
+	});
+	const discount = useWatch<CollectPaymentValues, "discount">({
+		name: "discount",
+	});
+
+	const pricing = getCartPricing({
+		subtotal: grossTotal,
+		campaigns: [
+			...eligibleCampaigns.filter((campaign) =>
+				campaignIds.includes(String(campaign.id)),
+			),
+			...vouchers.map((entry) => entry.campaign),
+		],
+		serviceLines,
+		manualDiscount: discount,
+	});
+	const deliveryFee = parseMoney(detail.delivery_fee);
+	const toCollect = orderNetDue({
+		grossTotal,
+		discount: pricing.totalDiscount,
+		refunded: parseMoney(detail.refunded_amount),
+		deliveryFee,
+	});
+
+	return (
+		<>
+			{pricing.totalDiscount > 0 || deliveryFee > 0 ? (
+				<dl className="grid gap-1.5 text-body tabular-nums">
+					{pricing.campaignBreakdown.map(({ campaign, amount }) => (
+						<div className="flex justify-between gap-4" key={campaign.id}>
+							<dt className="text-muted-foreground">
+								{campaign.code} ({campaign.name})
+							</dt>
+							<dd className="text-destructive tabular-nums">
+								-{formatMoney(amount)}
+							</dd>
+						</div>
+					))}
+					{pricing.manualDiscount > 0 ? (
+						<div className="flex justify-between gap-4">
+							<dt className="text-muted-foreground">Manual discount</dt>
+							<dd className="text-destructive tabular-nums">
+								-{formatMoney(pricing.manualDiscount)}
+							</dd>
+						</div>
+					) : null}
+					{deliveryFee > 0 ? (
+						<div className="flex justify-between gap-4">
+							<dt className="text-muted-foreground">Delivery fee</dt>
+							<dd className="tabular-nums">{formatMoney(deliveryFee)}</dd>
+						</div>
+					) : null}
+				</dl>
+			) : null}
+			<ToCollectLine amount={toCollect} />
+		</>
+	);
+};
+
 interface CollectPaymentFormProps {
 	orderId: number;
 	detail: OrderDetail;
@@ -455,12 +561,18 @@ interface CollectPaymentFormProps {
 // ADR-0018: an Order that came in unpriced, like a Repair priced after
 // inspection, settles its discounts here with the payment.
 const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
-	const campaignsQuery = useQuery(
-		campaignsQueries.list({
-			store_id: detail.store_id ?? undefined,
-			is_active: true,
-		}),
+	const storeId = detail.store_id ?? undefined;
+	const grossTotal = parseMoney(detail.total);
+
+	// The server's own BOGO slot rule, so the preview matches what payment settles.
+	const serviceLines = flattenOrderLines(detail).flatMap((line) =>
+		line.service !== null && isBogoSlot(line)
+			? [{ price: parseMoney(line.price), service_id: line.service.id }]
+			: [],
 	);
+
+	const { campaignsQuery, availableCampaigns: eligibleCampaigns } =
+		useAvailableCampaigns(storeId, grossTotal, serviceLines);
 	const payment = usePaymentSubmit(orderId);
 
 	const form = useForm<CollectPaymentValues>({
@@ -471,67 +583,6 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 			vouchers: [],
 			discount: "",
 		},
-	});
-	const [campaignIds = [], vouchers = [], discount = ""] = useWatch<
-		CollectPaymentValues,
-		["campaignIds", "vouchers", "discount"]
-	>({
-		control: form.control,
-		name: ["campaignIds", "vouchers", "discount"],
-	});
-
-	const grossTotal = parseMoney(detail.total);
-	const refunded = parseMoney(detail.refunded_amount);
-	const storeId = detail.store_id ?? undefined;
-
-	// The server's own BOGO slot rule, so the preview matches what payment settles.
-	const serviceLines = useMemo(() => {
-		return flattenOrderLines(detail).flatMap((line) =>
-			line.service !== null && isBogoSlot(line)
-				? [{ price: parseMoney(line.price), service_id: line.service.id }]
-				: [],
-		);
-	}, [detail]);
-
-	// Same eligibility filter the POS checkout uses, against the order total.
-	const eligibleCampaigns = useMemo(
-		() =>
-			filterEligibleCampaigns(campaignsQuery.data, {
-				grossTotal,
-				lines: serviceLines,
-				storeId,
-			}),
-		[campaignsQuery.data, storeId, grossTotal, serviceLines],
-	);
-
-	const pricing = useMemo(
-		() =>
-			getCartPricing({
-				subtotal: grossTotal,
-				campaigns: [
-					...eligibleCampaigns.filter((campaign) =>
-						campaignIds.includes(String(campaign.id)),
-					),
-					...vouchers.map((entry) => entry.campaign),
-				],
-				serviceLines,
-				manualDiscount: discount,
-			}),
-		[
-			grossTotal,
-			eligibleCampaigns,
-			campaignIds,
-			vouchers,
-			serviceLines,
-			discount,
-		],
-	);
-	const deliveryFee = parseMoney(detail.delivery_fee);
-	const toCollect = orderNetDue({
-		grossTotal,
-		discount: pricing.totalDiscount,
-		refunded,
-		deliveryFee,
 	});
 
 	return (
@@ -568,14 +619,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 								}
 								selectedIds={field.value}
 							/>
-							<VoucherCodeEntry
-								appliedVouchers={vouchers}
-								onChange={(next) =>
-									form.setValue("vouchers", next, {
-										shouldDirty: true,
-										shouldValidate: true,
-									})
-								}
+							<VoucherField
 								lines={serviceLines}
 								storeId={storeId}
 								subtotal={grossTotal}
@@ -602,35 +646,12 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 					)}
 				/>
 
-				{pricing.totalDiscount > 0 || deliveryFee > 0 ? (
-					<dl className="grid gap-1.5 text-body tabular-nums">
-						{pricing.campaignBreakdown.map(({ campaign, amount }) => (
-							<div className="flex justify-between gap-4" key={campaign.id}>
-								<dt className="text-muted-foreground">
-									{campaign.code} ({campaign.name})
-								</dt>
-								<dd className="text-destructive tabular-nums">
-									-{formatMoney(amount)}
-								</dd>
-							</div>
-						))}
-						{pricing.manualDiscount > 0 ? (
-							<div className="flex justify-between gap-4">
-								<dt className="text-muted-foreground">Manual discount</dt>
-								<dd className="text-destructive tabular-nums">
-									-{formatMoney(pricing.manualDiscount)}
-								</dd>
-							</div>
-						) : null}
-						{deliveryFee > 0 ? (
-							<div className="flex justify-between gap-4">
-								<dt className="text-muted-foreground">Delivery fee</dt>
-								<dd className="tabular-nums">{formatMoney(deliveryFee)}</dd>
-							</div>
-						) : null}
-					</dl>
-				) : null}
-				<ToCollectLine amount={toCollect} />
+				<CollectPaymentTotals
+					detail={detail}
+					eligibleCampaigns={eligibleCampaigns}
+					grossTotal={grossTotal}
+					serviceLines={serviceLines}
+				/>
 				<PaymentMethodField />
 				<SubmitPaymentButton isPending={payment.isPending} />
 			</form>
