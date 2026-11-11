@@ -195,7 +195,8 @@ export async function listBusyHourRows({ range, storeId }: RangeArgs) {
     .select({ weekday, hour, collected: collected() })
     .from(ordersTable)
     .where(and(...paidOrderWindow({ range, storeId })))
-    .groupBy(weekday, hour);
+    .groupBy(weekday, hour)
+    .orderBy(weekday, hour);
 
   return rows.map((row) => ({
     weekday: Number(row.weekday),

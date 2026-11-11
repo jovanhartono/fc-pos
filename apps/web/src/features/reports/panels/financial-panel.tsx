@@ -297,6 +297,10 @@ const KpiGrid = ({ data }: MaybeDataProps) => {
 	const days = data
 		? Math.max(dayjs(data.to).diff(dayjs(data.from), "day") + 1, 1)
 		: 1;
+	// A shop that sold nothing last period had no Margin or rate to move from.
+	// Read as a percent, that change is unknown, so the card shows "—" like Per day.
+	const rateDeltaAs =
+		deltas?.gross_sales?.previous === 0 ? "percent" : "points";
 	return (
 		<KpiRow
 			className="sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6"
@@ -305,7 +309,7 @@ const KpiGrid = ({ data }: MaybeDataProps) => {
 			<KpiCard
 				comparisonLabel=""
 				delta={deltas?.margin ?? null}
-				deltaAs="points"
+				deltaAs={rateDeltaAs}
 				label="Margin"
 				value={percentFormatter.format(now?.margin ?? 0)}
 			/>
@@ -331,7 +335,7 @@ const KpiGrid = ({ data }: MaybeDataProps) => {
 			<KpiCard
 				comparisonLabel=""
 				delta={deltas?.discount_rate ?? null}
-				deltaAs="points"
+				deltaAs={rateDeltaAs}
 				isLowerBetter
 				label="Discount rate"
 				value={percentFormatter.format(now?.discount_rate ?? 0)}
@@ -339,7 +343,7 @@ const KpiGrid = ({ data }: MaybeDataProps) => {
 			<KpiCard
 				comparisonLabel=""
 				delta={deltas?.refund_rate ?? null}
-				deltaAs="points"
+				deltaAs={rateDeltaAs}
 				isLowerBetter
 				label="Refund rate"
 				value={percentFormatter.format(now?.refund_rate ?? 0)}
