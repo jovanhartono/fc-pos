@@ -86,7 +86,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       "2026-08-31T17:00:00.000Z",
       3,
     ],
-    "sql": "select (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int, COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int",
+    "sql": "select (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int, COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3)) group by (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int order by (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int",
   },
 ]
 `;
@@ -543,7 +543,7 @@ exports[`what each money report asks Postgres for the whole company asks the sam
       "2026-07-31T17:00:00.000Z",
       "2026-08-31T17:00:00.000Z",
     ],
-    "sql": "select (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int, COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int",
+    "sql": "select (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int, COALESCE(SUM("paid_amount"), 0) from "orders" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null))) group by (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int order by (EXTRACT(ISODOW FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') - 1)::int, EXTRACT(HOUR FROM ("orders"."paid_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta')::int",
   },
 ]
 `;
