@@ -35,6 +35,7 @@ const worker = (overrides: Partial<WorkerRow>): WorkerRow =>
 	({
 		user_id: 1,
 		user_name: "Ani",
+		avatar_url: null,
 		role: "worker",
 		store_id: 1,
 		store_name: "Kemang",
@@ -138,6 +139,7 @@ describe("the range joined with who is on the floor", () => {
 	): WorkerLiveRow => ({
 		user_id: 1,
 		user_name: "Ani",
+		avatar_url: null,
 		role: "worker",
 		store_id: 1,
 		store_name: "Kemang",

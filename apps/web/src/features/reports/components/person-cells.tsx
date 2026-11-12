@@ -1,39 +1,23 @@
 import type { ReactNode } from "react";
 import { oneDecimalFormatter } from "@/features/reports/utils/format";
-
-// "Mr. Jermain Hamill Jr." → "JH": titles and suffixes would make every
-// circle read "MJ" or "DF".
-const initialsOf = (name: string) =>
-	name
-		.split(/[\s-]+/)
-		.filter((part) => part && !part.endsWith("."))
-		.slice(0, 2)
-		.map((part) => part[0]?.toUpperCase())
-		.join("");
-
-interface InitialsProps {
-	name: string;
-}
-
-const Initials = ({ name }: InitialsProps) => (
-	<span
-		aria-hidden="true"
-		className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary font-medium text-caption"
-	>
-		{initialsOf(name)}
-	</span>
-);
+import { UserAvatar } from "@/features/users/components/user-avatar";
 
 interface PersonNameProps {
 	name: string;
+	avatarUrl?: string | null;
 	children: ReactNode;
 	detail?: ReactNode;
 }
 
-// A person's row title: initials, the name, and an optional line under it.
-export const PersonName = ({ name, children, detail }: PersonNameProps) => (
+// A person's row title: their photo or initials, the name, and an optional line under it.
+export const PersonName = ({
+	name,
+	avatarUrl,
+	children,
+	detail,
+}: PersonNameProps) => (
 	<span className="flex items-center gap-2.5">
-		<Initials name={name} />
+		<UserAvatar name={name} url={avatarUrl} />
 		<span className="grid min-w-0 gap-0.5">
 			<span className="font-medium lg:line-clamp-2">{children}</span>
 			{detail}

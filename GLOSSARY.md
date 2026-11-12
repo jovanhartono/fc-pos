@@ -86,7 +86,7 @@ One person doing bench work at one Store on one day: they clocked in there, or s
 _Avoid_: Shift-day, man-day, workday, attendance day
 
 **Password reset**:
-An admin setting a new password for another User in person, the only way a password ever changes.
+An admin setting a new password for another User in person, the only way back for someone who forgot theirs. A User who still knows theirs can change it on the Profile page (ADR-0022).
 _Avoid_: Forgot password, recovery, reset link
 
 ### Orders

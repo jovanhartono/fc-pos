@@ -203,6 +203,8 @@ export const tabBarItemsForRole = (role: Role) => {
 };
 
 const detailTitles: [string, string][] = [
+	["/profile/password", "Change Password"],
+	["/profile", "Profile"],
 	["/queue/", "Queue Detail"],
 	["/orders/", "Order Detail"],
 	["/complaints/", "Complaint Detail"],

@@ -631,10 +631,35 @@ export async function listRefundAmountSeries({
 const startLog = alias(orderServiceStatusLogsTable, "start_log");
 const passLog = alias(orderServiceStatusLogsTable, "pass_log");
 const qcCheckLog = alias(orderServiceStatusLogsTable, "qc_check_log");
+const workLog = alias(orderServiceStatusLogsTable, "work_log");
+
+// A worker on their own Profile page: only their rows, not the whole shop's.
+type ActivityArgs = RangeArgs & { userId?: number };
+
+const userScope = (column: Parameters<typeof eq>[0], userId?: number) =>
+  userId === undefined ? undefined : eq(column, userId);
+
+// Whoever started a line, and whoever cleaned the round that passed, both
+// moved it to processing, so this keeps every line their tallies can use.
+const workedOnBy = (userId?: number) =>
+  userId === undefined
+    ? undefined
+    : exists(
+        db
+          .select({ id: workLog.id })
+          .from(workLog)
+          .where(
+            and(
+              eq(workLog.order_service_id, ordersServicesTable.id),
+              eq(workLog.to_status, "processing"),
+              eq(workLog.changed_by, userId)
+            )
+          )
+      );
 
 // Every Service processed in the stretch, credited to whoever started it.
 function listProcessedLines<TDetail extends SelectedFields>(
-  { range, storeId }: RangeArgs,
+  { range, storeId, userId }: ActivityArgs,
   detail: TDetail
 ) {
   const processed = listServicesProcessed({ range, storeId }).as("processed");
@@ -664,6 +689,7 @@ function listProcessedLines<TDetail extends SelectedFields>(
         eq(startLog.to_status, "processing")
       )
     )
+    .where(workedOnBy(userId))
     .orderBy(processed.order_service_id, desc(startLog.created_at));
 }
 
@@ -718,7 +744,7 @@ function lineDetail() {
   };
 }
 
-function listShiftsInRange({ range, storeId }: RangeArgs) {
+function listShiftsInRange({ range, storeId, userId }: ActivityArgs) {
   return db
     .select({
       user_id: shiftsTable.user_id,
@@ -730,7 +756,8 @@ function listShiftsInRange({ range, storeId }: RangeArgs) {
     .where(
       and(
         ...timeWindow(shiftsTable.clock_in_at, range),
-        storeScope(shiftsTable.store_id, storeId)
+        storeScope(shiftsTable.store_id, storeId),
+        userScope(shiftsTable.user_id, userId)
       )
     );
 }
@@ -745,7 +772,7 @@ const BENCH_STATUSES = [
 // Days a person moved an Item through the bench, at the Order's Store. Workers
 // who rarely clock in still show a day worked. Pickups, refunds and cancels are
 // the counter's work, so they are left out.
-function listBenchMoveDays({ range, storeId }: RangeArgs) {
+function listBenchMoveDays({ range, storeId, userId }: ActivityArgs) {
   const day = jakartaBucketExpr(orderServiceStatusLogsTable.created_at, "day");
   return db
     .select({
@@ -763,7 +790,8 @@ function listBenchMoveDays({ range, storeId }: RangeArgs) {
       and(
         ...timeWindow(orderServiceStatusLogsTable.created_at, range),
         inArray(orderServiceStatusLogsTable.to_status, BENCH_STATUSES),
-        storeScope(ordersTable.store_id, storeId)
+        storeScope(ordersTable.store_id, storeId),
+        userScope(orderServiceStatusLogsTable.changed_by, userId)
       )
     )
     .groupBy(orderServiceStatusLogsTable.changed_by, ordersTable.store_id, day);
@@ -771,7 +799,7 @@ function listBenchMoveDays({ range, storeId }: RangeArgs) {
 
 // A pair Bayu redid after Adi's round was sent back is Bayu's next check, not
 // Adi's: each check goes to the round's cleaner, as the Quality tab names them.
-function listQcChecksByCleaner({ range, storeId }: RangeArgs) {
+function listQcChecksByCleaner({ range, storeId, userId }: ActivityArgs) {
   const checks = db
     .select({
       cleaner_id: sql<number | null>`${cleanerOfRound(qcCheckLog)}`.as(
@@ -799,11 +827,12 @@ function listQcChecksByCleaner({ range, storeId }: RangeArgs) {
       rejects: sql<number>`(COUNT(*) FILTER (WHERE ${checks.is_reject}))::int`,
     })
     .from(checks)
+    .where(userScope(checks.cleaner_id, userId))
     .groupBy(checks.cleaner_id, checks.store_id);
 }
 
 async function listActivity<TDetail extends SelectedFields>(
-  args: RangeArgs,
+  args: ActivityArgs,
   detail: TDetail
 ) {
   const [lines, shifts, moveDays, qcChecks] = await Promise.all([
@@ -815,7 +844,7 @@ async function listActivity<TDetail extends SelectedFields>(
   return { lines, shifts, moveDays, qcChecks };
 }
 
-export const listWorkerActivity = (args: RangeArgs) =>
+export const listWorkerActivity = (args: ActivityArgs) =>
   listActivity(args, lineDetail());
 
 export async function listProcessedLineStarts(args: RangeArgs) {
@@ -962,7 +991,12 @@ export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
 // alongside its other queries rather than waiting to learn which ids it needs.
 export function listUserNames() {
   return db
-    .select({ id: usersTable.id, name: usersTable.name, role: usersTable.role })
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      role: usersTable.role,
+      avatar_path: usersTable.avatar_path,
+    })
     .from(usersTable);
 }
 

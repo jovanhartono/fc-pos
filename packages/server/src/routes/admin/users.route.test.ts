@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
+import { BadRequestException } from "@/http-exceptions";
 import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
 
@@ -8,12 +9,31 @@ const BUDI = 42;
 const NOBODY = 99;
 
 const reset: { id: number; password: string }[] = [];
+const ownChanges: { userId: number; password: string }[] = [];
+const renamed: { id: number; name: string }[] = [];
 
 mock.module("@/modules/users/user.service", () => ({
+  changeOwnPassword: ({
+    userId,
+    currentPassword,
+    password,
+  }: {
+    userId: number;
+    currentPassword: string;
+    password: string;
+  }) => {
+    if (currentPassword !== "lama-sekali") {
+      return Promise.reject(new BadRequestException("Wrong password"));
+    }
+    ownChanges.push({ userId, password });
+    return Promise.resolve();
+  },
+  createAvatarPresign: () => ({ key: "k", upload_url: "u" }),
   createUser: () => Promise.resolve({ id: 1 }),
   getCouriers: () => Promise.resolve([{ id: 31, name: "Dedi" }]),
   getUserById: () => Promise.resolve(null),
   getUsers: () => Promise.resolve({ items: [], meta: {} }),
+  removeAvatar: () => Promise.resolve(null),
   resetUserPassword: ({ id, password }: { id: number; password: string }) => {
     if (id === NOBODY) {
       return Promise.resolve(null);
@@ -21,8 +41,17 @@ mock.module("@/modules/users/user.service", () => ({
     reset.push({ id, password });
     return Promise.resolve({ id, name: "Budi Santoso" });
   },
+  saveAvatar: () => Promise.resolve(null),
+  updateOwnName: (id: number, name: string) => {
+    renamed.push({ id, name });
+    return Promise.resolve({ id, name });
+  },
   updateUser: () => Promise.resolve(null),
   updateUserStores: () => Promise.resolve(null),
+}));
+
+mock.module("@/modules/users/user-performance.service", () => ({
+  getOwnPerformance: () => Promise.resolve({ role: "admin" }),
 }));
 
 const userRoutes = (await import("@/routes/admin/users")).default;
@@ -82,8 +111,77 @@ const resetPassword = (user: AuthUser, id: number, body: unknown) =>
     body: JSON.stringify(body),
   });
 
+const changeOwnPassword = (user: AuthUser, body: unknown) =>
+  appFor(user).request("/users/me/password", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
 beforeEach(() => {
   reset.length = 0;
+  ownChanges.length = 0;
+  renamed.length = 0;
+});
+
+describe("a worker on their own Profile page", () => {
+  it("renames only themselves", async () => {
+    const res = await appFor(wawan).request("/users/me", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Wawan Setiawan" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(renamed).toEqual([{ id: wawan.id, name: "Wawan Setiawan" }]);
+  });
+
+  it("refuses a blank name", async () => {
+    const res = await appFor(wawan).request("/users/me", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "   " }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(renamed).toEqual([]);
+  });
+
+  it("changes their own password after giving the current one", async () => {
+    const res = await changeOwnPassword(wawan, {
+      current_password: "lama-sekali",
+      password: "baru-sekali",
+      confirm_password: "baru-sekali",
+    });
+
+    expect(res.status).toBe(200);
+    expect(ownChanges).toEqual([{ userId: wawan.id, password: "baru-sekali" }]);
+  });
+
+  // A colleague on a phone left signed in at the counter doesn't know it.
+  it("says Wrong password when the current one is wrong", async () => {
+    const res = await changeOwnPassword(wawan, {
+      current_password: "tebak-saja",
+      password: "baru-sekali",
+      confirm_password: "baru-sekali",
+    });
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { message: string };
+    expect(body.message).toBe("Wrong password");
+    expect(ownChanges).toEqual([]);
+  });
+
+  it("rejects a confirmation that does not match", async () => {
+    const res = await changeOwnPassword(wawan, {
+      current_password: "lama-sekali",
+      password: "baru-sekali",
+      confirm_password: "baru-sekala",
+    });
+
+    expect(res.status).toBe(400);
+    expect(ownChanges).toEqual([]);
+  });
 });
 
 describe("an admin resetting a password for someone who forgot theirs", () => {

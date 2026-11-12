@@ -20,7 +20,7 @@ type Live = WorkerRow["live"];
 
 // The owner will set these lines in Settings (GitHub issue #159); until then a
 // QC reject or Complaint chip is coloured from this one block.
-const WORKER_TONES = {
+export const WORKER_TONES = {
 	// Under this many checks one reject swings the rate by 5 points or more.
 	minChecksForQcRate: 20,
 	qcGoodBelow: 0.08,

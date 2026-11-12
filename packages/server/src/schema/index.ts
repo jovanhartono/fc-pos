@@ -112,6 +112,17 @@ export const PUTUserPasswordSchema = passwordPairSchema.refine(
   confirmationMismatch
 );
 
+export const PATCHOwnProfileSchema = userSchema.pick({ name: true });
+
+export const PUTOwnPasswordSchema = z
+  .object({
+    current_password: z
+      .string("Enter your current password")
+      .min(1, "Enter your current password"),
+    ...passwordPairSchema.shape,
+  })
+  .refine(matchesConfirmation, confirmationMismatch);
+
 export const POSTOrderSchema = z
   .object({
     // POS sends the typed customer; the server find-or-creates by phone inside

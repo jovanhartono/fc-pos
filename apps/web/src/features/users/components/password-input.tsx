@@ -12,11 +12,11 @@ export const PasswordInput = ({ className, ...props }: PasswordInputProps) => {
 	return (
 		<div className="relative">
 			<Input
+				autoComplete="new-password"
 				{...props}
 				// Revealed, the field is a plain text input — on the counter iPad iOS
 				// would capitalise and autocorrect the password the admin is typing.
 				type={isRevealed ? "text" : "password"}
-				autoComplete="new-password"
 				autoCapitalize="off"
 				autoCorrect="off"
 				spellCheck={false}

@@ -17,7 +17,12 @@ import {
 	useRouter,
 	useRouterState,
 } from "@tanstack/react-router";
-import { type PropsWithChildren, useEffect, useState } from "react";
+import {
+	type PropsWithChildren,
+	type MouseEvent as ReactMouseEvent,
+	useEffect,
+	useState,
+} from "react";
 import {
 	HOME_NAV_ITEM,
 	type NavItem,
@@ -54,6 +59,7 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import { usersQueries } from "@/features/users/api";
+import { UserAvatar } from "@/features/users/components/user-avatar";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 
@@ -184,9 +190,63 @@ const HeaderBackButton = ({ to }: { to: LinkProps["to"] }) => {
 	);
 };
 
-function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
+interface FooterProfileLinkProps {
+	name: string;
+	role: string | undefined;
+	avatarUrl: string | null | undefined;
+}
+
+// Safari keeps a picture of each page for swipe back; leaving while More was
+// still closing kept the sheet in that picture.
+const useLeaveMoreThenGo = () => {
 	const { openMobile, closeMobileThen } = useSidebar();
 	const navigate = useNavigate();
+	return (to: NavItem["to"]) => (event: ReactMouseEvent) => {
+		if (!openMobile) {
+			return;
+		}
+		event.preventDefault();
+		closeMobileThen(() => navigate({ to }));
+	};
+};
+
+const FooterProfileLink = ({
+	name,
+	role,
+	avatarUrl,
+}: FooterProfileLinkProps) => {
+	const leaveMoreThenGo = useLeaveMoreThenGo();
+
+	return (
+		<SidebarMenuButton
+			className="min-w-0 flex-1 text-foreground"
+			render={
+				<Link
+					activeProps={{ "data-active": "true" }}
+					onClick={leaveMoreThenGo("/profile")}
+					to="/profile"
+				/>
+			}
+			size="lg"
+			tooltip="Profile"
+		>
+			<UserAvatar
+				className="size-8 text-footnote"
+				name={name}
+				url={avatarUrl}
+			/>
+			<span className="grid min-w-0 leading-tight">
+				<span className="truncate font-medium text-body">{name}</span>
+				<span className="truncate text-muted-foreground text-subhead capitalize">
+					{role ?? "—"}
+				</span>
+			</span>
+		</SidebarMenuButton>
+	);
+};
+
+function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
+	const leaveMoreThenGo = useLeaveMoreThenGo();
 	const router = useRouter();
 
 	return (
@@ -204,15 +264,7 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 									router.preloadRoute({ to: item.to }).catch(() => undefined);
 								}}
 								className="text-foreground"
-								onClick={(event) => {
-									if (!openMobile) {
-										return;
-									}
-									// Safari keeps a picture of each page for swipe back; leaving
-									// while More was still closing kept the sheet in that picture.
-									event.preventDefault();
-									closeMobileThen(() => navigate({ to: item.to }));
-								}}
+								onClick={leaveMoreThenGo(item.to)}
 								activeProps={{
 									"data-active": "true",
 									className: "text-foreground",
@@ -318,15 +370,12 @@ export function AppShell({ title, children }: AppShellProps) {
 				</SidebarContent>
 
 				<SidebarFooter className="border-sidebar-border border-t">
-					<div className="flex items-center gap-2.5 px-2 py-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0">
-						<div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-							<p className="truncate font-medium text-body leading-tight">
-								{user?.name ?? "Unknown User"}
-							</p>
-							<p className="truncate text-subhead capitalize leading-tight">
-								{role ?? "—"}
-							</p>
-						</div>
+					<div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
+						<FooterProfileLink
+							avatarUrl={meQuery.data?.avatar_url}
+							name={meQuery.data?.name ?? user?.name ?? "Unknown User"}
+							role={role}
+						/>
 						<div className="flex shrink-0 items-center gap-0.5 group-data-[collapsible=icon]:flex-col">
 							<FooterThemeButton />
 							<Button
@@ -372,6 +421,19 @@ export function AppShell({ title, children }: AppShellProps) {
 							onClick={openCommandBar}
 						/>
 						<HeaderRefreshButton />
+						<Button
+							aria-label="Profile"
+							icon={
+								<UserAvatar
+									name={meQuery.data?.name ?? user?.name ?? ""}
+									url={meQuery.data?.avatar_url}
+								/>
+							}
+							nativeButton={false}
+							render={<Link to="/profile" />}
+							size="icon"
+							variant="ghost"
+						/>
 					</div>
 				</div>
 				{/* Queue detail's Hold to Start Work bar rests on the window bottom

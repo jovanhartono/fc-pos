@@ -1,6 +1,10 @@
 import type { InferInsertModel } from "drizzle-orm";
 import type { usersTable } from "@/db/schema";
-import { ForbiddenException } from "@/http-exceptions";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from "@/http-exceptions";
 import {
   countUsers,
   findUserDetailById,
@@ -14,6 +18,13 @@ import {
 import type { GetUsersQuery } from "@/modules/users/user.schema";
 import type { JWTPayload } from "@/types";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
+import {
+  assertPhotoKeyUnder,
+  buildMediaUrl,
+  createPresignedUploadUrl,
+  newPhotoKey,
+  optimizeUploadedImage,
+} from "@/utils/s3";
 
 export async function createUser(payload: InferInsertModel<typeof usersTable>) {
   const passwordHash = await Bun.password.hash(payload.password ?? "");
@@ -58,8 +69,59 @@ export async function getUserById(id: number) {
     return null;
   }
 
-  const { password: _, ...safeUser } = user;
-  return safeUser;
+  const { password: _, avatar_path, ...safeUser } = user;
+  return { ...safeUser, avatar_url: buildMediaUrl(avatar_path) };
+}
+
+export async function updateOwnName(userId: number, name: string) {
+  await updateUserById(userId, { name });
+  return getUserById(userId);
+}
+
+// Asks for the current password so a colleague can't take over a phone left
+// signed in at the counter. Other devices stay signed in (ADR-0022).
+export async function changeOwnPassword({
+  userId,
+  currentPassword,
+  password,
+}: {
+  userId: number;
+  currentPassword: string;
+  password: string;
+}) {
+  const user = await findUserDetailById(userId);
+  if (!user) {
+    throw new NotFoundException("User not found");
+  }
+
+  const isCurrent = await Bun.password
+    .verify(currentPassword, user.password)
+    .catch(() => false);
+  if (!isCurrent) {
+    throw new BadRequestException("Wrong password");
+  }
+
+  await updateUserPasswordById(userId, await Bun.password.hash(password));
+}
+
+export function createAvatarPresign(userId: number, contentType: string) {
+  return createPresignedUploadUrl({
+    contentType,
+    key: newPhotoKey({ kind: "avatar", userId }),
+  });
+}
+
+// The replaced photo stays in storage, as every replaced photo does.
+export async function saveAvatar(userId: number, imagePath: string) {
+  assertPhotoKeyUnder(imagePath, { kind: "avatar", userId });
+  await optimizeUploadedImage(imagePath);
+  await updateUserById(userId, { avatar_path: imagePath });
+  return getUserById(userId);
+}
+
+export async function removeAvatar(userId: number) {
+  await updateUserById(userId, { avatar_path: null });
+  return getUserById(userId);
 }
 
 export async function updateUser({

@@ -9,6 +9,7 @@ import {
   campaignIdsSchema,
   currencySchema,
   dateStringSchema,
+  photoContentTypeSchema,
   voucherCodesSchema,
 } from "@/schema/common";
 import { QUEUE_CATEGORY_MODES } from "@/schema/queue";
@@ -39,14 +40,6 @@ export const orderItemPhotoParamSchema = zodValidator(
     photoId: z.coerce.number().int().positive(),
   })
 );
-
-const photoContentTypeSchema = z
-  .string()
-  .trim()
-  .refine(
-    (value) => ["image/jpeg", "image/png", "image/webp"].includes(value),
-    "Unsupported content type"
-  );
 
 export const POSTItemPhotoPresignSchema = z.object({
   content_type: photoContentTypeSchema,

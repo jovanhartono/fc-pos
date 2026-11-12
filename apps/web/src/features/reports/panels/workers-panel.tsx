@@ -92,6 +92,7 @@ export const WorkersPanel = ({
 			storeName: row.store_name,
 			userId: row.user_id,
 			userName: row.user_name,
+			avatarUrl: row.avatar_url,
 			role: row.role,
 		});
 	};
