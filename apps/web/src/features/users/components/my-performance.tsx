@@ -43,32 +43,34 @@ const FigureValueText = ({ value }: Pick<Figure, "value">) => {
 interface FigureRowProps {
 	figure: Figure;
 	comparedTo: string;
+	hasChangeLine: boolean;
 }
 
-const FigureRow = ({ figure, comparedTo }: FigureRowProps) => (
+const FigureRow = ({ figure, comparedTo, hasChangeLine }: FigureRowProps) => (
 	<li className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 py-2.5">
 		<span className="text-body">{figure.label}</span>
 		<span className="text-right font-medium text-headline tabular-nums">
 			<FigureValueText value={figure.value} />
 		</span>
-		{/* A line even when there's nothing to compare, so rows never change height. */}
-		<span className="col-start-2 text-right text-footnote text-muted-foreground tabular-nums">
-			{figure.change ? (
-				<>
-					<span
-						className={cn(
-							figure.change.isBetter === true && "text-tone-good-foreground",
-							figure.change.isBetter === false && "text-tone-bad-foreground",
-						)}
-					>
-						{figure.change.text}
-					</span>{" "}
-					{figure.change.isBetter === null ? "as" : "vs"} {comparedTo}
-				</>
-			) : (
-				" "
-			)}
-		</span>
+		{hasChangeLine ? (
+			<span className="col-start-2 text-right text-footnote text-muted-foreground tabular-nums">
+				{figure.change ? (
+					<>
+						<span
+							className={cn(
+								figure.change.isBetter === true && "text-tone-good-foreground",
+								figure.change.isBetter === false && "text-tone-bad-foreground",
+							)}
+						>
+							{figure.change.text}
+						</span>{" "}
+						{figure.change.isBetter === null ? "as" : "vs"} {comparedTo}
+					</>
+				) : (
+					" "
+				)}
+			</span>
+		) : null}
 	</li>
 );
 
@@ -108,8 +110,17 @@ export const MyPerformance = ({ role }: MyPerformanceProps) => {
 			performance.previous_window.from,
 			performance.previous_window.to,
 		);
-		rows = figuresOf(performance).map((figure) => (
-			<FigureRow comparedTo={comparedTo} figure={figure} key={figure.label} />
+		const figures = figuresOf(performance);
+		// New staff have nothing to compare yet; an empty line under every row
+		// would leave the list lopsided. One change anywhere keeps all rows level.
+		const hasChangeLine = figures.some((figure) => figure.change !== null);
+		rows = figures.map((figure) => (
+			<FigureRow
+				comparedTo={comparedTo}
+				figure={figure}
+				hasChangeLine={hasChangeLine}
+				key={figure.label}
+			/>
 		));
 	} else if (query.isError) {
 		rows = (

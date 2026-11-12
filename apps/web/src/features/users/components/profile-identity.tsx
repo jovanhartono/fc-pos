@@ -1,5 +1,7 @@
 import { PATCHOwnProfileSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -125,13 +127,17 @@ export const ProfileIdentity = ({ me }: ProfileIdentityProps) => {
 
 			<NameForm key={me.name} me={me} />
 
-			<Button
-				nativeButton={false}
-				render={<Link to="/profile/password" />}
-				variant="secondary"
+			<Link
+				className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2.5 text-body transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring pointer-coarse:min-h-11"
+				to="/profile/password"
 			>
 				Change Password
-			</Button>
+				<HugeiconsIcon
+					aria-hidden="true"
+					className="size-3.5 shrink-0 text-muted-foreground/50"
+					icon={ArrowRight01Icon}
+				/>
+			</Link>
 
 			<SinglePhotoUploadDialog
 				onOpenChange={setIsUploadOpen}

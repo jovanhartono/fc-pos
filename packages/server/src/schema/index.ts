@@ -61,13 +61,13 @@ export const normalizePhoneNumber = _normalizePhoneNumber;
 
 const passwordPairSchema = z.object({
   password: z
-    .string("Minimum 8 characters")
+    .string("Use at least 8 characters.")
     .trim()
-    .min(8, "Minimum 8 characters"),
+    .min(8, "Use at least 8 characters."),
   confirm_password: z
-    .string("Minimum 8 characters")
+    .string("Use at least 8 characters.")
     .trim()
-    .min(8, "Minimum 8 characters"),
+    .min(8, "Use at least 8 characters."),
 });
 
 const matchesConfirmation = (data: {
@@ -76,7 +76,7 @@ const matchesConfirmation = (data: {
 }) => data.password === data.confirm_password;
 
 const confirmationMismatch = {
-  error: "Password does not match",
+  error: "Passwords don't match.",
   path: ["confirm_password"],
   when: (payload: { value: unknown }) =>
     passwordPairSchema.safeParse(payload.value).success,
