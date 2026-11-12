@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, count, eq, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
@@ -66,11 +66,14 @@ export async function countShiftDays(userId: number, range: DateRange) {
 
 const qcLog = alias(orderServiceStatusLogsTable, "qc_log");
 
-export function countQcChecksDoneBy(userId: number, range: DateRange) {
-  return db.$count(
-    qcLog,
-    and(eq(qcLog.changed_by, userId), qualityCheckInRange(qcLog, { range }))
-  );
+export async function countQcChecksDoneBy(userId: number, range: DateRange) {
+  const [row] = await db
+    .select({ checks: count() })
+    .from(qcLog)
+    .where(
+      and(eq(qcLog.changed_by, userId), qualityCheckInRange(qcLog, { range }))
+    );
+  return row?.checks ?? 0;
 }
 
 export async function countCollectedBy(userId: number, range: DateRange) {
