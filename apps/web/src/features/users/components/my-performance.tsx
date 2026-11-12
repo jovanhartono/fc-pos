@@ -23,9 +23,8 @@ const PERIODS: { value: PerformancePeriod; label: string }[] = [
 	{ value: "last_month", label: "Last Month" },
 ];
 
-const ROLE_NOTES: Record<MeasuredRole, string> = {
+const ROLE_NOTES: Partial<Record<MeasuredRole, string>> = {
 	worker: "Services you finished, and the QC checks and Complaints on them.",
-	cashier: "Orders you created, Pickups you processed and QC checks you ran.",
 	courier: "Orders you collected from Customers.",
 };
 
@@ -115,7 +114,7 @@ export const MyPerformance = ({ role }: MyPerformanceProps) => {
 	} else if (query.isError) {
 		rows = (
 			<li className="py-2.5 text-body text-destructive">
-				Could not load your figures.
+				Couldn't load your figures. Check the connection.
 			</li>
 		);
 	}
@@ -137,7 +136,9 @@ export const MyPerformance = ({ role }: MyPerformanceProps) => {
 					</TabsList>
 				</Tabs>
 			</div>
-			<p className="text-muted-foreground text-subhead">{ROLE_NOTES[role]}</p>
+			{ROLE_NOTES[role] !== undefined && (
+				<p className="text-muted-foreground text-subhead">{ROLE_NOTES[role]}</p>
+			)}
 			<ul
 				aria-busy={query.isFetching}
 				className={cn(

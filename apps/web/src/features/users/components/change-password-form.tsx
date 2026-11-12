@@ -23,7 +23,7 @@ const FIELDS = [
 	{
 		name: "current_password",
 		label: "Current password",
-		hint: "The one you log in with now.",
+		hint: "The one you sign in with now.",
 		autoComplete: "current-password",
 	},
 	{
