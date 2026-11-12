@@ -25,7 +25,7 @@ const PERIODS: { value: PerformancePeriod; label: string }[] = [
 
 const ROLE_NOTES: Record<MeasuredRole, string> = {
 	worker: "Services you finished, and the QC checks and Complaints on them.",
-	cashier: "Orders you created, Pickups you handed over and QC checks you ran.",
+	cashier: "Orders you created, Pickups you processed and QC checks you ran.",
 	courier: "Orders you collected from Customers.",
 };
 

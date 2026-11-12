@@ -139,13 +139,13 @@ export const figuresOf = (performance: Measured): Figure[] => {
 		const { current: now, previous: before } = performance;
 		return [
 			countFigure("Orders created", now.orders_created, before.orders_created),
-			countFigure("Pickups handed over", now.pickups, before.pickups),
+			countFigure("Pickups processed", now.pickups, before.pickups),
 			countFigure(
 				"Pickup notices sent",
 				now.pickup_notices,
 				before.pickup_notices,
 			),
-			countFigure("Shift days", now.shift_days, before.shift_days),
+			countFigure("Shifts", now.shift_days, before.shift_days),
 			countFigure("QC checks done", now.qc_checks_done, before.qc_checks_done),
 		];
 	}
