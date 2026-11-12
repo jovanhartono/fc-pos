@@ -61,6 +61,7 @@ in-process limiter would reset with it — no in-process limiter is by design:
 - `/api/auth/login` — 10 requests per 60s per IP, deny
 - `/api/public/*` — 60 requests per 60s per IP, deny (Pro plan)
 - `/api/health` — 30 requests per 60s per IP, deny (Pro plan) — it opens a database connection per hit
+- `/api/admin/users/me/password` — 10 requests per 60s per IP, deny — slows guessing the current password from a stolen session
 
 ## Scheduled Jobs
 
