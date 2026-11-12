@@ -7,6 +7,7 @@ import {
   type CampaignEligibilityInput as _CampaignEligibilityInput,
   campaignIneligibilityReason as _campaignIneligibilityReason,
 } from "@/schema/campaign-eligibility";
+import { OTHER_CATEGORY_ID as _OTHER_CATEGORY_ID } from "@/schema/category-mix";
 import { clockInRequiresLocation as _clockInRequiresLocation } from "@/schema/clock-in";
 import {
   type ComplaintOutcome as _ComplaintOutcome,
@@ -56,6 +57,7 @@ export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
 export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
 export const WORKSHOP_SERVICE_STATUSES = _WORKSHOP_SERVICE_STATUSES;
 export const QUEUE_CATEGORY_MODES = _QUEUE_CATEGORY_MODES;
+export const OTHER_CATEGORY_ID = _OTHER_CATEGORY_ID;
 export type DerivedItemStatus = _DerivedItemStatus;
 export const isCollectableItemStatus = _isCollectableItemStatus;
 export const isHandedOverByPickup = _isHandedOverByPickup;

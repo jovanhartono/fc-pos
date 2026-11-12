@@ -57,6 +57,7 @@ import {
   rate,
   weekStartOf,
 } from "@/modules/reports/report-range.util";
+import { OTHER_CATEGORY_ID } from "@/schema/category-mix";
 import { complaintOutcome } from "@/schema/complaint";
 import { jakartaNow } from "@/utils/date";
 
@@ -319,7 +320,6 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   // columns.
   const STORE_CATEGORY_TOP_N = 6;
   const STORE_CATEGORY_MAX_STORES = 12;
-  const OTHER_CATEGORY_ID = -1;
 
   const globalCategoryTotals = new Map<
     number,
