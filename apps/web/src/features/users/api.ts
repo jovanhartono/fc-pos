@@ -1,19 +1,28 @@
 import type {
+	PATCHOwnProfileSchema,
 	POSTUserSchema,
+	PUTOwnPasswordSchema,
 	PUTUserPasswordSchema,
 	PUTUserSchema,
 } from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import {
+	type InferRequestType,
+	type InferResponseType,
+	parseResponse,
+} from "hono/client";
 import type { z } from "zod";
+import type { PhotoUploader } from "@/features/orders/utils/photo-upload";
 import {
 	type PaginatedData,
 	parseSuccessData,
 	toPaginated,
 	toSearchParams,
+	uploadFileToPresignedUrl,
 } from "@/lib/http";
 import {
 	REFERENCE_DATA_STALE_TIME,
+	REPORT_STALE_TIME,
 	SESSION_DATA_STALE_TIME,
 } from "@/lib/query-defaults";
 import { type rpc, rpcWithAuth } from "@/lib/rpc";
@@ -27,6 +36,17 @@ export type Courier = InferResponseType<
 >["data"][number];
 
 export type Me = InferResponseType<typeof rpc.api.admin.users.me.$get>["data"];
+
+export type OwnPerformance = InferResponseType<
+	typeof rpc.api.admin.users.me.performance.$get
+>["data"];
+
+export type PerformancePeriod = InferRequestType<
+	typeof rpc.api.admin.users.me.performance.$get
+>["query"]["period"];
+
+export type UpdateOwnProfilePayload = z.infer<typeof PATCHOwnProfileSchema>;
+export type ChangeOwnPasswordPayload = z.infer<typeof PUTOwnPasswordSchema>;
 
 export type FetchUsersQuery = {
 	limit?: number;
@@ -48,6 +68,8 @@ export const usersKeys = {
 	list: (query?: FetchUsersQuery) =>
 		[...usersKeys.lists(), query ?? {}] as const,
 	me: () => [...usersKeys.all, "me"] as const,
+	performance: (period: PerformancePeriod) =>
+		[...usersKeys.me(), "performance", period] as const,
 	couriers: () => [...usersKeys.all, "couriers"] as const,
 };
 
@@ -81,6 +103,17 @@ export const usersQueries = {
 			queryKey: usersKeys.me(),
 			queryFn: fetchMe,
 			staleTime: SESSION_DATA_STALE_TIME,
+		}),
+	performance: (period: PerformancePeriod) =>
+		queryOptions({
+			queryKey: usersKeys.performance(period),
+			queryFn: () =>
+				parseSuccessData<OwnPerformance>(
+					rpcWithAuth().api.admin.users.me.performance.$get({
+						query: { period },
+					}),
+				),
+			staleTime: REPORT_STALE_TIME,
 		}),
 	couriers: () =>
 		queryOptions({
@@ -116,6 +149,49 @@ export function resetUserPassword(
 			json: payload,
 		}),
 	);
+}
+
+export function updateOwnProfile(payload: UpdateOwnProfilePayload) {
+	return parseResponse(
+		rpcWithAuth().api.admin.users.me.$patch({ json: payload }),
+	);
+}
+
+export function changeOwnPassword(payload: ChangeOwnPasswordPayload) {
+	return parseResponse(
+		rpcWithAuth().api.admin.users.me.password.$put({ json: payload }),
+	);
+}
+
+export const avatarUploader: PhotoUploader = {
+	pushBytes: async ({ file, contentType, signal }) => {
+		const presigned = await parseSuccessData<{
+			key: string;
+			upload_url: string;
+		}>(
+			rpcWithAuth().api.admin.users.me.avatar.presign.$post({
+				json: { content_type: contentType },
+			}),
+		);
+		await uploadFileToPresignedUrl(
+			presigned.upload_url,
+			file,
+			contentType,
+			signal,
+		);
+		return presigned.key;
+	},
+	commit: async (key) => {
+		await parseResponse(
+			rpcWithAuth().api.admin.users.me.avatar.$put({
+				json: { image_path: key },
+			}),
+		);
+	},
+};
+
+export function removeAvatar() {
+	return parseResponse(rpcWithAuth().api.admin.users.me.avatar.$delete());
 }
 
 export function updateUserStores(id: number, payload: UpdateUserStoresPayload) {

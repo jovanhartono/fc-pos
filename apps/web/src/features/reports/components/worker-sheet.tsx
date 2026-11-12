@@ -39,6 +39,7 @@ import {
 	outOf,
 	splitTopServices,
 } from "@/features/reports/utils/workers-report";
+import { UserAvatar } from "@/features/users/components/user-avatar";
 import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { CONTENT_FADE } from "@/lib/content-fade";
 import { formatDay } from "@/lib/dayjs";
@@ -53,6 +54,7 @@ interface WorkerSheetTarget {
 	storeName: string;
 	userId: number;
 	userName: string;
+	avatarUrl: string | null;
 	role: string;
 }
 
@@ -62,7 +64,14 @@ export const useOpenWorkerSheet = () => {
 	const openSheet = useSheet((s) => s.openSheet);
 	return (target: WorkerSheetTarget) =>
 		openSheet({
-			title: <WorkerName name={target.userName} role={target.role} />,
+			title: (
+				<span className="flex items-center gap-2.5">
+					<UserAvatar name={target.userName} url={target.avatarUrl} />
+					<span>
+						<WorkerName name={target.userName} role={target.role} />
+					</span>
+				</span>
+			),
 			description: `${target.storeName} · ${rangeLabel(target.from, target.to)}`,
 			content: () => <WorkerSheetContent target={target} />,
 		});

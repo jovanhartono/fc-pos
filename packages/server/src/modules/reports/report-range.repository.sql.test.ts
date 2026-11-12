@@ -181,6 +181,17 @@ describe("what each money report asks Postgres for one store", () => {
   }
 });
 
+// A worker's Profile page reads only their own rows, across every Store.
+describe("what a worker's own figures ask Postgres for", () => {
+  it("asks for one person's lines, shifts, moves and QC checks", async () => {
+    expect(
+      await askedFor(() =>
+        repo.listWorkerActivity({ range: AUGUST, userId: 7 })
+      )
+    ).toMatchSnapshot();
+  });
+});
+
 describe("what each money report asks Postgres for the whole company", () => {
   // A Store filter left behind when nobody named a Store is as wrong as one
   // dropped, so both shapes are recorded.

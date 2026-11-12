@@ -1,10 +1,12 @@
 import { describe, expect, it, mock } from "bun:test";
 
 const written: { id: number; password: string }[] = [];
+const storedHash = await Bun.password.hash("lama-sekali");
 
 mock.module("@/modules/users/user.repository", () => ({
   countUsers: () => Promise.resolve(0),
-  findUserDetailById: () => Promise.resolve(null),
+  findUserDetailById: (id: number) =>
+    Promise.resolve(id === 42 ? { id, password: storedHash } : null),
   insertUser: () => Promise.resolve([]),
   listActiveCouriers: () => Promise.resolve([]),
   listUsers: () => Promise.resolve([]),
@@ -16,10 +18,42 @@ mock.module("@/modules/users/user.repository", () => ({
   },
 }));
 
-const { resetUserPassword } = await import("@/modules/users/user.service");
+const { changeOwnPassword, resetUserPassword } = await import(
+  "@/modules/users/user.service"
+);
+
+describe("changing your own password", () => {
+  it("refuses a wrong current password and writes nothing", async () => {
+    written.length = 0;
+    await expect(
+      changeOwnPassword({
+        userId: 42,
+        currentPassword: "tebak-saja",
+        password: "baru-sekali",
+      })
+    ).rejects.toThrow("Wrong password");
+    expect(written).toEqual([]);
+  });
+
+  it("stores a hash of the new one once the current one checks out", async () => {
+    written.length = 0;
+    await changeOwnPassword({
+      userId: 42,
+      currentPassword: "lama-sekali",
+      password: "baru-sekali",
+    });
+
+    const [stored] = written;
+    expect(stored.id).toBe(42);
+    expect(await Bun.password.verify("baru-sekali", stored.password)).toBe(
+      true
+    );
+  });
+});
 
 describe("resetting a password", () => {
   it("stores a hash, never what the admin typed", async () => {
+    written.length = 0;
     await resetUserPassword({ id: 42, password: "kucing-biru-42" });
 
     const [stored] = written;

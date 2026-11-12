@@ -40,6 +40,14 @@ export const textSchema = (field: string) =>
 
 export const isActiveSchema = z.boolean("Active status must be true or false");
 
+export const photoContentTypeSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => ["image/jpeg", "image/png", "image/webp"].includes(value),
+    "Unsupported content type"
+  );
+
 export const currencySchema = (field: string) =>
   z
     .string(`${field} is required`)

@@ -86,14 +86,14 @@ const userFormSchema = PUTUserSchema.extend({
 	if (data.password.length > 0 && data.password.length < 8) {
 		ctx.addIssue({
 			code: "custom",
-			message: "Minimum 8 characters",
+			message: "Use at least 8 characters.",
 			path: ["password"],
 		});
 	}
 	if (data.password !== data.confirm_password) {
 		ctx.addIssue({
 			code: "custom",
-			message: "Password does not match",
+			message: "Passwords don't match.",
 			path: ["confirm_password"],
 		});
 	}
@@ -203,7 +203,7 @@ function UsersPage() {
 		}
 
 		if (values.password.length < 8) {
-			form.setError("password", { message: "Minimum 8 characters" });
+			form.setError("password", { message: "Use at least 8 characters." });
 			return;
 		}
 

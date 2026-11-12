@@ -6,19 +6,34 @@ import {
   assertCanManageUsers,
 } from "@/modules/permissions/permissions";
 import {
+  GETPerformanceQuerySchema,
   GETUsersQuerySchema,
+  POSTAvatarPresignSchema,
+  PUTAvatarSchema,
   PUTUserStoresSchema,
 } from "@/modules/users/user.schema";
 import {
+  changeOwnPassword,
+  createAvatarPresign,
   createUser,
   getCouriers,
   getUserById,
   getUsers,
+  removeAvatar,
   resetUserPassword,
+  saveAvatar,
+  updateOwnName,
   updateUser,
   updateUserStores,
 } from "@/modules/users/user.service";
-import { POSTUserSchema, PUTUserPasswordSchema, PUTUserSchema } from "@/schema";
+import { getOwnPerformance } from "@/modules/users/user-performance.service";
+import {
+  PATCHOwnProfileSchema,
+  POSTUserSchema,
+  PUTOwnPasswordSchema,
+  PUTUserPasswordSchema,
+  PUTUserSchema,
+} from "@/schema";
 import { idParamSchema } from "@/schema/param";
 import type { AdminEnv } from "@/types/hono";
 import { success } from "@/utils/http";
@@ -58,6 +73,61 @@ const app = new Hono<AdminEnv>()
 
     return c.json(success(user));
   })
+  .patch("/me", zodValidator("json", PATCHOwnProfileSchema), async (c) => {
+    const { name } = c.req.valid("json");
+    const user = await updateOwnName(c.get("jwtPayload").id, name);
+
+    return c.json(success(user, "Name saved"));
+  })
+  .put(
+    "/me/password",
+    zodValidator("json", PUTOwnPasswordSchema),
+    async (c) => {
+      const { current_password, password } = c.req.valid("json");
+      await changeOwnPassword({
+        userId: c.get("jwtPayload").id,
+        currentPassword: current_password,
+        password,
+      });
+
+      return c.json(success(null, "Password changed"));
+    }
+  )
+  .post(
+    "/me/avatar/presign",
+    zodValidator("json", POSTAvatarPresignSchema),
+    (c) => {
+      const { content_type } = c.req.valid("json");
+      const signed = createAvatarPresign(c.get("jwtPayload").id, content_type);
+
+      return c.json(success(signed));
+    }
+  )
+  .put("/me/avatar", zodValidator("json", PUTAvatarSchema), async (c) => {
+    const { image_path } = c.req.valid("json");
+    const user = await saveAvatar(c.get("jwtPayload").id, image_path);
+
+    return c.json(success(user, "Photo saved"));
+  })
+  .delete("/me/avatar", async (c) => {
+    const user = await removeAvatar(c.get("jwtPayload").id);
+
+    return c.json(success(user, "Photo removed"));
+  })
+  .get(
+    "/me/performance",
+    zodValidator("query", GETPerformanceQuerySchema),
+    async (c) => {
+      const { id, role } = c.get("jwtPayload");
+      const performance = await getOwnPerformance({
+        userId: id,
+        role,
+        period: c.req.valid("query").period,
+      });
+
+      return c.json(success(performance));
+    }
+  )
   .get("/:id", idParamSchema, async (c) => {
     const actor = c.get("jwtPayload");
     assertCanManageUsers(actor);

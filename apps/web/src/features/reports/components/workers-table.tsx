@@ -133,6 +133,7 @@ const columnsFor = (now: number): DataTableColumnDef<WorkerRow>[] => [
 		meta: { width: { percent: 40, minRem: 14 } },
 		cell: ({ row }) => (
 			<PersonName
+				avatarUrl={row.original.avatar_url}
 				name={row.original.user_name}
 				detail={<LiveLine live={row.original.live} now={now} />}
 			>
@@ -219,6 +220,7 @@ const WorkerCard = ({ row, now, onOpen }: WorkerCardProps) => (
 		<span className="flex items-center gap-2">
 			<span className="min-w-0 flex-1">
 				<PersonName
+					avatarUrl={row.avatar_url}
 					name={row.user_name}
 					detail={<LiveLine live={row.live} now={now} />}
 				>

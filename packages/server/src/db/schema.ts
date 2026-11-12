@@ -31,6 +31,7 @@ export type UserRole = (typeof userRoleEnum.enumValues)[number];
 export const usersTable = pgTable(
   "users",
   {
+    avatar_path: varchar("avatar_path", { length: 512 }),
     can_process_pickup: boolean("can_process_pickup").default(false).notNull(),
     created_at: timestamp("created_at").defaultNow().notNull(),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),

@@ -27,7 +27,8 @@ import { cn } from "@/lib/utils";
 export interface PhotoLightboxItem {
 	alt: string;
 	canDelete?: boolean;
-	created_at: string;
+	// Absent on a profile photo, whose upload time isn't kept.
+	created_at?: string;
 	// Where the photo is filed, for Save. Absent on a preview nothing is filed for yet.
 	download?: PhotoDownloadRef;
 	id: number | string;
@@ -213,7 +214,7 @@ export const PhotoLightbox = ({
 	const imageCount = items.length;
 	const canNavigate = imageCount > 1;
 	const activeItem = items[activeIndex];
-	const takenAt = activeItem ? dayjs(activeItem.created_at) : null;
+	const takenAt = activeItem?.created_at ? dayjs(activeItem.created_at) : null;
 	const note = activeItem?.note?.trim();
 	const isConfirmingDelete =
 		activeItem !== undefined && confirmingDeleteId === activeItem.id;

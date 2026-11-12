@@ -43,6 +43,7 @@ import {
   UNPAID_AGE_KEYS,
 } from "@/modules/reports/report-range.repository";
 import {
+  type DateRange,
   daysBetween,
   deltaPct,
   derivePreviousRange,
@@ -60,6 +61,7 @@ import {
 import { OTHER_CATEGORY_ID } from "@/schema/category-mix";
 import { complaintOutcome } from "@/schema/complaint";
 import { jakartaNow } from "@/utils/date";
+import { buildMediaUrl } from "@/utils/s3";
 
 interface PeriodWindow {
   buckets: string[];
@@ -1157,6 +1159,7 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
       return {
         user_id: tally.user_id,
         user_name: user?.name ?? "Unknown",
+        avatar_url: buildMediaUrl(user?.avatar_path),
         role: user?.role ?? "unknown",
         store_id: tally.store_id,
         store_name: storeName.get(tally.store_id) ?? "Unknown",
@@ -1194,6 +1197,31 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
   };
 }
 
+// A worker's own Workers tab figures for their Profile page: the same tallies,
+// added up across every Store they worked at, with a day at two Stores counted once.
+export async function getOwnWorkerFacts(userId: number, range: DateRange) {
+  const activity = await listWorkerActivity({ range, userId });
+  const tallies = tallyWorkers(activity, (id) =>
+    id === userId ? "worker" : undefined
+  );
+  tallyComplaints(tallies, activity.lines);
+
+  const mine = tallies.filter((tally) => tally.user_id === userId);
+  const staffed = mine.filter((tally) => tally.days_worked.size > 0);
+  const days = new Set(staffed.flatMap((tally) => [...tally.days_worked]));
+  const staffedServices = sumBy(staffed, (tally) => tally.services_processed);
+  return {
+    services_processed: sumBy(mine, (tally) => tally.services_processed),
+    days_worked: days.size,
+    per_day_worked:
+      days.size > 0 ? round(staffedServices / days.size, 2) : null,
+    qc_checks: sumBy(mine, (tally) => tally.qc_checks),
+    qc_rejects: sumBy(mine, (tally) => tally.qc_rejects),
+    complaints: sumBy(mine, (tally) => tally.complaints),
+    complaint_cohort: sumBy(mine, (tally) => tally.complaint_cohort),
+  };
+}
+
 // Who is on the floor right now, apart from the range report so the Workers tab
 // can ask every minute on Last 30 days without rescanning the month each time.
 export async function getWorkerLiveReport({ store_id }: GetWorkerLiveQuery) {
@@ -1214,6 +1242,7 @@ export async function getWorkerLiveReport({ store_id }: GetWorkerLiveQuery) {
     return {
       user_id: tally.user_id,
       user_name: user?.name ?? "Unknown",
+      avatar_url: buildMediaUrl(user?.avatar_path),
       role: user?.role ?? "unknown",
       store_id: tally.store_id,
       store_name: storeName.get(tally.store_id) ?? "Unknown",

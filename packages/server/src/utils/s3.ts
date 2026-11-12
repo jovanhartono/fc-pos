@@ -33,9 +33,14 @@ export const ORDER_PHOTO_PREFIX = `${STORAGE_ENV_PREFIX}orders/`;
 
 export type PhotoScope =
   | { itemId: number; kind: "item"; orderId: number }
-  | { kind: "dropoff" | "pickup"; orderId: number };
+  | { kind: "dropoff" | "pickup"; orderId: number }
+  | { kind: "avatar"; userId: number };
 
 function photoScopePrefix(scope: PhotoScope): string {
+  // Outside orders/, so the nightly sweep never judges a staff photo against Orders.
+  if (scope.kind === "avatar") {
+    return `${STORAGE_ENV_PREFIX}users/${scope.userId}/avatar/`;
+  }
   const base = `${ORDER_PHOTO_PREFIX}${scope.orderId}/`;
   return scope.kind === "item"
     ? `${base}items/${scope.itemId}/`
