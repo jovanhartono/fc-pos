@@ -45,7 +45,7 @@ const QueueJobButton = ({
 	return (
 		<button
 			className={cn(
-				"grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
+				"grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-ring-inset",
 				// Steps in under the line it redoes, as on the Order sheet.
 				reworkRound !== null && "pt-1 pl-8",
 			)}

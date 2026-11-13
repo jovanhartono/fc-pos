@@ -77,7 +77,12 @@ const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 		});
 	};
 
-	return <EditRowButton onClick={() => handleOpenEditSheet(row.original)} />;
+	return (
+		<EditRowButton
+			label={`Edit ${row.original.name}`}
+			onClick={() => handleOpenEditSheet(row.original)}
+		/>
+	);
 };
 
 const columns: DataTableColumnDef<Category>[] = [

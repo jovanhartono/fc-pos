@@ -135,7 +135,10 @@ function StoresPage() {
 				mobileCard: { slot: "title-end" },
 			},
 			cell: ({ row }) => (
-				<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
+				<EditRowButton
+					label={`Edit ${row.original.name}`}
+					onClick={() => handleOpenEditSheet(row.original)}
+				/>
 			),
 		},
 	];

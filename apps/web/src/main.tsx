@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
+import { dropQueryString } from "@/lib/analytics";
 import { trackBackNavigation } from "@/lib/back-navigation";
 import { routeTree } from "@/routeTree.gen";
 import { useAuthStore } from "@/stores/auth-store";
@@ -170,7 +171,7 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
 	<StrictMode>
-		<ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+		<ThemeProvider>
 			<QueryClientProvider client={queryClient}>
 				<RouterProvider router={router} />
 				{ReactQueryDevtools ? (
@@ -181,7 +182,7 @@ createRoot(rootElement).render(
 						/>
 					</Suspense>
 				) : null}
-				<Analytics />
+				<Analytics beforeSend={dropQueryString} />
 			</QueryClientProvider>
 		</ThemeProvider>
 	</StrictMode>,
