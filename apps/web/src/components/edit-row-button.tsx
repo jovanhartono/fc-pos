@@ -3,15 +3,20 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 
 interface EditRowButtonProps {
+	label: string;
 	onClick: () => void;
 	disabled?: boolean;
 }
 
-export const EditRowButton = ({ onClick, disabled }: EditRowButtonProps) => (
+export const EditRowButton = ({
+	label,
+	onClick,
+	disabled,
+}: EditRowButtonProps) => (
 	<Button
 		variant="outline"
 		size="icon-sm"
-		aria-label="Edit"
+		aria-label={label}
 		title="Edit"
 		disabled={disabled}
 		onClick={onClick}

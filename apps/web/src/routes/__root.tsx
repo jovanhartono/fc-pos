@@ -13,6 +13,7 @@ import { GlobalSheet } from "@/components/ui/global-sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsCoarsePointer } from "@/hooks/use-mobile";
+import { dropQueryString } from "@/lib/analytics";
 
 export interface RouterContext {
 	queryClient: QueryClient;
@@ -52,13 +53,13 @@ function RootComponent() {
 			    than push it past the bottom of the screen. */}
 			<div className="flex h-dvh flex-col">
 				<OfflineBanner />
-				<main className="min-h-0 flex-1 overflow-auto bg-background text-foreground">
+				<div className="min-h-0 flex-1 overflow-auto bg-background text-foreground">
 					<Outlet />
-				</main>
+				</div>
 			</div>
 			<GlobalSheet />
 			<GlobalDialog />
-			<SpeedInsights route={route} />
+			<SpeedInsights route={route} beforeSend={dropQueryString} />
 		</TooltipProvider>
 	);
 }

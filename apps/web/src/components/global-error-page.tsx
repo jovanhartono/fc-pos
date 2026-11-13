@@ -65,9 +65,9 @@ const GlobalErrorPage = (props: ErrorComponentProps) => {
 	}, []);
 
 	return (
-		<div className="grid min-h-dvh place-items-center bg-background px-4 py-10">
+		<main className="grid min-h-dvh place-items-center bg-background px-4 py-10">
 			<ErrorCard {...props} />
-		</div>
+		</main>
 	);
 };
 

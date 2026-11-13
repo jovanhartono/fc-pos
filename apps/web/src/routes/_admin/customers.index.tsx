@@ -103,7 +103,10 @@ function CustomersPage() {
 				<>
 					{row.original.name}
 					<span className="ml-2 inline-flex align-middle lg:hidden">
-						<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
+						<EditRowButton
+							label={`Edit ${row.original.name}`}
+							onClick={() => handleOpenEditSheet(row.original)}
+						/>
 					</span>
 				</>
 			),
@@ -153,7 +156,10 @@ function CustomersPage() {
 				mobileCard: { slot: "hidden" },
 			},
 			cell: ({ row }) => (
-				<EditRowButton onClick={() => handleOpenEditSheet(row.original)} />
+				<EditRowButton
+					label={`Edit ${row.original.name}`}
+					onClick={() => handleOpenEditSheet(row.original)}
+				/>
 			),
 		},
 	];

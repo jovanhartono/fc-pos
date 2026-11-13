@@ -62,6 +62,9 @@ export function UserForm({
 								{...field}
 								id="user-username"
 								placeholder="e.g. cashier01"
+								autoCapitalize="none"
+								autoCorrect="off"
+								spellCheck={false}
 								aria-invalid={fieldState.invalid}
 								disabled={isSubmitting || isEditing}
 							/>

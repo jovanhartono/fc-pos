@@ -33,7 +33,7 @@ export function LoginForm({
 	isSubmitting,
 }: LoginFormProps) {
 	return (
-		<div className="grid min-h-dvh place-items-center bg-background px-4">
+		<main className="grid min-h-dvh place-items-center bg-background px-4">
 			<form
 				className="grid w-full max-w-sm gap-4"
 				onSubmit={handleSubmit(onSubmit)}
@@ -48,6 +48,9 @@ export function LoginForm({
 						<Input
 							id="username"
 							autoComplete="username"
+							autoCapitalize="none"
+							autoCorrect="off"
+							spellCheck={false}
 							placeholder="Username"
 							aria-invalid={!!errors.username}
 							className={GROUPED_INPUT_CLASS}
@@ -79,6 +82,6 @@ export function LoginForm({
 					Sign In
 				</Button>
 			</form>
-		</div>
+		</main>
 	);
 }

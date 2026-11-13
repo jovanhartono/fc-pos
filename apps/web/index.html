@@ -22,6 +22,23 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#252525" />
+  <meta name="color-scheme" content="light dark" />
+  <!-- Sets the theme before the first paint, so a phone in dark mode doesn't
+       open on a white screen. ThemeProvider takes over once React runs. -->
+  <script>
+    {
+      let stored = null;
+      try {
+        stored = localStorage.getItem("vite-ui-theme");
+      } catch {
+        // storage blocked: follow the phone
+      }
+      const isDark =
+        stored === "dark" ||
+        (stored !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.classList.toggle("dark", isDark);
+    }
+  </script>
 </head>
 
 <body>
