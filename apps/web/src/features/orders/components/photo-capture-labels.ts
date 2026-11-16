@@ -29,7 +29,7 @@ export interface PhotoCaptureLabels {
 
 const progressLabel = (verb: string, progress: PhotoCaptureProgress | null) =>
 	progress && progress.total > 1
-		? `${verb} ${progress.done + 1}/${progress.total}...`
+		? `${verb} ${progress.done + 1} of ${progress.total}...`
 		: `${verb}...`;
 
 export const resolvePhotoCaptureLabels = ({

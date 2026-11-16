@@ -55,7 +55,7 @@ export function TablePagination({
 	// Before the first page lands the pager is drawn disabled at its full height,
 	// so it doesn't pop in under the rows.
 	const range = meta
-		? `${formatCount(meta.total === 0 ? 0 : meta.offset + 1)}–${formatCount(Math.min(meta.offset + meta.limit, meta.total))}/${formatCount(meta.total)}`
+		? `${formatCount(meta.total === 0 ? 0 : meta.offset + 1)}–${formatCount(Math.min(meta.offset + meta.limit, meta.total))} of ${formatCount(meta.total)}`
 		: "–";
 
 	return (

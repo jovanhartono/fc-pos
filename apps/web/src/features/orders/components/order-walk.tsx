@@ -102,7 +102,7 @@ export const OrderWalk = ({ openId, onClose, onSelect }: OrderWalkProps) => {
 			/>
 			<span className="ml-1 tabular-nums">
 				{openIndex >= 0
-					? `Order ${openIndex + 1}/${orders.length}`
+					? `Order ${openIndex + 1} of ${orders.length}`
 					: "Not on this page"}
 			</span>
 			<Button

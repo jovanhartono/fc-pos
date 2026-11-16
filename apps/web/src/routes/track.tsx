@@ -136,7 +136,7 @@ const StatusCard = ({
 			) : readyCount > 0 ? (
 				<p className="text-headline">
 					<span className="tabular-nums">
-						{readyCount}/{pendingCount}
+						{readyCount} of {pendingCount}
 					</span>{" "}
 					Items done. Collect them now with code{" "}
 					<span className="font-medium tabular-nums">{pickupCode}</span>.
