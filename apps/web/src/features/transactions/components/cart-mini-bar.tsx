@@ -40,11 +40,11 @@ export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 	return (
 		// min-w-0 here and on the button row, or a long label widens the whole
 		// page past a phone's screen instead of truncating.
-		<div className="pointer-events-none sticky bottom-0 z-40 grid min-w-0 gap-1 px-1">
+		<div className="pointer-events-none sticky bottom-0 z-40 mt-auto grid min-w-0 gap-1 px-1">
 			{/* Without the peek, dropping a mis-tapped line means typing a Customer
 			    first; capped so an open Cart cannot bury the catalog. */}
 			{isPeeking ? (
-				<div className="pointer-events-auto max-h-[40dvh] overflow-y-auto overscroll-contain rounded-lg border border-border/70 bg-card/70 px-3 py-2 backdrop-blur-xl">
+				<div className="pointer-events-auto max-h-[40dvh] overflow-y-auto rounded-lg border border-border/70 bg-card/70 px-3 py-2 backdrop-blur-xl">
 					<CartLines />
 				</div>
 			) : null}
@@ -79,7 +79,9 @@ export const CartMiniBar = ({ onOpen }: CartMiniBarProps) => {
 					size="lg"
 					type="button"
 				>
-					<span className="font-semibold">{formatMoney(subtotal)}</span>
+					<span className="font-medium tabular-nums">
+						{formatMoney(subtotal)}
+					</span>
 					<span className="font-medium">Check Out</span>
 				</Button>
 			</div>

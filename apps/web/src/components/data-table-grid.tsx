@@ -37,6 +37,7 @@ interface DataTableGridProps<TData extends RowData> {
 	skeletonLines?: 1 | 2 | "wrapped";
 	emptyIcon: IconSvgElement;
 	emptyMessage: string;
+	noMatch?: ReactNode;
 	sortable: boolean;
 	getRowLink?: (row: TData) => LinkProps;
 	onRowOpen?: (row: TData) => void;
@@ -71,6 +72,7 @@ export const DataTableGrid = <TData extends RowData>({
 	skeletonLines = 2,
 	emptyIcon,
 	emptyMessage,
+	noMatch,
 	sortable,
 	getRowLink,
 	onRowOpen,
@@ -186,9 +188,11 @@ export const DataTableGrid = <TData extends RowData>({
 			>
 				{/* Column names over no rows read as a broken box, so an empty list
 				    hides them but keeps their row, and its message sits where the
-				    first row would. */}
+				    first row would. A search with no match keeps them: it's the same table. */}
 				<TableHeader
-					className={cn(!isLoading && rowCount === 0 && "invisible")}
+					className={cn(
+						!isLoading && rowCount === 0 && !noMatch && "invisible",
+					)}
 				>
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow
@@ -359,9 +363,11 @@ export const DataTableGrid = <TData extends RowData>({
 								colSpan={columnCount}
 								className="whitespace-normal p-0"
 							>
-								<EmptyState icon={emptyIcon} isInset>
-									{emptyMessage}
-								</EmptyState>
+								{noMatch ?? (
+									<EmptyState icon={emptyIcon} isInset>
+										{emptyMessage}
+									</EmptyState>
+								)}
 							</TableCell>
 						</TableRow>
 					)}

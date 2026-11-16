@@ -52,7 +52,6 @@ export const useOpenQrisDialog = (orderId: number) => {
 	) =>
 		openDialog({
 			title: `QRIS · ${GATEWAY_LABELS[gateway]}`,
-			contentClassName: "sm:max-w-sm",
 			content: () => <QrisChargeDialog orderId={orderId} {...props} />,
 		});
 
@@ -254,7 +253,7 @@ interface ChargeAmountProps {
 }
 
 const ChargeAmount = ({ amount }: ChargeAmountProps) => (
-	<p className="text-center font-semibold text-title-1 tabular-nums">
+	<p className="text-center font-medium text-title-1 tabular-nums">
 		{formatMoney(amount)}
 	</p>
 );

@@ -309,7 +309,7 @@ function CampaignsPage() {
 				<span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
 					{row.original.name}
 					{row.original.redemption_mode === "code" && (
-						<Badge variant="info">Voucher</Badge>
+						<span className="text-footnote text-muted-foreground">Voucher</span>
 					)}
 				</span>
 			),

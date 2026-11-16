@@ -87,7 +87,7 @@ const CampaignTile = ({
 }: CampaignTileProps) => (
 	<label
 		className={cn(
-			"flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
+			"flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] motion-reduce:active:scale-100 has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
 			isSelected
 				? "border-success/40 bg-tone-good text-foreground"
 				: "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",

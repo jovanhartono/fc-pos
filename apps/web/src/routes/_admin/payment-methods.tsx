@@ -152,7 +152,7 @@ function PaymentMethodsPage() {
 						onClick={handleOpenCreateSheet}
 						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
 					>
-						Add Method
+						Add Payment Method
 					</Button>
 				}
 			/>

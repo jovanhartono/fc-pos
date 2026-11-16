@@ -94,6 +94,9 @@
 	--chart-average: #3c3c43;
 	--frost: rgb(255 255 255 / 0.72);
 	--glass: rgb(246 246 248 / 0.85);
+	/* The photo viewer is black in both themes, so its controls keep one grey glass. */
+	--photo-glass: rgb(39 39 42 / 0.6);
+	--photo-glass-hover: rgb(63 63 70 / 0.7);
 	--link: #0066cc;
 	/* WhatsApp's own #25d366 fails white text, so the customer's contact button
 	   uses a darker green that reads. */
@@ -165,7 +168,7 @@
 	--soft-bar-track: #38383a;
 	--chart-other: #48484a;
 	--chart-average: #ebebf5;
-	--frost: rgb(22 22 24 / 0.72);
+	--frost: rgb(0 0 0 / 0.72);
 	--glass: rgb(44 44 46 / 0.85);
 	--link: #2997ff;
 	--whatsapp: #1a7f37;
@@ -216,6 +219,8 @@
 	--color-soft-bar-track: var(--soft-bar-track);
 	--color-frost: var(--frost);
 	--color-glass: var(--glass);
+	--color-photo-glass: var(--photo-glass);
+	--color-photo-glass-hover: var(--photo-glass-hover);
 	--color-whatsapp: var(--whatsapp);
 	--color-ring: var(--ring);
 	--color-input: var(--input);

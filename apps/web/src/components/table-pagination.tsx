@@ -13,6 +13,8 @@ import type { PaginationMeta } from "@/lib/http";
 import { isListKeyBlocked } from "@/lib/list-keys";
 import { PAGE_SIZES, type PageSize } from "@/lib/page-size";
 
+const formatCount = (count: number) => count.toLocaleString("en-ID");
+
 type TablePaginationProps = {
 	meta?: PaginationMeta;
 	isLoading?: boolean;
@@ -53,16 +55,12 @@ export function TablePagination({
 	// Before the first page lands the pager is drawn disabled at its full height,
 	// so it doesn't pop in under the rows.
 	const range = meta
-		? `${meta.total === 0 ? 0 : meta.offset + 1}-${Math.min(meta.offset + meta.limit, meta.total)} of ${meta.total}`
+		? `${formatCount(meta.total === 0 ? 0 : meta.offset + 1)}–${formatCount(Math.min(meta.offset + meta.limit, meta.total))} of ${formatCount(meta.total)}`
 		: "–";
 
 	return (
 		<div className="flex items-center justify-between gap-3">
-			<div className="flex items-center gap-3">
-				<p className="text-muted-foreground text-footnote tabular-nums">
-					<span className="max-sm:hidden">Showing </span>
-					{range}
-				</p>
+			<div className="flex min-w-0 items-center gap-3">
 				{pageSize && onPageSizeChange ? (
 					<Select
 						value={String(pageSize)}
@@ -93,6 +91,10 @@ export function TablePagination({
 						</SelectContent>
 					</Select>
 				) : null}
+				{/* A phone has no room for a deep page's range; "58 / 60" says enough. */}
+				<p className="whitespace-nowrap text-muted-foreground text-footnote tabular-nums max-sm:hidden">
+					Showing {range}
+				</p>
 			</div>
 			<div className="flex items-center gap-2">
 				<Button

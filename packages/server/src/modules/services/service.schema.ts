@@ -16,7 +16,7 @@ export const POSTServiceSchema = z.object({
           ? "Category is required"
           : "Category must be a number",
     })
-    .positive("Category must be a valid category ID"),
+    .positive("Category is required"),
 
   code: z
     .string({

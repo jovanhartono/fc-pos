@@ -8,7 +8,7 @@ export const POSTStoreDeviceSchema = z.object({
   name: z
     .string({ error: "Device name is required" })
     .max(64, "Device name must be at most 64 characters")
-    .refine((name) => name.trim().length > 0, "Device name cannot be empty"),
+    .refine((name) => name.trim().length > 0, "Device name is required"),
   label: optionalVarcharSchema("Label", 64),
 });
 

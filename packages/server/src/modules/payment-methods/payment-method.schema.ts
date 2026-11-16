@@ -5,7 +5,7 @@ import { PAYMENT_GATEWAYS } from "@/modules/payments/gateways/types";
 import { isActiveSchema, varcharSchema } from "@/schema/common";
 
 export const POSTPaymentMethodSchema = z.object({
-  name: varcharSchema("Payment Method"),
+  name: varcharSchema("Name"),
   code: varcharSchema("Code"),
   is_active: isActiveSchema,
   gateway: z.enum(PAYMENT_GATEWAYS).nullable().optional(),

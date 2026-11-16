@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import { useUpdateOrderCourierMutation } from "@/features/orders/hooks/useOrderMutations";
@@ -49,23 +50,19 @@ export const OrderCourierForm = ({
 				placeholder="Walk-in (no courier)"
 				value={selectedCourierId || "none"}
 			/>
-			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-				<Button
-					disabled={courierMutation.isPending}
-					onClick={closeDialog}
-					type="button"
-					variant="outline"
-				>
-					Go Back
-				</Button>
-				<Button
-					disabled={courierMutation.isPending || !isDirty}
-					onClick={handleSave}
-					type="button"
-				>
-					{courierMutation.isPending ? "Saving…" : "Save Courier"}
-				</Button>
-			</div>
+			<DialogFormActions
+				submit={
+					<Button
+						disabled={courierMutation.isPending || !isDirty}
+						onClick={handleSave}
+						type="button"
+					>
+						{courierMutation.isPending ? "Saving…" : "Save Courier"}
+					</Button>
+				}
+				onCancel={closeDialog}
+				isPending={courierMutation.isPending}
+			/>
 		</div>
 	);
 };

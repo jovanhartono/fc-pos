@@ -33,9 +33,21 @@ describe("readServerErrorMessage", () => {
 		);
 	});
 
-	test("a dropped connection still says something", () => {
-		expect(readServerErrorMessage(new Error("Failed to fetch"))).toBe(
-			"Failed to fetch",
+	test("a dropped connection says to check it, not the browser's wording", () => {
+		expect(readServerErrorMessage(new TypeError("Load failed"))).toBe(
+			"Couldn't save. Check the connection.",
+		);
+		expect(
+			readServerErrorMessage(new TypeError("Failed to fetch"), "Couldn't load"),
+		).toBe("Couldn't load. Check the connection.");
+	});
+
+	test("a code bug or a bare status is not blamed on the connection", () => {
+		expect(
+			readServerErrorMessage(new TypeError("x is undefined"), "Couldn't load"),
+		).toBe("x is undefined");
+		expect(readServerErrorMessage(new DetailedError("502 Bad Gateway"))).toBe(
+			"Couldn't save",
 		);
 	});
 

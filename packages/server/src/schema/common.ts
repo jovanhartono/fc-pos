@@ -15,7 +15,7 @@ export const varcharSchema = (field: string, maxLength = 255) =>
           : `${field} must be a string`,
     })
     .trim()
-    .min(1, `${field} cannot be empty`)
+    .min(1, `${field} is required`)
     .max(maxLength, `${field} must be at most ${maxLength} characters`);
 
 export const optionalVarcharSchema = (field: string, maxLength = 255) =>

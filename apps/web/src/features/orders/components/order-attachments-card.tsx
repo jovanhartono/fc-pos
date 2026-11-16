@@ -120,7 +120,9 @@ const DropoffAttachment = ({
 				}
 				line2={
 					<button
-						className="inline-flex h-9 items-center gap-1.5 text-link disabled:text-muted-foreground pointer-coarse:h-11"
+						// Full tap height, but laid out as one text line so it sits level
+						// with "No pickups yet" and the card's padding stays even.
+						className="-my-2.25 flex h-9 w-fit items-center gap-1.5 text-link disabled:text-muted-foreground pointer-coarse:-my-3.25 pointer-coarse:h-11"
 						disabled={!canManage}
 						onClick={() => setIsDialogOpen(true)}
 						type="button"

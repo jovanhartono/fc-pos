@@ -132,7 +132,7 @@ export const CheckoutItemsStep = () => {
 									+
 								</Button>
 							</div>
-							<p className="text-body font-semibold">
+							<p className="text-body font-medium tabular-nums">
 								{formatMoney(parseMoney(line.product.price) * line.qty)}
 							</p>
 						</div>
@@ -204,7 +204,7 @@ const CheckoutTreatmentRow = ({
 				<span className="min-w-0 flex-1 text-body">{line.service.name}</span>
 				<span className="flex shrink-0 items-center gap-2">
 					{isUnpriced ? <Badge variant="warning">No price yet</Badge> : null}
-					<span className="text-body font-semibold tabular-nums">
+					<span className="text-body font-medium tabular-nums">
 						{formatMoney(getServiceLinePrice(line))}
 					</span>
 					{/* For a tap that landed on the wrong shoe: moves the line with its
@@ -331,7 +331,7 @@ const CheckoutItemCard = ({
 	return (
 		<article className="overflow-hidden rounded-md border border-border/70">
 			<header className="flex items-center gap-3 px-3 pt-2">
-				<h3 className="min-w-0 flex-1 truncate font-medium text-body">
+				<h3 className="min-w-0 flex-1 wrap-break-word font-medium text-body">
 					{descriptors ?? "New item"}
 				</h3>
 				{/* Words, not the ✕: that one drops a single Service, and the two
@@ -438,7 +438,7 @@ const CheckoutDropoffPhotoField = () => {
 					<div>
 						<p className="font-medium">Drop-off photo</p>
 						<p className="text-footnote text-muted-foreground">
-							{hasPhoto ? "Captured" : "Required · capture items at intake"}
+							{hasPhoto ? "Captured" : "Not taken"}
 						</p>
 					</div>
 				</div>

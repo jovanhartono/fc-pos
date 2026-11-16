@@ -123,7 +123,7 @@ const StoreMixRow = ({
 					<span className="font-normal text-subhead tabular-nums">
 						{row.store_code}
 					</span>
-					<span className="truncate">{row.store_name}</span>
+					<span className="wrap-break-word min-w-0">{row.store_name}</span>
 				</span>
 				<span className="shrink-0 text-body tabular-nums">
 					{cell

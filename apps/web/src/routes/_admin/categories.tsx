@@ -55,7 +55,6 @@ const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
 	const handleOpenEditSheet = (category: Category) => {
 		openSheet({
 			title: "Edit Category",
-			description: `Editing ID ${category.id}`,
 			content: () => (
 				<CategoryForm
 					defaultValues={{

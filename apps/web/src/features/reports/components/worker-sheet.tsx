@@ -2,6 +2,7 @@ import {
 	CancelCircleIcon,
 	LinkSquare02Icon,
 	MessageCircleWarningIcon,
+	ToolsIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -139,9 +140,7 @@ interface ServicesTableProps {
 const ServicesTable = ({ services, topIds }: ServicesTableProps) => {
 	if (services.length === 0) {
 		return (
-			<p className="text-muted-foreground text-body">
-				Nothing reached QC in range.
-			</p>
+			<EmptyState icon={ToolsIcon}>Nothing reached QC in range.</EmptyState>
 		);
 	}
 	const total = services.reduce((sum, s) => sum + s.count, 0);

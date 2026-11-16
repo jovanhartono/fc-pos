@@ -210,11 +210,13 @@ function OrdersPage() {
 
 	const parsedStoreId = search.storeId;
 	// Admin and non-admin build the same params once a store is chosen; the only
-	// gap — non-admin with no store — never runs (gated by `enabled` below).
-	const orderQuery =
-		role !== "admin" && parsedStoreId === undefined
+	// gap — non-admin with no store — never runs (gated by `enabled` below). The
+	// Filters count uses it too, so it always matches the list Apply shows.
+	const ordersQueryFor = (filters: typeof search) =>
+		role !== "admin" && filters.storeId === undefined
 			? undefined
-			: buildOrdersListParams(search, parsedStoreId);
+			: buildOrdersListParams(filters, filters.storeId);
+	const orderQuery = ordersQueryFor(search);
 
 	const canListOrders = role === "admin" ? true : parsedStoreId !== undefined;
 
@@ -364,6 +366,9 @@ function OrdersPage() {
 					role={role}
 					userStoreIds={userStoreIds}
 					onChange={handleFilterChange}
+					listQueryFor={(picks) =>
+						ordersQueryFor({ ...search, ...picks, page: 1 })
+					}
 				/>
 				{hasNoStoreAssignment ? (
 					<EmptyState icon={Store01Icon}>No store assigned</EmptyState>
@@ -375,6 +380,11 @@ function OrdersPage() {
 						isLoading={ordersQuery.isPending || storesQuery.isPending}
 						isStale={ordersQuery.isPlaceholderData}
 						filterKey={JSON.stringify(orderQuery)}
+						noMatch={{
+							noun: "Orders",
+							search: search.search,
+							onClear: () => handleFilterChange({ search: undefined }),
+						}}
 						getRowLink={(order) => orderLink(order.id)}
 						isRowActive={(order) => order.id === sheetOrderId}
 						renderCard={(order) => (

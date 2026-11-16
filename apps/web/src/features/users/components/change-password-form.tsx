@@ -104,7 +104,7 @@ export const ChangePasswordForm = () => {
 					)}
 				/>
 			))}
-			<Button loading={formState.isSubmitting} type="submit">
+			<Button className="w-full" loading={formState.isSubmitting} type="submit">
 				Change Password
 			</Button>
 		</form>

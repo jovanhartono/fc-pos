@@ -29,18 +29,21 @@ interface FilterPanelProps<T> {
 	onApply: (value: T) => void;
 	// Replaces the icon button, for a page whose button spells out its filters.
 	trigger?: ReactElement;
+	// The Apply button's words, e.g. how many Orders the picks would show.
+	applyLabel?: (draft: T) => ReactNode;
 	children: (draft: T, setDraft: (patch: Partial<T>) => void) => ReactNode;
 }
 
 // One Filters panel for every list: a dialog with a mouse, a bottom sheet on
 // touch, where the date pickers open their own sheets on top. Picks wait for
-// Apply, so the list behind loads once, not on every tap; closing drops them.
+// Apply, so the list behind redraws once, not on every tap; closing drops them.
 export const FilterPanel = <T,>({
 	value,
 	countOf,
 	clear,
 	onApply,
 	trigger,
+	applyLabel,
 	children,
 }: FilterPanelProps<T>) => {
 	const isCoarsePointer = useIsCoarsePointer();
@@ -89,7 +92,7 @@ export const FilterPanel = <T,>({
 					setIsOpen(false);
 				}}
 			>
-				Apply
+				{applyLabel ? applyLabel(draft) : "Apply"}
 			</Button>
 		</div>
 	);

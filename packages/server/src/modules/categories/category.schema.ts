@@ -4,7 +4,7 @@ import { categoriesTable } from "@/db/schema";
 import { isActiveSchema, textSchema, varcharSchema } from "@/schema/common";
 
 export const POSTCategorySchema = z.object({
-  name: varcharSchema("name"),
+  name: varcharSchema("Name"),
   description: textSchema("Description").nullish(),
   is_active: isActiveSchema,
   starts_after_cleaning: z.boolean().optional().default(false),

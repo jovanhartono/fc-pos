@@ -1,4 +1,5 @@
 import { MoneyValue } from "@/components/money-value";
+import { NowrapPhrases } from "@/components/nowrap-phrases";
 import type { Campaign } from "@/features/campaigns/api";
 import { formatCampaignLimits } from "@/features/campaigns/lib/campaign-text";
 import { cn } from "@/lib/utils";
@@ -44,19 +45,19 @@ export const CampaignDiscount = ({
 	return (
 		<span
 			className={cn(
-				"font-semibold",
+				"font-medium",
 				isActive ? "text-tone-good-foreground" : "text-muted-foreground",
 			)}
 		>
 			<DiscountHeadline campaign={campaign} />
-			{limits && (
+			{limits.length > 0 && (
 				<span
 					className={cn(
 						"block font-normal text-footnote",
 						isActive && "text-foreground",
 					)}
 				>
-					{limits}
+					<NowrapPhrases phrases={limits} />
 				</span>
 			)}
 		</span>

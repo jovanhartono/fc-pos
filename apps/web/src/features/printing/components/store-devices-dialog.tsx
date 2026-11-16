@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import {
 	storesQueries,
 } from "@/features/stores/api";
 import { cn } from "@/lib/utils";
+import { useDialog } from "@/stores/dialog-store";
 
 interface StoreDevicesDialogProps {
 	storeId: number;
@@ -23,14 +25,10 @@ interface StoreDevicesDialogProps {
 // device list once; after that the POS only ever offers what is listed here.
 export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 	const queryClient = useQueryClient();
+	const openDialog = useDialog((s) => s.openDialog);
 	const devicesQuery = useQuery(storesQueries.devices(storeId));
 	const [pendingName, setPendingName] = useState<string | null>(null);
 	const [label, setLabel] = useState("");
-
-	const invalidate = () =>
-		queryClient.invalidateQueries({
-			queryKey: storesKeys.devices(storeId),
-		});
 
 	const pairMutation = useMutation({
 		mutationFn: pairBluetoothDevice,
@@ -51,14 +49,30 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 		onSuccess: async () => {
 			setPendingName(null);
 			setLabel("");
-			await invalidate();
+			await queryClient.invalidateQueries({
+				queryKey: storesKeys.devices(storeId),
+			});
 		},
 	});
 
-	const removeMutation = useMutation({
-		mutationFn: (deviceId: number) => deleteStoreDevice(storeId, deviceId),
-		onSuccess: invalidate,
-	});
+	// The confirm takes this list's place in the one global dialog, so Cancel
+	// and Remove both bring the Devices list back.
+	const handleRemove = (device: { id: number; name: string }) => {
+		const devicesDialog = useDialog.getState().dialogState;
+		const reopenDevices = () => openDialog(devicesDialog);
+		openDialog({
+			title: `Remove "${device.name}"?`,
+			description:
+				"The POS stops printing to it until it's paired over Bluetooth again.",
+			footer: () => (
+				<RemoveDeviceActions
+					storeId={storeId}
+					deviceId={device.id}
+					onDone={reopenDevices}
+				/>
+			),
+		});
+	};
 
 	const devices = devicesQuery.data ?? [];
 	// With nothing registered, registering is the only thing to do here.
@@ -88,8 +102,7 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 								aria-label={`Remove ${device.name}`}
 								variant="ghost"
 								size="icon"
-								disabled={removeMutation.isPending}
-								onClick={() => removeMutation.mutate(device.id)}
+								onClick={() => handleRemove(device)}
 							>
 								<HugeiconsIcon icon={Delete02Icon} className="size-4" />
 							</Button>
@@ -133,21 +146,62 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 							disabled={registerMutation.isPending}
 						/>
 					</Field>
-					<div className="flex justify-end gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							disabled={registerMutation.isPending}
-							onClick={() => setPendingName(null)}
-						>
-							Cancel
-						</Button>
-						<Button type="submit" loading={registerMutation.isPending}>
-							Save
-						</Button>
-					</div>
+					<DialogFormActions
+						submit={
+							<Button type="submit" loading={registerMutation.isPending}>
+								Save
+							</Button>
+						}
+						onCancel={() => setPendingName(null)}
+						isPending={registerMutation.isPending}
+					/>
 				</form>
 			)}
 		</div>
+	);
+};
+
+interface RemoveDeviceActionsProps {
+	storeId: number;
+	deviceId: number;
+	onDone: () => void;
+}
+
+const RemoveDeviceActions = ({
+	storeId,
+	deviceId,
+	onDone,
+}: RemoveDeviceActionsProps) => {
+	const queryClient = useQueryClient();
+	const removeMutation = useMutation({
+		mutationFn: () => deleteStoreDevice(storeId, deviceId),
+		onSuccess: async () => {
+			// The list is closed behind this confirm, so refetch it anyway, or it
+			// reopens still showing the printer just removed.
+			await queryClient.invalidateQueries({
+				queryKey: storesKeys.devices(storeId),
+				refetchType: "all",
+			});
+			onDone();
+		},
+	});
+
+	return (
+		<>
+			<Button
+				variant="outline"
+				onClick={onDone}
+				disabled={removeMutation.isPending}
+			>
+				Cancel
+			</Button>
+			<Button
+				variant="destructive"
+				loading={removeMutation.isPending}
+				onClick={() => removeMutation.mutate()}
+			>
+				Remove
+			</Button>
+		</>
 	);
 };

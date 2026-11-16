@@ -3,9 +3,10 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
+import { EmptyState } from "@/components/empty-state";
+import { TablePagination } from "@/components/table-pagination";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { type AgingQueueItem, reportsQueries } from "@/features/reports/api";
 import { ItemCodeLink } from "@/features/reports/components/item-code-link";
 import { CONTENT_FADE } from "@/lib/content-fade";
@@ -26,7 +27,11 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 	{
 		id: "item_code",
 		header: "Item code",
-		meta: { width: { percent: 17, minRem: 8 }, mobileCard: { slot: "title" } },
+		meta: {
+			width: { percent: 22, minRem: 11 },
+			cellClassName: "whitespace-nowrap",
+			mobileCard: { slot: "title" },
+		},
 		cell: ({ row }) => (
 			<ItemCodeLink orderId={row.original.order_id}>
 				{row.original.item_code ?? `#${row.original.id}`}
@@ -38,7 +43,7 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 		header: "Service",
 		meta: {
 			kind: "text",
-			width: { percent: 24, minRem: 8 },
+			width: { percent: 23, minRem: 8 },
 			mobileCard: { slot: "subtitle" },
 		},
 	},
@@ -90,7 +95,7 @@ const columns: DataTableColumnDef<AgingQueueItem>[] = [
 	{
 		accessorKey: "handler_name",
 		header: "Handler",
-		meta: { kind: "text", width: { percent: 17, minRem: 7 } },
+		meta: { kind: "text", width: { percent: 13, minRem: 7 } },
 		cell: ({ row }) => row.original.handler_name ?? "Unassigned",
 	},
 ];
@@ -109,27 +114,19 @@ export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 
 	const items = query.data?.items ?? [];
 	const total = query.data?.meta.total ?? 0;
-	const isBusy = query.isPending || query.isPlaceholderData;
-	const hasNext = !isBusy && offset + items.length < total;
-	const hasPrev = !isBusy && offset > 0;
 
 	// The admin paging from the bottom of 50 rows lands at the top of the
 	// last page, faded, and the next page fills those same rows.
-	const goTo = (nextOffset: number) => {
-		setOffset(nextOffset);
+	const goTo = (page: number) => {
+		setOffset((page - 1) * PAGE_SIZE);
 		listTopRef.current?.scrollIntoView({ block: "start" });
 	};
 
 	if (!query.isPending && total === 0) {
 		return (
-			<div
-				className={cn(
-					"rounded-lg border bg-card p-8 text-center text-body text-muted-foreground",
-					CONTENT_FADE,
-				)}
-			>
+			<EmptyState className={CONTENT_FADE} icon={Task01Icon}>
 				Nothing waiting. Queue is clear.
-			</div>
+			</EmptyState>
 		);
 	}
 
@@ -161,33 +158,11 @@ export const AgingQueuePanel = ({ storeId }: AgingQueuePanelProps) => {
 					})}
 				/>
 			</div>
-			<div className="flex items-center justify-between gap-3">
-				<p className="text-footnote text-muted-foreground tabular-nums">
-					{query.isPending
-						? "–"
-						: `Showing ${offset + 1}–${offset + items.length} of ${total}`}
-				</p>
-				<div className="flex gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						disabled={!hasPrev}
-						onClick={() => goTo(Math.max(0, offset - PAGE_SIZE))}
-					>
-						Previous
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						disabled={!hasNext}
-						onClick={() => goTo(offset + PAGE_SIZE)}
-					>
-						Next
-					</Button>
-				</div>
-			</div>
+			<TablePagination
+				isLoading={query.isPending || query.isPlaceholderData}
+				meta={query.data?.meta}
+				onPageChange={goTo}
+			/>
 		</div>
 	);
 };

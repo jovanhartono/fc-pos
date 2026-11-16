@@ -4,6 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -134,19 +135,15 @@ export const OpenComplaintForm = ({
 					)}
 				/>
 
-				<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-					<Button
-						disabled={isPending}
-						onClick={closeDialog}
-						type="button"
-						variant="outline"
-					>
-						Go Back
-					</Button>
-					<Button disabled={isPending} type="submit">
-						{isPending ? "Opening…" : "Open Complaint"}
-					</Button>
-				</div>
+				<DialogFormActions
+					submit={
+						<Button disabled={isPending} type="submit">
+							{isPending ? "Opening…" : "Open Complaint"}
+						</Button>
+					}
+					onCancel={closeDialog}
+					isPending={isPending}
+				/>
 			</form>
 		</FormProvider>
 	);
@@ -171,7 +168,7 @@ const ComplaintLineCard = ({
 }: ComplaintLineCardProps) => (
 	<label
 		className={cn(
-			"flex cursor-pointer items-start justify-between gap-3 rounded-md border px-3 py-2.5 text-left transition active:scale-[0.99] has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
+			"flex cursor-pointer items-start justify-between gap-3 rounded-md border px-3 py-2.5 text-left transition active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100 has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
 			isSelected
 				? "border-transparent bg-primary/[0.06] ring-2 ring-primary"
 				: "border-border/70 hover:border-border hover:bg-muted/40",

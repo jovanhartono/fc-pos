@@ -1,10 +1,12 @@
 import {
 	AlertCircleIcon,
+	CancelCircleIcon,
 	CopyLinkIcon,
 	DeliveryTruck01Icon,
 	Money03Icon,
 	MoreVerticalIcon,
 	PrinterIcon,
+	ReturnRequestIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
@@ -122,7 +124,7 @@ export const OrderIdentityStrip = ({
 		openDialog({
 			title: "Record Pickup",
 			description: "Select the items being collected and attach a photo.",
-			contentClassName: "sm:max-w-xl",
+			size: "wide",
 			content: () => (
 				<OrderPickupEventDialog
 					closeDialog={closeDialog}
@@ -138,7 +140,6 @@ export const OrderIdentityStrip = ({
 			title: "Set Courier",
 			description:
 				"Assign a courier to collect this order, or leave as walk-in.",
-			contentClassName: "sm:max-w-md",
 			content: () => (
 				<OrderCourierForm
 					closeDialog={closeDialog}
@@ -156,7 +157,6 @@ export const OrderIdentityStrip = ({
 			title: "Set Delivery Fee",
 			description:
 				"For fetching and returning the Items. Leave blank for none.",
-			contentClassName: "sm:max-w-md",
 			content: () => (
 				<OrderDeliveryFeeForm
 					closeDialog={closeDialog}
@@ -173,7 +173,7 @@ export const OrderIdentityStrip = ({
 		openDialog({
 			title: "Cancel Order",
 			description: "Select lines to cancel and provide reasons.",
-			contentClassName: "sm:max-w-xl",
+			size: "wide",
 			content: () => (
 				<CancelOrderForm
 					cancelOrderMutation={cancelOrderMutation}
@@ -198,7 +198,7 @@ export const OrderIdentityStrip = ({
 		openDialog({
 			title: "Refund Order",
 			description: "Select lines to refund and provide reasons.",
-			contentClassName: "sm:max-w-xl",
+			size: "wide",
 			content: () => (
 				<RefundOrderForm
 					capsByLineKey={buildRefundCaps(detail)}
@@ -225,7 +225,7 @@ export const OrderIdentityStrip = ({
 		openDialog({
 			title: "Open Complaint",
 			description: "Log a customer complaint and optionally start a rework.",
-			contentClassName: "sm:max-w-2xl",
+			size: "wide",
 			content: () => (
 				<OpenComplaintForm
 					closeDialog={closeDialog}
@@ -334,7 +334,10 @@ export const OrderIdentityStrip = ({
 											/>
 										}
 									/>
-									<DropdownMenuContent align="end" className="w-40">
+									<DropdownMenuContent
+										align="end"
+										className="w-auto min-w-48 whitespace-nowrap"
+									>
 										{trackingUrl ? (
 											<DropdownMenuItem onClick={handleCopyTrackingLink}>
 												<HugeiconsIcon icon={CopyLinkIcon} className="size-4" />
@@ -370,6 +373,10 @@ export const OrderIdentityStrip = ({
 												onClick={openRefundOrderDialog}
 												variant="destructive"
 											>
+												<HugeiconsIcon
+													icon={ReturnRequestIcon}
+													className="size-4"
+												/>
 												Refund
 											</DropdownMenuItem>
 										) : null}
@@ -378,6 +385,10 @@ export const OrderIdentityStrip = ({
 												onClick={openCancelOrderDialog}
 												variant="destructive"
 											>
+												<HugeiconsIcon
+													icon={CancelCircleIcon}
+													className="size-4"
+												/>
 												Cancel Order
 											</DropdownMenuItem>
 										) : null}

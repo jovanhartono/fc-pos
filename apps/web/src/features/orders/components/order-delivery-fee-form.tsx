@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { useUpdateOrderDeliveryFeeMutation } from "@/features/orders/hooks/useOrderMutations";
@@ -50,22 +51,18 @@ export const OrderDeliveryFeeForm = ({
 					</Field>
 				)}
 			/>
-			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-				<Button
-					disabled={mutation.isPending}
-					onClick={closeDialog}
-					type="button"
-					variant="outline"
-				>
-					Go Back
-				</Button>
-				<Button
-					disabled={mutation.isPending || !form.formState.isDirty}
-					type="submit"
-				>
-					{mutation.isPending ? "Saving…" : "Save Delivery Fee"}
-				</Button>
-			</div>
+			<DialogFormActions
+				submit={
+					<Button
+						disabled={mutation.isPending || !form.formState.isDirty}
+						type="submit"
+					>
+						{mutation.isPending ? "Saving…" : "Save Delivery Fee"}
+					</Button>
+				}
+				onCancel={closeDialog}
+				isPending={mutation.isPending}
+			/>
 		</form>
 	);
 };

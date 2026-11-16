@@ -52,7 +52,7 @@ export const errorHandler: ErrorHandler<{
   console.error("unhandled error", request, err);
   await reportError(err, c.req.raw);
   return c.json(
-    failure("Something went wrong"),
+    failure("The server hit a problem. Try again."),
     StatusCodes.INTERNAL_SERVER_ERROR
   );
 };

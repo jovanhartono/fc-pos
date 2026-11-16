@@ -128,7 +128,7 @@ export const QueueRow = ({
 					</span>
 					<span
 						className={cn(
-							"shrink-0 font-semibold tabular-nums",
+							"shrink-0 font-medium tabular-nums",
 							ageTone === "amber" && "text-tone-warn-foreground",
 							ageTone === "red" && "text-destructive",
 						)}

@@ -3,12 +3,17 @@ import { create } from "zustand";
 
 type RenderNode = () => ReactNode;
 
+// A dialog with no content is a confirm and always narrow. "wide" is for forms
+// that list an Order's Items (Pickup, Refund, Complaint) and the Cmd+K search.
+type DialogSize = "form" | "wide";
+
 type DialogState = {
 	open: boolean;
 	title: string | null;
 	description: string | null;
 	content: RenderNode | null;
 	footer: RenderNode | null;
+	size: DialogSize;
 	contentClassName: string | null;
 };
 
@@ -17,6 +22,7 @@ type OpenDialogPayload = {
 	description?: string | null;
 	content?: RenderNode | null;
 	footer?: RenderNode | null;
+	size?: DialogSize;
 	contentClassName?: string | null;
 };
 
@@ -33,6 +39,7 @@ const defaultState: DialogState = {
 	description: null,
 	content: null,
 	footer: null,
+	size: "form",
 	contentClassName: null,
 };
 
@@ -50,6 +57,7 @@ export const useDialog = create<DialogStore>((set) => ({
 		description = null,
 		content = null,
 		footer = null,
+		size = "form",
 		contentClassName = null,
 	}) =>
 		set({
@@ -58,6 +66,7 @@ export const useDialog = create<DialogStore>((set) => ({
 				description,
 				content,
 				footer,
+				size,
 				contentClassName,
 				open: true,
 			},

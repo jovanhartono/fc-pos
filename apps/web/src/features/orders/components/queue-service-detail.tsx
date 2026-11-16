@@ -312,7 +312,7 @@ export function QueueServiceDetail({
 			</div>
 
 			<div className="grid gap-5">
-				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border bg-card px-3 py-2.5">
+				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
 					<div className="flex flex-wrap items-center gap-2">
 						<Badge
 							variant={getOrderServiceStatusBadgeVariant(
@@ -326,11 +326,9 @@ export function QueueServiceDetail({
 						)}
 						{/* A Rework is always Priority, so the badge says nothing there. */}
 						{selectedService.reworkOf === null &&
-							(selectedService.is_priority ? (
+							selectedService.is_priority && (
 								<Badge variant="priority">Priority</Badge>
-							) : (
-								<Badge variant="outline">Standard</Badge>
-							))}
+							)}
 					</div>
 					<p className="text-footnote text-muted-foreground">
 						Handler{" "}
@@ -359,8 +357,8 @@ export function QueueServiceDetail({
 				    workshop's part is finished, and grey read as a warning. */}
 				{isReady && runningRework === undefined && <ReadyNote order={detail} />}
 
-				<dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
-					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
+				<dl className="grid grid-cols-2 gap-x-4 gap-y-4 border-t pt-5">
+					<div className="grid content-start gap-1">
 						<dt className={LABEL_CLASS}>Order</dt>
 						<dd>
 							<CopyValue label="order code" value={detail.code}>
@@ -374,13 +372,13 @@ export function QueueServiceDetail({
 							</CopyValue>
 						</dd>
 					</div>
-					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
+					<div className="grid content-start gap-1">
 						<dt className={LABEL_CLASS}>Store</dt>
 						<dd className="text-body text-foreground">
 							{detail.store?.code ?? "-"}
 						</dd>
 					</div>
-					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
+					<div className="grid content-start gap-1">
 						<dt className={LABEL_CLASS}>Customer</dt>
 						<dd className="text-body text-foreground">
 							<CustomerLink
@@ -389,7 +387,7 @@ export function QueueServiceDetail({
 							/>
 						</dd>
 					</div>
-					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
+					<div className="grid content-start gap-1">
 						<dt className={LABEL_CLASS}>Phone</dt>
 						<dd className="text-body text-foreground">
 							<CopyValue
@@ -405,7 +403,7 @@ export function QueueServiceDetail({
 							</CopyValue>
 						</dd>
 					</div>
-					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
+					<div className="grid content-start gap-1">
 						<dt className={LABEL_CLASS}>Items ready</dt>
 						<dd
 							className={cn(
@@ -418,7 +416,7 @@ export function QueueServiceDetail({
 							{detail.items_ready}/{detail.items_total}
 						</dd>
 					</div>
-					<div className="grid content-start gap-1 bg-card px-3 py-2.5">
+					<div className="grid content-start gap-1">
 						<dt className={LABEL_CLASS}>Received</dt>
 						<dd className="text-body text-foreground">
 							{formatOrderDateTime(detail.created_at)}
@@ -426,8 +424,9 @@ export function QueueServiceDetail({
 					</div>
 				</dl>
 
-				<section className="overflow-hidden rounded-lg border bg-card">
-					<div className="flex items-center gap-2 px-4 py-3">
+				{/* The strip pads itself for an Item card; here it sits on the page. */}
+				<section className="grid gap-2.5 border-t pt-5 *:last:px-0 *:last:pb-0">
+					<div className="flex min-h-7 items-center gap-2">
 						<SectionTitle
 							count={selectedService.item.images.length || undefined}
 							title="Photos"
@@ -442,7 +441,7 @@ export function QueueServiceDetail({
 					/>
 				</section>
 
-				<section className="grid gap-4 rounded-lg border bg-card p-4">
+				<section className="grid gap-4 border-t pt-5">
 					<StatusTimeline line={selectedService} />
 					{actionStatuses.length > 0 && (
 						<Field data-invalid={isNoteMissing}>

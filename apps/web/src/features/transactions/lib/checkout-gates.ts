@@ -69,6 +69,11 @@ export const lockedStepHint = (
 	if (!gates.customerReady) {
 		return `${steps} ${verb} once you enter the customer name and phone.`;
 	}
+	// Once Items are in, only the photo can lock Payment, and the footer line
+	// under Continue already asks for it.
+	if (current === "items" && input.itemCount > 0) {
+		return "";
+	}
 	const missing = [
 		input.itemCount > 0 ? null : "an item",
 		input.hasDropoffPhoto ? null : "a drop-off photo",

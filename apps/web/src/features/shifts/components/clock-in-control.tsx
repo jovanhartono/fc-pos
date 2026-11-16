@@ -164,7 +164,7 @@ export const ClockInControl = () => {
 			{picked === undefined && selected ? (
 				<div className={cn(CLOCK_STATUS_SLOT, "items-start")}>
 					<div className="flex w-full items-baseline justify-between gap-3">
-						<span className="truncate font-medium text-body">
+						<span className="min-w-0 break-words font-medium text-body">
 							{selected.name}
 						</span>
 						{selectedKm === undefined ? null : (

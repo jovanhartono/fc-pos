@@ -74,7 +74,7 @@ export const TurnaroundBreakdown = ({
 									style={{ backgroundColor: part.color }}
 								/>
 								{part.label}
-								<strong className="font-semibold tabular-nums">
+								<strong className="font-medium tabular-nums">
 									{longDuration(part.hours)}
 								</strong>
 							</span>

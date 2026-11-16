@@ -474,6 +474,9 @@ export const DateRangePicker = ({
 			return activePreset.label;
 		}
 		if (displayRange?.from && displayRange?.to) {
+			if (dayjs(displayRange.from).isSame(displayRange.to, "day")) {
+				return dayjs(displayRange.from).format(DISPLAY_FORMAT);
+			}
 			return `${dayjs(displayRange.from).format(DISPLAY_FORMAT)} - ${dayjs(displayRange.to).format(DISPLAY_FORMAT)}`;
 		}
 		if (displayRange?.from) {

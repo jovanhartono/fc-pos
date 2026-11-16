@@ -35,18 +35,18 @@ describe("formatCampaignLimits", () => {
 				max_discount: "30000",
 				min_order_total: "120000",
 			}),
-		).toBe(`max ${formatMoney("30000")} · min ${formatMoney("120000")}`);
+		).toEqual([`max ${formatMoney("30000")}`, `min ${formatMoney("120000")}`]);
 	});
 
 	test("a max of 0 means no cap, so no max is shown", () => {
 		expect(
 			formatCampaignLimits({ max_discount: "0", min_order_total: "75000" }),
-		).toBe(`min ${formatMoney("75000")}`);
+		).toEqual([`min ${formatMoney("75000")}`]);
 	});
 
 	test("no cap and no minimum leaves the line empty", () => {
 		expect(
 			formatCampaignLimits({ max_discount: null, min_order_total: "0" }),
-		).toBe("");
+		).toEqual([]);
 	});
 });

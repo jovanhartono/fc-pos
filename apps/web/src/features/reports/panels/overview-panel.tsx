@@ -37,10 +37,10 @@ const CategoryBars = ({
 				return (
 					<div key={row.category_id} className="grid gap-1">
 						<div className="flex items-center justify-between gap-2">
-							<span className="truncate text-body font-medium">
+							<span className="min-w-0 break-words text-body font-medium">
 								{row.category_name}
 							</span>
-							<span className="text-body tabular-nums">
+							<span className="shrink-0 text-body tabular-nums">
 								{formatMoney(String(row.gross_sales))}
 							</span>
 						</div>
@@ -76,12 +76,14 @@ const TopServicesList = ({
 					className="flex items-center justify-between gap-3 border-b border-border/40 py-2 last:border-0"
 				>
 					<div className="min-w-0">
-						<p className="truncate text-body font-medium">{row.service_name}</p>
+						<p className="break-words text-body font-medium">
+							{row.service_name}
+						</p>
 						<p className="text-subhead tabular-nums">
 							{formatServiceCount(row.count)}
 						</p>
 					</div>
-					<p className="text-body tabular-nums">
+					<p className="shrink-0 text-body tabular-nums">
 						{formatMoney(String(row.gross_sales))}
 					</p>
 				</div>

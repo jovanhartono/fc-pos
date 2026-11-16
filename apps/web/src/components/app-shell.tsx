@@ -444,7 +444,7 @@ export function AppShell({ title, children }: AppShellProps) {
 				{/* Queue detail's Hold to Start Work bar rests on the window bottom
 				    (the tab bar below md); a sticky bar would stop short of this padding. */}
 				<section
-					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain [--page-top:0.75rem] [--page-x:0.75rem] [--page-right:max(var(--page-x),env(safe-area-inset-right))] pl-(--page-x) pr-(--page-right) pt-[calc(var(--app-header,0px)+var(--page-top))] pb-[calc(var(--inset-bottom)+0.75rem)] has-[[data-bottom-bar]]:pb-0 sm:[--page-top:1rem] sm:[--page-x:1rem] sm:pb-[calc(var(--inset-bottom)+1rem)] lg:[--page-x:1.5rem] has-[[data-list-panel]]:flex has-[[data-list-panel]]:flex-col"
+					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain [--page-top:0.75rem] [--page-x:0.75rem] [--page-right:max(var(--page-x),env(safe-area-inset-right))] pl-(--page-x) pr-(--page-right) pt-[calc(var(--app-header,0px)+var(--page-top))] pb-[calc(var(--inset-bottom)+0.75rem)] has-[[data-bottom-bar]]:pb-0 sm:[--page-top:1rem] sm:[--page-x:1rem] sm:pb-[calc(var(--inset-bottom)+1rem)] lg:[--page-x:1.5rem] has-[[data-list-panel]]:flex has-[[data-list-panel]]:flex-col has-[[data-fill-page]]:flex has-[[data-fill-page]]:flex-col"
 					data-scroll-restoration-id={APP_CONTENT_SCROLL_ID}
 				>
 					{children}

@@ -47,11 +47,11 @@ interface PhotoLightboxProps {
 }
 
 // Grey glass, so the controls still read over a white sneaker on a white counter.
-const FROSTED = "bg-zinc-800/60 backdrop-blur-xl backdrop-saturate-150";
+const FROSTED = "bg-photo-glass backdrop-blur-xl backdrop-saturate-150";
 
 const ROUND_BUTTON = cn(
 	FROSTED,
-	"pointer-events-auto grid size-11 place-items-center rounded-full text-white transition hover:bg-zinc-700/70 active:scale-95 disabled:opacity-50",
+	"pointer-events-auto grid size-11 place-items-center rounded-full text-white transition hover:bg-photo-glass-hover active:scale-95 disabled:opacity-50 motion-reduce:active:scale-100",
 );
 
 interface DeleteConfirmProps {

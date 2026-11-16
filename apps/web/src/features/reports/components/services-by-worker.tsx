@@ -1,6 +1,7 @@
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon, ToolsIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
+import { EmptyState } from "@/components/empty-state";
 import type { WorkerProductivityReport } from "@/features/reports/api";
 import { useStoreCodes } from "@/features/reports/hooks/useStoreCodes";
 import { numberFormatter } from "@/features/reports/utils/format";
@@ -76,9 +77,7 @@ export const ServicesByWorker = ({
 	const { services, cells } = data.services_matrix;
 	if (services.length === 0) {
 		return (
-			<p className="text-muted-foreground text-body">
-				No Services processed in range.
-			</p>
+			<EmptyState icon={ToolsIcon}>No Services processed in range.</EmptyState>
 		);
 	}
 

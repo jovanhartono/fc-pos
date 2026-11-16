@@ -16,14 +16,17 @@ const STATUS_TAB_ITEMS: {
 interface QueueStatusTabsProps {
 	value: string;
 	onValueChange: (value: string) => void;
+	disabled?: boolean;
 }
 
 export const QueueStatusTabs = ({
 	value,
 	onValueChange,
+	disabled,
 }: QueueStatusTabsProps) => (
 	<StatusChipStrip
 		chips={STATUS_TAB_ITEMS}
+		disabled={disabled}
 		legend="Filter by status"
 		onValueChange={onValueChange}
 		value={value}

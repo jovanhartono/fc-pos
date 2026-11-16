@@ -9,17 +9,17 @@ interface ProductStockProps {
 // out: amber when low, red when there is none to sell.
 export const ProductStock = ({ stock }: ProductStockProps) => {
 	if (stock <= 0) {
-		return <span className="font-semibold text-destructive">Out of stock</span>;
+		return <span className="font-medium text-destructive">Out of stock</span>;
 	}
 	if (stock <= LOW_STOCK) {
 		return (
-			<span className="font-semibold text-tone-warn-foreground tabular-nums">
+			<span className="font-medium text-tone-warn-foreground tabular-nums">
 				{`${stock} left`}
 			</span>
 		);
 	}
 	return (
-		<span className="font-semibold tabular-nums">
+		<span className="font-medium tabular-nums">
 			{stock}
 			{/* A phone card has no Stock header above the number. */}
 			<span className="font-normal text-muted-foreground lg:hidden">

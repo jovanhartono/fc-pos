@@ -32,11 +32,6 @@ export function LoginForm({
 	errors,
 	isSubmitting,
 }: LoginFormProps) {
-	// One line shows one error, so only its own field points at it.
-	const shownError = errors.username
-		? "username"
-		: errors.password && "password";
-
 	return (
 		<main className="grid min-h-dvh place-items-center bg-background px-4">
 			<form
@@ -58,11 +53,14 @@ export function LoginForm({
 							spellCheck={false}
 							placeholder="Username"
 							aria-invalid={!!errors.username}
-							aria-describedby={
-								shownError === "username" ? "login-error" : undefined
-							}
+							aria-describedby={errors.username ? "username-error" : undefined}
 							className={GROUPED_INPUT_CLASS}
 							{...register("username")}
+						/>
+						<FieldError
+							id="username-error"
+							className="-mt-3 px-3 pb-2.5"
+							errors={[errors.username]}
 						/>
 					</Field>
 					<Field data-invalid={!!errors.password} className="border-t">
@@ -75,18 +73,17 @@ export function LoginForm({
 							autoComplete="current-password"
 							placeholder="Password"
 							aria-invalid={!!errors.password}
-							aria-describedby={
-								shownError === "password" ? "login-error" : undefined
-							}
+							aria-describedby={errors.password ? "password-error" : undefined}
 							className={GROUPED_INPUT_CLASS}
 							{...register("password")}
 						/>
+						<FieldError
+							id="password-error"
+							className="-mt-3 px-3 pb-2.5"
+							errors={[errors.password]}
+						/>
 					</Field>
 				</div>
-				<FieldError
-					id="login-error"
-					errors={[shownError ? errors[shownError] : undefined]}
-				/>
 				<Button
 					type="submit"
 					className="h-11 pointer-coarse:h-11 w-full"

@@ -27,6 +27,7 @@ interface DataTableCardsProps<TData extends RowData> {
 	skeletonCardClassName?: string;
 	emptyIcon: IconSvgElement;
 	emptyMessage: string;
+	noMatch?: ReactNode;
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
 	getCardLink?: (row: TData) => LinkProps;
@@ -141,6 +142,7 @@ export const DataTableCards = <TData extends RowData>({
 	skeletonCardClassName,
 	emptyIcon,
 	emptyMessage,
+	noMatch,
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
 	getCardLink,
@@ -192,6 +194,10 @@ export const DataTableCards = <TData extends RowData>({
 	}
 
 	const rows = table.getRowModel().rows;
+
+	if (rows.length === 0 && noMatch) {
+		return <div className={cn("lg:hidden", CONTENT_FADE)}>{noMatch}</div>;
+	}
 
 	if (rows.length === 0) {
 		return (
@@ -363,7 +369,7 @@ export const DataTableCards = <TData extends RowData>({
 												<div
 													key={cell.id}
 													className={cn(
-														"font-semibold text-foreground text-body tabular-nums",
+														"font-medium text-foreground text-body tabular-nums",
 														mobileCard?.className,
 													)}
 												>

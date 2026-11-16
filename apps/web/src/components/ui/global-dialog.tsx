@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 
 export function GlobalDialog() {
-	const { open, title, description, content, footer, contentClassName } =
+	const { open, title, description, content, footer, size, contentClassName } =
 		useDialog((state) => state.dialogState);
 	const closeDialog = useDialog((state) => state.closeDialog);
 	const isConfirm = !content;
@@ -28,7 +28,8 @@ export function GlobalDialog() {
 				showCloseButton={!isConfirm}
 				className={cn(
 					isConfirm &&
-						"max-w-[320px] gap-4 rounded-2xl px-4.5 pt-5 pb-4 text-center sm:max-w-[320px]",
+						"max-w-[320px] gap-4 rounded-2xl p-4 text-center sm:max-w-[320px]",
+					!isConfirm && size === "wide" && "sm:max-w-xl",
 					contentClassName,
 				)}
 			>
@@ -45,7 +46,7 @@ export function GlobalDialog() {
 						</DialogDescription>
 					</DialogHeader>
 				) : null}
-				{content ? <div className="min-w-0 py-4">{content()}</div> : null}
+				{content ? <div className="min-w-0">{content()}</div> : null}
 				{footer ? (
 					<DialogFooter
 						className={cn(

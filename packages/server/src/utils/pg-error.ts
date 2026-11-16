@@ -82,7 +82,7 @@ const CODE_FAILURES: Partial<Record<string, PostgresFailure>> = {
 };
 
 const UNKNOWN_FAILURE: PostgresFailure = {
-  message: "Something went wrong",
+  message: "The server hit a problem. Try again.",
   status: StatusCodes.INTERNAL_SERVER_ERROR,
 };
 

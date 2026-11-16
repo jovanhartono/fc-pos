@@ -40,7 +40,9 @@ export function PageHeader({
 			{/* As tall as a button, so a page with no actions puts its title and
 			    list at the same height as one with an Add button. */}
 			<h1 className="col-start-1 row-start-1 flex min-h-9 flex-wrap items-center gap-x-2.5 gap-y-1 text-title-1 font-bold tracking-tight pointer-coarse:min-h-11">
-				{title}
+				<span className="flex min-h-9 items-center pointer-coarse:min-h-11">
+					{title}
+				</span>
 				{/* Drawn hidden until the count loads, so the title line never changes when it lands. */}
 				{countNoun ? (
 					<Badge
@@ -62,7 +64,9 @@ export function PageHeader({
 			{actions ? (
 				<div
 					className={cn(
-						"col-start-2 row-start-1 flex shrink-0 items-center justify-end gap-2",
+						// Level with the title, not centred on title and badge, so Add
+						// sits at the same height on every page.
+						"col-start-2 row-start-1 flex shrink-0 items-center justify-end gap-2 max-sm:self-start",
 						description && "sm:row-span-2",
 					)}
 				>

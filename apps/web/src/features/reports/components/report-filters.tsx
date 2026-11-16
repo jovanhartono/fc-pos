@@ -2,6 +2,7 @@ import { FilterHorizontalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FilterPanel } from "@/components/filter-panel";
+import { NowrapPhrases } from "@/components/nowrap-phrases";
 import { SegmentedFilter } from "@/components/segmented-filter";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
@@ -56,9 +57,7 @@ export const ReportFilters = ({
 		showGranularity && values.granularity
 			? GRANULARITY_OPTIONS.find(([id]) => id === values.granularity)?.[1]
 			: null,
-	]
-		.filter(Boolean)
-		.join(" · ");
+	].filter((part) => typeof part === "string");
 
 	return (
 		<FilterPanel
@@ -78,7 +77,11 @@ export const ReportFilters = ({
 					icon={<HugeiconsIcon icon={FilterHorizontalIcon} />}
 					className="w-44 min-w-0 justify-start sm:w-64"
 				>
-					<span className="truncate">{summary}</span>
+					{/* On a phone it takes two lines in the same button height,
+					    breaking between parts, so "All stores" isn't cut off. */}
+					<span className="truncate max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:leading-4">
+						<NowrapPhrases phrases={summary} />
+					</span>
 				</Button>
 			}
 		>
