@@ -11,6 +11,7 @@ import {
 	useWatch,
 } from "react-hook-form";
 import { z } from "zod";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { SelectField } from "@/components/form/select-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -367,19 +368,16 @@ const OrderLineReversalForm = <R extends string>({
 					</div>
 				) : null}
 
-				<div className="grid gap-2">
-					<Button type="submit" variant="destructive" disabled={pending}>
-						{submitLabel()}
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						onClick={closeDialog}
-						disabled={pending}
-					>
-						Go Back
-					</Button>
-				</div>
+				<DialogFormActions
+					submit={
+						<Button type="submit" variant="destructive" disabled={pending}>
+							{submitLabel()}
+						</Button>
+					}
+					onCancel={closeDialog}
+					cancelLabel="Go Back"
+					isPending={pending}
+				/>
 			</form>
 		</FormProvider>
 	);

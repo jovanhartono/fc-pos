@@ -474,7 +474,6 @@ const QcPerDaySection = ({ data }: QcPerDaySectionProps) => (
 	</Section>
 );
 
-// The chart card and Needs a Look at their usual size while the report loads.
 interface QualityPlaceholderProps {
 	checkerColumns: DataTableColumnDef<CheckerRow>[];
 }

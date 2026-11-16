@@ -2,6 +2,7 @@ import { PUTUserPasswordSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
@@ -84,19 +85,15 @@ export const ResetPasswordForm = ({
 					)}
 				/>
 
-				<div className="grid gap-2">
-					<Button type="submit" loading={isSubmitting}>
-						Reset
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						onClick={onDone}
-						disabled={isSubmitting}
-					>
-						Cancel
-					</Button>
-				</div>
+				<DialogFormActions
+					submit={
+						<Button type="submit" loading={isSubmitting}>
+							Reset
+						</Button>
+					}
+					onCancel={onDone}
+					isPending={isSubmitting}
+				/>
 			</FieldGroup>
 		</form>
 	);

@@ -1,8 +1,8 @@
 import { FilterHorizontalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Fragment } from "react";
 import { FilterPanel } from "@/components/filter-panel";
+import { NowrapPhrases } from "@/components/nowrap-phrases";
 import { SegmentedFilter } from "@/components/segmented-filter";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
@@ -80,15 +80,7 @@ export const ReportFilters = ({
 					{/* On a phone it takes two lines in the same button height,
 					    breaking between parts, so "All stores" isn't cut off. */}
 					<span className="truncate max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:leading-4">
-						{summary.map((part, index) => (
-							<Fragment key={part}>
-								{index > 0 ? " " : null}
-								<span className="whitespace-nowrap">
-									{part}
-									{index < summary.length - 1 ? " ·" : null}
-								</span>
-							</Fragment>
-						))}
+						<NowrapPhrases phrases={summary} />
 					</span>
 				</Button>
 			}

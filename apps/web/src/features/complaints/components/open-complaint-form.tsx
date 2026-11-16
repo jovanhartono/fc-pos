@@ -4,6 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -134,19 +135,16 @@ export const OpenComplaintForm = ({
 					)}
 				/>
 
-				<div className="grid gap-2">
-					<Button disabled={isPending} type="submit">
-						{isPending ? "Opening…" : "Open Complaint"}
-					</Button>
-					<Button
-						disabled={isPending}
-						onClick={closeDialog}
-						type="button"
-						variant="ghost"
-					>
-						Go Back
-					</Button>
-				</div>
+				<DialogFormActions
+					submit={
+						<Button disabled={isPending} type="submit">
+							{isPending ? "Opening…" : "Open Complaint"}
+						</Button>
+					}
+					onCancel={closeDialog}
+					cancelLabel="Go Back"
+					isPending={isPending}
+				/>
 			</form>
 		</FormProvider>
 	);

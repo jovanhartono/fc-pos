@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { StoreSelect } from "@/features/orders/components/store-select";
@@ -109,19 +110,15 @@ export const EditShiftForm = ({ shift, onDone }: EditShiftFormProps) => {
 
 					<ShiftTimeFields isOnShift={isOnShift} />
 
-					<div className="grid gap-2">
-						<Button type="submit" loading={isSubmitting}>
-							Save
-						</Button>
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={onDone}
-							disabled={isSubmitting}
-						>
-							Cancel
-						</Button>
-					</div>
+					<DialogFormActions
+						submit={
+							<Button type="submit" loading={isSubmitting}>
+								Save
+							</Button>
+						}
+						onCancel={onDone}
+						isPending={isSubmitting}
+					/>
 				</FieldGroup>
 			</form>
 		</FormProvider>

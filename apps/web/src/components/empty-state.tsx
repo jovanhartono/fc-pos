@@ -1,5 +1,7 @@
+import { Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
@@ -33,4 +35,33 @@ export const EmptyState = ({
 		<div>{children}</div>
 		{action}
 	</div>
+);
+
+interface NoMatchStateProps {
+	noun: string;
+	search: string;
+	onClear: () => void;
+	isInset?: boolean;
+}
+
+// A search that found nothing, with the way back to the full list.
+export const NoMatchState = ({
+	noun,
+	search,
+	onClear,
+	isInset,
+}: NoMatchStateProps) => (
+	<EmptyState
+		icon={Search01Icon}
+		isInset={isInset}
+		action={
+			<Button type="button" variant="outline" size="sm" onClick={onClear}>
+				Clear Search
+			</Button>
+		}
+	>
+		<p className="wrap-break-word max-w-full">
+			No {noun} match "{search}"
+		</p>
+	</EmptyState>
 );

@@ -47,9 +47,13 @@ const TableHead = () => (
 // Drawn at Turnaround's usual size while it loads, so the Dropoff vs Pickup
 // chart the owner is reading doesn't drop when it lands. The table has All
 // Items plus a row per Category that saw work, so active Categories is the
-// closest guess before the report arrives.
+// closest guess before the report arrives, read from cache only: a fetch here
+// would cost a request and could grow the skeleton mid-load.
 export const TurnaroundSectionPlaceholder = () => {
-	const categoriesQuery = useQuery(categoriesQueries.list());
+	const categoriesQuery = useQuery({
+		...categoriesQueries.list(),
+		enabled: false,
+	});
 	const activeCount = (categoriesQuery.data ?? []).filter(
 		(category) => category.is_active,
 	).length;

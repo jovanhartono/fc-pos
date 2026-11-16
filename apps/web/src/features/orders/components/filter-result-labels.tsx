@@ -1,8 +1,4 @@
-import {
-	keepPreviousData,
-	useInfiniteQuery,
-	useQuery,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
 	type FetchOrderServiceQueueQuery,
 	type FetchOrdersQuery,
@@ -17,12 +13,8 @@ interface ShowOrdersLabelProps {
 }
 
 export const ShowOrdersLabel = ({ query }: ShowOrdersLabelProps) => {
-	const { data, isPlaceholderData } = useQuery({
-		...ordersQueries.list(query),
-		placeholderData: keepPreviousData,
-	});
-	// The previous picks' count would read as these picks' until the list loads.
-	const total = isPlaceholderData ? undefined : data?.meta.total;
+	const { data } = useQuery(ordersQueries.list(query));
+	const total = data?.meta.total;
 	return total === undefined
 		? "Show Orders"
 		: `Show ${pluralize(total, "Order")}`;
@@ -33,11 +25,8 @@ interface ShowQueueItemsLabelProps {
 }
 
 export const ShowQueueItemsLabel = ({ query }: ShowQueueItemsLabelProps) => {
-	const { data, isPlaceholderData } = useInfiniteQuery({
-		...ordersQueries.queue(query),
-		placeholderData: keepPreviousData,
-	});
-	const total = isPlaceholderData ? undefined : data?.pages[0]?.meta.total;
+	const { data } = useInfiniteQuery(ordersQueries.queue(query));
+	const total = data?.pages[0]?.meta.total;
 	return total === undefined
 		? "Show Items"
 		: `Show ${pluralize(total, "Item")}`;

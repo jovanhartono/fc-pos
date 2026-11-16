@@ -1,5 +1,5 @@
-import { Fragment } from "react";
 import { MoneyValue } from "@/components/money-value";
+import { NowrapPhrases } from "@/components/nowrap-phrases";
 import type { Campaign } from "@/features/campaigns/api";
 import { formatCampaignLimits } from "@/features/campaigns/lib/campaign-text";
 import { cn } from "@/lib/utils";
@@ -50,20 +50,14 @@ export const CampaignDiscount = ({
 			)}
 		>
 			<DiscountHeadline campaign={campaign} />
-			{limits && (
+			{limits.length > 0 && (
 				<span
 					className={cn(
 						"block font-normal text-footnote",
 						isActive && "text-foreground",
 					)}
 				>
-					{/* "min Rp 150.000" never splits across lines; whole phrases wrap. */}
-					{limits.split(" · ").map((phrase, index) => (
-						<Fragment key={phrase}>
-							{index > 0 && " · "}
-							<span className="whitespace-nowrap">{phrase}</span>
-						</Fragment>
-					))}
+					<NowrapPhrases phrases={limits} />
 				</span>
 			)}
 		</span>

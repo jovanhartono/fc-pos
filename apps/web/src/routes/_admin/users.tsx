@@ -1,4 +1,4 @@
-import { PUTUserSchema } from "@fresclean/api/schema";
+import { POSTUserSchema, PUTUserSchema } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	Add01Icon,
@@ -78,38 +78,21 @@ export const Route = createFileRoute("/_admin/users")({
 	pendingComponent: UsersPage,
 });
 
-// Editing a User hides the password fields; only Add User sets one.
-const userFormSchema = (isEditing: boolean) =>
+const userFormFields = {
+	store_ids: z.array(z.number().int()),
+	can_process_pickup: z.boolean(),
+};
+
+// Editing a User hides the password fields; only Add User sets one, under the
+// server's own password rules.
+const addUserResolver = zodResolver(POSTUserSchema.safeExtend(userFormFields));
+const editUserResolver = zodResolver(
 	PUTUserSchema.extend({
-		password: z.string().trim(),
-		confirm_password: z.string().trim(),
-		store_ids: z.array(z.number().int()),
-		can_process_pickup: z.boolean(),
-	}).superRefine((data, ctx) => {
-		if (isEditing) {
-			return;
-		}
-		if (data.password.length < 8) {
-			ctx.addIssue({
-				code: "custom",
-				message: "Use at least 8 characters.",
-				path: ["password"],
-			});
-		}
-		if (data.confirm_password.length < 8) {
-			ctx.addIssue({
-				code: "custom",
-				message: "Use at least 8 characters.",
-				path: ["confirm_password"],
-			});
-		} else if (data.password !== data.confirm_password) {
-			ctx.addIssue({
-				code: "custom",
-				message: "Passwords don't match.",
-				path: ["confirm_password"],
-			});
-		}
-	});
+		...userFormFields,
+		password: z.string(),
+		confirm_password: z.string(),
+	}),
+);
 
 const defaultForm: UserFormState = {
 	username: "",
@@ -145,7 +128,7 @@ function UsersPage() {
 	const isEditingRef = useRef(false);
 	const form = useForm<UserFormState>({
 		resolver: (values, context, options) =>
-			zodResolver(userFormSchema(isEditingRef.current))(
+			(isEditingRef.current ? editUserResolver : addUserResolver)(
 				values,
 				context,
 				options,

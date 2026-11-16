@@ -18,7 +18,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
-import { EmptyState } from "@/components/empty-state";
+import { EmptyState, NoMatchState } from "@/components/empty-state";
 import {
 	dateRangeLabel,
 	type FilterChip,
@@ -643,11 +643,15 @@ function QueuePage() {
 					!queueQuery.isError &&
 					!hasQueueItems &&
 					parsedStoreId !== undefined ? (
-						<EmptyState icon={Task01Icon}>
-							{selectedSearch
-								? `No Items match "${selectedSearch}"`
-								: "No Items."}
-						</EmptyState>
+						selectedSearch ? (
+							<NoMatchState
+								noun="Items"
+								search={selectedSearch}
+								onClear={clearSearchFilter}
+							/>
+						) : (
+							<EmptyState icon={Task01Icon}>No Items.</EmptyState>
+						)
 					) : null}
 
 					<div className="h-6" ref={loadMoreRef} />

@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,17 +57,18 @@ export const ServiceStatusConfirmForm = ({
 					onChange={(event) => setNote(event.target.value)}
 				/>
 			)}
-			<div className="grid gap-2">
-				<Button
-					disabled={isPending || (isReject && !trimmed)}
-					onClick={handleConfirm}
-				>
-					{isPending ? "Saving…" : isReject ? "Reject" : "Confirm Update"}
-				</Button>
-				<Button variant="ghost" onClick={closeDialog}>
-					Go Back
-				</Button>
-			</div>
+			<DialogFormActions
+				submit={
+					<Button
+						disabled={isPending || (isReject && !trimmed)}
+						onClick={handleConfirm}
+					>
+						{isPending ? "Saving…" : isReject ? "Reject" : "Confirm Update"}
+					</Button>
+				}
+				onCancel={closeDialog}
+				cancelLabel="Go Back"
+			/>
 		</div>
 	);
 };

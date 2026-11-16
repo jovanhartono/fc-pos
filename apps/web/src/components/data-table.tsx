@@ -1,4 +1,3 @@
-import { Search01Icon } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
 import type { LinkProps } from "@tanstack/react-router";
 import {
@@ -16,8 +15,7 @@ import {
 	dataTableFeatures,
 } from "@/components/data-table-features";
 import { DataTableGrid } from "@/components/data-table-grid";
-import { EmptyState } from "@/components/empty-state";
-import { Button } from "@/components/ui/button";
+import { NoMatchState } from "@/components/empty-state";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DataTableNoMatch {
@@ -151,24 +149,12 @@ export const DataTable = <TData extends RowData>({
 	});
 
 	const noMatchState = noMatch?.search ? (
-		<EmptyState
-			icon={Search01Icon}
+		<NoMatchState
+			noun={noMatch.noun}
+			search={noMatch.search}
+			onClear={noMatch.onClear}
 			isInset={!isCardView || isInsideCard}
-			action={
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					onClick={noMatch.onClear}
-				>
-					Clear Search
-				</Button>
-			}
-		>
-			<p className="wrap-break-word max-w-full">
-				No {noMatch.noun} match "{noMatch.search}"
-			</p>
-		</EmptyState>
+		/>
 	) : undefined;
 
 	if (isCardView) {

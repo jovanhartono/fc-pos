@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createContext, use, useEffect, useId, useState } from "react";
 import { toast } from "sonner";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -383,18 +384,18 @@ const PickupActions = ({ onCancel }: { onCancel: () => void }) => {
 		!file || selectedIds.length === 0 || pickupCode.length !== 6 || isPending;
 
 	return (
-		<div className="grid gap-2">
-			<Button
-				disabled={isSubmitDisabled}
-				loading={isPending}
-				loadingText="Saving…"
-				onClick={submit}
-			>
-				Record Pickup
-			</Button>
-			<Button variant="ghost" onClick={onCancel}>
-				Cancel
-			</Button>
-		</div>
+		<DialogFormActions
+			submit={
+				<Button
+					disabled={isSubmitDisabled}
+					loading={isPending}
+					loadingText="Saving…"
+					onClick={submit}
+				>
+					Record Pickup
+				</Button>
+			}
+			onCancel={onCancel}
+		/>
 	);
 };

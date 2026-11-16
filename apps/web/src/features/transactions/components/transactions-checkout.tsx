@@ -59,12 +59,7 @@ export const TransactionsCheckout = () => {
 	const isStepEnabled = (target: CheckoutStep) =>
 		isStepReachable(gates, step, target);
 
-	// Once Items are in, only the photo can lock Payment, and the footer line
-	// under Continue already asks for it.
-	const lockedStepHint =
-		step === "items" && count > 0 && gates.customerReady
-			? ""
-			: getLockedStepHint(gates, step, gateInput);
+	const lockedStepHint = getLockedStepHint(gates, step, gateInput);
 
 	const headingRef = useRef<HTMLHeadingElement>(null);
 

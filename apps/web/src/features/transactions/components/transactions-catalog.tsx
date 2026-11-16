@@ -1,7 +1,6 @@
 import {
 	Add01Icon,
 	BluetoothIcon,
-	Search01Icon,
 	ShoppingCart01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -13,7 +12,7 @@ import {
 	CHIP_STRIP_ROW,
 	ChipStripScroller,
 } from "@/components/chip-strip";
-import { EmptyState } from "@/components/empty-state";
+import { EmptyState, NoMatchState } from "@/components/empty-state";
 import { SearchInput } from "@/components/search-input";
 import { StickyControls } from "@/components/sticky-controls";
 import { Button } from "@/components/ui/button";
@@ -393,24 +392,18 @@ const CatalogGrid = ({
 				})}
 			</div>
 
-			{filteredEntries.length === 0 ? (
-				<CatalogEmpty searchValue={searchValue} />
-			) : null}
+			{filteredEntries.length === 0 ? <CatalogEmpty /> : null}
 		</>
 	);
 };
 
-interface CatalogEmptyProps {
-	searchValue: string;
-}
-
-const CatalogEmpty = ({ searchValue }: CatalogEmptyProps) => {
+const CatalogEmpty = () => {
 	const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
 	const setSearchTerm = useTransactionsPageStore(
 		(state) => state.setSearchTerm,
 	);
 
-	if (searchValue.length === 0) {
+	if (searchTerm.trim().length === 0) {
 		return (
 			<EmptyState icon={ShoppingCart01Icon}>
 				No Services or Products.
@@ -419,22 +412,10 @@ const CatalogEmpty = ({ searchValue }: CatalogEmptyProps) => {
 	}
 
 	return (
-		<EmptyState
-			icon={Search01Icon}
-			action={
-				<Button
-					onClick={() => setSearchTerm("")}
-					size="sm"
-					type="button"
-					variant="outline"
-				>
-					Clear Search
-				</Button>
-			}
-		>
-			<p className="wrap-break-word max-w-full">
-				No Services or Products match "{searchTerm.trim()}"
-			</p>
-		</EmptyState>
+		<NoMatchState
+			noun="Services or Products"
+			search={searchTerm.trim()}
+			onClear={() => setSearchTerm("")}
+		/>
 	);
 };

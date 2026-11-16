@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -29,11 +30,6 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 	const [pendingName, setPendingName] = useState<string | null>(null);
 	const [label, setLabel] = useState("");
 
-	const invalidate = () =>
-		queryClient.invalidateQueries({
-			queryKey: storesKeys.devices(storeId),
-		});
-
 	const pairMutation = useMutation({
 		mutationFn: pairBluetoothDevice,
 		onSuccess: (name) => setPendingName(name),
@@ -53,7 +49,9 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 		onSuccess: async () => {
 			setPendingName(null);
 			setLabel("");
-			await invalidate();
+			await queryClient.invalidateQueries({
+				queryKey: storesKeys.devices(storeId),
+			});
 		},
 	});
 
@@ -148,19 +146,15 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 							disabled={registerMutation.isPending}
 						/>
 					</Field>
-					<div className="grid gap-2">
-						<Button type="submit" loading={registerMutation.isPending}>
-							Save
-						</Button>
-						<Button
-							type="button"
-							variant="ghost"
-							disabled={registerMutation.isPending}
-							onClick={() => setPendingName(null)}
-						>
-							Cancel
-						</Button>
-					</div>
+					<DialogFormActions
+						submit={
+							<Button type="submit" loading={registerMutation.isPending}>
+								Save
+							</Button>
+						}
+						onCancel={() => setPendingName(null)}
+						isPending={registerMutation.isPending}
+					/>
 				</form>
 			)}
 		</div>

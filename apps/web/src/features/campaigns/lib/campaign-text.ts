@@ -23,6 +23,4 @@ export const formatCampaignLimits = (
 		Number(campaign.min_order_total) > 0
 			? `min ${formatMoney(String(campaign.min_order_total))}`
 			: null,
-	]
-		.filter(Boolean)
-		.join(" · ");
+	].filter((part) => part !== null);

@@ -71,18 +71,19 @@ export const CustomerPhoneField = ({
 		? `at least ${pluralize(digitsLeft, "more digit", "more digits")}`
 		: "";
 	let message = "";
+	let isInvalid = false;
 	if (digits && !isValid) {
 		if (!hasLeftField) {
 			message = left && `Needs ${left}`;
 		} else {
 			message = left ? `Too short. Add ${left}.` : "Invalid phone number";
+			isInvalid = true;
 		}
 	} else if (error?.message) {
 		// Create Order refused the number, or it was never filled in.
 		message = error.message;
+		isInvalid = true;
 	}
-	const isInvalid =
-		message !== "" && (hasLeftField || message === error?.message);
 
 	return (
 		<Field data-invalid={isInvalid}>

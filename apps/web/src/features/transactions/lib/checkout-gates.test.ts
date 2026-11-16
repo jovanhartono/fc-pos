@@ -115,6 +115,17 @@ describe("lockedStepHint", () => {
 		).toBe("Payment unlocks once you add an item and a drop-off photo.");
 	});
 
+	test("leaves the missing photo to the footer once Items are in", () => {
+		expect(
+			lockedStepHint({ customerReady: true, itemsReady: false }, "items", {
+				...input,
+				customerName: "Budi",
+				customerPhone: "081234567890",
+				itemCount: 1,
+			}),
+		).toBe("");
+	});
+
 	test("is empty once nothing ahead is locked", () => {
 		expect(
 			lockedStepHint({ customerReady: true, itemsReady: true }, "payment", {

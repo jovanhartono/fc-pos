@@ -25,20 +25,15 @@ export const readServerErrorMessage = (
 	error: unknown,
 	fallback = "Couldn't save",
 ): string => {
+	// Without the server's reason, a bare "502 Bad Gateway" tells the cashier nothing.
 	if (error instanceof DetailedError) {
 		const detail = error.detail as { data?: { message?: string } } | undefined;
-		if (detail?.data?.message) {
-			return detail.data.message;
-		}
+		return detail?.data?.message || fallback;
 	}
 	// The shop's Wi-Fi dropped: Chrome, Safari and Firefox each word it their
 	// own way, and the cashier needs to know to check the connection.
 	if (error instanceof TypeError && FETCH_FAILED.test(error.message)) {
 		return `${fallback}. Check the connection.`;
-	}
-	// A bare status line ("502 Bad Gateway") tells the cashier nothing.
-	if (error instanceof DetailedError) {
-		return fallback;
 	}
 	if (error instanceof Error && error.message.length > 0) {
 		return error.message;

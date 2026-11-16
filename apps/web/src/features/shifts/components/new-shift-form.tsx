@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, FormProvider, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
+import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -133,19 +134,15 @@ export const NewShiftForm = ({ onDone }: NewShiftFormProps) => {
 
 					<ShiftTimeFields />
 
-					<div className="grid gap-2">
-						<Button type="submit" loading={isSubmitting}>
-							Save
-						</Button>
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={onDone}
-							disabled={isSubmitting}
-						>
-							Cancel
-						</Button>
-					</div>
+					<DialogFormActions
+						submit={
+							<Button type="submit" loading={isSubmitting}>
+								Save
+							</Button>
+						}
+						onCancel={onDone}
+						isPending={isSubmitting}
+					/>
 				</FieldGroup>
 			</form>
 		</FormProvider>
