@@ -2,29 +2,10 @@ import {
 	isValidPhoneNumber,
 	normalizePhoneNumber,
 } from "@fresclean/api/schema";
-import { AsYouType } from "libphonenumber-js";
+import { AsYouType, parseIncompletePhoneNumber } from "libphonenumber-js";
 import { useLayoutEffect, useRef, useState } from "react";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { pluralize } from "@/shared/utils";
-
-const HINT_ID = "customer-phone-hint";
-
-// Spaces and dashes are display only: the form keeps the digits as typed, and
-// the number is stored as +62… on blur, as before.
-const toPhoneDigits = (text: string) =>
-	text.replace(/[^\d+]/g, "").replace(/(?!^)\+/g, "");
-
-// The fewest digits that still make a valid number, so "0812" reads "5 more".
-const countDigitsLeft = (digits: string): number | null => {
-	for (let extra = 1; extra <= 13; extra++) {
-		if (isValidPhoneNumber(digits + "1".repeat(extra))) {
-			return extra;
-		}
-	}
-	return null;
-};
 
 interface CustomerPhoneFieldProps {
 	value: string;
@@ -43,10 +24,9 @@ export const CustomerPhoneField = ({
 	const caretDigitsRef = useRef<number | null>(null);
 	const [hasLeftField, setHasLeftField] = useState(false);
 
+	// Dashes are display only: the form keeps the digits, stored as +62… on blur.
 	const display = new AsYouType("ID").input(value);
-	const digits = toPhoneDigits(value);
-	const isValid = isValidPhoneNumber(value);
-	const digitsLeft = digits && !isValid ? countDigitsLeft(digits) : null;
+	const digits = parseIncompletePhoneNumber(value);
 
 	useLayoutEffect(() => {
 		const input = inputRef.current;
@@ -65,25 +45,13 @@ export const CustomerPhoneField = ({
 		input.setSelectionRange(position, position);
 	});
 
-	// Quiet while the cashier types; a short number turns red only once they
-	// leave the field.
-	const left = digitsLeft
-		? `at least ${pluralize(digitsLeft, "more digit", "more digits")}`
-		: "";
-	let message = "";
-	let isInvalid = false;
-	if (digits && !isValid) {
-		if (!hasLeftField) {
-			message = left && `Needs ${left}`;
-		} else {
-			message = left ? `Too short. Add ${left}.` : "Invalid phone number";
-			isInvalid = true;
-		}
-	} else if (error?.message) {
-		// Create Order refused the number, or it was never filled in.
-		message = error.message;
-		isInvalid = true;
-	}
+	// Quiet while the cashier types; a bad number turns red once they leave
+	// the field. Otherwise Create Order's own error shows.
+	const shownError =
+		hasLeftField && digits && !isValidPhoneNumber(value)
+			? { message: "Invalid phone number" }
+			: error;
+	const isInvalid = Boolean(shownError?.message);
 
 	return (
 		<Field data-invalid={isInvalid}>
@@ -91,7 +59,6 @@ export const CustomerPhoneField = ({
 				Phone
 			</FieldLabel>
 			<Input
-				aria-describedby={HINT_ID}
 				aria-invalid={isInvalid}
 				// The cashier types the customer's number; Safari would offer the
 				// counter phone's own and file the Order under the wrong Customer.
@@ -108,8 +75,10 @@ export const CustomerPhoneField = ({
 				onChange={(event) => {
 					const text = event.target.value;
 					const caret = event.target.selectionStart ?? text.length;
-					let next = toPhoneDigits(text);
-					let caretDigits = toPhoneDigits(text.slice(0, caret)).length;
+					let next = parseIncompletePhoneNumber(text);
+					let caretDigits = parseIncompletePhoneNumber(
+						text.slice(0, caret),
+					).length;
 					// Deleting a dash removes no digit, so the dash would come straight
 					// back; take the digit beside it instead.
 					if (next === digits && text.length < display.length) {
@@ -132,18 +101,7 @@ export const CustomerPhoneField = ({
 				type="tel"
 				value={display}
 			/>
-			{/* Always one line tall, so the hint coming and going never moves the
-			    Name field below on a phone. */}
-			<p
-				className={cn(
-					"text-footnote",
-					isInvalid ? "text-destructive" : "text-muted-foreground",
-					!message && "invisible",
-				)}
-				id={HINT_ID}
-			>
-				{message || " "}
-			</p>
+			<FieldError errors={[shownError]} />
 		</Field>
 	);
 };
