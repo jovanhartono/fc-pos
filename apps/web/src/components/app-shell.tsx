@@ -58,6 +58,7 @@ import {
 	SidebarTrigger,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { logout } from "@/features/auth/api";
 import { usersQueries } from "@/features/users/api";
 import { UserAvatar } from "@/features/users/components/user-avatar";
 import { cn } from "@/lib/utils";
@@ -283,8 +284,7 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 }
 
 export function AppShell({ title, children }: AppShellProps) {
-	const navigate = useNavigate();
-	const clearToken = useAuthStore((state) => state.clearToken);
+	const clearUser = useAuthStore((state) => state.clearUser);
 	const user = getCurrentUser();
 	// Read once on purpose: following the window width re-rendered the whole shell
 	// mid-resize and fought a cashier who had collapsed the sidebar by hand.
@@ -311,9 +311,11 @@ export function AppShell({ title, children }: AppShellProps) {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [openCommandBar]);
 
-	const handleLogout = () => {
-		clearToken();
-		void navigate({ to: "/auth/login" });
+	const handleLogout = async () => {
+		// Waits, so a slow sign-out can't land after the next person's sign-in
+		// and wipe their cookie.
+		await logout().catch(() => undefined);
+		clearUser();
 	};
 
 	const allowedGroups = role ? navGroupsForRole(role) : [];

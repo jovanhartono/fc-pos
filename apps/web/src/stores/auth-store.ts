@@ -1,46 +1,45 @@
 import type { JWTPayload } from "@fresclean/api/types";
-import { jwtDecode } from "jwt-decode";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+// The sign-in itself lives in an HttpOnly cookie no script can read. This is
+// only who signed in, for showing names and choosing screens.
 interface AuthState {
-	token: string | null;
-	setToken: (token: string) => void;
-	clearToken: () => void;
+	user: JWTPayload | null;
+	setUser: (user: JWTPayload) => void;
+	clearUser: () => void;
 }
 
-let cachedToken: string | null = null;
-let cachedUser: JWTPayload | null = null;
+// Tokens from before the cookie sat readable in localStorage; drop the copy so
+// it can't be lifted.
+try {
+	localStorage.removeItem("jwt");
+} catch {
+	// Storage blocked
+}
 
 export const useAuthStore = create<AuthState>()(
 	persist(
 		(set) => ({
-			token: null,
-			setToken: (token) => set({ token }),
-			clearToken: () => set({ token: null }),
+			user: null,
+			setUser: (user) => set({ user }),
+			clearUser: () => set({ user: null }),
 		}),
 		{
-			name: "jwt",
+			name: "auth-user",
 		},
 	),
 );
 
-export function getCurrentUser(): JWTPayload | null {
-	const token = useAuthStore.getState().token;
-	if (!token) {
-		return null;
-	}
-
-	if (token === cachedToken) {
-		return cachedUser;
-	}
-
-	try {
-		const user = jwtDecode<JWTPayload>(token);
-		cachedToken = token;
-		cachedUser = user;
-		return user;
-	} catch {
-		return null;
-	}
+// Every tab shares the one cookie: when a cashier signs out on one tab and the
+// next person signs in, the other tabs must switch to them too.
+if (typeof window !== "undefined") {
+	window.addEventListener("storage", (event) => {
+		if (event.key === useAuthStore.persist.getOptions().name) {
+			void useAuthStore.persist.rehydrate();
+		}
+	});
 }
+
+export const getCurrentUser = (): JWTPayload | null =>
+	useAuthStore.getState().user;

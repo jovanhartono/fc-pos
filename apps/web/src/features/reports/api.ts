@@ -8,7 +8,7 @@ import {
 	toSearchParams,
 } from "@/lib/http";
 import { REPORT_STALE_TIME } from "@/lib/query-defaults";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type { KpiDelta, ReportGranularity };
 
@@ -161,7 +161,7 @@ function toRangeQuery(query: FetchReportRangeQuery) {
 
 function fetchReportOverview(query: FetchReportOverviewQuery) {
 	return parseSuccessData<ReportOverview>(
-		rpcWithAuth().api.admin.reports.overview.$get({
+		rpc.api.admin.reports.overview.$get({
 			query: {
 				date: query.date,
 				...(query.store_id !== undefined
@@ -179,7 +179,7 @@ async function fetchAgingQueueReport(
 	query?: FetchAgingQueueQuery,
 ): Promise<PaginatedData<AgingQueueItem>> {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.reports["aging-queue"].$get({
+		rpc.api.admin.reports["aging-queue"].$get({
 			query: toSearchParams({
 				store_id: query?.store_id,
 				limit: query?.limit,
@@ -194,7 +194,7 @@ async function fetchQcRejectsReport(
 	query: FetchQcRejectsQuery,
 ): Promise<PaginatedData<QcRejectItem>> {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.reports["qc-rejects"].$get({
+		rpc.api.admin.reports["qc-rejects"].$get({
 			query: {
 				...toRangeQuery(query),
 				...toSearchParams({
@@ -220,7 +220,7 @@ export const reportsQueries = {
 			queryKey: reportsKeys.financial(query),
 			queryFn: () =>
 				parseSuccessData<FinancialReport>(
-					rpcWithAuth().api.admin.reports.financial.$get({
+					rpc.api.admin.reports.financial.$get({
 						query: toRangeQuery(query),
 					}),
 				),
@@ -231,7 +231,7 @@ export const reportsQueries = {
 			queryKey: reportsKeys.ordersFlow(query),
 			queryFn: () =>
 				parseSuccessData<OrdersFlowReport>(
-					rpcWithAuth().api.admin.reports["orders-flow"].$get({
+					rpc.api.admin.reports["orders-flow"].$get({
 						query: toRangeQuery(query),
 					}),
 				),
@@ -242,7 +242,7 @@ export const reportsQueries = {
 			queryKey: reportsKeys.turnaround(query),
 			queryFn: () =>
 				parseSuccessData<TurnaroundReport>(
-					rpcWithAuth().api.admin.reports.turnaround.$get({
+					rpc.api.admin.reports.turnaround.$get({
 						query: toRangeQuery({ ...query, granularity: undefined }),
 					}),
 				),
@@ -253,7 +253,7 @@ export const reportsQueries = {
 			queryKey: reportsKeys.paymentMix(query),
 			queryFn: () =>
 				parseSuccessData<PaymentMixReport>(
-					rpcWithAuth().api.admin.reports["payment-mix"].$get({
+					rpc.api.admin.reports["payment-mix"].$get({
 						query: toRangeQuery(query),
 					}),
 				),
@@ -264,7 +264,7 @@ export const reportsQueries = {
 			queryKey: reportsKeys.customerAcquisition(query),
 			queryFn: () =>
 				parseSuccessData<CustomerAcquisitionReport>(
-					rpcWithAuth().api.admin.reports["customer-acquisition"].$get({
+					rpc.api.admin.reports["customer-acquisition"].$get({
 						query: toRangeQuery(query),
 					}),
 				),
@@ -275,7 +275,7 @@ export const reportsQueries = {
 			queryKey: reportsKeys.quality(query),
 			queryFn: () =>
 				parseSuccessData<QualityReport>(
-					rpcWithAuth().api.admin.reports.quality.$get({
+					rpc.api.admin.reports.quality.$get({
 						query: toRangeQuery(query),
 					}),
 				),
@@ -292,7 +292,7 @@ export const reportsQueries = {
 			queryKey: reportsKeys.workerProductivity(query),
 			queryFn: () =>
 				parseSuccessData<WorkerProductivityReport>(
-					rpcWithAuth().api.admin.reports["worker-productivity"].$get({
+					rpc.api.admin.reports["worker-productivity"].$get({
 						query: toRangeQuery(query),
 					}),
 				),
@@ -306,7 +306,7 @@ export const reportsQueries = {
 			queryKey: reportsKeys.workerLive(query),
 			queryFn: () =>
 				parseSuccessData<WorkerLiveRow[]>(
-					rpcWithAuth().api.admin.reports["worker-live"].$get({
+					rpc.api.admin.reports["worker-live"].$get({
 						query: toSearchParams({ store_id: query.store_id }),
 					}),
 				),
@@ -319,7 +319,7 @@ export const reportsQueries = {
 			queryKey: reportsKeys.workerDetail(query),
 			queryFn: () =>
 				parseSuccessData<WorkerDetailReport>(
-					rpcWithAuth().api.admin.reports["worker-detail"].$get({
+					rpc.api.admin.reports["worker-detail"].$get({
 						query: {
 							from: query.from,
 							to: query.to,
@@ -335,7 +335,7 @@ export const reportsQueries = {
 			queryKey: reportsKeys.campaignEffectiveness(query),
 			queryFn: () =>
 				parseSuccessData<CampaignEffectivenessReport>(
-					rpcWithAuth().api.admin.reports["campaign-effectiveness"].$get({
+					rpc.api.admin.reports["campaign-effectiveness"].$get({
 						query: toRangeQuery(query),
 					}),
 				),

@@ -15,6 +15,7 @@ const app = new Hono<{ Variables: JwtVariables<AuthUser> }>()
     // the API from one origin.
     cors({
       origin: ["http://localhost:5173", "http://localhost:4173"],
+      credentials: true,
     })
   )
   .use(

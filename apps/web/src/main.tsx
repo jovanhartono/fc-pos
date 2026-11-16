@@ -83,11 +83,14 @@ const queryClient = new QueryClient({
 	},
 });
 
-// Whoever signs in or out of a shared tablet, or is signed out by a 401, must
-// not inherit the last person's role, Stores and screens.
+// Whoever signs in or out of a shared tablet, or is signed out by a 401 or on
+// another tab, must not inherit the last person's role, Stores and screens.
 useAuthStore.subscribe((state, previous) => {
-	if (state.token !== previous.token) {
+	if (state.user !== previous.user) {
 		queryClient.clear();
+	}
+	if (previous.user && !state.user) {
+		void router.navigate({ to: "/auth/login" });
 	}
 });
 

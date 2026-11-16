@@ -3,7 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type Service = InferResponseType<
 	typeof rpc.api.admin.services.$get
@@ -20,7 +20,7 @@ export const servicesKeys = {
 };
 
 async function fetchServices() {
-	const response = await parseResponse(rpcWithAuth().api.admin.services.$get());
+	const response = await parseResponse(rpc.api.admin.services.$get());
 	return response.data;
 }
 
@@ -34,14 +34,12 @@ export const servicesQueries = {
 };
 
 export function createService(payload: CreateServicePayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.services.$post({ json: payload }),
-	);
+	return parseResponse(rpc.api.admin.services.$post({ json: payload }));
 }
 
 export function updateService(id: number, payload: UpdateServicePayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.services[":id"].$put({
+		rpc.api.admin.services[":id"].$put({
 			param: { id: String(id) },
 			json: payload,
 		}),

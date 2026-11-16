@@ -112,6 +112,21 @@ describe("adminMiddleware — DB auth-state refresh", () => {
     expect(executeMock).toHaveBeenCalledWith({ id: 42 });
   });
 
+  // The web app sends only the sign-in cookie; losing it signs every screen out.
+  it("accepts the token from the session cookie", async () => {
+    executeMock.mockResolvedValue({
+      role: "cashier",
+      is_active: true,
+      can_process_pickup: false,
+      userStores: [],
+    });
+    const res = await app.request("/admin/me", {
+      headers: { Cookie: `session=${await signToken({ id: 42 })}` },
+    });
+    expect(res.status).toBe(200);
+    expect(executeMock).toHaveBeenCalledWith({ id: 42 });
+  });
+
   it("overwrites stale token role/can_process_pickup with DB values", async () => {
     executeMock.mockResolvedValue({
       role: "worker",

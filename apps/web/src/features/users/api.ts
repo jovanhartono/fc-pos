@@ -25,7 +25,7 @@ import {
 	REPORT_STALE_TIME,
 	SESSION_DATA_STALE_TIME,
 } from "@/lib/query-defaults";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type User = InferResponseType<
 	typeof rpc.api.admin.users.$get
@@ -77,7 +77,7 @@ async function fetchUsersPage(
 	query?: FetchUsersQuery,
 ): Promise<PaginatedData<User>> {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.users.$get({
+		rpc.api.admin.users.$get({
 			query:
 				query && Object.keys(query).length > 0
 					? toSearchParams(query)
@@ -89,7 +89,7 @@ async function fetchUsersPage(
 }
 
 function fetchMe() {
-	return parseSuccessData<Me>(rpcWithAuth().api.admin.users.me.$get());
+	return parseSuccessData<Me>(rpc.api.admin.users.me.$get());
 }
 
 export const usersQueries = {
@@ -109,7 +109,7 @@ export const usersQueries = {
 			queryKey: usersKeys.performance(period),
 			queryFn: () =>
 				parseSuccessData<OwnPerformance>(
-					rpcWithAuth().api.admin.users.me.performance.$get({
+					rpc.api.admin.users.me.performance.$get({
 						query: { period },
 					}),
 				),
@@ -119,20 +119,18 @@ export const usersQueries = {
 		queryOptions({
 			queryKey: usersKeys.couriers(),
 			queryFn: () =>
-				parseSuccessData<Courier[]>(
-					rpcWithAuth().api.admin.users.couriers.$get(),
-				),
+				parseSuccessData<Courier[]>(rpc.api.admin.users.couriers.$get()),
 			staleTime: REFERENCE_DATA_STALE_TIME,
 		}),
 };
 
 export function createUser(payload: CreateUserPayload) {
-	return parseResponse(rpcWithAuth().api.admin.users.$post({ json: payload }));
+	return parseResponse(rpc.api.admin.users.$post({ json: payload }));
 }
 
 export function updateUser(id: number, payload: UpdateUserPayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.users[":id"].$put({
+		rpc.api.admin.users[":id"].$put({
 			param: { id: String(id) },
 			json: payload,
 		}),
@@ -144,7 +142,7 @@ export function resetUserPassword(
 	payload: ResetUserPasswordPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.users[":id"].password.$put({
+		rpc.api.admin.users[":id"].password.$put({
 			param: { id: String(id) },
 			json: payload,
 		}),
@@ -152,15 +150,11 @@ export function resetUserPassword(
 }
 
 export function updateOwnProfile(payload: UpdateOwnProfilePayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.users.me.$patch({ json: payload }),
-	);
+	return parseResponse(rpc.api.admin.users.me.$patch({ json: payload }));
 }
 
 export function changeOwnPassword(payload: ChangeOwnPasswordPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.users.me.password.$put({ json: payload }),
-	);
+	return parseResponse(rpc.api.admin.users.me.password.$put({ json: payload }));
 }
 
 export const avatarUploader: PhotoUploader = {
@@ -169,7 +163,7 @@ export const avatarUploader: PhotoUploader = {
 			key: string;
 			upload_url: string;
 		}>(
-			rpcWithAuth().api.admin.users.me.avatar.presign.$post({
+			rpc.api.admin.users.me.avatar.presign.$post({
 				json: { content_type: contentType },
 			}),
 		);
@@ -183,7 +177,7 @@ export const avatarUploader: PhotoUploader = {
 	},
 	commit: async (key) => {
 		await parseResponse(
-			rpcWithAuth().api.admin.users.me.avatar.$put({
+			rpc.api.admin.users.me.avatar.$put({
 				json: { image_path: key },
 			}),
 		);
@@ -191,12 +185,12 @@ export const avatarUploader: PhotoUploader = {
 };
 
 export function removeAvatar() {
-	return parseResponse(rpcWithAuth().api.admin.users.me.avatar.$delete());
+	return parseResponse(rpc.api.admin.users.me.avatar.$delete());
 }
 
 export function updateUserStores(id: number, payload: UpdateUserStoresPayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.users[":id"].stores.$put({
+		rpc.api.admin.users[":id"].stores.$put({
 			param: { id: String(id) },
 			json: payload,
 		}),
