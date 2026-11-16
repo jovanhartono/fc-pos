@@ -383,10 +383,7 @@ const PickupActions = ({ onCancel }: { onCancel: () => void }) => {
 		!file || selectedIds.length === 0 || pickupCode.length !== 6 || isPending;
 
 	return (
-		<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-			<Button variant="outline" onClick={onCancel}>
-				Cancel
-			</Button>
+		<div className="grid gap-2">
 			<Button
 				disabled={isSubmitDisabled}
 				loading={isPending}
@@ -394,6 +391,9 @@ const PickupActions = ({ onCancel }: { onCancel: () => void }) => {
 				onClick={submit}
 			>
 				Record Pickup
+			</Button>
+			<Button variant="ghost" onClick={onCancel}>
+				Cancel
 			</Button>
 		</div>
 	);

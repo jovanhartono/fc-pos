@@ -49,21 +49,21 @@ export const OrderCourierForm = ({
 				placeholder="Walk-in (no courier)"
 				value={selectedCourierId || "none"}
 			/>
-			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-				<Button
-					disabled={courierMutation.isPending}
-					onClick={closeDialog}
-					type="button"
-					variant="outline"
-				>
-					Go Back
-				</Button>
+			<div className="grid gap-2">
 				<Button
 					disabled={courierMutation.isPending || !isDirty}
 					onClick={handleSave}
 					type="button"
 				>
 					{courierMutation.isPending ? "Saving…" : "Save Courier"}
+				</Button>
+				<Button
+					disabled={courierMutation.isPending}
+					onClick={closeDialog}
+					type="button"
+					variant="ghost"
+				>
+					Go Back
 				</Button>
 			</div>
 		</div>

@@ -182,8 +182,11 @@ const RemoveDeviceActions = ({
 	const removeMutation = useMutation({
 		mutationFn: () => deleteStoreDevice(storeId, deviceId),
 		onSuccess: async () => {
+			// The list is closed behind this confirm, so refetch it anyway, or it
+			// reopens still showing the printer just removed.
 			await queryClient.invalidateQueries({
 				queryKey: storesKeys.devices(storeId),
+				refetchType: "all",
 			});
 			onDone();
 		},

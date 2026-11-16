@@ -17,11 +17,12 @@ interface ShowOrdersLabelProps {
 }
 
 export const ShowOrdersLabel = ({ query }: ShowOrdersLabelProps) => {
-	const { data } = useQuery({
+	const { data, isPlaceholderData } = useQuery({
 		...ordersQueries.list(query),
 		placeholderData: keepPreviousData,
 	});
-	const total = data?.meta.total;
+	// The previous picks' count would read as these picks' until the list loads.
+	const total = isPlaceholderData ? undefined : data?.meta.total;
 	return total === undefined
 		? "Show Orders"
 		: `Show ${pluralize(total, "Order")}`;
@@ -32,11 +33,11 @@ interface ShowQueueItemsLabelProps {
 }
 
 export const ShowQueueItemsLabel = ({ query }: ShowQueueItemsLabelProps) => {
-	const { data } = useInfiniteQuery({
+	const { data, isPlaceholderData } = useInfiniteQuery({
 		...ordersQueries.queue(query),
 		placeholderData: keepPreviousData,
 	});
-	const total = data?.pages[0]?.meta.total;
+	const total = isPlaceholderData ? undefined : data?.pages[0]?.meta.total;
 	return total === undefined
 		? "Show Items"
 		: `Show ${pluralize(total, "Item")}`;

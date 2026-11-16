@@ -17,6 +17,8 @@ export const ensureOrNotFound = async <T>(load: Promise<T>) => {
 	}
 };
 
+const FETCH_FAILED = /^(Failed to fetch|Load failed|NetworkError)/;
+
 // hono's error message is only the status line ("400 Bad Request"); the server's
 // reason sits in detail.data. Without this the cashier reads the status, not why.
 export const readServerErrorMessage = (
@@ -29,10 +31,14 @@ export const readServerErrorMessage = (
 			return detail.data.message;
 		}
 	}
-	// A dropped connection rejects fetch with "Failed to fetch" (Chrome) or
-	// "Load failed" (Safari); the cashier needs to know to check the Wi-Fi.
-	if (error instanceof TypeError || error instanceof DetailedError) {
+	// The shop's Wi-Fi dropped: Chrome, Safari and Firefox each word it their
+	// own way, and the cashier needs to know to check the connection.
+	if (error instanceof TypeError && FETCH_FAILED.test(error.message)) {
 		return `${fallback}. Check the connection.`;
+	}
+	// A bare status line ("502 Bad Gateway") tells the cashier nothing.
+	if (error instanceof DetailedError) {
+		return fallback;
 	}
 	if (error instanceof Error && error.message.length > 0) {
 		return error.message;

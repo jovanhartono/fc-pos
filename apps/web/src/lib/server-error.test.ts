@@ -42,6 +42,15 @@ describe("readServerErrorMessage", () => {
 		).toBe("Couldn't load. Check the connection.");
 	});
 
+	test("a code bug or a bare status is not blamed on the connection", () => {
+		expect(
+			readServerErrorMessage(new TypeError("x is undefined"), "Couldn't load"),
+		).toBe("x is undefined");
+		expect(readServerErrorMessage(new DetailedError("502 Bad Gateway"))).toBe(
+			"Couldn't save",
+		);
+	});
+
 	test("a non-Error rejection falls back to the caller's wording", () => {
 		expect(readServerErrorMessage(undefined, "Failed to record pickup")).toBe(
 			"Failed to record pickup",

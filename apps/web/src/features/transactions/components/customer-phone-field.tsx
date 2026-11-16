@@ -77,10 +77,12 @@ export const CustomerPhoneField = ({
 		} else {
 			message = left ? `Too short. Add ${left}.` : "Invalid phone number";
 		}
-	} else if (hasLeftField && error?.message) {
+	} else if (error?.message) {
+		// Create Order refused the number, or it was never filled in.
 		message = error.message;
 	}
-	const isInvalid = hasLeftField && message !== "";
+	const isInvalid =
+		message !== "" && (hasLeftField || message === error?.message);
 
 	return (
 		<Field data-invalid={isInvalid}>
@@ -105,15 +107,18 @@ export const CustomerPhoneField = ({
 					const caret = event.target.selectionStart ?? text.length;
 					let next = toPhoneDigits(text);
 					let caretDigits = toPhoneDigits(text.slice(0, caret)).length;
-					// Backspace on a dash removes no digit, so the dash would come
-					// straight back; take the digit before it instead.
-					if (
-						next === digits &&
-						text.length < display.length &&
-						caretDigits > 0
-					) {
-						next = next.slice(0, caretDigits - 1) + next.slice(caretDigits);
-						caretDigits--;
+					// Deleting a dash removes no digit, so the dash would come straight
+					// back; take the digit beside it instead.
+					if (next === digits && text.length < display.length) {
+						const isForward =
+							(event.nativeEvent as InputEvent).inputType ===
+							"deleteContentForward";
+						if (isForward) {
+							next = next.slice(0, caretDigits) + next.slice(caretDigits + 1);
+						} else if (caretDigits > 0) {
+							next = next.slice(0, caretDigits - 1) + next.slice(caretDigits);
+							caretDigits--;
+						}
 					}
 					caretDigitsRef.current = caretDigits;
 					setHasLeftField(false);

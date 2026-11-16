@@ -149,14 +149,14 @@ export const TransactionsCheckout = () => {
 						Reset
 					</Button>
 				</div>
-				{/* On the Customer step it stays as a blank line once every step
-				    opens, so filling in the Customer doesn't pull the form up under
-				    the cashier's tap. Two lines on a phone, where the hint wraps. */}
+				{/* Before Payment it stays as a blank line once the hint clears, so
+				    filling in the Customer or tapping the first Item doesn't pull the
+				    form up under the cashier's tap. Two lines on a phone, where it wraps. */}
 				<p
 					className={cn(
 						"text-muted-foreground text-footnote",
-						step === "customer" && "max-sm:min-h-8",
-						!lockedStepHint && (step === "customer" ? "invisible" : "hidden"),
+						step !== "payment" && "max-sm:min-h-8",
+						!lockedStepHint && (step === "payment" ? "hidden" : "invisible"),
 					)}
 					id={LOCKED_STEP_HINT_ID}
 				>

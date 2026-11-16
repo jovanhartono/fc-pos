@@ -1,5 +1,4 @@
 import dayjs from "dayjs";
-import { useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { z } from "zod";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -26,10 +25,28 @@ export const shiftTimesSchema = z.object({
 
 type ShiftTimeValues = z.infer<typeof shiftTimesSchema>;
 
+// A day picked without its time (or the reverse) is held as "2026-11-16T" or
+// "T09:00", so Save says what's missing instead of dropping the half-filled field.
+const isComplete = (value: string) =>
+	/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value);
+
 export const checkClockOutAfterClockIn = (
 	values: ShiftTimeValues,
 	ctx: z.RefinementCtx,
 ) => {
+	const halfFilled = TIME_FIELDS.filter(
+		({ name }) => values[name] && !isComplete(values[name]),
+	);
+	for (const { name } of halfFilled) {
+		ctx.addIssue({
+			code: "custom",
+			message: "Pick both a day and a time",
+			path: [name],
+		});
+	}
+	if (halfFilled.length > 0) {
+		return;
+	}
 	if (values.clock_out_at && values.clock_out_at <= values.clock_in_at) {
 		ctx.addIssue({
 			code: "custom",
@@ -53,8 +70,8 @@ interface DateTimeInputProps {
 	isDisabled: boolean;
 }
 
-// The form keeps one "YYYY-MM-DDTHH:mm" value; it stays empty until both the
-// day and the time are picked, so a half-filled field reads as missing.
+// The form keeps one "YYYY-MM-DDTHH:mm" value, half of it when only the day or
+// the time is picked.
 const DateTimeInput = ({
 	id,
 	label,
@@ -63,14 +80,10 @@ const DateTimeInput = ({
 	isInvalid,
 	isDisabled,
 }: DateTimeInputProps) => {
-	const [draft, setDraft] = useState({ date: "", time: "" });
-	const date = value ? value.slice(0, 10) : draft.date;
-	const time = value ? value.slice(11, 16) : draft.time;
+	const [date = "", time = ""] = value.split("T");
 
-	const update = (next: { date: string; time: string }) => {
-		setDraft(next);
-		onChange(next.date && next.time ? `${next.date}T${next.time}` : "");
-	};
+	const update = (next: { date: string; time: string }) =>
+		onChange(next.date || next.time ? `${next.date}T${next.time}` : "");
 
 	return (
 		<div className="flex gap-2">
@@ -128,7 +141,7 @@ export const ShiftTimeFields = ({
 								field.onChange(next);
 								// Most Shifts end the day they start, so the admin only types the hours.
 								if (
-									next &&
+									isComplete(next) &&
 									name === "clock_in_at" &&
 									!isOnShift &&
 									!getValues("clock_out_at")

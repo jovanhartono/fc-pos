@@ -144,8 +144,14 @@ function QueuePage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 
-	// A narrowed rack opened from a link still shows what narrowed it.
+	// A narrowed rack opened from a link, or reached with Back, still shows
+	// what narrowed it.
 	const [itemCode, setItemCode] = useState(search.search ?? "");
+	const [shownSearch, setShownSearch] = useState(search.search);
+	if (search.search !== shownSearch) {
+		setShownSearch(search.search);
+		setItemCode(search.search ?? "");
+	}
 	const now = useMinuteClock();
 
 	const meQuery = useQuery({
