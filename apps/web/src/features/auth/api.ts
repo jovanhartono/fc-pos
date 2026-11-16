@@ -14,3 +14,5 @@ export async function login(payload: LoginPayload) {
 		rpc.api.auth.login.$post({ json: payload }),
 	);
 }
+
+export const logout = () => rpc.api.auth.logout.$post();

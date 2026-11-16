@@ -640,6 +640,46 @@ export const ReportChart = ({
 					</svg>
 				)}
 			</div>
+			<ChartTable
+				name={head(null).label}
+				labels={labels}
+				axis={axis}
+				head={head}
+			/>
 		</div>
 	);
 };
+
+interface ChartTableProps {
+	name: string;
+	labels: string[];
+	axis: ChartAxis;
+	head: (index: number) => ChartHead;
+}
+
+// A manager on a keyboard or VoiceOver can't point at a bar, so every period's
+// number is also in a table only they get.
+const ChartTable = ({ name, labels, axis, head }: ChartTableProps) => (
+	<table className="sr-only">
+		<thead>
+			<tr>
+				<th scope="col">Period</th>
+				<th scope="col">{name}</th>
+			</tr>
+		</thead>
+		<tbody>
+			{labels.map((label, index) => {
+				const cell = head(index);
+				return (
+					<tr key={label}>
+						<th scope="row">{axis.title(label)}</th>
+						<td>
+							{cell.value}
+							{cell.unit === undefined ? null : ` ${cell.unit}`}
+						</td>
+					</tr>
+				);
+			})}
+		</tbody>
+	</table>
+);

@@ -135,8 +135,13 @@ export const DataTableGrid = <TData extends RowData>({
 				return;
 			}
 			// Only when nothing else has focus: Enter on a focused button (Next,
-			// a sort header, a nav link) must still press that button.
-			if (event.key === "Enter" && event.target === document.body) {
+			// a sort header, a nav link) must still press that button. The page
+			// itself (<body>, or <main> after a page change) is script-focusable only.
+			if (
+				event.key === "Enter" &&
+				event.target instanceof HTMLElement &&
+				event.target.tabIndex < 0
+			) {
 				const target = bodyRef.current?.querySelector<HTMLElement>(
 					"[data-focused] a, [data-focused] button",
 				);
@@ -202,6 +207,13 @@ export const DataTableGrid = <TData extends RowData>({
 								return (
 									<TableHead
 										key={header.id}
+										aria-sort={
+											sortState === "asc"
+												? "ascending"
+												: sortState === "desc"
+													? "descending"
+													: undefined
+										}
 										style={width ? { width: `${width.percent}%` } : undefined}
 										className={cn(
 											"sticky top-0 z-10 h-9 bg-card font-medium text-muted-foreground text-subhead shadow-[inset_0_-1px_0_var(--border)] first:pl-3 last:pr-3",
@@ -226,18 +238,21 @@ export const DataTableGrid = <TData extends RowData>({
 												{sortState === "asc" ? (
 													<HugeiconsIcon
 														icon={ArrowUp01Icon}
+														aria-hidden="true"
 														className="size-3"
 														strokeWidth={2}
 													/>
 												) : sortState === "desc" ? (
 													<HugeiconsIcon
 														icon={ArrowDown01Icon}
+														aria-hidden="true"
 														className="size-3"
 														strokeWidth={2}
 													/>
 												) : (
 													<HugeiconsIcon
 														icon={UnfoldMoreIcon}
+														aria-hidden="true"
 														className="size-3 opacity-50"
 														strokeWidth={2}
 													/>

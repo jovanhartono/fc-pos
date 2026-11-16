@@ -23,12 +23,15 @@ function Label({
 		>
 			{children}
 			{asterisk ? (
-				<HugeiconsIcon
-					icon={AsteriskIcon}
-					aria-hidden="true"
-					className="size-2 text-destructive"
-					strokeWidth={2}
-				/>
+				<>
+					<HugeiconsIcon
+						icon={AsteriskIcon}
+						aria-hidden="true"
+						className="size-2 text-destructive"
+						strokeWidth={2}
+					/>
+					<span className="sr-only">{" required"}</span>
+				</>
 			) : null}
 		</label>
 	);

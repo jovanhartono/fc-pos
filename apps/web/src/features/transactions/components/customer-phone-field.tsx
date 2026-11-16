@@ -93,7 +93,9 @@ export const CustomerPhoneField = ({
 			<Input
 				aria-describedby={HINT_ID}
 				aria-invalid={isInvalid}
-				autoComplete="tel"
+				// The cashier types the customer's number; Safari would offer the
+				// counter phone's own and file the Order under the wrong Customer.
+				autoComplete="off"
 				id="customer-phone"
 				inputMode="tel"
 				onBlur={() => {

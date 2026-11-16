@@ -18,7 +18,7 @@ const loginSchema = z.object({
 
 export const Route = createFileRoute("/auth/login")({
 	beforeLoad: () => {
-		if (useAuthStore.getState().token) {
+		if (useAuthStore.getState().user) {
 			throw redirect({ to: "/" });
 		}
 	},
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/auth/login")({
 
 function LoginPage() {
 	const navigate = useNavigate();
-	const setToken = useAuthStore((state) => state.setToken);
+	const setUser = useAuthStore((state) => state.setUser);
 
 	useEffect(() => {
 		document.title = "Sign In | Fresclean POS";
@@ -49,7 +49,7 @@ function LoginPage() {
 		mutationKey: ["login"],
 		mutationFn: login,
 		onSuccess: (response) => {
-			setToken(response.token);
+			setUser(response.user);
 			void navigate({ to: "/" });
 		},
 	});

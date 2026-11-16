@@ -86,6 +86,9 @@ export const VoucherCodeEntry = ({
 				</FieldLabel>
 				<Input
 					aria-invalid={resolveMutation.isError || undefined}
+					aria-describedby={
+						resolveMutation.isError ? "voucher-code-error" : undefined
+					}
 					autoCapitalize="characters"
 					className="uppercase tabular-nums placeholder:normal-case placeholder:tracking-normal"
 					disabled={storeId === undefined}
@@ -119,7 +122,7 @@ export const VoucherCodeEntry = ({
 			</Field>
 
 			{resolveMutation.isError ? (
-				<FieldError>
+				<FieldError id="voucher-code-error">
 					{readServerErrorMessage(
 						resolveMutation.error,
 						"Couldn't apply Voucher code",

@@ -62,7 +62,7 @@ export const FilterPanel = <T,>({
 	const count = countOf(value);
 	const triggerElement = trigger ?? (
 		<Button
-			aria-label="Filters"
+			aria-label={count > 0 ? `Filters, ${count} active` : "Filters"}
 			type="button"
 			variant="outline"
 			size="icon"

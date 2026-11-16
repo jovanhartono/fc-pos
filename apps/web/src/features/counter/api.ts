@@ -11,7 +11,7 @@ import {
 import { parseResponse } from "hono/client";
 import { type PaginatedData, toPaginated } from "@/lib/http";
 import { REPORT_STALE_TIME } from "@/lib/query-defaults";
-import { rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 import { jakartaToday } from "@/shared/date-presets";
 
 export type {
@@ -46,7 +46,7 @@ async function fetchPickupShelfPage(
 	offset: number,
 ): Promise<PaginatedData<CounterShelfOrder>> {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.counter["pickup-shelf"].$get({
+		rpc.api.admin.counter["pickup-shelf"].$get({
 			query: { store_id: String(storeId), offset: String(offset) },
 		}),
 	);
@@ -55,7 +55,7 @@ async function fetchPickupShelfPage(
 
 async function fetchCounter(storeId: number): Promise<Counter> {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.counter.$get({
+		rpc.api.admin.counter.$get({
 			query: { store_id: String(storeId) },
 		}),
 	);
@@ -64,7 +64,7 @@ async function fetchCounter(storeId: number): Promise<Counter> {
 
 async function fetchDayClose(storeId: number, date: string): Promise<DayClose> {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.counter["day-close"].$get({
+		rpc.api.admin.counter["day-close"].$get({
 			query: { store_id: String(storeId), date },
 		}),
 	);

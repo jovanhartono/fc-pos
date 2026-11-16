@@ -14,10 +14,10 @@ import { toast } from "sonner";
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
+import { dropQueryString } from "@/lib/analytics";
 import { trackBackNavigation } from "@/lib/back-navigation";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { routeTree } from "@/routeTree.gen";
-import { useAuthStore } from "@/stores/auth-store";
 
 // The boot spinner has no text, so without this Inter is only requested once
 // the first screen has painted, and every line reflows when it lands.
@@ -69,20 +69,15 @@ const queryClient = new QueryClient({
 	},
 });
 
-// Whoever signs in or out of a shared tablet, or is signed out by a 401, must
-// not inherit the last person's role, Stores and screens.
-useAuthStore.subscribe((state, previous) => {
-	if (state.token !== previous.token) {
-		queryClient.clear();
-	}
-});
-
 // An iPhone edge swipe back has already slid the page in; our slide on top
 // replayed the Order leaving and read as a reload.
 let isSwipeBack = false;
 window.addEventListener("popstate", (event) => {
 	isSwipeBack = event.hasUAVisualTransition;
 });
+
+const OVERLAY_SELECTOR =
+	'[data-slot="sheet-content"], [data-slot="dialog-content"]';
 
 const router = createRouter({
 	routeTree,
@@ -106,10 +101,7 @@ const router = createRouter({
 			// Order outright, not fade the two through each other.
 			// Leaving from the More sheet or the search palette: the closing panel
 			// is the transition, and a cross-fade on top froze it half-closed.
-			const isOverlayOpen = document.querySelector(
-				'[data-slot="sheet-content"], [data-slot="dialog-content"]',
-			);
-			if (!pathChanged || isOverlayOpen) {
+			if (!pathChanged || document.querySelector(OVERLAY_SELECTOR)) {
 				return false;
 			}
 			if (!fromLocation) {
@@ -144,6 +136,19 @@ const router = createRouter({
 });
 trackBackNavigation(router.history);
 
+// Opening an Order from a list row removes the link that had focus; a keyboard
+// or VoiceOver user would start again from the top of the document.
+router.subscribe("onResolved", ({ fromLocation, pathChanged }) => {
+	const isFocusLost = document.activeElement === document.body;
+	if (
+		!(fromLocation && pathChanged && isFocusLost) ||
+		document.querySelector(OVERLAY_SELECTOR)
+	) {
+		return;
+	}
+	document.querySelector("main")?.focus({ preventScroll: true });
+});
+
 declare module "@tanstack/react-router" {
 	interface Register {
 		router: typeof router;
@@ -157,7 +162,7 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
 	<StrictMode>
-		<ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+		<ThemeProvider>
 			<QueryClientProvider client={queryClient}>
 				<RouterProvider router={router} />
 				{ReactQueryDevtools ? (
@@ -168,7 +173,7 @@ createRoot(rootElement).render(
 						/>
 					</Suspense>
 				) : null}
-				<Analytics />
+				<Analytics beforeSend={dropQueryString} />
 			</QueryClientProvider>
 		</ThemeProvider>
 	</StrictMode>,

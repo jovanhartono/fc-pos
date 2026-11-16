@@ -6,7 +6,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import { parseSuccessData, toSearchParams } from "@/lib/http";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type Campaign = InferResponseType<
 	typeof rpc.api.admin.campaigns.$get
@@ -52,7 +52,7 @@ export const campaignsKeys = {
 
 async function fetchCampaigns(query?: FetchCampaignsQuery) {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.campaigns.$get({
+		rpc.api.admin.campaigns.$get({
 			query:
 				query && Object.keys(query).length > 0
 					? toSearchParams(query)
@@ -64,7 +64,7 @@ async function fetchCampaigns(query?: FetchCampaignsQuery) {
 
 function fetchCampaignVoucherCodes(campaignId: number) {
 	return parseSuccessData<VoucherCodesResponse>(
-		rpcWithAuth().api.admin.campaigns[":id"].codes.$get({
+		rpc.api.admin.campaigns[":id"].codes.$get({
 			param: { id: String(campaignId) },
 		}),
 	);
@@ -86,7 +86,7 @@ export const campaignsQueries = {
 			queryKey: campaignsKeys.liveVoucher(storeId),
 			queryFn: () =>
 				parseSuccessData<{ has_live_voucher: boolean }>(
-					rpcWithAuth().api.admin.campaigns["live-voucher"].$get({
+					rpc.api.admin.campaigns["live-voucher"].$get({
 						query: { store_id: String(storeId) },
 					}),
 				),
@@ -94,14 +94,12 @@ export const campaignsQueries = {
 };
 
 export function createCampaign(payload: CampaignPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.campaigns.$post({ json: payload }),
-	);
+	return parseResponse(rpc.api.admin.campaigns.$post({ json: payload }));
 }
 
 export function updateCampaign(id: number, payload: UpdateCampaignPayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.campaigns[":id"].$put({
+		rpc.api.admin.campaigns[":id"].$put({
 			param: { id: String(id) },
 			json: payload,
 		}),
@@ -110,6 +108,6 @@ export function updateCampaign(id: number, payload: UpdateCampaignPayload) {
 
 export function resolveVoucherCode(payload: ResolveVoucherCodePayload) {
 	return parseSuccessData<ResolvedVoucher>(
-		rpcWithAuth().api.admin.campaigns["resolve-code"].$post({ json: payload }),
+		rpc.api.admin.campaigns["resolve-code"].$post({ json: payload }),
 	);
 }

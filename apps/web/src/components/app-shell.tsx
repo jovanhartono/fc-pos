@@ -58,6 +58,7 @@ import {
 	SidebarTrigger,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { logout } from "@/features/auth/api";
 import { usersQueries } from "@/features/users/api";
 import { UserAvatar } from "@/features/users/components/user-avatar";
 import { cn } from "@/lib/utils";
@@ -283,8 +284,7 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
 }
 
 export function AppShell({ title, children }: AppShellProps) {
-	const navigate = useNavigate();
-	const clearToken = useAuthStore((state) => state.clearToken);
+	const clearUser = useAuthStore((state) => state.clearUser);
 	const user = getCurrentUser();
 	// Read once on purpose: following the window width re-rendered the whole shell
 	// mid-resize and fought a cashier who had collapsed the sidebar by hand.
@@ -311,9 +311,11 @@ export function AppShell({ title, children }: AppShellProps) {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [openCommandBar]);
 
-	const handleLogout = () => {
-		clearToken();
-		void navigate({ to: "/auth/login" });
+	const handleLogout = async () => {
+		// Waits, so a slow sign-out can't land after the next person's sign-in
+		// and wipe their cookie.
+		await logout().catch(() => undefined);
+		clearUser();
 	};
 
 	const allowedGroups = role ? navGroupsForRole(role) : [];
@@ -354,19 +356,21 @@ export function AppShell({ title, children }: AppShellProps) {
 				</div>
 
 				<SidebarContent>
-					<SidebarGroup>
-						<SidebarGroupContent>
-							<SidebarNavLinks items={[HOME_NAV_ITEM]} />
-						</SidebarGroupContent>
-					</SidebarGroup>
-					{allowedGroups.map((group) => (
-						<SidebarGroup key={group.label}>
-							<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+					<nav aria-label="Primary" className="flex flex-col">
+						<SidebarGroup>
 							<SidebarGroupContent>
-								<SidebarNavLinks items={group.items} />
+								<SidebarNavLinks items={[HOME_NAV_ITEM]} />
 							</SidebarGroupContent>
 						</SidebarGroup>
-					))}
+						{allowedGroups.map((group) => (
+							<SidebarGroup key={group.label}>
+								<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+								<SidebarGroupContent>
+									<SidebarNavLinks items={group.items} />
+								</SidebarGroupContent>
+							</SidebarGroup>
+						))}
+					</nav>
 				</SidebarContent>
 
 				<SidebarFooter className="border-sidebar-border border-t">
@@ -392,9 +396,10 @@ export function AppShell({ title, children }: AppShellProps) {
 			</Sidebar>
 
 			<SidebarInset
+				tabIndex={-1}
 				className={cn(
 					// A table too wide for the window scrolls in its frame, not the page.
-					"min-h-0 min-w-0",
+					"min-h-0 min-w-0 outline-none",
 					// Header and tab bar float over the page so it scrolls under the
 					// frosted glass; these are the heights the page pads itself by.
 					"max-md:[--app-header:calc(env(safe-area-inset-top)+3.25rem)] max-md:pointer-coarse:[--app-header:calc(env(safe-area-inset-top)+3.75rem)]",
@@ -439,7 +444,7 @@ export function AppShell({ title, children }: AppShellProps) {
 				{/* Queue detail's Hold to Start Work bar rests on the window bottom
 				    (the tab bar below md); a sticky bar would stop short of this padding. */}
 				<section
-					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain [--page-top:0.75rem] [--page-x:0.75rem] px-(--page-x) pt-[calc(var(--app-header,0px)+var(--page-top))] pb-[calc(var(--inset-bottom)+0.75rem)] has-[[data-bottom-bar]]:pb-0 sm:[--page-top:1rem] sm:[--page-x:1rem] sm:pb-[calc(var(--inset-bottom)+1rem)] lg:[--page-x:1.5rem] has-[[data-list-panel]]:flex has-[[data-list-panel]]:flex-col has-[[data-fill-page]]:flex has-[[data-fill-page]]:flex-col"
+					className="flex-1 overflow-y-auto overflow-x-clip overscroll-contain [--page-top:0.75rem] [--page-x:0.75rem] [--page-right:max(var(--page-x),env(safe-area-inset-right))] pl-(--page-x) pr-(--page-right) pt-[calc(var(--app-header,0px)+var(--page-top))] pb-[calc(var(--inset-bottom)+0.75rem)] has-[[data-bottom-bar]]:pb-0 sm:[--page-top:1rem] sm:[--page-x:1rem] sm:pb-[calc(var(--inset-bottom)+1rem)] lg:[--page-x:1.5rem] has-[[data-list-panel]]:flex has-[[data-list-panel]]:flex-col has-[[data-fill-page]]:flex has-[[data-fill-page]]:flex-col"
 					data-scroll-restoration-id={APP_CONTENT_SCROLL_ID}
 				>
 					{children}

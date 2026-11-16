@@ -1,8 +1,11 @@
 import type * as React from "react";
 
+import { useFieldControlProps } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
+	const fieldProps = useFieldControlProps(props);
+
 	return (
 		<textarea
 			data-slot="textarea"
@@ -11,6 +14,7 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
 				className,
 			)}
 			{...props}
+			{...fieldProps}
 		/>
 	);
 }

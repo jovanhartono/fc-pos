@@ -9,6 +9,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import type * as React from "react";
 
+import { useFieldControlProps } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 
 type SelectRootProps = React.ComponentProps<typeof SelectPrimitive.Root>;
@@ -57,6 +58,8 @@ function SelectTrigger({
 }: SelectPrimitive.Trigger.Props & {
 	size?: "sm" | "default" | "md" | "lg";
 }) {
+	const fieldProps = useFieldControlProps(props);
+
 	return (
 		<SelectPrimitive.Trigger
 			data-slot="select-trigger"
@@ -66,6 +69,7 @@ function SelectTrigger({
 				className,
 			)}
 			{...props}
+			{...fieldProps}
 		>
 			{children}
 			<SelectPrimitive.Icon

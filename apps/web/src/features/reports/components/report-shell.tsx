@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { STRIP_FADE } from "@/components/chip-strip";
+import { STRIP_FADE, STRIP_FADE_END_ROOM } from "@/components/chip-strip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -32,9 +32,10 @@ export const ReportShell = ({
 			aria-label="Reports"
 			variant="pill"
 			className={cn(
-				// pl again: the pill list's own p-0 outranks the bleed's padding.
-				"page-bleed flex w-auto max-w-none pr-8 pl-(--page-x)",
+				// pl and pr again: the pill list's own p-0 outranks the bleed's padding.
+				"page-bleed flex w-auto max-w-none pr-(--page-right) pl-(--page-x)",
 				STRIP_FADE,
+				STRIP_FADE_END_ROOM,
 			)}
 		>
 			{tabs.map((tab) => (

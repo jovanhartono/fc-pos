@@ -14,6 +14,7 @@ type PhoneNumberFieldProps = {
 	error?: { message?: string };
 	defaultCountry?: CountryCode;
 	inputClassName?: string;
+	autoComplete?: string;
 };
 
 export function PhoneNumberField({
@@ -27,6 +28,7 @@ export function PhoneNumberField({
 	error,
 	defaultCountry = "ID",
 	inputClassName,
+	autoComplete = "tel",
 }: PhoneNumberFieldProps) {
 	return (
 		<Field data-invalid={!!error}>
@@ -37,7 +39,7 @@ export function PhoneNumberField({
 				id={id}
 				type="tel"
 				inputMode="tel"
-				autoComplete="tel"
+				autoComplete={autoComplete}
 				placeholder={placeholder}
 				value={value}
 				onChange={(event) => onValueChange(event.target.value)}

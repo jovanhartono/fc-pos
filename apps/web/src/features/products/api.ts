@@ -3,7 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type Product = InferResponseType<
 	typeof rpc.api.admin.products.$get
@@ -20,7 +20,7 @@ export const productsKeys = {
 };
 
 async function fetchProducts() {
-	const response = await parseResponse(rpcWithAuth().api.admin.products.$get());
+	const response = await parseResponse(rpc.api.admin.products.$get());
 	return response.data;
 }
 
@@ -34,14 +34,12 @@ export const productsQueries = {
 };
 
 export function createProduct(payload: CreateProductPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.products.$post({ json: payload }),
-	);
+	return parseResponse(rpc.api.admin.products.$post({ json: payload }));
 }
 
 export function updateProduct(id: number, payload: UpdateProductPayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.products[":id"].$put({
+		rpc.api.admin.products[":id"].$put({
 			param: { id: String(id) },
 			json: payload,
 		}),

@@ -42,7 +42,7 @@ import { formatMoney, parseMoney } from "@/shared/money";
 import { pluralize } from "@/shared/utils";
 
 const trackSearchSchema = z.object({
-	code: z.string().trim().min(1).max(32).optional(),
+	code: z.string().trim().toUpperCase().min(1).max(32).optional(),
 	// The router reads ?phone=628121000107 as a number; a WhatsApp link with
 	// the phone in that form must still open the Order.
 	phone: z.coerce.string().trim().min(1).max(20).optional(),
@@ -452,7 +452,7 @@ const TrackOrderPage = () => {
 		: null;
 
 	const handleTrack = () => {
-		const trimmedCode = code.trim();
+		const trimmedCode = code.trim().toUpperCase();
 		// Customers type 0812…, +62 812…, or +62 0812…; the shop stores +62812….
 		const trimmedPhone = normalizePhoneNumber(phone);
 		setCodeError(trimmedCode ? null : "Order code is required");
@@ -649,6 +649,9 @@ const TrackOrderPage = () => {
 									placeholder="#KMG/19102026/2"
 									value={code}
 									onChange={(event) => setCode(event.target.value)}
+									autoCapitalize="characters"
+									autoCorrect="off"
+									spellCheck={false}
 									className={cn(FIELD_INPUT_CLASS, "uppercase")}
 								/>
 								{codeError ? (
@@ -669,6 +672,7 @@ const TrackOrderPage = () => {
 									id="track-phone"
 									type="tel"
 									inputMode="tel"
+									autoComplete="tel"
 									placeholder="0812 3456 789"
 									value={phone}
 									onChange={(event) => setPhone(event.target.value)}

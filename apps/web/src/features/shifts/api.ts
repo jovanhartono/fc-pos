@@ -8,7 +8,7 @@ import {
 	toSearchParams,
 } from "@/lib/http";
 import { REPORT_STALE_TIME } from "@/lib/query-defaults";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type Shift = InferResponseType<
 	typeof rpc.api.admin.shifts.$get
@@ -62,7 +62,7 @@ export const shiftsKeys = {
 
 function fetchShiftsOverview(query: FetchShiftsOverviewQuery) {
 	return parseSuccessData<ShiftsOverview>(
-		rpcWithAuth().api.admin.shifts.overview.$get({
+		rpc.api.admin.shifts.overview.$get({
 			query: { ...toSearchParams(query), from: query.from, to: query.to },
 		}),
 	);
@@ -91,7 +91,7 @@ async function fetchShifts(
 	query?: FetchShiftsQuery,
 ): Promise<PaginatedData<Shift>> {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.shifts.$get({
+		rpc.api.admin.shifts.$get({
 			query:
 				query && Object.keys(query).length > 0
 					? toSearchParams(query)
@@ -103,9 +103,7 @@ async function fetchShifts(
 }
 
 function fetchCurrentShift() {
-	return parseSuccessData<CurrentShift>(
-		rpcWithAuth().api.admin.shifts.current.$get(),
-	);
+	return parseSuccessData<CurrentShift>(rpc.api.admin.shifts.current.$get());
 }
 
 export const shiftsQueries = {
@@ -137,12 +135,12 @@ export function clockInShift(payload: {
 	coordinates?: ClockInCoordinates;
 }) {
 	return parseResponse(
-		rpcWithAuth().api.admin.shifts["clock-in"].$post({ json: payload }),
+		rpc.api.admin.shifts["clock-in"].$post({ json: payload }),
 	);
 }
 
 export function clockOutShift() {
-	return parseResponse(rpcWithAuth().api.admin.shifts["clock-out"].$post());
+	return parseResponse(rpc.api.admin.shifts["clock-out"].$post());
 }
 
 export interface UpdateShiftPayload {
@@ -156,12 +154,12 @@ export interface CreateShiftPayload extends Required<UpdateShiftPayload> {
 }
 
 export function createShift(payload: CreateShiftPayload) {
-	return parseResponse(rpcWithAuth().api.admin.shifts.$post({ json: payload }));
+	return parseResponse(rpc.api.admin.shifts.$post({ json: payload }));
 }
 
 export function updateShift(id: number, payload: UpdateShiftPayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.shifts[":id"].$patch({
+		rpc.api.admin.shifts[":id"].$patch({
 			param: { id: String(id) },
 			json: payload,
 		}),
@@ -170,7 +168,7 @@ export function updateShift(id: number, payload: UpdateShiftPayload) {
 
 export function deleteShift(id: number) {
 	return parseResponse(
-		rpcWithAuth().api.admin.shifts[":id"].$delete({
+		rpc.api.admin.shifts[":id"].$delete({
 			param: { id: String(id) },
 		}),
 	);

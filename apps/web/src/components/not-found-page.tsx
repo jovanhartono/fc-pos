@@ -22,7 +22,7 @@ const NotFoundPage = () => {
 	};
 
 	return (
-		<div className="grid min-h-dvh place-items-center bg-background px-4 py-10">
+		<main className="grid min-h-dvh place-items-center bg-background px-4 py-10">
 			<div className="grid w-full max-w-md justify-items-center gap-3 text-center">
 				<HugeiconsIcon
 					icon={Location01Icon}
@@ -52,7 +52,7 @@ const NotFoundPage = () => {
 					</Button>
 				</div>
 			</div>
-		</div>
+		</main>
 	);
 };
 

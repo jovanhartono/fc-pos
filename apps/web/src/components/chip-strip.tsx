@@ -3,10 +3,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // /queue's statuses and the POS Categories outgrow their row; a chip cut mid-word
-// looked broken, the fade reads as "more this way". Always on, since the open
-// sidebar cuts the row even on a laptop.
-export const STRIP_FADE =
-	"[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]";
+// looked broken, the fade reads as "more this way" (strip-fade in index.css).
+export const STRIP_FADE = "strip-fade";
+
+// Older iPhones keep a fixed fade on the right; room past the last chip keeps
+// it clear of that fade.
+export const STRIP_FADE_END_ROOM =
+	"not-supports-[animation-timeline:scroll()]:pr-[max(2rem,var(--page-right,0px))]";
 
 export const ChipStripScroller = ({ children }: PropsWithChildren) => (
 	<div className={`-m-1 shrink-0 overflow-x-auto py-1 ${STRIP_FADE}`}>
@@ -14,9 +17,8 @@ export const ChipStripScroller = ({ children }: PropsWithChildren) => (
 	</div>
 );
 
-// Shared with the POS Category row and its skeleton; pr-8 keeps the last chip
-// clear of the fade.
-export const CHIP_STRIP_ROW = "flex min-w-max gap-2 px-1 pr-8";
+// Shared with the POS Category row and its skeleton.
+export const CHIP_STRIP_ROW = `flex min-w-max gap-2 px-1 ${STRIP_FADE_END_ROOM}`;
 
 export const CHIP_CLASS =
 	"h-9 gap-1.5 rounded-full border-0 px-3.5 font-medium text-body pointer-coarse:h-10";

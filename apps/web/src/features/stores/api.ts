@@ -7,7 +7,7 @@ import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import { parseSuccessData } from "@/lib/http";
 import { SESSION_DATA_STALE_TIME } from "@/lib/query-defaults";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type Store = InferResponseType<
 	typeof rpc.api.admin.stores.$get
@@ -29,13 +29,13 @@ export const storesKeys = {
 };
 
 async function fetchStores() {
-	const response = await parseResponse(rpcWithAuth().api.admin.stores.$get());
+	const response = await parseResponse(rpc.api.admin.stores.$get());
 	return response.data;
 }
 
 function fetchStoreDevices(storeId: number) {
 	return parseSuccessData<StoreDevice[]>(
-		rpcWithAuth().api.admin.stores[":id"].devices.$get({
+		rpc.api.admin.stores[":id"].devices.$get({
 			param: { id: String(storeId) },
 		}),
 	);
@@ -57,12 +57,12 @@ export const storesQueries = {
 };
 
 export function createStore(payload: CreateStorePayload) {
-	return parseResponse(rpcWithAuth().api.admin.stores.$post({ json: payload }));
+	return parseResponse(rpc.api.admin.stores.$post({ json: payload }));
 }
 
 export function updateStore(id: number, payload: UpdateStorePayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.stores[":id"].$put({
+		rpc.api.admin.stores[":id"].$put({
 			param: { id: String(id) },
 			json: payload,
 		}),
@@ -74,7 +74,7 @@ export function registerStoreDevice(
 	payload: RegisterStoreDevicePayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.stores[":id"].devices.$post({
+		rpc.api.admin.stores[":id"].devices.$post({
 			param: { id: String(storeId) },
 			json: payload,
 		}),
@@ -83,7 +83,7 @@ export function registerStoreDevice(
 
 export function deleteStoreDevice(storeId: number, deviceId: number) {
 	return parseResponse(
-		rpcWithAuth().api.admin.stores[":id"].devices[":deviceId"].$delete({
+		rpc.api.admin.stores[":id"].devices[":deviceId"].$delete({
 			param: { id: String(storeId), deviceId: String(deviceId) },
 		}),
 	);
