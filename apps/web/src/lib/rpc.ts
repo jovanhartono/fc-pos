@@ -7,7 +7,9 @@ const authFetch: typeof fetch = async (input, init) => {
 	// travels when asked for; deployed they share one origin.
 	const response = await fetch(input, { ...init, credentials: "include" });
 
-	if (response.status === 401) {
+	// A wrong password on Sign In is a 401 too; with nobody signed in there is
+	// nothing to clear, and a write would reload every other tab.
+	if (response.status === 401 && useAuthStore.getState().user) {
 		useAuthStore.getState().clearUser();
 	}
 

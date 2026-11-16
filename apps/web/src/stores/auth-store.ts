@@ -31,12 +31,19 @@ export const useAuthStore = create<AuthState>()(
 	),
 );
 
-// Every tab shares the one cookie: when a cashier signs out on one tab and the
-// next person signs in, the other tabs must switch to them too.
+// Every tab shares the one cookie. When a cashier signs out and the next person
+// signs in on one tab, the others reload as them, dropping the open sheet and
+// cart; a tab whose own sign-in ends starts over on Sign In.
 if (typeof window !== "undefined") {
 	window.addEventListener("storage", (event) => {
 		if (event.key === useAuthStore.persist.getOptions().name) {
-			void useAuthStore.persist.rehydrate();
+			window.location.reload();
+		}
+	});
+	useAuthStore.subscribe((state, previous) => {
+		const isPublicPage = window.location.pathname.startsWith("/track");
+		if (previous.user && !state.user && !isPublicPage) {
+			window.location.assign("/auth/login");
 		}
 	});
 }

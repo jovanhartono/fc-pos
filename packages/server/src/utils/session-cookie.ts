@@ -9,7 +9,6 @@ const isDeployed = Boolean(process.env.VERCEL_REGION);
 // __Host- stops another fresclean.id host from planting its own session.
 export const SESSION_COOKIE_PREFIX = isDeployed ? "host" : undefined;
 
-// HttpOnly keeps the sign-in out of reach of any script on the page.
 const cookieOptions = {
   httpOnly: true,
   secure: isDeployed,
