@@ -8,7 +8,10 @@ import {
 	rangeAxis,
 	valueAt,
 } from "@/features/reports/components/report-chart";
-import { TurnaroundSection } from "@/features/reports/components/turnaround-section";
+import {
+	TurnaroundSection,
+	TurnaroundSectionPlaceholder,
+} from "@/features/reports/components/turnaround-section";
 import {
 	csvFilename,
 	downloadCsv,
@@ -99,7 +102,8 @@ export const OperationsPanel = ({
 			)}
 		>
 			<ExportButton disabled={!data} onClick={handleExport} />
-			<KpiRow isPending={!data}>
+			{/* Ready within comes from Turnaround, so the row fills in once. */}
+			<KpiRow isPending={!data || turnaroundQuery.isPending}>
 				<KpiCard
 					label="Orders in"
 					swatch={ORDERS_IN_COLOR}
@@ -127,7 +131,11 @@ export const OperationsPanel = ({
 				/>
 			</KpiRow>
 
-			{turnaround !== undefined && <TurnaroundSection report={turnaround} />}
+			{turnaround === undefined ? (
+				turnaroundQuery.isPending && <TurnaroundSectionPlaceholder />
+			) : (
+				<TurnaroundSection report={turnaround} />
+			)}
 			{turnaroundQuery.status === "error" && (
 				<p className="text-muted-foreground text-body">
 					Could not load Turnaround.

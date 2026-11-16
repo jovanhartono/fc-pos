@@ -33,10 +33,13 @@ describe("readServerErrorMessage", () => {
 		);
 	});
 
-	test("a dropped connection still says something", () => {
-		expect(readServerErrorMessage(new Error("Failed to fetch"))).toBe(
-			"Failed to fetch",
+	test("a dropped connection says to check it, not the browser's wording", () => {
+		expect(readServerErrorMessage(new TypeError("Load failed"))).toBe(
+			"Couldn't save. Check the connection.",
 		);
+		expect(
+			readServerErrorMessage(new TypeError("Failed to fetch"), "Couldn't load"),
+		).toBe("Couldn't load. Check the connection.");
 	});
 
 	test("a non-Error rejection falls back to the caller's wording", () => {

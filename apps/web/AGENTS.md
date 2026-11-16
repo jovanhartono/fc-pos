@@ -72,6 +72,8 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 ## Dialogs
 
 - Every confirm, form-in-a-modal or info dialog opens through `useDialog().openDialog({ title, description, content, footer })`, which `GlobalDialog` renders. Sheets do the same through `useSheet().openSheet`. Copy an existing call: the Campaign Archive confirm (`routes/_admin/campaigns.tsx`) or the order sheet actions (`order-identity-strip.tsx`).
+- Dialogs come in three widths: a confirm (no `content`) is 320px, a form 448px, and `size: "wide"` 576px for forms that list an Order's Items. Never set a width through `contentClassName`.
+- A form's main button is full width with Cancel or Go Back under it as a ghost button; a confirm keeps Cancel and its action side by side.
 - An Order opens as its full page (`/orders/$orderId`) or in the global sheet (`useOrderSheet`, `useOpenNestedOrder`), never a side pane.
 - There is no AlertDialog, so don't add one back with the shadcn CLI. A destructive confirm is `openDialog` with Cancel plus a destructive button in `footer`. Import `@/components/ui/dialog` directly only for the media dialogs that need their own frame (photo capture, `PhotoLightbox`).
 

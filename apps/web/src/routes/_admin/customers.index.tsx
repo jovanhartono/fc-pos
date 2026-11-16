@@ -200,6 +200,11 @@ function CustomersPage() {
 					isLoading={customersQuery.isPending}
 					isStale={customersQuery.isPlaceholderData}
 					filterKey={JSON.stringify(search)}
+					noMatch={{
+						noun: "Customers",
+						search: search.search,
+						onClear: () => handleSearchChange(""),
+					}}
 					footer={
 						<TablePagination
 							meta={customersQuery.data?.meta}

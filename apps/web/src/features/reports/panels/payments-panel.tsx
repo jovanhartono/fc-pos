@@ -148,9 +148,11 @@ export const PaymentsPanel = ({
 												className="size-2 shrink-0 rounded-full"
 												style={{ backgroundColor: topFourColor(idx) }}
 											/>
-											<span className="truncate">{m.payment_method_name}</span>
+											<span className="min-w-0 break-words">
+												{m.payment_method_name}
+											</span>
 										</span>
-										<span className="text-body tabular-nums">
+										<span className="shrink-0 text-body tabular-nums">
 											{formatMoney(String(m.collected))}
 										</span>
 									</div>

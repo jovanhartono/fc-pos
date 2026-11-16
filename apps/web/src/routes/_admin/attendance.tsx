@@ -98,7 +98,7 @@ function AttendancePage() {
 					) : currentShift ? (
 						<>
 							<div className={CLOCK_STATUS_SLOT}>
-								<span className="font-semibold text-large-title tabular-nums">
+								<span className="font-medium text-large-title tabular-nums">
 									{formatElapsed(new Date(currentShift.clock_in_at), now)}
 								</span>
 								<span className="text-muted-foreground text-footnote">

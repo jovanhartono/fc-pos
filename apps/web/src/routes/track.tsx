@@ -10,7 +10,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod";
 import { BrandLogo } from "@/components/brand-logo";
 import { PaymentOutcome } from "@/components/payment-outcome";
@@ -33,6 +32,7 @@ import { formatClock } from "@/lib/dayjs";
 import { triggerDownload } from "@/lib/download";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { hasQris, qrisImageSrc } from "@/lib/qris";
+import { readServerErrorMessage } from "@/lib/server-error";
 import {
 	formatOrderServiceStatus,
 	getOrderServiceStatusBadgeVariant,
@@ -135,8 +135,11 @@ const StatusCard = ({
 				<p className="text-headline">Show this code at the counter.</p>
 			) : readyCount > 0 ? (
 				<p className="text-headline">
-					{readyCount} of {pendingCount} Items done. Collect them now with code{" "}
-					<span className="font-bold tabular-nums">{pickupCode}</span>.
+					<span className="tabular-nums">
+						{readyCount}/{pendingCount}
+					</span>{" "}
+					Items done. Collect them now with code{" "}
+					<span className="font-medium tabular-nums">{pickupCode}</span>.
 				</p>
 			) : (
 				<p className="text-headline">
@@ -144,7 +147,7 @@ const StatusCard = ({
 				</p>
 			)}
 			{isAllReady && pickupCode ? (
-				<p className="mt-2.5 mb-0.5 font-bold text-large-title tracking-[0.12em] tabular-nums">
+				<p className="mt-2.5 mb-0.5 font-medium text-large-title tracking-[0.12em] tabular-nums">
 					{pickupCode}
 				</p>
 			) : null}
@@ -430,7 +433,8 @@ const TrackOrderPage = () => {
 	const queryClient = useQueryClient();
 	const [code, setCode] = useState(search.code ?? "");
 	const [phone, setPhone] = useState(search.phone ?? "");
-	const [formError, setFormError] = useState<string | null>(null);
+	const [codeError, setCodeError] = useState<string | null>(null);
+	const [phoneError, setPhoneError] = useState<string | null>(null);
 	// The URL decides which Order is open, so Back after "Track another" brings
 	// the Order straight back.
 	const submitted =
@@ -443,32 +447,19 @@ const TrackOrderPage = () => {
 		enabled: !!submitted,
 	});
 
-	useEffect(() => {
-		const error = trackQuery.error;
-		if (!error) {
-			return;
-		}
-		if (error instanceof DetailedError) {
-			const details = error.detail as
-				| { data?: { message?: string } }
-				| undefined;
-			toast.error(details?.data?.message ?? "Something went wrong");
-			return;
-		}
-		if (error instanceof Error) {
-			toast.error(error.message);
-		}
-	}, [trackQuery.error]);
+	const lookupError = trackQuery.error
+		? readServerErrorMessage(trackQuery.error, "Couldn't load")
+		: null;
 
 	const handleTrack = () => {
 		const trimmedCode = code.trim();
 		// Customers type 0812…, +62 812…, or +62 0812…; the shop stores +62812….
 		const trimmedPhone = normalizePhoneNumber(phone);
+		setCodeError(trimmedCode ? null : "Order code is required");
+		setPhoneError(trimmedPhone ? null : "WhatsApp number is required");
 		if (!trimmedCode || !trimmedPhone) {
-			setFormError("Order code and WhatsApp number are required");
 			return;
 		}
-		setFormError(null);
 		if (submitted?.code === trimmedCode && submitted?.phone === trimmedPhone) {
 			void trackQuery.refetch();
 			return;
@@ -523,7 +514,9 @@ const TrackOrderPage = () => {
 
 	return (
 		<div className="flex min-h-dvh flex-col bg-muted text-foreground">
-			<header className="sticky top-0 z-10 bg-frost shadow-[0_0.5px_0_var(--border)] backdrop-blur-xl backdrop-saturate-150">
+			{/* The logo blends only with the header behind it; on see-through dark
+			    glass its black block showed, so in dark the header is solid. */}
+			<header className="sticky top-0 z-10 bg-frost shadow-[0_0.5px_0_var(--border)] backdrop-blur-xl backdrop-saturate-150 dark:bg-background">
 				<div className="mx-auto max-w-md px-5 py-2.5">
 					<BrandLogo className="h-8" />
 				</div>
@@ -642,7 +635,7 @@ const TrackOrderPage = () => {
 						</h1>
 						<div className={cn(CARD_CLASS, "overflow-hidden")}>
 							<Field
-								data-invalid={!!formError}
+								data-invalid={!!codeError}
 								className="ml-4 w-auto gap-0.5 py-2.5 pr-4"
 							>
 								<FieldLabel
@@ -658,9 +651,12 @@ const TrackOrderPage = () => {
 									onChange={(event) => setCode(event.target.value)}
 									className={cn(FIELD_INPUT_CLASS, "uppercase")}
 								/>
+								{codeError ? (
+									<FieldError errors={[{ message: codeError }]} />
+								) : null}
 							</Field>
 							<Field
-								data-invalid={!!formError}
+								data-invalid={!!phoneError}
 								className="ml-4 w-auto gap-0.5 border-border border-t py-2.5 pr-4"
 							>
 								<FieldLabel
@@ -678,10 +674,13 @@ const TrackOrderPage = () => {
 									onChange={(event) => setPhone(event.target.value)}
 									className={FIELD_INPUT_CLASS}
 								/>
+								{phoneError ? (
+									<FieldError errors={[{ message: phoneError }]} />
+								) : null}
 							</Field>
 						</div>
-						{formError ? (
-							<FieldError errors={[{ message: formError }]} />
+						{lookupError ? (
+							<FieldError errors={[{ message: lookupError }]} />
 						) : null}
 						<Button
 							type="submit"

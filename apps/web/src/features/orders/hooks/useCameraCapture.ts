@@ -106,7 +106,7 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
 
 			setStream(nextStream);
 		} catch {
-			setError("Unable to open the camera on this device.");
+			setError("Couldn't open the camera. Pick a photo instead.");
 			setIsOpen(false);
 		}
 	};

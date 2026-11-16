@@ -105,7 +105,7 @@ const ShutterControls = () => {
 				onClick={actions.captureCameraPhoto}
 				type="button"
 			>
-				<span className="size-12 rounded-full bg-white transition active:scale-90" />
+				<span className="size-12 rounded-full bg-white transition active:scale-90 motion-reduce:active:scale-100" />
 			</button>
 
 			<div className="justify-self-end">

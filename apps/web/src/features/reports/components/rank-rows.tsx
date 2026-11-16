@@ -30,11 +30,11 @@ export const RankRows = ({ rows }: RankRowsProps) => {
 					<div className="flex items-baseline justify-between gap-2">
 						<span className="flex min-w-0 items-baseline gap-2 text-body font-medium">
 							{row.code !== undefined && (
-								<span className="font-normal text-subhead tabular-nums">
+								<span className="shrink-0 font-normal text-subhead tabular-nums">
 									{row.code}
 								</span>
 							)}
-							<span>{row.name}</span>
+							<span className="min-w-0 break-words">{row.name}</span>
 						</span>
 						<span className="shrink-0 text-body tabular-nums">
 							{compactMoney(row.value)}

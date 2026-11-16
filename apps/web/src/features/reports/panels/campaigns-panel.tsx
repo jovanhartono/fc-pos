@@ -1,4 +1,6 @@
+import { DiscountTag01Icon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
@@ -94,9 +96,9 @@ export const CampaignsPanel = ({
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{campaigns.length === 0 ? (
-						<p className="text-body text-muted-foreground">
+						<EmptyState icon={DiscountTag01Icon}>
 							No campaigns redeemed.
-						</p>
+						</EmptyState>
 					) : (
 						<div className="grid grid-cols-1 gap-3">
 							{campaigns.map((c) => {
@@ -109,10 +111,12 @@ export const CampaignsPanel = ({
 									<div key={c.campaign_id} className="grid grid-cols-1 gap-1">
 										<div className="flex items-center justify-between gap-2">
 											<span className="flex min-w-0 items-center gap-2 text-body font-medium">
-												<span className="font-normal text-subhead tabular-nums">
+												<span className="shrink-0 font-normal text-subhead tabular-nums">
 													{c.campaign_code}
 												</span>
-												<span className="truncate">{c.campaign_name}</span>
+												<span className="min-w-0 break-words">
+													{c.campaign_name}
+												</span>
 											</span>
 											<span className="flex shrink-0 items-center gap-3 whitespace-nowrap text-body tabular-nums">
 												<span className="text-muted-foreground">

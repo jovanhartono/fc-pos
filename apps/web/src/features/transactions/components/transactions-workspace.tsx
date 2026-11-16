@@ -27,7 +27,9 @@ export function TransactionsWorkspace() {
 
 	return (
 		<>
-			<div className="grid min-w-0 gap-6">
+			{/* Fills the page so a short catalog, such as a search with no
+			    matches, leaves the Cart at the foot instead of pulling it up. */}
+			<div className="flex min-w-0 flex-1 flex-col gap-6" data-fill-page>
 				<TransactionsCatalog />
 				<CartMiniBar onOpen={handleOpenCart} />
 			</div>

@@ -13,6 +13,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useRef } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
 import { ActiveBadge } from "@/components/active-badge";
@@ -77,27 +78,38 @@ export const Route = createFileRoute("/_admin/users")({
 	pendingComponent: UsersPage,
 });
 
-const userFormSchema = PUTUserSchema.extend({
-	password: z.string().trim(),
-	confirm_password: z.string().trim(),
-	store_ids: z.array(z.number().int()),
-	can_process_pickup: z.boolean(),
-}).superRefine((data, ctx) => {
-	if (data.password.length > 0 && data.password.length < 8) {
-		ctx.addIssue({
-			code: "custom",
-			message: "Use at least 8 characters.",
-			path: ["password"],
-		});
-	}
-	if (data.password !== data.confirm_password) {
-		ctx.addIssue({
-			code: "custom",
-			message: "Passwords don't match.",
-			path: ["confirm_password"],
-		});
-	}
-});
+// Editing a User hides the password fields; only Add User sets one.
+const userFormSchema = (isEditing: boolean) =>
+	PUTUserSchema.extend({
+		password: z.string().trim(),
+		confirm_password: z.string().trim(),
+		store_ids: z.array(z.number().int()),
+		can_process_pickup: z.boolean(),
+	}).superRefine((data, ctx) => {
+		if (isEditing) {
+			return;
+		}
+		if (data.password.length < 8) {
+			ctx.addIssue({
+				code: "custom",
+				message: "Use at least 8 characters.",
+				path: ["password"],
+			});
+		}
+		if (data.confirm_password.length < 8) {
+			ctx.addIssue({
+				code: "custom",
+				message: "Use at least 8 characters.",
+				path: ["confirm_password"],
+			});
+		} else if (data.password !== data.confirm_password) {
+			ctx.addIssue({
+				code: "custom",
+				message: "Passwords don't match.",
+				path: ["confirm_password"],
+			});
+		}
+	});
 
 const defaultForm: UserFormState = {
 	username: "",
@@ -130,8 +142,14 @@ function UsersPage() {
 		});
 	};
 
+	const isEditingRef = useRef(false);
 	const form = useForm<UserFormState>({
-		resolver: zodResolver(userFormSchema),
+		resolver: (values, context, options) =>
+			zodResolver(userFormSchema(isEditingRef.current))(
+				values,
+				context,
+				options,
+			),
 		defaultValues: defaultForm,
 	});
 
@@ -202,11 +220,6 @@ function UsersPage() {
 			return;
 		}
 
-		if (values.password.length < 8) {
-			form.setError("password", { message: "Use at least 8 characters." });
-			return;
-		}
-
 		const payload: Parameters<typeof createUser>[0] = {
 			username: values.username,
 			name: values.name,
@@ -230,6 +243,7 @@ function UsersPage() {
 	};
 
 	const handleEdit = (user: User) => {
+		isEditingRef.current = true;
 		form.reset({
 			username: user.username,
 			name: user.name,
@@ -256,6 +270,7 @@ function UsersPage() {
 	};
 
 	const handleCreate = () => {
+		isEditingRef.current = false;
 		form.reset(defaultForm);
 		openSheet({
 			title: "Add User",
@@ -391,9 +406,12 @@ function UsersPage() {
 					isStale={usersQuery.isPlaceholderData}
 					filterKey={JSON.stringify(search)}
 					cardPrimaryColumnId="name"
-					emptyMessage={
-						search.search ? `No users match "${search.search}".` : "No users."
-					}
+					emptyMessage="No users."
+					noMatch={{
+						noun: "Users",
+						search: search.search,
+						onClear: () => handleSearchChange(""),
+					}}
 					footer={
 						<TablePagination
 							meta={usersQuery.data?.meta}

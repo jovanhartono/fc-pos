@@ -23,7 +23,7 @@ export const CustomerSummarySkeleton = () => (
 	<section aria-hidden className="grid gap-4">
 		<header className="grid gap-1">
 			<div className="flex items-start justify-between gap-3">
-				<h1 className="pt-0.5 font-medium text-title-1 tracking-tight pointer-coarse:pt-1.5">
+				<h1 className="pt-0.5 font-bold text-title-1 tracking-tight pointer-coarse:pt-1.5">
 					<TextSkeleton className="w-48" />
 				</h1>
 				<Button
@@ -73,7 +73,7 @@ export const CustomerSummaryStrip = ({
 			<header className="grid gap-1">
 				<div className="flex items-start justify-between gap-3">
 					{/* Centres the name's first line on the Edit button beside it. */}
-					<h1 className="min-w-0 wrap-break-word pt-0.5 font-medium text-title-1 tracking-tight pointer-coarse:pt-1.5">
+					<h1 className="min-w-0 wrap-break-word pt-0.5 font-bold text-title-1 tracking-tight pointer-coarse:pt-1.5">
 						{customer.name}
 					</h1>
 					<Button

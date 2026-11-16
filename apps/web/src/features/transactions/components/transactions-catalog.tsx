@@ -1,4 +1,9 @@
-import { Add01Icon, BluetoothIcon } from "@hugeicons/core-free-icons";
+import {
+	Add01Icon,
+	BluetoothIcon,
+	Search01Icon,
+	ShoppingCart01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useRef } from "react";
@@ -8,6 +13,7 @@ import {
 	CHIP_STRIP_ROW,
 	ChipStripScroller,
 } from "@/components/chip-strip";
+import { EmptyState } from "@/components/empty-state";
 import { SearchInput } from "@/components/search-input";
 import { StickyControls } from "@/components/sticky-controls";
 import { Button } from "@/components/ui/button";
@@ -148,7 +154,6 @@ export function TransactionsCatalog() {
 									title: "Bluetooth Devices",
 									description:
 										"The POS only prints to devices registered here.",
-									contentClassName: "sm:max-w-md",
 									content: () => (
 										<StoreDevicesDialog storeId={Number(selectedStoreId)} />
 									),
@@ -323,7 +328,7 @@ const CatalogGrid = ({
 									className={cn(
 										// A phone gets one-line rows: the counter scrolls ~50
 										// Services, and the category chip already names the group.
-										"flex h-full min-h-14 w-full items-center gap-3 p-3 text-left outline-none transition active:scale-[0.97] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:flex-col sm:items-stretch sm:gap-1.5",
+										"flex h-full min-h-14 w-full items-center gap-3 p-3 text-left outline-none transition active:scale-[0.97] motion-reduce:active:scale-100 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:flex-col sm:items-stretch sm:gap-1.5",
 										"hover:bg-muted/30 active:bg-muted/60",
 										isOutOfStock && "cursor-not-allowed opacity-50",
 									)}
@@ -359,13 +364,15 @@ const CatalogGrid = ({
 												? "Priced per item"
 												: formatMoney(String(item.price))}
 										</span>
+										{/* Kept in place on a phone while empty, so the first tap
+										    doesn't wrap the name and push every row below down. */}
 										<span
 											aria-hidden="true"
 											className={cn(
 												"grid size-7 shrink-0 place-items-center rounded-full text-footnote font-medium tabular-nums max-sm:order-first",
 												inCartCount > 0
 													? "bg-primary text-primary-foreground"
-													: "bg-secondary max-sm:hidden",
+													: "bg-secondary max-sm:invisible",
 											)}
 										>
 											{inCartCount > 0 ? (
@@ -387,12 +394,47 @@ const CatalogGrid = ({
 			</div>
 
 			{filteredEntries.length === 0 ? (
-				<Card>
-					<CardContent className="py-12 text-center text-body text-muted-foreground">
-						No items.
-					</CardContent>
-				</Card>
+				<CatalogEmpty searchValue={searchValue} />
 			) : null}
 		</>
+	);
+};
+
+interface CatalogEmptyProps {
+	searchValue: string;
+}
+
+const CatalogEmpty = ({ searchValue }: CatalogEmptyProps) => {
+	const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
+	const setSearchTerm = useTransactionsPageStore(
+		(state) => state.setSearchTerm,
+	);
+
+	if (searchValue.length === 0) {
+		return (
+			<EmptyState icon={ShoppingCart01Icon}>
+				No Services or Products.
+			</EmptyState>
+		);
+	}
+
+	return (
+		<EmptyState
+			icon={Search01Icon}
+			action={
+				<Button
+					onClick={() => setSearchTerm("")}
+					size="sm"
+					type="button"
+					variant="outline"
+				>
+					Clear Search
+				</Button>
+			}
+		>
+			<p className="wrap-break-word max-w-full">
+				No Services or Products match "{searchTerm.trim()}"
+			</p>
+		</EmptyState>
 	);
 };

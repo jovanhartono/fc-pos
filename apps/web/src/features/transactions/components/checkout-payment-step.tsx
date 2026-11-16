@@ -280,7 +280,9 @@ export const CheckoutPaymentStep = () => {
 						/>
 						<span className="text-muted-foreground">Subtotal</span>
 					</div>
-					<span className="font-medium">{formatMoney(String(subtotal))}</span>
+					<span className="font-medium tabular-nums">
+						{formatMoney(String(subtotal))}
+					</span>
 				</div>
 				{pricing.campaignBreakdown.map(({ campaign, amount }) => (
 					<div
@@ -290,31 +292,30 @@ export const CheckoutPaymentStep = () => {
 						<span className="text-muted-foreground">
 							{campaign.code} ({campaign.name})
 						</span>
-						<span className="font-medium text-destructive">
+						<span className="font-medium text-destructive tabular-nums">
 							-{formatMoney(String(amount))}
 						</span>
 					</div>
 				))}
-				<div className="flex items-center justify-between gap-3 text-body">
-					<span className="text-muted-foreground">Manual discount</span>
-					<span
-						className={cn(
-							"font-medium",
-							pricing.manualDiscount > 0 && "text-destructive",
-						)}
-					>
-						-{formatMoney(String(pricing.manualDiscount))}
-					</span>
-				</div>
-				<div className="flex items-center justify-between gap-3 text-body">
-					<span className="text-muted-foreground">Delivery fee</span>
-					<span className="font-medium">
-						{formatMoney(String(deliveryFee))}
-					</span>
-				</div>
-				<div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-headline font-semibold">
+				{pricing.manualDiscount > 0 && (
+					<div className="flex items-center justify-between gap-3 text-body">
+						<span className="text-muted-foreground">Manual discount</span>
+						<span className="font-medium text-destructive tabular-nums">
+							-{formatMoney(String(pricing.manualDiscount))}
+						</span>
+					</div>
+				)}
+				{deliveryFee > 0 && (
+					<div className="flex items-center justify-between gap-3 text-body">
+						<span className="text-muted-foreground">Delivery fee</span>
+						<span className="font-medium tabular-nums">
+							{formatMoney(String(deliveryFee))}
+						</span>
+					</div>
+				)}
+				<div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-headline font-medium">
 					<span>Total Payment</span>
-					<span>{formatMoney(String(amountDue))}</span>
+					<span className="tabular-nums">{formatMoney(String(amountDue))}</span>
 				</div>
 			</div>
 		</div>
@@ -342,7 +343,7 @@ const PaymentMethodTile = ({
 }: PaymentMethodTileProps) => (
 	<label
 		className={cn(
-			"flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
+			"flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] motion-reduce:active:scale-100 has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50",
 			isSelected
 				? "border-primary bg-primary text-primary-foreground"
 				: "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",

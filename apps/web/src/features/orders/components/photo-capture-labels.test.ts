@@ -62,7 +62,7 @@ describe("resolvePhotoCaptureLabels", () => {
 	it("reports which photo of a pick is being scaled down, and prefers that over the upload count", () => {
 		expect(
 			labelsFor("batch-upload", { normalizing: { done: 1, total: 5 } }).busy,
-		).toBe("Processing 2 of 5...");
+		).toBe("Processing 2/5...");
 		expect(
 			labelsFor("batch-upload", {
 				normalizing: { done: 0, total: 1 },
@@ -71,7 +71,7 @@ describe("resolvePhotoCaptureLabels", () => {
 		).toBe("Processing...");
 		expect(
 			labelsFor("batch-upload", { uploading: { done: 2, total: 3 } }).busy,
-		).toBe("Uploading 3 of 3...");
+		).toBe("Uploading 3/3...");
 		expect(labelsFor("batch-upload").busy).toBe("Uploading...");
 	});
 });

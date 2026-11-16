@@ -240,8 +240,9 @@ export const useOpenCommandBar = () => {
 		}
 		openDialog({
 			content: () => <CommandBarPanel />,
+			size: "wide",
 			contentClassName:
-				"top-[12vh] translate-y-0 gap-0 p-0 sm:max-w-xl [&>div]:py-0 max-sm:top-[calc(env(safe-area-inset-top)+0.75rem)]",
+				"top-[12vh] translate-y-0 gap-0 p-0 [&>div]:py-0 max-sm:top-[calc(env(safe-area-inset-top)+0.75rem)]",
 		});
 	};
 };

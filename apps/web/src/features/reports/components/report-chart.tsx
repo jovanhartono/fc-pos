@@ -270,7 +270,7 @@ const ChartCallout = ({ head, x, isLeft, width }: ChartCalloutProps) => (
 		}}
 	>
 		<span className="text-muted-foreground">{head.label}</span>
-		<span className="font-semibold text-headline">
+		<span className="font-medium text-headline">
 			{head.value}
 			{head.unit === undefined ? null : (
 				<span className="ml-1 font-normal text-muted-foreground">

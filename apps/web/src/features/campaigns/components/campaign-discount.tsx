@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { MoneyValue } from "@/components/money-value";
 import type { Campaign } from "@/features/campaigns/api";
 import { formatCampaignLimits } from "@/features/campaigns/lib/campaign-text";
@@ -44,7 +45,7 @@ export const CampaignDiscount = ({
 	return (
 		<span
 			className={cn(
-				"font-semibold",
+				"font-medium",
 				isActive ? "text-tone-good-foreground" : "text-muted-foreground",
 			)}
 		>
@@ -56,7 +57,13 @@ export const CampaignDiscount = ({
 						isActive && "text-foreground",
 					)}
 				>
-					{limits}
+					{/* "min Rp 150.000" never splits across lines; whole phrases wrap. */}
+					{limits.split(" · ").map((phrase, index) => (
+						<Fragment key={phrase}>
+							{index > 0 && " · "}
+							<span className="whitespace-nowrap">{phrase}</span>
+						</Fragment>
+					))}
 				</span>
 			)}
 		</span>

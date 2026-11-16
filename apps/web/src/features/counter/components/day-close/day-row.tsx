@@ -42,7 +42,7 @@ export const DayRow = ({ date, onDateChange, storeId, today }: DayRowProps) => {
 				variant="outline"
 			/>
 			<DatePicker
-				className="w-[5.5rem] text-foreground sm:w-44"
+				className="w-[5.5rem] text-foreground sm:w-64"
 				displayFormat={isMobile ? DAY_SHORT : DAY_LONG}
 				isLoading={isPending || isPlaceholderData}
 				max={today}

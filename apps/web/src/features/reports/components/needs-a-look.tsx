@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Section } from "@/components/section";
+import { TextSkeleton } from "@/components/text-skeleton";
 import type { WorkerRow } from "@/features/reports/api";
 import { WorkerName } from "@/features/reports/components/workers-table";
 import { useStoreCodes } from "@/features/reports/hooks/useStoreCodes";
@@ -53,6 +54,21 @@ export const NeedsALookList = ({ id, items }: NeedsALookListProps) => {
 		</Section>
 	);
 };
+
+// One line's worth while the report loads.
+export const NeedsALookPlaceholder = () => (
+	<Section title="Needs a Look">
+		<ul
+			aria-hidden
+			className="divide-y divide-border rounded-lg border bg-card text-body"
+		>
+			<li className="flex items-baseline gap-3 px-4 py-3">
+				<span className="size-2 shrink-0 self-center rounded-full bg-muted" />
+				<TextSkeleton className="w-full max-w-96" />
+			</li>
+		</ul>
+	</Section>
+);
 
 interface NeedsALookProps {
 	workers: WorkerRow[];

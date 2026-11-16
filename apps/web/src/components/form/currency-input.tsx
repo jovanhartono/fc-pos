@@ -41,7 +41,9 @@ export function CurrencyInput({
 				value={displayValue}
 				onChange={(event) => onValueChange(getNumericValue(event.target.value))}
 				disabled={disabled}
-				required={required}
+				// The form's own check shows the error under the field; native
+				// `required` would stop the submit with the browser's bubble first.
+				aria-required={required}
 				className="pl-8"
 			/>
 		</div>

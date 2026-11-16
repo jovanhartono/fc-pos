@@ -1,4 +1,6 @@
+import { UserMultipleIcon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
@@ -182,9 +184,9 @@ export const CustomersPanel = ({
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{topCustomers.length === 0 ? (
-						<p className="text-body text-muted-foreground">
+						<EmptyState icon={UserMultipleIcon}>
 							No paid orders in range.
-						</p>
+						</EmptyState>
 					) : (
 						<div className="grid grid-cols-1 gap-3">
 							{topCustomers.map((c, idx) => {
@@ -195,17 +197,17 @@ export const CustomersPanel = ({
 								return (
 									<div key={c.customer_id} className="grid gap-1">
 										<div className="flex items-center justify-between gap-2">
-											<span className="flex items-center gap-2 truncate text-body font-medium">
-												<span className="text-subhead font-medium text-muted-foreground tabular-nums">
+											<span className="flex min-w-0 items-center gap-2 text-body font-medium">
+												<span className="shrink-0 text-subhead font-medium text-muted-foreground tabular-nums">
 													{`#${idx + 1}`}
 												</span>
 												<CustomerLink
-													className="truncate"
+													className="min-w-0 break-words"
 													customerId={c.customer_id}
 													name={c.customer_name}
 												/>
 											</span>
-											<span className="text-body tabular-nums">
+											<span className="shrink-0 text-body tabular-nums">
 												{formatMoney(String(c.collected))}
 											</span>
 										</div>

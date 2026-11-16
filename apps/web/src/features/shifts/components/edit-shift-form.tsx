@@ -109,17 +109,17 @@ export const EditShiftForm = ({ shift, onDone }: EditShiftFormProps) => {
 
 					<ShiftTimeFields isOnShift={isOnShift} />
 
-					<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+					<div className="grid gap-2">
+						<Button type="submit" loading={isSubmitting}>
+							Save
+						</Button>
 						<Button
 							type="button"
-							variant="outline"
+							variant="ghost"
 							onClick={onDone}
 							disabled={isSubmitting}
 						>
 							Cancel
-						</Button>
-						<Button type="submit" loading={isSubmitting}>
-							Save
 						</Button>
 					</div>
 				</FieldGroup>

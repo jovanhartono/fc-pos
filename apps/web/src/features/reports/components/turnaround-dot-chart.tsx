@@ -235,7 +235,7 @@ export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
 						transform: flip ? "translate(-100%, -50%)" : "translateY(-50%)",
 					}}
 				>
-					<strong className="font-semibold">
+					<strong className="font-medium">
 						{longDuration(hovered.item.hours)}
 					</strong>
 					{` · ready ${shortDay(hovered.item.ready_day)} · ${hovered.item.store_code}`}

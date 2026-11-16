@@ -33,6 +33,7 @@ interface StatusChipStripProps<TValue extends string> {
 	legend: string;
 	onValueChange: (value: TValue) => void;
 	value: TValue;
+	disabled?: boolean;
 }
 
 // The status filter on /queue and /orders, so the two read as one product.
@@ -41,11 +42,12 @@ export const StatusChipStrip = <TValue extends string>({
 	legend,
 	onValueChange,
 	value,
+	disabled,
 }: StatusChipStripProps<TValue>) => (
 	<ChipStripScroller>
 		{/* Toggle buttons, not tabs: tablist semantics promise arrow-key roving
 		    and tabpanels these filter chips don't have. */}
-		<fieldset className={CHIP_STRIP_ROW}>
+		<fieldset className={CHIP_STRIP_ROW} disabled={disabled}>
 			<legend className="sr-only">{legend}</legend>
 			{chips.map((chip) => {
 				const isActive = value === chip.value;

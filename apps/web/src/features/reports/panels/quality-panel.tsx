@@ -15,6 +15,7 @@ import {
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Section } from "@/components/section";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	type FetchQcRejectsQuery,
@@ -30,6 +31,7 @@ import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
 	type NeedsALookItem,
 	NeedsALookList,
+	NeedsALookPlaceholder,
 } from "@/features/reports/components/needs-a-look";
 import {
 	Pace,
@@ -472,6 +474,62 @@ const QcPerDaySection = ({ data }: QcPerDaySectionProps) => (
 	</Section>
 );
 
+// The chart card and Needs a Look at their usual size while the report loads.
+interface QualityPlaceholderProps {
+	checkerColumns: DataTableColumnDef<CheckerRow>[];
+}
+
+// Every section the loaded tab draws, so nothing below the fold grows in.
+const QualityPlaceholder = ({ checkerColumns }: QualityPlaceholderProps) => (
+	<>
+		<Section title="QC per Day">
+			<div className="@container rounded-lg border bg-card p-4">
+				{/* ReportChart's own height before it has numbers. */}
+				<Skeleton className="h-[250px] rounded-md @min-[30rem]:h-[280px]" />
+			</div>
+		</Section>
+		<NeedsALookPlaceholder />
+		<Section title="Checkers">
+			<DataTable
+				columns={checkerColumns}
+				data={[]}
+				emptyIcon={TaskDone01Icon}
+				isLoading
+			/>
+		</Section>
+		<Section title="Mistakes">
+			<div className="grid gap-3.5 rounded-lg border bg-card p-4">
+				<span className="text-title-1">
+					<TextSkeleton className="w-40" />
+				</span>
+				<div className="h-1.5 rounded-full bg-soft-bar-track" />
+				<ul className="grid gap-2.5">
+					{["rejects", "complaints"].map((key) => (
+						<li className="grid gap-0.5" key={key}>
+							<span className="text-body">
+								<TextSkeleton className="w-24" />
+							</span>
+							<span className="text-subhead">
+								<TextSkeleton className="w-52" />
+							</span>
+						</li>
+					))}
+				</ul>
+			</div>
+		</Section>
+		<Section title="By Service">
+			<div className={SCROLL_BOX}>
+				<DataTable
+					columns={serviceColumns}
+					data={[]}
+					emptyIcon={ToolsIcon}
+					isLoading
+				/>
+			</div>
+		</Section>
+	</>
+);
+
 const hoursSince = (at: string, now: number) =>
 	(now - new Date(at).getTime()) / HOUR_MS;
 
@@ -867,7 +925,7 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
 					</Section>
 				</>
 			) : (
-				<Skeleton className="h-80 rounded-lg" />
+				<QualityPlaceholder checkerColumns={checkerColumns} />
 			)}
 		</div>
 	);

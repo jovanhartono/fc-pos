@@ -21,13 +21,18 @@ export const ensureOrNotFound = async <T>(load: Promise<T>) => {
 // reason sits in detail.data. Without this the cashier reads the status, not why.
 export const readServerErrorMessage = (
 	error: unknown,
-	fallback = "Something went wrong",
+	fallback = "Couldn't save",
 ): string => {
 	if (error instanceof DetailedError) {
 		const detail = error.detail as { data?: { message?: string } } | undefined;
 		if (detail?.data?.message) {
 			return detail.data.message;
 		}
+	}
+	// A dropped connection rejects fetch with "Failed to fetch" (Chrome) or
+	// "Load failed" (Safari); the cashier needs to know to check the Wi-Fi.
+	if (error instanceof TypeError || error instanceof DetailedError) {
+		return `${fallback}. Check the connection.`;
 	}
 	if (error instanceof Error && error.message.length > 0) {
 		return error.message;

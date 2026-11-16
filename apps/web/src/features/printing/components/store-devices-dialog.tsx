@@ -14,6 +14,7 @@ import {
 	storesQueries,
 } from "@/features/stores/api";
 import { cn } from "@/lib/utils";
+import { useDialog } from "@/stores/dialog-store";
 
 interface StoreDevicesDialogProps {
 	storeId: number;
@@ -23,6 +24,7 @@ interface StoreDevicesDialogProps {
 // device list once; after that the POS only ever offers what is listed here.
 export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 	const queryClient = useQueryClient();
+	const openDialog = useDialog((s) => s.openDialog);
 	const devicesQuery = useQuery(storesQueries.devices(storeId));
 	const [pendingName, setPendingName] = useState<string | null>(null);
 	const [label, setLabel] = useState("");
@@ -55,10 +57,24 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 		},
 	});
 
-	const removeMutation = useMutation({
-		mutationFn: (deviceId: number) => deleteStoreDevice(storeId, deviceId),
-		onSuccess: invalidate,
-	});
+	// The confirm takes this list's place in the one global dialog, so Cancel
+	// and Remove both bring the Devices list back.
+	const handleRemove = (device: { id: number; name: string }) => {
+		const devicesDialog = useDialog.getState().dialogState;
+		const reopenDevices = () => openDialog(devicesDialog);
+		openDialog({
+			title: `Remove "${device.name}"?`,
+			description:
+				"The POS stops printing to it until it's paired over Bluetooth again.",
+			footer: () => (
+				<RemoveDeviceActions
+					storeId={storeId}
+					deviceId={device.id}
+					onDone={reopenDevices}
+				/>
+			),
+		});
+	};
 
 	const devices = devicesQuery.data ?? [];
 	// With nothing registered, registering is the only thing to do here.
@@ -88,8 +104,7 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 								aria-label={`Remove ${device.name}`}
 								variant="ghost"
 								size="icon"
-								disabled={removeMutation.isPending}
-								onClick={() => removeMutation.mutate(device.id)}
+								onClick={() => handleRemove(device)}
 							>
 								<HugeiconsIcon icon={Delete02Icon} className="size-4" />
 							</Button>
@@ -133,21 +148,63 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
 							disabled={registerMutation.isPending}
 						/>
 					</Field>
-					<div className="flex justify-end gap-2">
+					<div className="grid gap-2">
+						<Button type="submit" loading={registerMutation.isPending}>
+							Save
+						</Button>
 						<Button
 							type="button"
-							variant="outline"
+							variant="ghost"
 							disabled={registerMutation.isPending}
 							onClick={() => setPendingName(null)}
 						>
 							Cancel
 						</Button>
-						<Button type="submit" loading={registerMutation.isPending}>
-							Save
-						</Button>
 					</div>
 				</form>
 			)}
 		</div>
+	);
+};
+
+interface RemoveDeviceActionsProps {
+	storeId: number;
+	deviceId: number;
+	onDone: () => void;
+}
+
+const RemoveDeviceActions = ({
+	storeId,
+	deviceId,
+	onDone,
+}: RemoveDeviceActionsProps) => {
+	const queryClient = useQueryClient();
+	const removeMutation = useMutation({
+		mutationFn: () => deleteStoreDevice(storeId, deviceId),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({
+				queryKey: storesKeys.devices(storeId),
+			});
+			onDone();
+		},
+	});
+
+	return (
+		<>
+			<Button
+				variant="outline"
+				onClick={onDone}
+				disabled={removeMutation.isPending}
+			>
+				Cancel
+			</Button>
+			<Button
+				variant="destructive"
+				loading={removeMutation.isPending}
+				onClick={() => removeMutation.mutate()}
+			>
+				Remove
+			</Button>
+		</>
 	);
 };

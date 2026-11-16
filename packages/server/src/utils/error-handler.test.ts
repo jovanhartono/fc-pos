@@ -81,7 +81,7 @@ describe("errorHandler", () => {
     expect(body).not.toContain(PHONE);
     expect(body).not.toContain("Ibu Ani Wijaya");
     expect(body).not.toContain("insert into");
-    expect(body).toContain("Something went wrong");
+    expect(body).toContain("The server hit a problem. Try again.");
   });
 
   it("keeps a rejected order's reason but not the record attached to it", async () => {

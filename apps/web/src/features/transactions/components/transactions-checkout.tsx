@@ -37,7 +37,6 @@ export const TransactionsCheckout = () => {
 	const openDialog = useDialog((state) => state.openDialog);
 	const closeDialog = useDialog((state) => state.closeDialog);
 	const [step, setStep] = useState<CheckoutStep>("customer");
-	const [direction, setDirection] = useState<"forward" | "back">("forward");
 	const dropoffPhoto = useTransactionsPageStore((state) => state.dropoffPhoto);
 	const [customerName = "", customerPhone = "", selectedCampaignIds = []] =
 		useWatch<
@@ -60,17 +59,19 @@ export const TransactionsCheckout = () => {
 	const isStepEnabled = (target: CheckoutStep) =>
 		isStepReachable(gates, step, target);
 
-	const lockedStepHint = getLockedStepHint(gates, step, gateInput);
+	// Once Items are in, only the photo can lock Payment, and the footer line
+	// under Continue already asks for it.
+	const lockedStepHint =
+		step === "items" && count > 0 && gates.customerReady
+			? ""
+			: getLockedStepHint(gates, step, gateInput);
 
 	const headingRef = useRef<HTMLHeadingElement>(null);
 
-	// Direction is set with the step so the slide always matches the move.
 	const goToStep = (next: CheckoutStep) => {
 		if (!isStepEnabled(next)) {
 			return;
 		}
-		const nextIndex = CHECKOUT_STEPS.findIndex((entry) => entry.key === next);
-		setDirection(nextIndex >= stepIndex ? "forward" : "back");
 		setStep(next);
 		// A screen reader lands in the new step, not on the button just pressed;
 		// on first open the Sheet places focus itself.
@@ -96,7 +97,7 @@ export const TransactionsCheckout = () => {
 				<SheetDescription className="sr-only">
 					Complete customer, items, and payment to create the order.
 				</SheetDescription>
-				<div className="flex flex-row items-center gap-3">
+				<div className="flex flex-row items-center gap-2">
 					<div className="min-w-0 flex-1">
 						<CheckoutStepper
 							current={step}
@@ -148,13 +149,14 @@ export const TransactionsCheckout = () => {
 						Reset
 					</Button>
 				</div>
-				{/* Kept as a blank line once every step opens, so filling in the
-				    Customer doesn't pull the step's form up under the cashier's tap.
-				    Two lines on a phone, where the longest hint wraps. */}
+				{/* On the Customer step it stays as a blank line once every step
+				    opens, so filling in the Customer doesn't pull the form up under
+				    the cashier's tap. Two lines on a phone, where the hint wraps. */}
 				<p
 					className={cn(
-						"text-muted-foreground text-footnote max-sm:min-h-8",
-						!lockedStepHint && "invisible",
+						"text-muted-foreground text-footnote",
+						step === "customer" && "max-sm:min-h-8",
+						!lockedStepHint && (step === "customer" ? "invisible" : "hidden"),
 					)}
 					id={LOCKED_STEP_HINT_ID}
 				>
@@ -169,12 +171,7 @@ export const TransactionsCheckout = () => {
 						{CHECKOUT_STEPS[stepIndex]?.label}
 					</h2>
 					<div
-						className={cn(
-							"animate-in fade-in duration-150 motion-reduce:animate-none",
-							direction === "forward"
-								? "slide-in-from-right-2"
-								: "slide-in-from-left-2",
-						)}
+						className="animate-in fade-in duration-150 motion-reduce:animate-none"
 						key={step}
 					>
 						<CheckoutStepBody step={step} />

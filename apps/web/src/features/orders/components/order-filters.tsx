@@ -11,6 +11,8 @@ import { SelectField } from "@/components/form/select-field";
 import { SegmentedFilter } from "@/components/segmented-filter";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { Field, FieldLabel } from "@/components/ui/field";
+import type { FetchOrdersQuery } from "@/features/orders/api";
+import { ShowOrdersLabel } from "@/features/orders/components/filter-result-labels";
 import { OrderStatusTabs } from "@/features/orders/components/order-status-tabs";
 import { StoreSelect } from "@/features/orders/components/store-select";
 import type {
@@ -47,6 +49,8 @@ interface OrderFiltersProps {
 	role?: string;
 	userStoreIds: number[];
 	onChange: (patch: Partial<OrderFilterValues>) => void;
+	// The list's first page for a set of picks; undefined while it can't load.
+	listQueryFor: (picks: OrderFilterValues) => FetchOrdersQuery | undefined;
 }
 
 const ALL = "all";
@@ -97,7 +101,7 @@ const FilterFields = ({
 	role,
 	userStoreIds,
 	onChange,
-}: OrderFiltersProps) => {
+}: Omit<OrderFiltersProps, "listQueryFor">) => {
 	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
 	// Inactive methods stay listed: old Orders were still paid with them.
 	const methodItems = [
@@ -189,6 +193,7 @@ export const OrderFilters = ({
 	role,
 	userStoreIds,
 	onChange,
+	listQueryFor,
 }: OrderFiltersProps) => {
 	const isAdmin = role === "admin";
 	const storesQuery = useQuery(storesQueries.list());
@@ -289,6 +294,10 @@ export const OrderFilters = ({
 			countOf={(v) => chipsFor(v).length}
 			clear={clear}
 			onApply={onChange}
+			applyLabel={(draft) => {
+				const query = listQueryFor(draft);
+				return query ? <ShowOrdersLabel query={query} /> : "Apply";
+			}}
 		>
 			{(draft, setDraft) => (
 				<FilterFields

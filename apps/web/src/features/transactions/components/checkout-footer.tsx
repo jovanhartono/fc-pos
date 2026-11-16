@@ -75,7 +75,7 @@ export const CheckoutFooter = ({
 					<span className="text-subhead font-medium text-muted-foreground">
 						Total
 					</span>
-					<span className="text-headline font-semibold">
+					<span className="text-headline font-medium tabular-nums">
 						{formatMoney(String(amountDue))}
 					</span>
 				</div>

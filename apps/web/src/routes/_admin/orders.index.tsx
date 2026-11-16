@@ -364,6 +364,14 @@ function OrdersPage() {
 					role={role}
 					userStoreIds={userStoreIds}
 					onChange={handleFilterChange}
+					listQueryFor={(picks) =>
+						role !== "admin" && picks.storeId === undefined
+							? undefined
+							: buildOrdersListParams(
+									{ ...search, ...picks, page: 1 },
+									picks.storeId,
+								)
+					}
 				/>
 				{hasNoStoreAssignment ? (
 					<EmptyState icon={Store01Icon}>No store assigned</EmptyState>
@@ -375,6 +383,11 @@ function OrdersPage() {
 						isLoading={ordersQuery.isPending || storesQuery.isPending}
 						isStale={ordersQuery.isPlaceholderData}
 						filterKey={JSON.stringify(orderQuery)}
+						noMatch={{
+							noun: "Orders",
+							search: search.search,
+							onClear: () => handleFilterChange({ search: undefined }),
+						}}
 						getRowLink={(order) => orderLink(order.id)}
 						isRowActive={(order) => order.id === sheetOrderId}
 						renderCard={(order) => (

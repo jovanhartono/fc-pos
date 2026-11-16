@@ -152,6 +152,7 @@ const ComplaintsPage = () => {
 					onDebouncedChange={handleSearchChange}
 					placeholder="Search order code or customer"
 					ariaLabel="Search complaints"
+					className="w-full sm:w-72"
 				/>
 				<DataTable
 					emptyIcon={MessageCircleWarningIcon}
@@ -164,6 +165,11 @@ const ComplaintsPage = () => {
 					isLoading={complaintsQuery.isPending}
 					isStale={complaintsQuery.isPlaceholderData}
 					filterKey={JSON.stringify(search)}
+					noMatch={{
+						noun: "Complaints",
+						search: search.search,
+						onClear: () => handleSearchChange(""),
+					}}
 					renderCard={(complaint) => (
 						<OrderListRow
 							className="items-start rounded-none"

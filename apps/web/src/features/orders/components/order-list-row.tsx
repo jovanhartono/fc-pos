@@ -36,12 +36,12 @@ const OrderListRowAnchor = ({
 	const body = (
 		<div className="grid min-w-0 gap-1">
 			<div className="flex min-w-0 items-center gap-2">
-				<p className="truncate font-medium text-foreground text-body">
+				<p className="min-w-0 break-words font-medium text-foreground text-body">
 					{title}
 				</p>
 				{badges}
 			</div>
-			<p className="truncate text-foreground text-subhead tabular-nums">
+			<p className="break-words text-foreground text-subhead tabular-nums">
 				{details.filter(Boolean).join(" · ")}
 			</p>
 			{Boolean(note) && (

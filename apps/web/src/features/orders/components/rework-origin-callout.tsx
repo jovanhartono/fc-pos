@@ -37,7 +37,7 @@ export const ReworkOriginCallout = ({
 	return (
 		<Link
 			aria-label={`See complaint: rework of ${serviceName}`}
-			className="group grid gap-1.5 rounded-md border border-info/40 bg-info/5 p-3 text-body outline-none transition-colors hover:bg-info/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+			className="grid gap-1.5 rounded-md border border-info/40 bg-info/5 p-3 text-body outline-none transition-colors hover:bg-info/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
 			onClick={onNavigate}
 			params={{ complaintId: String(reworkOf.id) }}
 			// A worker scrolling past the box has not asked for the Complaint.
@@ -55,7 +55,7 @@ export const ReworkOriginCallout = ({
 				<HugeiconsIcon
 					icon={ArrowRight01Icon}
 					aria-hidden="true"
-					className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+					className="mt-0.5 size-4 shrink-0 text-muted-foreground"
 					strokeWidth={2}
 				/>
 			</span>

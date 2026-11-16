@@ -7,12 +7,12 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
-import { PhoneNumberField } from "@/components/form/phone-number-field";
 import { Badge } from "@/components/ui/badge";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { customersQueries } from "@/features/customers/api";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
+import { CustomerPhoneField } from "@/features/transactions/components/customer-phone-field";
 import { cn } from "@/lib/utils";
 
 // A returning Customer's phone fills and locks the name; a new one types it.
@@ -66,13 +66,10 @@ export const CustomerFields = () => {
 				name="customerPhone"
 				control={form.control}
 				render={({ field, fieldState }) => (
-					<PhoneNumberField
-						id="customer-phone"
-						label="Phone"
-						value={field.value}
-						onValueChange={field.onChange}
-						required
+					<CustomerPhoneField
 						error={fieldState.error}
+						onValueChange={field.onChange}
+						value={field.value}
 					/>
 				)}
 			/>

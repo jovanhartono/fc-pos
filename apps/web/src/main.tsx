@@ -8,7 +8,6 @@ import {
 } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { Analytics } from "@vercel/analytics/react";
-import { DetailedError } from "hono/client";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
@@ -16,6 +15,7 @@ import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
 import { trackBackNavigation } from "@/lib/back-navigation";
+import { readServerErrorMessage } from "@/lib/server-error";
 import { routeTree } from "@/routeTree.gen";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -63,20 +63,7 @@ const queryClient = new QueryClient({
 				if (!onlineManager.isOnline()) {
 					return;
 				}
-				if (error instanceof DetailedError) {
-					const details = error.detail as
-						| { data?: { message?: string } }
-						| undefined;
-					toast.error(details?.data?.message ?? "Something went wrong");
-					return;
-				}
-
-				if (error instanceof Error) {
-					toast.error(error.message);
-					return;
-				}
-
-				toast.error("Something went wrong");
+				toast.error(readServerErrorMessage(error));
 			},
 		},
 	},

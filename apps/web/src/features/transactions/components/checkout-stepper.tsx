@@ -43,10 +43,11 @@ export const CheckoutStepper = ({
 						aria-describedby={isLocked ? lockHintId : undefined}
 						aria-disabled={isLocked || undefined}
 						className={cn(
-							"flex min-h-9 flex-1 items-center justify-center gap-2 rounded-md px-2 font-medium text-subhead outline-none transition focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:min-h-10",
+							// 40 inside the strip's padding lines up with Reset's 44.
+							"flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 font-medium text-subhead outline-none transition focus-visible:ring-2 focus-visible:ring-ring/50",
 							isCurrent
 								? "bg-primary text-primary-foreground"
-								: "text-foreground hover:bg-background/60",
+								: "text-foreground hover:bg-background/60 max-sm:flex-none max-sm:px-3",
 							isLocked &&
 								"cursor-not-allowed text-muted-foreground hover:bg-transparent",
 						)}
@@ -76,7 +77,13 @@ export const CheckoutStepper = ({
 								index + 1
 							)}
 						</span>
-						{step.label}
+						{/* Three names don't fit beside Reset on a phone; the step
+						    the cashier is on keeps its name. */}
+						<span
+							className={cn("min-w-0 truncate", !isCurrent && "max-sm:sr-only")}
+						>
+							{step.label}
+						</span>
 					</button>
 				);
 			})}

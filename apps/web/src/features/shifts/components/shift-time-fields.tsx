@@ -1,6 +1,8 @@
 import dayjs from "dayjs";
+import { useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { z } from "zod";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
 	Field,
 	FieldDescription,
@@ -9,7 +11,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-// datetime-local's own format, in the phone's time.
+// A day and a time, in the phone's time.
 const LOCAL_FORMAT = "YYYY-MM-DDTHH:mm";
 
 export const toLocalInput = (value: string) =>
@@ -42,6 +44,60 @@ const TIME_FIELDS = [
 	{ name: "clock_out_at", label: "Clock out" },
 ] as const;
 
+interface DateTimeInputProps {
+	id: string;
+	label: string;
+	value: string;
+	onChange: (value: string) => void;
+	isInvalid: boolean;
+	isDisabled: boolean;
+}
+
+// The form keeps one "YYYY-MM-DDTHH:mm" value; it stays empty until both the
+// day and the time are picked, so a half-filled field reads as missing.
+const DateTimeInput = ({
+	id,
+	label,
+	value,
+	onChange,
+	isInvalid,
+	isDisabled,
+}: DateTimeInputProps) => {
+	const [draft, setDraft] = useState({ date: "", time: "" });
+	const date = value ? value.slice(0, 10) : draft.date;
+	const time = value ? value.slice(11, 16) : draft.time;
+
+	const update = (next: { date: string; time: string }) => {
+		setDraft(next);
+		onChange(next.date && next.time ? `${next.date}T${next.time}` : "");
+	};
+
+	return (
+		<div className="flex gap-2">
+			<DatePicker
+				id={id}
+				value={date || undefined}
+				onChange={(nextDate) => update({ date: nextDate ?? "", time })}
+				disabled={isDisabled}
+				iconLocation="right"
+				className="min-w-0 flex-1"
+			/>
+			<Input
+				id={`${id}-time`}
+				type="time"
+				aria-label={`${label} time`}
+				value={time}
+				onChange={(event) => update({ date, time: event.target.value })}
+				// Safari on iPhone sizes the native picker to its own text and runs it
+				// past the dialog's edge, so the admin can't reach Save.
+				className="w-28 appearance-none dark:scheme-dark [&::-webkit-date-and-time-value]:text-left"
+				aria-invalid={isInvalid}
+				disabled={isDisabled}
+			/>
+		</div>
+	);
+};
+
 interface ShiftTimeFieldsProps {
 	isOnShift?: boolean;
 }
@@ -64,26 +120,24 @@ export const ShiftTimeFields = ({
 						<FieldLabel htmlFor={`shift-${name}`} asterisk={!isOptional}>
 							{label}
 						</FieldLabel>
-						<Input
-							{...field}
-							onChange={(event) => {
-								field.onChange(event);
+						<DateTimeInput
+							id={`shift-${name}`}
+							label={label}
+							value={field.value}
+							onChange={(next) => {
+								field.onChange(next);
 								// Most Shifts end the day they start, so the admin only types the hours.
 								if (
+									next &&
 									name === "clock_in_at" &&
 									!isOnShift &&
 									!getValues("clock_out_at")
 								) {
-									setValue("clock_out_at", event.target.value);
+									setValue("clock_out_at", next);
 								}
 							}}
-							id={`shift-${name}`}
-							type="datetime-local"
-							// Safari on iPhone sizes the native picker to its own text and runs it
-							// past the dialog's edge, so the admin can't reach Save.
-							className="appearance-none [&::-webkit-date-and-time-value]:text-left"
-							aria-invalid={fieldState.invalid}
-							disabled={formState.isSubmitting}
+							isInvalid={fieldState.invalid}
+							isDisabled={formState.isSubmitting}
 						/>
 						{isOptional ? (
 							<FieldDescription>

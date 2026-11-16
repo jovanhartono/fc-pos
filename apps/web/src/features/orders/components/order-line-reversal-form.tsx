@@ -367,17 +367,17 @@ const OrderLineReversalForm = <R extends string>({
 					</div>
 				) : null}
 
-				<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+				<div className="grid gap-2">
+					<Button type="submit" variant="destructive" disabled={pending}>
+						{submitLabel()}
+					</Button>
 					<Button
 						type="button"
-						variant="outline"
+						variant="ghost"
 						onClick={closeDialog}
 						disabled={pending}
 					>
 						Go Back
-					</Button>
-					<Button type="submit" variant="destructive" disabled={pending}>
-						{submitLabel()}
 					</Button>
 				</div>
 			</form>

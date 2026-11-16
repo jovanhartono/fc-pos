@@ -53,6 +53,10 @@ export function LoginForm({
 							className={GROUPED_INPUT_CLASS}
 							{...register("username")}
 						/>
+						<FieldError
+							className="-mt-3 px-3 pb-2.5"
+							errors={[errors.username]}
+						/>
 					</Field>
 					<Field data-invalid={!!errors.password} className="border-t">
 						<FieldLabel htmlFor="password" className="sr-only">
@@ -67,9 +71,12 @@ export function LoginForm({
 							className={GROUPED_INPUT_CLASS}
 							{...register("password")}
 						/>
+						<FieldError
+							className="-mt-3 px-3 pb-2.5"
+							errors={[errors.password]}
+						/>
 					</Field>
 				</div>
-				<FieldError errors={[errors.username ?? errors.password]} />
 				<Button
 					type="submit"
 					className="h-11 pointer-coarse:h-11 w-full"

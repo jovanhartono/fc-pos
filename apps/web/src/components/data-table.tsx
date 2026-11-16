@@ -1,3 +1,4 @@
+import { Search01Icon } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
 import type { LinkProps } from "@tanstack/react-router";
 import {
@@ -15,7 +16,15 @@ import {
 	dataTableFeatures,
 } from "@/components/data-table-features";
 import { DataTableGrid } from "@/components/data-table-grid";
+import { EmptyState } from "@/components/empty-state";
+import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+interface DataTableNoMatch {
+	noun: string;
+	search?: string;
+	onClear: () => void;
+}
 
 interface DataTableProps<TData extends RowData> {
 	columns: DataTableColumnDef<TData>[];
@@ -34,6 +43,8 @@ interface DataTableProps<TData extends RowData> {
 	skeletonLines?: 1 | 2 | "wrapped";
 	emptyIcon: IconSvgElement;
 	emptyMessage?: string;
+	// A search that found nothing is told apart from a list that is empty.
+	noMatch?: DataTableNoMatch;
 	sortable?: boolean;
 	cardPrimaryColumnId?: string;
 	cardHiddenColumnIds?: string[];
@@ -99,6 +110,7 @@ export const DataTable = <TData extends RowData>({
 	skeletonLines,
 	emptyIcon,
 	emptyMessage = "Nothing here.",
+	noMatch,
 	sortable = false,
 	cardPrimaryColumnId,
 	cardHiddenColumnIds,
@@ -138,6 +150,27 @@ export const DataTable = <TData extends RowData>({
 		onSortingChange: sortable ? setSorting : undefined,
 	});
 
+	const noMatchState = noMatch?.search ? (
+		<EmptyState
+			icon={Search01Icon}
+			isInset={!isCardView || isInsideCard}
+			action={
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onClick={noMatch.onClear}
+				>
+					Clear Search
+				</Button>
+			}
+		>
+			<p className="wrap-break-word max-w-full">
+				No {noMatch.noun} match "{noMatch.search}"
+			</p>
+		</EmptyState>
+	) : undefined;
+
 	if (isCardView) {
 		return (
 			<>
@@ -153,6 +186,7 @@ export const DataTable = <TData extends RowData>({
 						skeletonCardClassName={skeletonCardClassName}
 						emptyIcon={emptyIcon}
 						emptyMessage={emptyMessage}
+						noMatch={noMatchState}
 						cardPrimaryColumnId={cardPrimaryColumnId}
 						cardHiddenColumnIds={cardHiddenColumnIds}
 						getCardLink={getRowLink}
@@ -186,6 +220,7 @@ export const DataTable = <TData extends RowData>({
 			skeletonLines={skeletonLines}
 			emptyIcon={emptyIcon}
 			emptyMessage={emptyMessage}
+			noMatch={noMatchState}
 			sortable={sortable}
 			getRowLink={getRowLink}
 			onRowOpen={onRowOpen}

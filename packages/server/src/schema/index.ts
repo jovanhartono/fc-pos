@@ -84,9 +84,9 @@ const confirmationMismatch = {
 
 const userSchema = z.object({
   username: z
-    .string("Minimum 5 characters")
+    .string("Username needs at least 5 characters")
     .trim()
-    .min(5, "Minimum 5 characters"),
+    .min(5, "Username needs at least 5 characters"),
   name: z.string("Name is required").trim().min(1, "Name is required"),
   ...passwordPairSchema.shape,
   role: z.literal(
@@ -152,7 +152,7 @@ export const POSTOrderSchema = z
         z.object(
           {
             brand: optionalVarcharSchema("Brand"),
-            color: optionalVarcharSchema("Item Color"),
+            color: optionalVarcharSchema("Color"),
             model: optionalVarcharSchema("Model"),
             size: optionalVarcharSchema("Size", 64),
             services: z

@@ -1,5 +1,6 @@
 import {
 	AlertCircleIcon,
+	Cancel01Icon,
 	QrCodeScanIcon,
 	Store01Icon,
 	Task01Icon,
@@ -38,6 +39,7 @@ import {
 	type QueueCategoryMode,
 	type QueueItem,
 } from "@/features/orders/api";
+import { ShowQueueItemsLabel } from "@/features/orders/components/filter-result-labels";
 import { QueueCategoryFilter } from "@/features/orders/components/queue-category-filter";
 import { QueueRow } from "@/features/orders/components/queue-row";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
@@ -142,7 +144,8 @@ function QueuePage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const search = Route.useSearch();
 
-	const [itemCode, setItemCode] = useState("");
+	// A narrowed rack opened from a link still shows what narrowed it.
+	const [itemCode, setItemCode] = useState(search.search ?? "");
 	const now = useMinuteClock();
 
 	const meQuery = useQuery({
@@ -205,24 +208,30 @@ function QueuePage() {
 	const selectedDateFrom = search.dateFrom;
 	const selectedDateTo = search.dateTo;
 	const selectedSearch = search.search;
-	const categoryQuery =
-		selectedCategoryId !== undefined
-			? { category_id: selectedCategoryId, category_mode: selectedCategoryMode }
-			: {};
-	const queueQueryInput: FetchOrderServiceQueueQuery | undefined =
-		parsedStoreId !== undefined
+	const appliedFilters: QueueFilterValues = {
+		storeId: parsedStoreId,
+		categoryId: selectedCategoryId,
+		categoryMode: selectedCategoryMode,
+		dateFrom: selectedDateFrom,
+		dateTo: selectedDateTo,
+	};
+	const queueQueryFor = (
+		f: QueueFilterValues,
+	): FetchOrderServiceQueueQuery | undefined =>
+		f.storeId !== undefined
 			? {
 					limit: QUEUE_PAGE_SIZE,
-					store_id: parsedStoreId,
+					store_id: f.storeId,
 					...(selectedStatus !== undefined ? { status: selectedStatus } : {}),
 					...(selectedSearch !== undefined ? { search: selectedSearch } : {}),
-					...(selectedDateFrom !== undefined
-						? { date_from: selectedDateFrom }
+					...(f.dateFrom !== undefined ? { date_from: f.dateFrom } : {}),
+					...(f.dateTo !== undefined ? { date_to: f.dateTo } : {}),
+					...(f.categoryId !== undefined
+						? { category_id: f.categoryId, category_mode: f.categoryMode }
 						: {}),
-					...(selectedDateTo !== undefined ? { date_to: selectedDateTo } : {}),
-					...categoryQuery,
 				}
 			: undefined;
+	const queueQueryInput = queueQueryFor(appliedFilters);
 
 	// A new status, date or Category keeps the last cards and count up, faded,
 	// until the new ones land. An admin who clears the Store gets "Select a store".
@@ -308,7 +317,7 @@ function QueuePage() {
 
 			toast.error(
 				isNotMatched
-					? "No item, order, or line matched"
+					? "No Item, Order or line matched"
 					: readServerErrorMessage(
 							error,
 							"Couldn't find that Item, Order or line",
@@ -381,14 +390,6 @@ function QueuePage() {
 		});
 	};
 
-	const appliedFilters: QueueFilterValues = {
-		storeId: parsedStoreId,
-		categoryId: selectedCategoryId,
-		categoryMode: selectedCategoryMode,
-		dateFrom: selectedDateFrom,
-		dateTo: selectedDateTo,
-	};
-
 	// A worker's own Store gets no chip and stays on Clear All: their rack
 	// needs one.
 	const filterChipsFor = (f: QueueFilterValues): FilterChip[] => {
@@ -459,31 +460,48 @@ function QueuePage() {
 			<div className="grid gap-3">
 				<StickyControls className="grid gap-3">
 					<div className="flex items-center gap-2">
-						<Input
-							aria-label="Find by item code, order code, order ID, line ID, or customer"
-							autoCapitalize="none"
-							autoCorrect="off"
-							className="min-w-0 flex-1"
-							enterKeyHint="search"
-							spellCheck={false}
-							onChange={(event) => setItemCode(event.target.value)}
-							// Without the pending guard a held Enter fires a second lookup
-							// over the first and navigates twice.
-							onKeyDown={(event) => {
-								if (
-									event.key === "Enter" &&
-									itemCode.trim() &&
-									!lookupMutation.isPending
-								) {
-									lookupMutation.mutate({
-										mode: "manual",
-										value: itemCode.trim(),
-									});
-								}
-							}}
-							placeholder="Item code, order code, or customer"
-							value={itemCode}
-						/>
+						<div className="relative flex min-w-0 flex-1 items-center sm:w-72 sm:flex-none">
+							<Input
+								aria-label="Find by item code, order code, order ID, line ID, or customer"
+								autoCapitalize="none"
+								autoCorrect="off"
+								className="w-full min-w-0 pr-9"
+								enterKeyHint="search"
+								spellCheck={false}
+								onChange={(event) => setItemCode(event.target.value)}
+								// Without the pending guard a held Enter fires a second lookup
+								// over the first and navigates twice.
+								onKeyDown={(event) => {
+									if (
+										event.key === "Enter" &&
+										itemCode.trim() &&
+										!lookupMutation.isPending
+									) {
+										lookupMutation.mutate({
+											mode: "manual",
+											value: itemCode.trim(),
+										});
+									}
+								}}
+								placeholder="Item code, order code, or customer"
+								value={itemCode}
+							/>
+							{/* Also the way back from a scan or customer search that
+						    narrowed the rack. */}
+							{itemCode || selectedSearch ? (
+								<Button
+									aria-label="Clear search"
+									className="absolute right-1"
+									icon={
+										<HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+									}
+									onClick={clearSearchFilter}
+									size="icon-sm"
+									type="button"
+									variant="ghost"
+								/>
+							) : null}
+						</div>
 						<Button
 							aria-label={isScanning ? "Stop scan" : "Scan tag"}
 							icon={<HugeiconsIcon icon={QrCodeScanIcon} className="size-4" />}
@@ -509,6 +527,10 @@ function QueuePage() {
 							})}
 							countOf={(f) => filterChipsFor(f).length}
 							onApply={applyFilters}
+							applyLabel={(draft) => {
+								const query = queueQueryFor(draft);
+								return query ? <ShowQueueItemsLabel query={query} /> : "Apply";
+							}}
 							value={appliedFilters}
 						>
 							{(draft, setDraft) => (
@@ -570,31 +592,13 @@ function QueuePage() {
 						/>
 					) : null}
 
-					{selectedSearch ? (
-						<div className="flex min-w-0 items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-body">
-							<span className="min-w-0 flex-1 truncate text-muted-foreground">
-								Showing <span className="tabular-nums">{selectedSearch}</span>{" "}
-								only
-							</span>
-							<Button
-								onClick={clearSearchFilter}
-								size="sm"
-								type="button"
-								variant="outline"
-							>
-								Clear
-							</Button>
-						</div>
-					) : null}
-
-					{/* Hidden while a scan or customer search narrows the list; they
-					    come back with Clear. */}
-					{!selectedSearch && (
-						<QueueStatusTabs
-							onValueChange={updateStatusFilter}
-							value={selectedStatus ?? "all"}
-						/>
-					)}
+					{/* Greyed out while a scan or customer search narrows the list;
+					    they come back when the search is cleared. */}
+					<QueueStatusTabs
+						disabled={Boolean(selectedSearch)}
+						onValueChange={updateStatusFilter}
+						value={selectedStatus ?? "all"}
+					/>
 
 					{filterChips.length > 0 && <FilterChips chips={filterChips} />}
 				</StickyControls>
@@ -633,7 +637,11 @@ function QueuePage() {
 					!queueQuery.isError &&
 					!hasQueueItems &&
 					parsedStoreId !== undefined ? (
-						<EmptyState icon={Task01Icon}>No items.</EmptyState>
+						<EmptyState icon={Task01Icon}>
+							{selectedSearch
+								? `No Items match "${selectedSearch}"`
+								: "No Items."}
+						</EmptyState>
 					) : null}
 
 					<div className="h-6" ref={loadMoreRef} />

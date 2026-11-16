@@ -63,12 +63,12 @@ export const PhotoCaptureStage = () => {
 					role="status"
 				>
 					<HugeiconsIcon icon={Loading03Icon} className="size-7 animate-spin" />
-					<p>{meta.labels.busy}</p>
+					<p className="tabular-nums">{meta.labels.busy}</p>
 				</div>
 			) : null}
 
 			{state.camera.error ? (
-				<div className="absolute inset-x-4 bottom-4 flex items-start gap-2 border border-destructive/40 bg-destructive px-3 py-2 text-body text-destructive-foreground">
+				<div className="absolute inset-x-4 bottom-4 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive px-3 py-2 text-body text-destructive-foreground">
 					<HugeiconsIcon
 						icon={AlertCircleIcon}
 						className="mt-0.5 size-4 shrink-0"

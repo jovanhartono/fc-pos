@@ -50,20 +50,20 @@ export const OrderDeliveryFeeForm = ({
 					</Field>
 				)}
 			/>
-			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-				<Button
-					disabled={mutation.isPending}
-					onClick={closeDialog}
-					type="button"
-					variant="outline"
-				>
-					Go Back
-				</Button>
+			<div className="grid gap-2">
 				<Button
 					disabled={mutation.isPending || !form.formState.isDirty}
 					type="submit"
 				>
 					{mutation.isPending ? "Saving…" : "Save Delivery Fee"}
+				</Button>
+				<Button
+					disabled={mutation.isPending}
+					onClick={closeDialog}
+					type="button"
+					variant="ghost"
+				>
+					Go Back
 				</Button>
 			</div>
 		</form>

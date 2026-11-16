@@ -174,7 +174,7 @@ export const KpiCard = ({
 					    than breaking mid-number onto a second line. */}
 					<p
 						className={cn(
-							"whitespace-nowrap font-semibold tabular-nums",
+							"whitespace-nowrap font-medium tabular-nums",
 							typeof value === "string" && value.length > 11
 								? "text-headline sm:text-title-2"
 								: "text-title-3 sm:text-title-1",

@@ -214,20 +214,19 @@ export const CounterPage = ({
 		<>
 			<PageHeader
 				actions={
-					hasPicker ? (
-						<StoreSelect
-							allowedStoreIds={isAdmin ? undefined : ownStoreIds}
-							hideLabel
-							id="counter-store"
-							triggerClassName="sm:w-60"
-							onValueChange={(value) => {
-								if (value) {
-									onStoreChange(Number(value));
-								}
-							}}
-							value={selectedStoreId ? String(selectedStoreId) : ""}
-						/>
-					) : null
+					<StoreSelect
+						allowedStoreIds={isAdmin ? undefined : ownStoreIds}
+						disabled={!hasPicker}
+						hideLabel
+						id="counter-store"
+						triggerClassName="sm:w-60"
+						onValueChange={(value) => {
+							if (value) {
+								onStoreChange(Number(value));
+							}
+						}}
+						value={selectedStoreId ? String(selectedStoreId) : ""}
+					/>
 				}
 				// On a phone the full Store name gets its own row under the title.
 				className="max-sm:grid-cols-1 max-sm:gap-y-3 max-sm:[&>div]:col-start-1 max-sm:[&>div]:row-start-2"
