@@ -3,7 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type PaymentMethod = InferResponseType<
 	(typeof rpc.api.admin)["payment-methods"]["$get"]
@@ -29,16 +29,12 @@ export const paymentMethodsKeys = {
 };
 
 async function fetchPaymentMethods() {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin["payment-methods"].$get(),
-	);
+	const response = await parseResponse(rpc.api.admin["payment-methods"].$get());
 	return response.data;
 }
 
 async function fetchPaymentGateway() {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin["payment-gateway"].$get(),
-	);
+	const response = await parseResponse(rpc.api.admin["payment-gateway"].$get());
 	return response.data;
 }
 
@@ -64,7 +60,7 @@ export const isOnlinePaymentReady = (info: PaymentGatewayInfo | undefined) =>
 
 export function createPaymentMethod(payload: CreatePaymentMethodPayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin["payment-methods"].$post({ json: payload }),
+		rpc.api.admin["payment-methods"].$post({ json: payload }),
 	);
 }
 
@@ -73,7 +69,7 @@ export function updatePaymentMethod(
 	payload: UpdatePaymentMethodPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin["payment-methods"][":id"].$put({
+		rpc.api.admin["payment-methods"][":id"].$put({
 			param: { id: String(id) },
 			json: payload,
 		}),

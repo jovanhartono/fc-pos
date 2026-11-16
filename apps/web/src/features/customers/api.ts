@@ -11,7 +11,7 @@ import {
 	toPaginated,
 	toSearchParams,
 } from "@/lib/http";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type Customer = InferResponseType<
 	typeof rpc.api.admin.customers.$get
@@ -58,7 +58,7 @@ async function fetchCustomersPage(
 	query?: FetchCustomersQuery,
 ): Promise<PaginatedData<Customer>> {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.customers.$get({
+		rpc.api.admin.customers.$get({
 			query:
 				query && Object.keys(query).length > 0
 					? toSearchParams(query)
@@ -73,13 +73,13 @@ async function fetchCustomersPage(
 // checkout still finds or creates the Customer by phone (ADR-0011).
 function fetchCustomerByPhone(phone: string): Promise<CustomerLookup> {
 	return parseSuccessData<CustomerLookup>(
-		rpcWithAuth().api.admin.customers.lookup.$get({ query: { phone } }),
+		rpc.api.admin.customers.lookup.$get({ query: { phone } }),
 	);
 }
 
 function fetchCustomerDetail(id: number): Promise<CustomerDetail> {
 	return parseSuccessData<CustomerDetail>(
-		rpcWithAuth().api.admin.customers[":id"].$get({
+		rpc.api.admin.customers[":id"].$get({
 			param: { id: String(id) },
 		}),
 	);
@@ -108,7 +108,7 @@ export const customersQueries = {
 
 export function createCustomer(payload: CreateCustomerPayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.customers.$post({
+		rpc.api.admin.customers.$post({
 			json: payload as z.infer<typeof POSTCustomerSchema>,
 		}),
 	);
@@ -116,7 +116,7 @@ export function createCustomer(payload: CreateCustomerPayload) {
 
 export function updateCustomer(id: number, payload: UpdateCustomerPayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.customers[":id"].$put({
+		rpc.api.admin.customers[":id"].$put({
 			param: { id: String(id) },
 			json: payload,
 		}),

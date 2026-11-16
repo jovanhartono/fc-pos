@@ -3,7 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
 import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type Category = InferResponseType<
 	typeof rpc.api.admin.categories.$get
@@ -18,9 +18,7 @@ export const categoriesKeys = {
 };
 
 async function fetchCategories() {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.categories.$get(),
-	);
+	const response = await parseResponse(rpc.api.admin.categories.$get());
 	return response.data;
 }
 
@@ -34,14 +32,12 @@ export const categoriesQueries = {
 };
 
 export function createCategory(payload: CreateCategoryPayload) {
-	return parseResponse(
-		rpcWithAuth().api.admin.categories.$post({ json: payload }),
-	);
+	return parseResponse(rpc.api.admin.categories.$post({ json: payload }));
 }
 
 export function updateCategory(id: number, payload: UpdateCategoryPayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.categories[":id"].$put({
+		rpc.api.admin.categories[":id"].$put({
 			param: { id: String(id) },
 			json: payload,
 		}),

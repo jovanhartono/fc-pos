@@ -14,7 +14,7 @@ import {
 	toPaginated,
 	toSearchParams,
 } from "@/lib/http";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 
 export type Order = InferResponseType<
 	typeof rpc.api.admin.orders.$get
@@ -236,7 +236,7 @@ async function fetchOrdersPage(
 	query?: FetchOrdersQuery,
 ): Promise<PaginatedData<Order>> {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.orders.$get({
+		rpc.api.admin.orders.$get({
 			query:
 				query && Object.keys(query).length > 0
 					? toSearchParams(query)
@@ -249,7 +249,7 @@ async function fetchOrdersPage(
 
 export function fetchOrderDetail(id: number) {
 	return parseSuccessData<OrderDetail>(
-		rpcWithAuth().api.admin.orders[":id"].$get({
+		rpc.api.admin.orders[":id"].$get({
 			param: { id: String(id) },
 		}),
 	);
@@ -257,7 +257,7 @@ export function fetchOrderDetail(id: number) {
 
 export function fetchOrderReceipt(id: number) {
 	return parseSuccessData<OrderReceipt>(
-		rpcWithAuth().api.admin.orders[":id"].receipt.$get({
+		rpc.api.admin.orders[":id"].receipt.$get({
 			param: { id: String(id) },
 		}),
 	);
@@ -265,7 +265,7 @@ export function fetchOrderReceipt(id: number) {
 
 export function fetchOrderService(orderId: number, serviceId: number) {
 	return parseSuccessData<OrderServiceDetail>(
-		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].$get({
+		rpc.api.admin.orders[":id"].services[":serviceId"].$get({
 			param: { id: String(orderId), serviceId: String(serviceId) },
 		}),
 	);
@@ -275,7 +275,7 @@ async function fetchOrderServiceQueuePage(
 	query?: FetchOrderServiceQueueQuery,
 ): Promise<PaginatedData<QueueItem>> {
 	const response = await parseResponse(
-		rpcWithAuth().api.admin.orders.services.queue.$get({
+		rpc.api.admin.orders.services.queue.$get({
 			query:
 				query && Object.keys(query).length > 0 ? toSearchParams(query) : {},
 		}),
@@ -339,12 +339,12 @@ export const ordersQueries = {
 };
 
 export function createOrder(payload: CreateOrderPayload) {
-	return parseResponse(rpcWithAuth().api.admin.orders.$post({ json: payload }));
+	return parseResponse(rpc.api.admin.orders.$post({ json: payload }));
 }
 
 export function lookupQueueTarget(q: string) {
 	return parseSuccessData<OrderLookup>(
-		rpcWithAuth().api.admin.orders.lookup.$get({ query: { q } }),
+		rpc.api.admin.orders.lookup.$get({ query: { q } }),
 	);
 }
 
@@ -354,7 +354,7 @@ export function updateOrderServiceStatus(
 	payload: UpdateOrderServiceStatusPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].status.$patch({
+		rpc.api.admin.orders[":id"].services[":serviceId"].status.$patch({
 			param: { id: String(orderId), serviceId: String(serviceId) },
 			json: payload,
 		}),
@@ -366,7 +366,7 @@ export function updateOrderPayment(
 	payload: UpdateOrderPaymentPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].payment.$patch({
+		rpc.api.admin.orders[":id"].payment.$patch({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -378,7 +378,7 @@ export function createPaymentCharge(
 	payload: CreatePaymentChargePayload,
 ) {
 	return parseSuccessData<PaymentCharge>(
-		rpcWithAuth().api.admin.orders[":id"]["payment-charges"].$post({
+		rpc.api.admin.orders[":id"]["payment-charges"].$post({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -387,7 +387,7 @@ export function createPaymentCharge(
 
 export function fetchPaymentCharge(orderId: number, chargeId: number) {
 	return parseSuccessData<PaymentCharge>(
-		rpcWithAuth().api.admin.orders[":id"]["payment-charges"][":chargeId"].$get({
+		rpc.api.admin.orders[":id"]["payment-charges"][":chargeId"].$get({
 			param: { id: String(orderId), chargeId: String(chargeId) },
 		}),
 	);
@@ -395,7 +395,7 @@ export function fetchPaymentCharge(orderId: number, chargeId: number) {
 
 export function fetchOpenPaymentCharge(orderId: number) {
 	return parseSuccessData<PaymentCharge | null>(
-		rpcWithAuth().api.admin.orders[":id"]["payment-charges"].open.$get({
+		rpc.api.admin.orders[":id"]["payment-charges"].open.$get({
 			param: { id: String(orderId) },
 		}),
 	);
@@ -403,9 +403,7 @@ export function fetchOpenPaymentCharge(orderId: number) {
 
 export function cancelPaymentCharge(orderId: number, chargeId: number) {
 	return parseSuccessData<PaymentCharge>(
-		rpcWithAuth().api.admin.orders[":id"]["payment-charges"][
-			":chargeId"
-		].cancel.$post({
+		rpc.api.admin.orders[":id"]["payment-charges"][":chargeId"].cancel.$post({
 			param: { id: String(orderId), chargeId: String(chargeId) },
 		}),
 	);
@@ -417,7 +415,7 @@ export function setOrderServicePrice(
 	payload: SetOrderServicePricePayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].services[":serviceId"].price.$patch({
+		rpc.api.admin.orders[":id"].services[":serviceId"].price.$patch({
 			param: { id: String(orderId), serviceId: String(serviceId) },
 			json: payload,
 		}),
@@ -429,7 +427,7 @@ export function updateOrderCourier(
 	payload: UpdateOrderCourierPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].courier.$patch({
+		rpc.api.admin.orders[":id"].courier.$patch({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -441,7 +439,7 @@ export function updateOrderDeliveryFee(
 	payload: UpdateOrderDeliveryFeePayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"]["delivery-fee"].$patch({
+		rpc.api.admin.orders[":id"]["delivery-fee"].$patch({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -453,7 +451,7 @@ export function createOrderRefund(
 	payload: CreateOrderRefundPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].refunds.$post({
+		rpc.api.admin.orders[":id"].refunds.$post({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -462,7 +460,7 @@ export function createOrderRefund(
 
 export function cancelOrder(orderId: number, payload: CancelOrderPayload) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].cancel.$post({
+		rpc.api.admin.orders[":id"].cancel.$post({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -475,12 +473,10 @@ export function presignItemPhoto(
 	payload: PresignItemPhotoPayload,
 ) {
 	return parseSuccessData<PresignedUpload>(
-		rpcWithAuth().api.admin.orders[":id"].items[":itemId"].photos.presign.$post(
-			{
-				param: { id: String(orderId), itemId: String(itemId) },
-				json: payload,
-			},
-		),
+		rpc.api.admin.orders[":id"].items[":itemId"].photos.presign.$post({
+			param: { id: String(orderId), itemId: String(itemId) },
+			json: payload,
+		}),
 	);
 }
 
@@ -490,7 +486,7 @@ export function saveItemPhoto(
 	payload: SaveItemPhotoPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].items[":itemId"].photos.$post({
+		rpc.api.admin.orders[":id"].items[":itemId"].photos.$post({
 			param: { id: String(orderId), itemId: String(itemId) },
 			json: payload,
 		}),
@@ -503,9 +499,7 @@ export function deleteItemPhoto(
 	photoId: number,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"].items[":itemId"].photos[
-			":photoId"
-		].$delete({
+		rpc.api.admin.orders[":id"].items[":itemId"].photos[":photoId"].$delete({
 			param: {
 				id: String(orderId),
 				itemId: String(itemId),
@@ -520,7 +514,7 @@ export function presignOrderDropoffPhoto(
 	payload: PresignOrderDropoffPhotoPayload,
 ) {
 	return parseSuccessData<PresignedUpload>(
-		rpcWithAuth().api.admin.orders[":id"]["dropoff-photo"].presign.$post({
+		rpc.api.admin.orders[":id"]["dropoff-photo"].presign.$post({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -532,7 +526,7 @@ export function saveOrderDropoffPhoto(
 	payload: SaveOrderDropoffPhotoPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"]["dropoff-photo"].$put({
+		rpc.api.admin.orders[":id"]["dropoff-photo"].$put({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -544,7 +538,7 @@ export function presignOrderPickupEvent(
 	payload: PresignOrderPickupEventPayload,
 ) {
 	return parseSuccessData<PresignedUpload>(
-		rpcWithAuth().api.admin.orders[":id"]["pickup-events"].presign.$post({
+		rpc.api.admin.orders[":id"]["pickup-events"].presign.$post({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -556,7 +550,7 @@ export function createOrderPickupEvent(
 	payload: CreateOrderPickupEventPayload,
 ) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"]["pickup-events"].$post({
+		rpc.api.admin.orders[":id"]["pickup-events"].$post({
 			param: { id: String(orderId) },
 			json: payload,
 		}),
@@ -565,7 +559,7 @@ export function createOrderPickupEvent(
 
 export function createOrderPickupNotice(orderId: number) {
 	return parseResponse(
-		rpcWithAuth().api.admin.orders[":id"]["pickup-notices"].$post({
+		rpc.api.admin.orders[":id"]["pickup-notices"].$post({
 			param: { id: String(orderId) },
 		}),
 	);
@@ -573,6 +567,6 @@ export function createOrderPickupNotice(orderId: number) {
 
 export function createPhotoDownloadUrl(photo: PhotoDownloadRef) {
 	return parseSuccessData<{ url: string }>(
-		rpcWithAuth().api.admin.photos["download-url"].$post({ json: photo }),
+		rpc.api.admin.photos["download-url"].$post({ json: photo }),
 	);
 }

@@ -18,7 +18,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { dropQueryString } from "@/lib/analytics";
 import { trackBackNavigation } from "@/lib/back-navigation";
 import { routeTree } from "@/routeTree.gen";
-import { useAuthStore } from "@/stores/auth-store";
 
 // The boot spinner has no text, so without this Inter is only requested once
 // the first screen has painted, and every line reflows when it lands.
@@ -81,14 +80,6 @@ const queryClient = new QueryClient({
 			},
 		},
 	},
-});
-
-// Whoever signs in or out of a shared tablet, or is signed out by a 401, must
-// not inherit the last person's role, Stores and screens.
-useAuthStore.subscribe((state, previous) => {
-	if (state.token !== previous.token) {
-		queryClient.clear();
-	}
 });
 
 // An iPhone edge swipe back has already slid the page in; our slide on top
