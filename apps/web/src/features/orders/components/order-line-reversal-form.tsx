@@ -33,6 +33,7 @@ import {
 	REFUND_REASONS,
 } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
+import { pluralize } from "@/shared/utils";
 
 // Cancellation is the unpaid twin of Refund (ADR-0008), so both share this
 // form; Refund also previews the exact amounts the server will book.
@@ -129,6 +130,8 @@ interface ReversalCopy {
 	pending: string;
 	// Cancel Order would otherwise stack "Cancel Order" over "Cancel".
 	keep?: string;
+	// Picking some Lines leaves the Order open, so the button can't say "Order".
+	confirmSome?: (count: number) => string;
 }
 
 interface OrderLineReversalFormProps<R extends string> {
@@ -199,12 +202,10 @@ const OrderLineReversalForm = <R extends string>({
 	// isPending is frozen when the dialog opens, so the form's own isSubmitting
 	// is what stops a cashier's double tap from submitting twice.
 	const pending = isPending || form.formState.isSubmitting;
-	const watchedItems = useWatch({
-		control: form.control,
-		name: "items",
-		// Refund only: spares the cancel dialog a re-render per keystroke.
-		disabled: !capsByLineKey,
-	});
+	const watchedItems = useWatch({ control: form.control, name: "items" });
+	const selectedCount = (watchedItems ?? []).filter(
+		(item) => item.selected,
+	).length;
 	// Amounts come from the same allocateRefund the server runs at submit.
 	// Selected lines are allocated together (leftover rupiah shift with the
 	// set); unselected lines preview what they'd refund alone.
@@ -286,6 +287,9 @@ const OrderLineReversalForm = <R extends string>({
 		}
 		if (capsByLineKey && totalRefund > 0) {
 			return `Refund ${formatMoney(String(totalRefund))}`;
+		}
+		if (copy.confirmSome && selectedCount > 0 && selectedCount < lines.length) {
+			return copy.confirmSome(selectedCount);
 		}
 		return copy.confirm;
 	};
@@ -568,6 +572,7 @@ export const CancelOrderForm = ({
 			confirm: "Cancel Order",
 			pending: "Cancelling…",
 			keep: "Keep Order",
+			confirmSome: (count) => `Cancel ${pluralize(count, "Line")}`,
 		}}
 		defaultReason="customer_request"
 		formatReason={formatCancelReason}
