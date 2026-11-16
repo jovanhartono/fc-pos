@@ -48,7 +48,7 @@ const StoreHeader = ({ code, name, onSelect }: StoreHeaderProps) => (
 	<button
 		type="button"
 		title={name}
-		aria-label={name}
+		aria-label={`${code}, ${name}`}
 		onClick={onSelect}
 		className="inline-flex items-center gap-0.5 whitespace-nowrap font-medium text-primary"
 	>

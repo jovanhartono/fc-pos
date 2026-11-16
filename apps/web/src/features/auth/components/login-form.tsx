@@ -32,6 +32,11 @@ export function LoginForm({
 	errors,
 	isSubmitting,
 }: LoginFormProps) {
+	// One line shows one error, so only its own field points at it.
+	const shownError = errors.username
+		? "username"
+		: errors.password && "password";
+
 	return (
 		<main className="grid min-h-dvh place-items-center bg-background px-4">
 			<form
@@ -53,6 +58,9 @@ export function LoginForm({
 							spellCheck={false}
 							placeholder="Username"
 							aria-invalid={!!errors.username}
+							aria-describedby={
+								shownError === "username" ? "login-error" : undefined
+							}
 							className={GROUPED_INPUT_CLASS}
 							{...register("username")}
 						/>
@@ -67,12 +75,18 @@ export function LoginForm({
 							autoComplete="current-password"
 							placeholder="Password"
 							aria-invalid={!!errors.password}
+							aria-describedby={
+								shownError === "password" ? "login-error" : undefined
+							}
 							className={GROUPED_INPUT_CLASS}
 							{...register("password")}
 						/>
 					</Field>
 				</div>
-				<FieldError errors={[errors.username ?? errors.password]} />
+				<FieldError
+					id="login-error"
+					errors={[shownError ? errors[shownError] : undefined]}
+				/>
 				<Button
 					type="submit"
 					className="h-11 pointer-coarse:h-11 w-full"

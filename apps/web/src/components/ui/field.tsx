@@ -1,5 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
+import { createContext, use, useId } from "react";
 
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -67,20 +68,52 @@ const fieldVariants = cva(
 	},
 );
 
+interface FieldContextValue {
+	descriptionId: string;
+	errorId: string;
+}
+
+const FieldContext = createContext<FieldContextValue | null>(null);
+
 function Field({
 	className,
 	orientation = "vertical",
 	...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
+	const id = useId();
+
 	return (
-		<div
-			data-slot="field"
-			data-orientation={orientation}
-			className={cn(fieldVariants({ orientation }), className)}
-			{...props}
-		/>
+		<FieldContext
+			value={{ descriptionId: `${id}-description`, errorId: `${id}-error` }}
+		>
+			<div
+				data-slot="field"
+				data-orientation={orientation}
+				className={cn(fieldVariants({ orientation }), className)}
+				{...props}
+			/>
+		</FieldContext>
 	);
 }
+
+// A screen reader on a field hears its hint and, while it's invalid, the error
+// under it, instead of just "invalid data".
+const useFieldControlProps = ({
+	"aria-invalid": ariaInvalid,
+	"aria-describedby": ariaDescribedBy,
+}: React.AriaAttributes) => {
+	const field = use(FieldContext);
+	if (!field) {
+		return { "aria-describedby": ariaDescribedBy };
+	}
+	const isInvalid = Boolean(ariaInvalid) && ariaInvalid !== "false";
+	const ids = [
+		ariaDescribedBy,
+		field.descriptionId,
+		isInvalid ? field.errorId : undefined,
+	].filter(Boolean);
+	return { "aria-describedby": ids.join(" ") };
+};
 
 function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
 	return (
@@ -126,8 +159,11 @@ function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
+	const field = use(FieldContext);
+
 	return (
 		<p
+			id={field?.descriptionId}
 			data-slot="field-description"
 			className={cn(
 				"text-left text-footnote/relaxed leading-normal font-normal text-muted-foreground group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5",
@@ -178,6 +214,7 @@ function FieldError({
 }: React.ComponentProps<"div"> & {
 	errors?: Array<{ message?: string } | undefined>;
 }) {
+	const field = use(FieldContext);
 	let content: React.ReactNode = children;
 	if (!children && errors?.length) {
 		const uniqueErrors = [
@@ -202,6 +239,9 @@ function FieldError({
 
 	return (
 		<div
+			id={field?.errorId}
+			// A wrong current password comes back from the server while focus
+			// stays on Save; the alert is what reads it out.
 			role="alert"
 			data-slot="field-error"
 			className={cn("text-footnote font-normal text-destructive", className)}
@@ -223,4 +263,5 @@ export {
 	FieldSeparator,
 	FieldSet,
 	FieldTitle,
+	useFieldControlProps,
 };

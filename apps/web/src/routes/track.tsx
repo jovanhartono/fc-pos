@@ -676,6 +676,7 @@ const TrackOrderPage = () => {
 									id="track-phone"
 									type="tel"
 									inputMode="tel"
+									autoComplete="tel"
 									placeholder="0812 3456 789"
 									value={phone}
 									onChange={(event) => setPhone(event.target.value)}

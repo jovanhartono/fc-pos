@@ -253,36 +253,38 @@
 /* Screens pick a named style, never a pixel size. */
 @theme {
 	--text-*: initial;
-	--text-caption: 11px;
-	--text-caption--line-height: 14px;
+	/* rem, so a counter user's larger browser text size reaches the text too.
+	   Sizes and line heights are the same pixels at the default 16px. */
+	--text-caption: 0.6875rem;
+	--text-caption--line-height: calc(14 / 11);
 	--text-caption--letter-spacing: 0.006em;
-	--text-footnote: 12px;
-	--text-footnote--line-height: 16px;
+	--text-footnote: 0.75rem;
+	--text-footnote--line-height: calc(16 / 12);
 	--text-footnote--letter-spacing: 0em;
-	--text-subhead: 13px;
-	--text-subhead--line-height: 18px;
+	--text-subhead: 0.8125rem;
+	--text-subhead--line-height: calc(18 / 13);
 	--text-subhead--letter-spacing: -0.003em;
-	--text-body: 14px;
-	--text-body--line-height: 20px;
+	--text-body: 0.875rem;
+	--text-body--line-height: calc(20 / 14);
 	--text-body--letter-spacing: -0.006em;
-	--text-headline: 15px;
-	--text-headline--line-height: 20px;
+	--text-headline: 0.9375rem;
+	--text-headline--line-height: calc(20 / 15);
 	--text-headline--letter-spacing: -0.009em;
-	--text-title-3: 17px;
-	--text-title-3--line-height: 22px;
+	--text-title-3: 1.0625rem;
+	--text-title-3--line-height: calc(22 / 17);
 	--text-title-3--letter-spacing: -0.017em;
-	--text-title-2: 20px;
-	--text-title-2--line-height: 25px;
+	--text-title-2: 1.25rem;
+	--text-title-2--line-height: calc(25 / 20);
 	--text-title-2--letter-spacing: -0.021em;
-	--text-title-1: 26px;
-	--text-title-1--line-height: 32px;
+	--text-title-1: 1.625rem;
+	--text-title-1--line-height: calc(32 / 26);
 	--text-title-1--letter-spacing: -0.021em;
-	--text-large-title: 34px;
-	--text-large-title--line-height: 41px;
+	--text-large-title: 2.125rem;
+	--text-large-title--line-height: calc(41 / 34);
 	--text-large-title--letter-spacing: -0.021em;
 	/* A field on a phone stays at 16px, or iOS zooms in when the cashier taps it. */
-	--text-field: 16px;
-	--text-field--line-height: 24px;
+	--text-field: 1rem;
+	--text-field--line-height: 1.5;
 	--text-field--letter-spacing: -0.011em;
 }
 
@@ -294,10 +296,12 @@
 }
 
 /* A bar that runs across the page's side padding to the pane's edges, its
-   content still in line with the page. --page-x is set on the app shell. */
+   content still in line with the page. --page-x and --page-right (wider in
+   landscape, clear of the Dynamic Island) are set on the app shell. */
 @utility page-bleed {
-	margin-inline: calc(var(--page-x) * -1);
-	padding-inline: var(--page-x);
+	margin-inline: calc(var(--page-x) * -1)
+		calc(var(--page-right, var(--page-x)) * -1);
+	padding-inline: var(--page-x) var(--page-right, var(--page-x));
 }
 
 /* Keyboard focus on a row that opens something: the tint alone is invisible
@@ -306,6 +310,62 @@
 	&:focus-visible {
 		outline: 2px solid var(--ring);
 		outline-offset: -2px;
+	}
+}
+
+/* A chip strip that outgrows its row (/queue's statuses, POS Categories) fades
+   the edge that has more chips past it, so a cut chip reads as "more this way",
+   and neither edge once the cashier reaches it. Older iPhones keep one fade on
+   the right, always on. */
+@property --strip-fade-start {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --strip-fade-end {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@keyframes strip-fade-start {
+	from {
+		--strip-fade-start: 0px;
+	}
+	to {
+		--strip-fade-start: 2rem;
+	}
+}
+
+@keyframes strip-fade-end {
+	from {
+		--strip-fade-end: 2rem;
+	}
+	to {
+		--strip-fade-end: 0px;
+	}
+}
+
+@utility strip-fade {
+	mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+
+	@supports (animation-timeline: scroll()) {
+		mask-image: linear-gradient(
+			to right,
+			transparent,
+			black var(--strip-fade-start),
+			black calc(100% - var(--strip-fade-end)),
+			transparent
+		);
+		/* Longhands: the shorthand compiles to a 0s duration, not the timeline's. */
+		animation-name: strip-fade-start, strip-fade-end;
+		animation-timing-function: linear;
+		animation-fill-mode: both;
+		animation-timeline: scroll(self inline);
+		animation-range:
+			0 2rem,
+			calc(100% - 2rem) 100%;
 	}
 }
 
@@ -396,6 +456,19 @@ html:active-view-transition [data-slot="tab-bar"] {
 	background-color: var(--background);
 	background-image: linear-gradient(var(--frost), var(--frost));
 	backdrop-filter: none;
+}
+
+/* With Reduce Motion on, menus, pickers and dialogs only fade: their slide and
+   zoom come from these tw-animate values. Outside the layers so it wins. */
+@media (prefers-reduced-motion: reduce) {
+	* {
+		--tw-enter-scale: 1;
+		--tw-exit-scale: 1;
+		--tw-enter-translate-x: 0;
+		--tw-enter-translate-y: 0;
+		--tw-exit-translate-x: 0;
+		--tw-exit-translate-y: 0;
+	}
 }
 
 /* Opening a record slides it in from the right and backing out slides it away

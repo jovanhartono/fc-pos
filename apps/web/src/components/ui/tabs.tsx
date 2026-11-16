@@ -59,11 +59,15 @@ function TabsList({
 			return;
 		}
 		shownActiveRef.current = active;
-		const start = active.offsetLeft;
-		// The pill strip fades its last 2rem, so a tab under the fade counts as hidden.
-		const end = start + active.offsetWidth + 32;
+		// The pill strip fades 2rem at each edge, so a tab under a fade counts as hidden.
+		const fade =
+			2 *
+			Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+		const start = active.offsetLeft - fade;
+		const end = active.offsetLeft + active.offsetWidth + fade;
 		if (start < list.scrollLeft || end > list.scrollLeft + list.clientWidth) {
-			list.scrollLeft = start - (list.clientWidth - active.offsetWidth) / 2;
+			list.scrollLeft =
+				active.offsetLeft - (list.clientWidth - active.offsetWidth) / 2;
 		}
 	});
 

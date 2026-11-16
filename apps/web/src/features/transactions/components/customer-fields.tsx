@@ -73,6 +73,9 @@ export const CustomerFields = () => {
 						onValueChange={field.onChange}
 						required
 						error={fieldState.error}
+						// The cashier types the customer's number; Safari would offer the
+						// counter phone's own and file the Order under the wrong Customer.
+						autoComplete="off"
 					/>
 				)}
 			/>

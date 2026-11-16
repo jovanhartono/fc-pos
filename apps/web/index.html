@@ -24,7 +24,9 @@
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#252525" />
   <meta name="color-scheme" content="light dark" />
   <!-- Sets the theme before the first paint, so a phone in dark mode doesn't
-       open on a white screen. ThemeProvider takes over once React runs. -->
+       open on a white screen. ThemeProvider takes over once React runs.
+       Its hash is pinned in vercel.json's Content-Security-Policy: change one
+       character here and update that hash, or browsers refuse to run it. -->
   <script>
     {
       let stored = null;

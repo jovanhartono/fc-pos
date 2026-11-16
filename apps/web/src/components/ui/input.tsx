@@ -1,9 +1,12 @@
 import { Input as InputPrimitive } from "@base-ui/react/input";
 import type * as React from "react";
 
+import { useFieldControlProps } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+	const fieldProps = useFieldControlProps(props);
+
 	return (
 		<InputPrimitive
 			type={type}
@@ -15,6 +18,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
 				className,
 			)}
 			{...props}
+			{...fieldProps}
 		/>
 	);
 }

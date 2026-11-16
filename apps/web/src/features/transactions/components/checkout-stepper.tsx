@@ -69,6 +69,7 @@ export const CheckoutStepper = ({
 							{isComplete ? (
 								<HugeiconsIcon
 									icon={Tick02Icon}
+									aria-hidden="true"
 									className="size-3"
 									strokeWidth={2}
 								/>
@@ -77,6 +78,7 @@ export const CheckoutStepper = ({
 							)}
 						</span>
 						{step.label}
+						{isComplete ? <span className="sr-only">, done</span> : null}
 					</button>
 				);
 			})}
