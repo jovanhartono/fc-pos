@@ -354,19 +354,21 @@ export function AppShell({ title, children }: AppShellProps) {
 				</div>
 
 				<SidebarContent>
-					<SidebarGroup>
-						<SidebarGroupContent>
-							<SidebarNavLinks items={[HOME_NAV_ITEM]} />
-						</SidebarGroupContent>
-					</SidebarGroup>
-					{allowedGroups.map((group) => (
-						<SidebarGroup key={group.label}>
-							<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+					<nav aria-label="Primary" className="flex flex-col">
+						<SidebarGroup>
 							<SidebarGroupContent>
-								<SidebarNavLinks items={group.items} />
+								<SidebarNavLinks items={[HOME_NAV_ITEM]} />
 							</SidebarGroupContent>
 						</SidebarGroup>
-					))}
+						{allowedGroups.map((group) => (
+							<SidebarGroup key={group.label}>
+								<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+								<SidebarGroupContent>
+									<SidebarNavLinks items={group.items} />
+								</SidebarGroupContent>
+							</SidebarGroup>
+						))}
+					</nav>
 				</SidebarContent>
 
 				<SidebarFooter className="border-sidebar-border border-t">

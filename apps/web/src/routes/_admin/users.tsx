@@ -343,11 +343,14 @@ function UsersPage() {
 			},
 			cell: ({ row }) => (
 				<div className="flex gap-2">
-					<EditRowButton onClick={() => handleEdit(row.original)} />
+					<EditRowButton
+						label={`Edit ${row.original.name}`}
+						onClick={() => handleEdit(row.original)}
+					/>
 					<Button
 						variant="outline"
 						size="icon-sm"
-						aria-label="Reset password"
+						aria-label={`Reset password for ${row.original.name}`}
 						title="Reset password"
 						onClick={() => handleResetPassword(row.original)}
 						icon={<HugeiconsIcon icon={ResetPasswordIcon} className="size-4" />}

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 // A row that opens something. The hover fill reaches past the text, so the
 // text still lines up with the heading above the list.
 export const ROW_TAP =
-	"-mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none";
+	"-mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-ring-inset";
 // A Complaint and its Reworks step in under the line they belong to.
 export const ROW_TAP_NESTED = "pt-1 pl-7";
 export const ROW_TITLE = "text-body leading-5 compact:text-subhead";

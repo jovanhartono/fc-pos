@@ -157,7 +157,7 @@ const ArchiveCampaignButton = ({
 		<Button
 			variant="outline"
 			size="icon-sm"
-			aria-label={label}
+			aria-label={`${label} ${campaign.name}`}
 			title={label}
 			icon={<HugeiconsIcon className="size-4" icon={icon} />}
 			disabled={disabled || isPending}
@@ -383,6 +383,7 @@ function CampaignsPage() {
 			cell: ({ row }) => (
 				<div className="flex gap-2">
 					<EditRowButton
+						label={`Edit ${row.original.name}`}
 						disabled={!isAdmin}
 						onClick={() => handleOpenEditSheet(row.original)}
 					/>
@@ -403,7 +404,7 @@ function CampaignsPage() {
 						<Button
 							variant="outline"
 							size="icon-sm"
-							aria-label="Codes"
+							aria-label={`${row.original.name} codes`}
 							title="Codes"
 							onClick={() => handleOpenVoucherDetail(row.original)}
 							icon={<HugeiconsIcon icon={Coupon01Icon} className="size-4" />}

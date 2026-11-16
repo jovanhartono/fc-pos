@@ -1,8 +1,15 @@
-import { type PointerEvent, useEffect, useRef, useState } from "react";
+import {
+	type KeyboardEvent,
+	type PointerEvent,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const HOLD_DURATION_MS = 1000;
+const HOLD_KEYS = new Set([" ", "Enter"]);
 
 type HoldToConfirmButtonProps = {
 	children: string;
@@ -51,12 +58,7 @@ export function HoldToConfirmButton({
 		};
 	}, []);
 
-	const beginHold = (event: PointerEvent<HTMLButtonElement>) => {
-		if (disabled || loading || isHolding) {
-			return;
-		}
-
-		event.currentTarget.setPointerCapture(event.pointerId);
+	const startHold = () => {
 		setIsHolding(true);
 		completedRef.current = false;
 		startTimeRef.current = performance.now();
@@ -87,6 +89,37 @@ export function HoldToConfirmButton({
 		frameRef.current = requestAnimationFrame(tick);
 	};
 
+	const canStart = !(disabled || loading || isHolding);
+
+	const beginPointerHold = (event: PointerEvent<HTMLButtonElement>) => {
+		if (!canStart) {
+			return;
+		}
+
+		event.currentTarget.setPointerCapture(event.pointerId);
+		startHold();
+	};
+
+	// A worker on the counter computer holds Space or Enter instead of the mouse.
+	const beginKeyHold = (event: KeyboardEvent<HTMLButtonElement>) => {
+		if (!HOLD_KEYS.has(event.key)) {
+			return;
+		}
+
+		event.preventDefault();
+		if (event.repeat || !canStart) {
+			return;
+		}
+
+		startHold();
+	};
+
+	const endKeyHold = (event: KeyboardEvent<HTMLButtonElement>) => {
+		if (HOLD_KEYS.has(event.key)) {
+			cancelHold();
+		}
+	};
+
 	const cancelHold = () => {
 		if (completedRef.current || loading) {
 			return;
@@ -106,9 +139,12 @@ export function HoldToConfirmButton({
 			loading={loading}
 			loadingText="Starting..."
 			onContextMenu={(event) => event.preventDefault()}
-			onPointerDown={beginHold}
+			onPointerDown={beginPointerHold}
 			onPointerUp={cancelHold}
 			onPointerCancel={cancelHold}
+			onKeyDown={beginKeyHold}
+			onKeyUp={endKeyHold}
+			onBlur={cancelHold}
 		>
 			<span
 				aria-hidden="true"

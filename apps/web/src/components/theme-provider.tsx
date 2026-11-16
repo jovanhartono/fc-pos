@@ -45,21 +45,21 @@ export function ThemeProvider({
 	);
 
 	useEffect(() => {
-		const root = window.document.documentElement;
+		const query = window.matchMedia("(prefers-color-scheme: dark)");
+		const applyTheme = () =>
+			document.documentElement.classList.toggle(
+				"dark",
+				theme === "dark" || (theme === "system" && query.matches),
+			);
 
-		root.classList.remove("light", "dark");
-
-		if (theme === "system") {
-			const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-				.matches
-				? "dark"
-				: "light";
-
-			root.classList.add(systemTheme);
+		applyTheme();
+		if (theme !== "system") {
 			return;
 		}
-
-		root.classList.add(theme);
+		// An iPhone on automatic Appearance turns dark at sunset while the app
+		// stays open on the counter all day.
+		query.addEventListener("change", applyTheme);
+		return () => query.removeEventListener("change", applyTheme);
 	}, [theme]);
 
 	const value = {

@@ -41,6 +41,7 @@
 /* Apple's system colours on a white page: cards are white too, told apart by a
    hairline border; blue for actions, green and red for good and bad. */
 :root {
+	color-scheme: light;
 	--background: #ffffff;
 	--foreground: #1c1c1e;
 	--card: #ffffff;
@@ -113,6 +114,7 @@
 }
 
 .dark {
+	color-scheme: dark;
 	--background: #000000;
 	--foreground: #ffffff;
 	--card: #1c1c1e;
@@ -296,6 +298,15 @@
 @utility page-bleed {
 	margin-inline: calc(var(--page-x) * -1);
 	padding-inline: var(--page-x);
+}
+
+/* Keyboard focus on a row that opens something: the tint alone is invisible
+   on a white card. */
+@utility focus-ring-inset {
+	&:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: -2px;
+	}
 }
 
 @layer base {

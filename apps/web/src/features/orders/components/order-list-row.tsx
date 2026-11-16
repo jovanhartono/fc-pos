@@ -63,7 +63,7 @@ const OrderListRowAnchor = ({
 				{...anchorProps}
 				className={cn(
 					ROW,
-					"outline-none focus-visible:bg-muted",
+					"focus-visible:bg-muted focus-ring-inset",
 					isActive && "bg-primary/10 hover:bg-primary/10",
 					className,
 				)}
@@ -88,7 +88,10 @@ const OrderListRowAnchor = ({
 				className,
 			)}
 		>
-			<a {...anchorProps} className="absolute inset-0 rounded-md outline-none">
+			<a
+				{...anchorProps}
+				className="absolute inset-0 rounded-md focus-ring-inset"
+			>
 				<span className="sr-only">{title}</span>
 			</a>
 			{body}
