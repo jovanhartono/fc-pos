@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionTitle } from "@/components/section";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
@@ -178,7 +179,7 @@ export const CustomersPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle>Top Spenders</CardTitle>
+					<SectionTitle title="Top Spenders" />
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{topCustomers.length === 0 ? (

@@ -1,7 +1,8 @@
 import { Wallet01Icon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/components/empty-state";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionTitle } from "@/components/section";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
@@ -132,7 +133,7 @@ export const PaymentsPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle>Mix Share</CardTitle>
+					<SectionTitle title="Mix Share" />
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{(data?.summary.methods ?? []).length === 0 ? (

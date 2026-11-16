@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { StoreChecklist } from "@/features/stores/components/store-checklist";
+import { PasswordInput } from "@/features/users/components/password-input";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 
 export type UserFormState = {
@@ -103,10 +104,9 @@ export function UserForm({
 									<FieldLabel htmlFor="user-password" asterisk>
 										Password
 									</FieldLabel>
-									<Input
+									<PasswordInput
 										{...field}
 										id="user-password"
-										type="password"
 										placeholder="Enter password"
 										aria-invalid={fieldState.invalid}
 										disabled={isSubmitting}
@@ -124,10 +124,9 @@ export function UserForm({
 									<FieldLabel htmlFor="user-confirm-password" asterisk>
 										Confirm password
 									</FieldLabel>
-									<Input
+									<PasswordInput
 										{...field}
 										id="user-confirm-password"
-										type="password"
 										placeholder="Confirm password"
 										aria-invalid={fieldState.invalid}
 										disabled={isSubmitting}

@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionTitle } from "@/components/section";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -90,7 +91,7 @@ export const CampaignsPanel = ({
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle>Campaign Leaderboard</CardTitle>
+					<SectionTitle title="Campaign Leaderboard" />
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					{campaigns.length === 0 ? (

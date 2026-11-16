@@ -33,19 +33,6 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
 	);
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
-	return (
-		<div
-			data-slot="card-title"
-			className={cn(
-				"text-headline font-semibold text-foreground group-data-[size=sm]/card:text-body",
-				className,
-			)}
-			{...props}
-		/>
-	);
-}
-
 function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
 	return (
 		<div
@@ -96,5 +83,4 @@ export {
 	CardDescription,
 	CardFooter,
 	CardHeader,
-	CardTitle,
 };

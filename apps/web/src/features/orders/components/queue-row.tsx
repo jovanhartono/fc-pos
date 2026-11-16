@@ -111,7 +111,7 @@ export const QueueRow = ({
 		// chips above — siblings in that same column — get pushed off screen.
 		<article className="min-w-0 overflow-hidden rounded-lg border bg-card">
 			<header className="grid min-w-0 gap-0.5 px-3 pt-2.5 pb-2">
-				<h3 className="flex min-w-0 items-baseline gap-2 font-medium text-headline leading-snug">
+				<h2 className="flex min-w-0 items-baseline gap-2 font-medium text-headline leading-snug">
 					{descriptors ? (
 						<span className="min-w-0 flex-1 wrap-break-word">
 							{descriptors}
@@ -121,7 +121,7 @@ export const QueueRow = ({
 							{item.item_code}
 						</span>
 					)}
-				</h3>
+				</h2>
 				<p className="flex min-w-0 items-baseline gap-2 text-subhead">
 					<span className="min-w-0 flex-1 truncate">
 						{item.order_code} · {item.customer_name}

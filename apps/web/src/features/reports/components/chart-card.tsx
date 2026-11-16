@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionTitle } from "@/components/section";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ReportChart } from "@/features/reports/components/report-chart";
 
 interface ChartCardProps extends ComponentProps<typeof ReportChart> {
@@ -9,7 +10,7 @@ interface ChartCardProps extends ComponentProps<typeof ReportChart> {
 export const ChartCard = ({ title, ...chart }: ChartCardProps) => (
 	<Card className="border-border/70">
 		<CardHeader>
-			<CardTitle>{title}</CardTitle>
+			<SectionTitle title={title} />
 		</CardHeader>
 		<CardContent className="p-4 pt-0">
 			<ReportChart {...chart} />

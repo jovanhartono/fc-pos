@@ -2,7 +2,8 @@ import { GridViewIcon, ToolsIcon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { EmptyState } from "@/components/empty-state";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionTitle } from "@/components/section";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { type ReportOverview, reportsQueries } from "@/features/reports/api";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import { StoreRevenueRows } from "@/features/reports/components/store-revenue-rows";
@@ -173,7 +174,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 
 			<Card className="border-border/70">
 				<CardHeader>
-					<CardTitle>Revenue by Store · Today</CardTitle>
+					<SectionTitle title="Revenue by Store · Today" />
 				</CardHeader>
 				<CardContent className="p-4 pt-0">
 					<StoreRevenueRows rows={overview?.per_store ?? []} />
@@ -183,7 +184,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 			<div className="grid gap-3 xl:grid-cols-2">
 				<Card className="border-border/70">
 					<CardHeader>
-						<CardTitle>Gross Sales by Category · Today</CardTitle>
+						<SectionTitle title="Gross Sales by Category · Today" />
 					</CardHeader>
 					<CardContent className="p-4 pt-0">
 						<CategoryBars categories={overview?.categories ?? []} />
@@ -191,7 +192,7 @@ export const OverviewPanel = ({ date, storeId }: OverviewPanelProps) => {
 				</Card>
 				<Card className="border-border/70">
 					<CardHeader>
-						<CardTitle>Top Services by Gross Sales · Today</CardTitle>
+						<SectionTitle title="Top Services by Gross Sales · Today" />
 					</CardHeader>
 					<CardContent className="p-4 pt-0">
 						<TopServicesList services={overview?.top_services ?? []} />

@@ -98,6 +98,9 @@ window.addEventListener("popstate", (event) => {
 	isSwipeBack = event.hasUAVisualTransition;
 });
 
+const OVERLAY_SELECTOR =
+	'[data-slot="sheet-content"], [data-slot="dialog-content"]';
+
 const router = createRouter({
 	routeTree,
 	context: {
@@ -120,10 +123,7 @@ const router = createRouter({
 			// Order outright, not fade the two through each other.
 			// Leaving from the More sheet or the search palette: the closing panel
 			// is the transition, and a cross-fade on top froze it half-closed.
-			const isOverlayOpen = document.querySelector(
-				'[data-slot="sheet-content"], [data-slot="dialog-content"]',
-			);
-			if (!pathChanged || isOverlayOpen) {
+			if (!pathChanged || document.querySelector(OVERLAY_SELECTOR)) {
 				return false;
 			}
 			if (!fromLocation) {
@@ -157,6 +157,19 @@ const router = createRouter({
 	],
 });
 trackBackNavigation(router.history);
+
+// Opening an Order from a list row removes the link that had focus; a keyboard
+// or VoiceOver user would start again from the top of the document.
+router.subscribe("onResolved", ({ fromLocation, pathChanged }) => {
+	const isFocusLost = document.activeElement === document.body;
+	if (
+		!(fromLocation && pathChanged && isFocusLost) ||
+		document.querySelector(OVERLAY_SELECTOR)
+	) {
+		return;
+	}
+	document.querySelector("main")?.focus({ preventScroll: true });
+});
 
 declare module "@tanstack/react-router" {
 	interface Register {
