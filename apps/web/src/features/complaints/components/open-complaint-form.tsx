@@ -142,7 +142,6 @@ export const OpenComplaintForm = ({
 						</Button>
 					}
 					onCancel={closeDialog}
-					cancelLabel="Go Back"
 					isPending={isPending}
 				/>
 			</form>

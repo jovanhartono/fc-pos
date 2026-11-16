@@ -61,7 +61,6 @@ export const OrderCourierForm = ({
 					</Button>
 				}
 				onCancel={closeDialog}
-				cancelLabel="Go Back"
 				isPending={courierMutation.isPending}
 			/>
 		</div>

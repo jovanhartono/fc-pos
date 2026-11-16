@@ -61,7 +61,6 @@ export const OrderDeliveryFeeForm = ({
 					</Button>
 				}
 				onCancel={closeDialog}
-				cancelLabel="Go Back"
 				isPending={mutation.isPending}
 			/>
 		</form>

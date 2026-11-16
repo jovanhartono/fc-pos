@@ -67,7 +67,6 @@ export const ServiceStatusConfirmForm = ({
 					</Button>
 				}
 				onCancel={closeDialog}
-				cancelLabel="Go Back"
 			/>
 		</div>
 	);

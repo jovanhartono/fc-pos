@@ -127,6 +127,8 @@ const kindLabel = (kind: "service" | "product" | undefined) =>
 interface ReversalCopy {
 	confirm: string;
 	pending: string;
+	// Cancel Order would otherwise stack "Cancel Order" over "Cancel".
+	keep?: string;
 }
 
 interface OrderLineReversalFormProps<R extends string> {
@@ -375,7 +377,7 @@ const OrderLineReversalForm = <R extends string>({
 						</Button>
 					}
 					onCancel={closeDialog}
-					cancelLabel="Go Back"
+					cancelLabel={copy.keep}
 					isPending={pending}
 				/>
 			</form>
@@ -562,7 +564,11 @@ export const CancelOrderForm = ({
 }: CancelOrderFormProps) => (
 	<OrderLineReversalForm
 		closeDialog={closeDialog}
-		copy={{ confirm: "Confirm Cancel", pending: "Cancelling…" }}
+		copy={{
+			confirm: "Cancel Order",
+			pending: "Cancelling…",
+			keep: "Keep Order",
+		}}
 		defaultReason="customer_request"
 		formatReason={formatCancelReason}
 		isPending={cancelOrderMutation.isPending}
