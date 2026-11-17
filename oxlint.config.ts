@@ -2,9 +2,10 @@ import { defineConfig } from "oxlint";
 import core from "ultracite/oxlint/core";
 
 export default defineConfig({
+  env: core.env,
   extends: [core],
-  globals: { Bun: "readonly" },
   ignorePatterns: core.ignorePatterns,
+  globals: { Bun: "readonly" },
   overrides: [
     {
       files: ["**/*.test.ts", "**/*.test.tsx"],

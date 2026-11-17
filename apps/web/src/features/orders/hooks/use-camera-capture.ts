@@ -14,13 +14,11 @@ const waitForVideoReady = (video: HTMLVideoElement) =>
       return;
     }
 
-    /* oxlint-disable no-use-before-define -- the two listeners and the timeout each clear all three */
     const cleanup = () => {
       video.removeEventListener("loadedmetadata", handleReady);
       video.removeEventListener("error", handleError);
       clearTimeout(timeoutId);
     };
-    /* oxlint-enable no-use-before-define */
     const handleReady = () => {
       cleanup();
       resolve();

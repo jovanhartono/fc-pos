@@ -73,7 +73,6 @@ export const useOpenWorkerSheet = () => {
         </span>
       ),
       description: `${target.storeName} · ${rangeLabel(target.from, target.to)}`,
-      // oxlint-disable-next-line no-use-before-define -- the sheet and its opener call each other, so one has to come first
       content: () => <WorkerSheetContent target={target} />,
     });
 };

@@ -6,6 +6,7 @@ import tanstack from "ultracite/oxlint/tanstack";
 import root from "../../oxlint.config.ts";
 
 export default defineConfig({
+  env: core.env,
   extends: [core, react, tanstack],
   ignorePatterns: core.ignorePatterns,
   overrides: root.overrides,

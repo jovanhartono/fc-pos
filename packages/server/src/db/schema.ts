@@ -402,7 +402,6 @@ export const campaignCodesTable = pgTable(
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     redeemed_at: timestamp("redeemed_at", { withTimezone: true }),
     redeemed_order_id: integer("redeemed_order_id").references(
-      // oxlint-disable-next-line no-use-before-define -- the reference is read lazily, after every table exists
       () => ordersTable.id,
       { onDelete: "set null" }
     ),
@@ -734,7 +733,6 @@ export const ordersServicesTable = pgTable(
     // Set only on a Rework line, pointing at the Complaint that spawned it; the
     // complained line itself stays null (ADR-0013).
     complaint_id: integer("complaint_id").references(
-      // oxlint-disable-next-line no-use-before-define -- complaints and order lines point at each other, so one must come first
       (): AnyPgColumn => complaintsTable.id,
       { onDelete: "set null" }
     ),
@@ -752,7 +750,6 @@ export const ordersServicesTable = pgTable(
       .notNull(),
 
     pickup_event_id: integer("pickup_event_id").references(
-      // oxlint-disable-next-line no-use-before-define -- the reference is read lazily, after every table exists
       () => orderPickupEventsTable.id,
       { onDelete: "set null" }
     ),
@@ -1011,7 +1008,6 @@ export const orderRefundItemsTable = pgTable(
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     note: text("note"),
     order_product_id: integer("order_product_id").references(
-      // oxlint-disable-next-line no-use-before-define -- the reference is read lazily, after every table exists
       () => ordersProductsTable.id
     ),
     order_refund_id: integer("order_refund_id")
