@@ -1,8 +1,4 @@
-import {
-	isInWorkshop,
-	ORDER_SERVICE_TRANSITIONS,
-	ORDER_TERMINAL_SERVICE_STATUSES,
-} from "@fresclean/api/rules";
+import { isInWorkshop } from "@fresclean/api/rules";
 import {
 	AlertCircleIcon,
 	ArrowRight01Icon,
@@ -38,7 +34,7 @@ import { useNotifyCustomer } from "@/features/orders/hooks/useNotifyCustomer";
 import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
-import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
+import { orderServiceActions } from "@/features/orders/lib/order-service-actions";
 import { formatNoticeTime } from "@/features/orders/lib/pickup-notice";
 import { getOrderServiceItemDescriptors } from "@/lib/order-service-item-details";
 import {
@@ -47,12 +43,6 @@ import {
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { getCurrentUser } from "@/stores/auth-store";
-
-// Terminal statuses go through dedicated endpoints — the status endpoint
-// rejects them, so never offer them as queue actions.
-const WORKER_BLOCKED_QUEUE_STATUSES = new Set<
-	UpdateOrderServiceStatusPayload["status"]
->(ORDER_TERMINAL_SERVICE_STATUSES);
 
 // The worker taps Done as the shoe goes on the QC shelf; whoever checks it
 // taps Pass or Reject.
@@ -246,31 +236,15 @@ export function QueueServiceDetail({
 		return null;
 	}
 
-	const isHandledByCurrentUser = selectedService.handler_id === currentUser?.id;
-	const isHandledByAnotherWorker =
-		selectedService.handler_id !== null &&
-		selectedService.handler_id !== undefined &&
-		!isHandledByCurrentUser;
-	const nextStatuses = ORDER_SERVICE_TRANSITIONS[selectedService.status] ?? [];
-	const canStartWork = selectedService.status === "queued";
-	const photoBlocker = startPhotoBlocker(selectedService);
-	const needsPhotoToStart = photoBlocker !== undefined;
-	const actionStatuses = nextStatuses.filter(
-		(status) =>
-			!WORKER_BLOCKED_QUEUE_STATUSES.has(status) &&
-			(!canStartWork || status !== "processing"),
-	);
+	const actions = orderServiceActions(selectedService, currentUser?.id);
+	const { moves, start, photoBlocker } = actions;
 
 	const itemDescriptors = getOrderServiceItemDescriptors(selectedService.item);
-	const handlerLabel = isHandledByCurrentUser
+	const handlerLabel = actions.isHeldByMe
 		? "You"
-		: isHandledByAnotherWorker
+		: actions.isHeldByOther
 			? (selectedService.handler?.name ?? "Another worker")
 			: "Unassigned";
-	const blockerMessage =
-		canStartWork && isHandledByAnotherWorker
-			? `${selectedService.handler?.name ?? "Another worker"} is handling this item — actions are locked for you.`
-			: (photoBlocker ?? null);
 	const isReady = selectedService.status === "ready_for_pickup";
 	// Turned down at the counter: the Item left the pickup shelf for its Rework.
 	const runningRework = selectedService.complaints
@@ -431,7 +405,9 @@ export function QueueServiceDetail({
 							count={selectedService.item.images.length || undefined}
 							title="Photos"
 						/>
-						{needsPhotoToStart && <Badge variant="warning">Required</Badge>}
+						{photoBlocker !== undefined && (
+							<Badge variant="warning">Required</Badge>
+						)}
 					</div>
 					<ItemPhotoStrip
 						isAdmin={currentUser?.role === "admin"}
@@ -443,14 +419,14 @@ export function QueueServiceDetail({
 
 				<section className="grid gap-4 border-t pt-5">
 					<StatusTimeline line={selectedService} />
-					{actionStatuses.length > 0 && (
+					{moves.length > 0 && (
 						<Field data-invalid={isNoteMissing}>
 							<FieldLabel htmlFor="queue-status-note">Status note</FieldLabel>
 							<Textarea
 								aria-invalid={isNoteMissing}
 								id="queue-status-note"
 								placeholder={
-									actionStatuses.includes("qc_reject")
+									moves.includes("qc_reject")
 										? "Reject reason, e.g. stain on toe box"
 										: "Optional status note"
 								}
@@ -469,26 +445,26 @@ export function QueueServiceDetail({
 				</section>
 			</div>
 
-			{(canStartWork || actionStatuses.length > 0) && (
+			{(start || moves.length > 0) && (
 				<div
 					className="page-bleed sticky bottom-0 z-10 mt-6 border-t border-border bg-background/95 pb-[calc(var(--inset-bottom)+0.75rem)] pt-3 backdrop-blur md:mx-0 md:px-0 md:pb-3"
 					data-bottom-bar
 				>
-					{blockerMessage ? (
+					{start?.blocker ? (
 						<div className="mb-2 flex items-center gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-footnote font-medium text-foreground">
 							<HugeiconsIcon
 								icon={AlertCircleIcon}
 								aria-hidden="true"
 								className="size-4 shrink-0 text-warning"
 							/>
-							{blockerMessage}
+							{start.blocker}
 						</div>
 					) : null}
 					<div className="flex flex-col gap-2 sm:flex-row">
-						{canStartWork ? (
+						{start ? (
 							<HoldToConfirmButton
 								className="h-12 sm:flex-1"
-								disabled={isHandledByAnotherWorker || needsPhotoToStart}
+								disabled={start.blocker !== undefined}
 								loading={updateStatusMutation.isPending}
 								onComplete={() => {
 									updateStatusMutation.mutate(
@@ -501,13 +477,13 @@ export function QueueServiceDetail({
 							</HoldToConfirmButton>
 						) : null}
 
-						{actionStatuses.map((nextStatus) => (
+						{moves.map((nextStatus) => (
 							<Button
 								key={nextStatus}
 								type="button"
 								variant={nextStatus === "qc_reject" ? "secondary" : "default"}
 								size="lg"
-								className={cn("h-12 sm:flex-1", canStartWork && "sm:flex-none")}
+								className={cn("h-12 sm:flex-1", start && "sm:flex-none")}
 								disabled={updateStatusMutation.isPending}
 								onClick={() => {
 									// The checker on a phone can't see the note box behind this bar,

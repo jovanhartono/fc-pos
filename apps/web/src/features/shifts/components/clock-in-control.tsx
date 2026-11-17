@@ -15,7 +15,8 @@ import { clockInShift } from "@/features/shifts/api";
 import { useGeolocation } from "@/features/shifts/hooks/useGeolocation";
 import { formatDistanceKm } from "@/features/shifts/lib/distance";
 import { type Store, storesQueries } from "@/features/stores/api";
-import { usersQueries } from "@/features/users/api";
+import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { canOpenStore } from "@/features/users/lib/store-scope";
 import { onShiftClocked } from "@/lib/cache-events";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
@@ -41,29 +42,17 @@ export const ClockSkeleton = () => (
 	</div>
 );
 
-const useAllowedStoreIds = (isSignedIn: boolean) => {
-	const meQuery = useQuery({ ...usersQueries.me(), enabled: isSignedIn });
-
+const useClockInStores = (coordinates: ClockInCoordinates | undefined) => {
+	const storesQuery = useQuery(storesQueries.list());
 	// Only the Stores this person is assigned to. Preselecting another only hands
 	// them a 403 with no clue which Store to pick instead.
-	return meQuery.data === undefined || meQuery.data.role === "admin"
-		? undefined
-		: (meQuery.data.userStores?.map((item) => item.store_id) ?? []);
-};
-
-const useClockInStores = (
-	isSignedIn: boolean,
-	coordinates: ClockInCoordinates | undefined,
-) => {
-	const storesQuery = useQuery(storesQueries.list());
-	const allowedStoreIds = useAllowedStoreIds(isSignedIn);
+	const scope = useStoreScope();
+	const { allowedStoreIds } = scope;
 
 	// Closest Store first, by the server's own formula, so the Store offered is the
 	// one the server checks against. A courier is never located, so stays unsorted.
 	const open = (storesQuery.data ?? []).filter(
-		(store) =>
-			store.is_active &&
-			(allowedStoreIds === undefined || allowedStoreIds.includes(store.id)),
+		(store) => store.is_active && canOpenStore(scope, store.id),
 	);
 	const ranked: { km?: number; store: Store }[] = coordinates
 		? open
@@ -86,10 +75,7 @@ export const ClockInControl = () => {
 	const needsLocation = clockInRequiresLocation(user?.role ?? "worker");
 
 	const { status, coordinates, retry } = useGeolocation(needsLocation);
-	const { allowedStoreIds, ranked } = useClockInStores(
-		Boolean(user),
-		coordinates,
-	);
+	const { allowedStoreIds, ranked } = useClockInStores(coordinates);
 	const [picked, setPicked] = useState<string>();
 
 	const clockInMutation = useMutation({

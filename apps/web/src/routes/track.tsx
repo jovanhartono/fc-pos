@@ -1,8 +1,3 @@
-import {
-	type DerivedItemStatus,
-	isCollectableItemStatus,
-	isWaitingQcOnly,
-} from "@fresclean/api/rules";
 import { normalizePhoneNumber } from "@fresclean/api/schema";
 import { Clock01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -28,6 +23,11 @@ import {
 	trackQueries,
 } from "@/features/track/api";
 import { useQrisPng } from "@/features/track/hooks/useQrisPng";
+import {
+	STAGES,
+	trackPayment,
+	trackProgress,
+} from "@/features/track/lib/track-progress";
 import { formatClock } from "@/lib/dayjs";
 import { triggerDownload } from "@/lib/download";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -49,42 +49,6 @@ const trackSearchSchema = z.object({
 });
 
 const HELP_WHATSAPP = "https://wa.me/6281290033232";
-
-interface TrackItem {
-	status: DerivedItemStatus;
-	services: { status: string }[];
-}
-
-const STAGES = ["Received", "Cleaning", "QC", "Ready"] as const;
-
-// The rail follows the Items, not the money. The Order says "completed" for a
-// refunded Item still on our rack (ADR-0008), which showed all four stages done
-// for a shoe the customer still has to come and get.
-function getItemStageIndex(item: TrackItem): number {
-	if (isCollectableItemStatus(item.status)) {
-		return 3;
-	}
-	if (item.status === "processing") {
-		return isWaitingQcOnly(item.services) ? 2 : 1;
-	}
-	return 0;
-}
-
-// Still in the shop and still owed to the customer.
-function isPendingItem(item: TrackItem) {
-	return item.status !== "picked_up" && item.status !== "cancelled";
-}
-
-// Customers come once for everything, so the rail sits where the slowest
-// Item sits. Nothing pending — a products-only Order, or every Item already
-// collected — reads as done rather than sitting on "Received".
-function getStageIndex(items: TrackItem[]): number {
-	const pending = items.filter(isPendingItem);
-	if (pending.length === 0) {
-		return STAGES.length;
-	}
-	return Math.min(...pending.map(getItemStageIndex));
-}
 
 // Same map as the POS badges, drawn as a coloured word instead of a chip.
 const SERVICE_STATUS_TEXT: Record<string, string> = {
@@ -489,14 +453,7 @@ const TrackOrderPage = () => {
 	) {
 		setShownCharge(openCharge);
 	}
-	const isPaidHere =
-		trackData?.payment_status === "paid" && shownCharge !== null;
-	// The gateway's clock, not the phone's, says when a QR ends: gone while the
-	// amount stayed the same means it ran out.
-	const hasExpired =
-		shownCharge !== null &&
-		!hasQris(openCharge) &&
-		shownCharge.amount === trackData?.net_due;
+	const payment = trackData ? trackPayment(trackData, shownCharge) : "none";
 
 	useEffect(() => {
 		document.title = trackData
@@ -504,12 +461,7 @@ const TrackOrderPage = () => {
 			: "Order Tracking | Fresclean";
 	}, [trackData]);
 	const items = trackData?.items ?? [];
-	const pendingItems = items.filter(isPendingItem);
-	// Same predicate the server gates pickup_code on, so the code never shows
-	// without a collectable Item behind it.
-	const readyCount = pendingItems.filter((item) =>
-		isCollectableItemStatus(item.status),
-	).length;
+	const { stageIndex, readyCount, pendingCount } = trackProgress(items);
 	const storePhoneE164 = trackData?.store.phone_number?.replace(/\D/g, "");
 
 	return (
@@ -538,18 +490,20 @@ const TrackOrderPage = () => {
 						</div>
 
 						<StatusCard
-							stageIndex={getStageIndex(items)}
+							stageIndex={stageIndex}
 							isCancelled={trackData.status === "cancelled"}
 							readyCount={readyCount}
-							pendingCount={pendingItems.length}
+							pendingCount={pendingCount}
 							pickupCode={trackData.pickup_code}
 						/>
 
-						{isPaidHere ? <PaidCard amount={shownCharge.amount} /> : null}
+						{payment === "paid-here" && shownCharge ? (
+							<PaidCard amount={shownCharge.amount} />
+						) : null}
 						{trackData.can_pay_online && submitted ? (
 							<PaymentCard
 								code={submitted.code}
-								hasExpired={hasExpired}
+								hasExpired={payment === "expired"}
 								netDue={trackData.net_due}
 								deliveryFee={parseMoney(trackData.delivery_fee)}
 								openCharge={openCharge}

@@ -17,6 +17,7 @@ import {
   settleDiscount,
 } from "@/modules/orders/order-settlement.service";
 import { findPaymentMethodById } from "@/modules/payment-methods/payment-method.repository";
+import { cancelOrderPendingCharges } from "@/modules/payments/payment-charge-close";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";
 import { isDiscountSettled, orderNetDue } from "@/schema/discount";
 import type { JWTPayload } from "@/types";
@@ -210,10 +211,17 @@ export async function updateOrderPayment({
   assertCanProcessPayment(user);
   await assertCashierPaymentMethod(body.payment_method_id);
 
-  return await markOrderPaid({
+  const payment = await markOrderPaid({
     actorId: user.id,
     orderId,
     paymentMethodId: body.payment_method_id,
     request: body,
   });
+
+  // A QR left on the counter must not take the money a second time.
+  if (payment) {
+    await cancelOrderPendingCharges(orderId);
+  }
+
+  return payment;
 }

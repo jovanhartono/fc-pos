@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { OpenComplaintForm } from "@/features/complaints/components/open-complaint-form";
-import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import type { OrderDetail } from "@/features/orders/api";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
@@ -38,22 +37,12 @@ import {
 } from "@/features/orders/components/order-line-reversal-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
 import { useNotifyCustomer } from "@/features/orders/hooks/useNotifyCustomer";
-import {
-	useCancelOrderMutation,
-	useRefundOrderMutation,
-} from "@/features/orders/hooks/useOrderMutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { showsPickupProgress } from "@/features/orders/lib/order-sheet";
 import { formatNoticeTime } from "@/features/orders/lib/pickup-notice";
-import { buildRefundCaps } from "@/features/orders/lib/refund-preview";
-import { findWorkshopRework } from "@/features/orders/lib/refund-rework";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
 import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
-import {
-	formatOrderServiceItemDetails,
-	getOrderServiceItemDetails,
-} from "@/lib/order-service-item-details";
 import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 
@@ -70,25 +59,8 @@ export const OrderIdentityStrip = ({
 }: OrderIdentityStripProps) => {
 	const openDialog = useDialog((s) => s.openDialog);
 	const closeDialog = useDialog((s) => s.closeDialog);
-	const cancelOrderMutation = useCancelOrderMutation(orderId);
-	const refundMutation = useRefundOrderMutation();
-	const openComplaintMutation = useOpenComplaintMutation();
 	const printReceiptMutation = usePrintReceiptMutation(orderId);
 	const notifyCustomer = useNotifyCustomer(orderId);
-
-	// The cancel and refund pickers name the Item ("Nike · AF1 · White") and the
-	// short tag, so the cashier needn't flip back to the order to match codes.
-	const orderPrefix = `${detail.code}-`;
-	const toReversalItem = (
-		item: { item_code: string } & Parameters<
-			typeof getOrderServiceItemDetails
-		>[0],
-	) => ({
-		item_details: getOrderServiceItemDetails(item),
-		item_tag: item.item_code.startsWith(orderPrefix)
-			? item.item_code.slice(orderPrefix.length)
-			: item.item_code,
-	});
 
 	const fulfillment = detail.fulfillment;
 	const totalCount = fulfillment.total_count;
@@ -176,19 +148,9 @@ export const OrderIdentityStrip = ({
 			size: "wide",
 			content: () => (
 				<CancelOrderForm
-					cancelOrderMutation={cancelOrderMutation}
-					cancellableProducts={gates.cancellableProducts.map((item) => ({
-						id: item.id,
-						name: item.product?.name ?? `Product #${item.product_id}`,
-						qty: item.qty,
-					}))}
-					cancellableServices={gates.cancellableServices.map((service) => ({
-						id: service.id,
-						is_rework: Boolean(service.reworkOf),
-						...toReversalItem(service.item),
-						service_name: service.service?.name ?? "Service",
-					}))}
-					closeDialog={closeDialog}
+					detail={detail}
+					lines={gates.cancellableServices}
+					products={gates.cancellableProducts}
 				/>
 			),
 		});
@@ -201,21 +163,9 @@ export const OrderIdentityStrip = ({
 			size: "wide",
 			content: () => (
 				<RefundOrderForm
-					capsByLineKey={buildRefundCaps(detail)}
-					closeDialog={closeDialog}
-					orderId={orderId}
-					refundableProducts={gates.refundableProducts.map((item) => ({
-						id: item.id,
-						name: item.product?.name ?? `Product #${item.product_id}`,
-						qty: item.qty,
-					}))}
-					refundableServices={gates.refundableServices.map((service) => ({
-						id: service.id,
-						...toReversalItem(service.item),
-						service_name: service.service?.name ?? "Service",
-						workshopRework: findWorkshopRework(service),
-					}))}
-					refundMutation={refundMutation}
+					detail={detail}
+					lines={gates.refundableServices}
+					products={gates.refundableProducts}
 				/>
 			),
 		});
@@ -228,14 +178,8 @@ export const OrderIdentityStrip = ({
 			size: "wide",
 			content: () => (
 				<OpenComplaintForm
-					closeDialog={closeDialog}
-					lines={gates.complaintableServices.map((service) => ({
-						id: service.id,
-						itemCode: toReversalItem(service.item).item_tag,
-						serviceName: service.service?.name ?? "Service",
-						details: formatOrderServiceItemDetails(service.item),
-					}))}
-					mutation={openComplaintMutation}
+					lines={gates.complaintableServices}
+					orderCode={detail.code}
 				/>
 			),
 		});

@@ -1,10 +1,6 @@
 import { listReferencedPhotoKeys } from "@/modules/orders/order-photo.repository";
-import {
-  deleteStoredObject,
-  listStoredObjects,
-  ORDER_PHOTO_PREFIX,
-  photoKeyOf,
-} from "@/utils/s3";
+import { ORDER_PHOTO_PREFIX, photoKeyOf } from "@/utils/photo-key";
+import { deleteStoredObject, listStoredObjects } from "@/utils/s3";
 
 // A cashier can leave a batch unconfirmed while serving the Customer. A batch left
 // longer than this, like a POS open over a weekend, loses its photos.

@@ -13,12 +13,12 @@ import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
 import { type Customer, customersQueries } from "@/features/customers/api";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
+import { useStoreScope } from "@/features/users/hooks/useStoreScope";
 import {
 	DEFAULT_PAGE_SIZE,
 	pageSizeChange,
 	pageSizeSearch,
 } from "@/lib/page-size";
-import { getCurrentUser } from "@/stores/auth-store";
 import { useSheet } from "@/stores/sheet-store";
 
 const customersSearchSchema = z.object({
@@ -55,7 +55,7 @@ function CustomersPage() {
 	const pageSize = search.limit ?? DEFAULT_PAGE_SIZE;
 	const { openSheet } = useSheet();
 	// Same rule as CustomerLink: the detail page is admin-only (ADR-0021).
-	const isAdmin = getCurrentUser()?.role === "admin";
+	const { isAdmin } = useStoreScope();
 
 	const handleSearchChange = (next: string) => {
 		void navigate({

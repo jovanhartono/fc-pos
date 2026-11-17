@@ -22,7 +22,6 @@ import {
 import type { DbExecutor } from "@/modules/orders/order-status-machine";
 
 type ComplaintInsert = typeof complaintsTable.$inferInsert;
-type ReworkLineInsert = typeof ordersServicesTable.$inferInsert;
 
 const reworkLine = alias(ordersServicesTable, "rework_line");
 
@@ -103,17 +102,6 @@ export function findItemLines(executor: DbExecutor, itemId: number) {
     where: { item_id: itemId },
     columns: { complaint_id: true, status: true },
   });
-}
-
-export async function insertReworkLine(
-  executor: DbExecutor,
-  values: ReworkLineInsert
-) {
-  const [created] = await executor
-    .insert(ordersServicesTable)
-    .values(values)
-    .returning();
-  return created;
 }
 
 export function findComplaintDetailById(id: number) {

@@ -92,6 +92,11 @@ mock.module("@/db", () => ({
   },
 }));
 
+// Closing a QRIS reaches the gateway; payment-charge.service's own suite covers it.
+mock.module("@/modules/payments/payment-charge-close", () => ({
+  cancelOrderPendingCharges: () => Promise.resolve(),
+}));
+
 const discount = {
   calls: [] as AnyObj[],
   result: {

@@ -40,7 +40,8 @@ import {
 } from "@/features/orders/lib/order-filter-values";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { storesQueries } from "@/features/stores/api";
-import { usersQueries } from "@/features/users/api";
+import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { pickStore, storeScope } from "@/features/users/lib/store-scope";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatListDate } from "@/lib/dayjs";
 import {
@@ -50,7 +51,6 @@ import {
 	pageSizeSearch,
 } from "@/lib/page-size";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
-import { getCurrentUser } from "@/stores/auth-store";
 
 const ordersSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -120,15 +120,14 @@ export const Route = createFileRoute("/_admin/orders/")({
 	// A cashier or worker only sees their own store's Orders, so the store is
 	// picked before the page draws instead of the list loading twice.
 	beforeLoad: ({ context, search }) => {
-		const firstStoreId = context.me.userStores?.[0]?.store_id;
-		if (
-			context.me.role !== "admin" &&
-			search.storeId === undefined &&
-			firstStoreId !== undefined
-		) {
+		if (search.storeId !== undefined) {
+			return;
+		}
+		const storeId = pickStore(storeScope(context.me));
+		if (storeId !== undefined) {
 			throw redirect({
 				to: "/orders",
-				search: { ...search, storeId: firstStoreId },
+				search: { ...search, storeId },
 				replace: true,
 			});
 		}
@@ -142,7 +141,7 @@ export const Route = createFileRoute("/_admin/orders/")({
 			return;
 		}
 		const canListOrders =
-			deps.storeId !== undefined || context.me.role === "admin";
+			deps.storeId !== undefined || storeScope(context.me).isAdmin;
 		const listParams = buildOrdersListParams(deps, deps.storeId);
 
 		await Promise.all([
@@ -160,19 +159,10 @@ export const Route = createFileRoute("/_admin/orders/")({
 
 function OrdersPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
-	const currentUser = getCurrentUser();
 	const search = Route.useSearch();
 
 	const storesQuery = useQuery(storesQueries.list());
-	const meQuery = useQuery({
-		...usersQueries.me(),
-		enabled: !!currentUser,
-	});
-
-	const userStoreIds =
-		meQuery.data?.userStores?.map((item) => item.store_id) ?? [];
-	// DB-fresh role — JWT claim goes stale on mid-session role changes.
-	const role = meQuery.data?.role;
+	const scope = useStoreScope();
 
 	// A phone opens an Order as its own page; a tablet or desktop opens it in a
 	// sheet over the list.
@@ -213,21 +203,18 @@ function OrdersPage() {
 	// gap — non-admin with no store — never runs (gated by `enabled` below). The
 	// Filters count uses it too, so it always matches the list Apply shows.
 	const ordersQueryFor = (filters: typeof search) =>
-		role !== "admin" && filters.storeId === undefined
+		!scope.isAdmin && filters.storeId === undefined
 			? undefined
 			: buildOrdersListParams(filters, filters.storeId);
 	const orderQuery = ordersQueryFor(search);
 
-	const canListOrders = role === "admin" ? true : parsedStoreId !== undefined;
+	const canListOrders = scope.isAdmin || parsedStoreId !== undefined;
 
 	const ordersQuery = useQuery({
 		...ordersQueries.list(orderQuery),
 		enabled: canListOrders,
 		placeholderData: keepPreviousData,
 	});
-
-	const hasNoStoreAssignment =
-		role !== "admin" && meQuery.isSuccess && userStoreIds.length === 0;
 
 	const orders = ordersQuery.data?.items ?? [];
 
@@ -363,14 +350,13 @@ function OrdersPage() {
 			<ListPanel>
 				<OrderFilters
 					values={search}
-					role={role}
-					userStoreIds={userStoreIds}
+					scope={scope}
 					onChange={handleFilterChange}
 					listQueryFor={(picks) =>
 						ordersQueryFor({ ...search, ...picks, page: 1 })
 					}
 				/>
-				{hasNoStoreAssignment ? (
+				{scope.allowedStoreIds?.length === 0 ? (
 					<EmptyState icon={Store01Icon}>No store assigned</EmptyState>
 				) : (
 					<DataTable

@@ -1,20 +1,4 @@
-import type { ORDER_TERMINAL_SERVICE_STATUSES } from "@fresclean/api/rules";
-import type { UseMutationResult } from "@tanstack/react-query";
-import type { UpdateOrderServiceStatusPayload } from "@/features/orders/api";
-
-export type UpdateStatusMutation = UseMutationResult<
-	unknown,
-	Error,
-	{ serviceId: number; payload: UpdateOrderServiceStatusPayload },
-	unknown
->;
-
-// Terminal statuses (cancelled/refunded/picked_up) go through dedicated
-// endpoints — the status endpoint rejects them, so they are never rendered.
-export type NonTerminalServiceStatus = Exclude<
-	UpdateOrderServiceStatusPayload["status"],
-	(typeof ORDER_TERMINAL_SERVICE_STATUSES)[number]
->;
+import type { NonTerminalServiceStatus } from "@/features/orders/lib/order-service-actions";
 
 export const STATUS_ACTION_LABELS: Record<NonTerminalServiceStatus, string> = {
 	queued: "Queue",

@@ -1,23 +1,17 @@
-import {
-	isUnpricedLine,
-	ORDER_SERVICE_TRANSITIONS,
-	ORDER_TERMINAL_SERVICE_STATUSES,
-} from "@fresclean/api/rules";
+import { isUnpricedLine } from "@fresclean/api/rules";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ordersQueries } from "@/features/orders/api";
 import { OrderReasonCallout } from "@/features/orders/components/order-reason-callout";
-import type { NonTerminalServiceStatus } from "@/features/orders/components/order-service-dialog.types";
 import { OrderServicePriceForm } from "@/features/orders/components/order-service-price-form";
 import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-callout";
 import { ServiceStatusUpdateButton } from "@/features/orders/components/service-status-update-button";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
-import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
 import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
-import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
+import { orderServiceActions } from "@/features/orders/lib/order-service-actions";
 import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
@@ -28,10 +22,6 @@ import {
 } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 
-const TERMINAL_SERVICE_STATUSES = new Set<string>(
-	ORDER_TERMINAL_SERVICE_STATUSES,
-);
-
 interface OrderServiceDetailProps {
 	orderId: number;
 	serviceId: number;
@@ -41,7 +31,6 @@ export const OrderServiceDetail = ({
 	orderId,
 	serviceId,
 }: OrderServiceDetailProps) => {
-	const updateStatusMutation = useUpdateServiceStatusMutation(orderId);
 	const leaveSheet = useLeaveSheetLink();
 
 	// Read the service live from the cached order so status changes made in this
@@ -57,16 +46,7 @@ export const OrderServiceDetail = ({
 		);
 	}
 
-	// Cancel/refund/pickup must use their dedicated endpoints
-	// (payment- and role-gated) — the status endpoint rejects them.
-	const availableTransitions = (
-		ORDER_SERVICE_TRANSITIONS[service.status] || []
-	).filter(
-		(nextStatus): nextStatus is NonTerminalServiceStatus =>
-			!TERMINAL_SERVICE_STATUSES.has(nextStatus),
-	);
-	const photoBlocker = startPhotoBlocker(service);
-	const needsPhotoToStart = photoBlocker !== undefined;
+	const actions = orderServiceActions(service);
 
 	const isOrderPaid = detailQuery.data?.payment_status === "paid";
 	// ADR-0018: while true, this line holds the whole Order's payment — the
@@ -97,22 +77,28 @@ export const OrderServiceDetail = ({
 				/>
 			)}
 
-			{availableTransitions.length > 0 ? (
+			{actions.start || actions.moves.length > 0 ? (
 				<div className="grid gap-2">
 					<div className="flex flex-wrap gap-2">
-						{availableTransitions.map((nextStatus) => (
+						{[
+							...(actions.start ? ["processing" as const] : []),
+							...actions.moves,
+						].map((nextStatus) => (
 							<ServiceStatusUpdateButton
-								disabled={nextStatus === "processing" && needsPhotoToStart}
+								disabled={
+									nextStatus === "processing" &&
+									actions.start?.blocker !== undefined
+								}
 								key={nextStatus}
 								nextStatus={nextStatus}
+								orderId={orderId}
 								serviceId={service.id}
-								updateStatusMutation={updateStatusMutation}
 							/>
 						))}
 					</div>
-					{photoBlocker ? (
+					{actions.photoBlocker ? (
 						<p className="text-muted-foreground text-footnote">
-							{photoBlocker}
+							{actions.photoBlocker}
 						</p>
 					) : null}
 				</div>

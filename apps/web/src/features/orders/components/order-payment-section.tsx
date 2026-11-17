@@ -1,7 +1,6 @@
 import {
 	type DiscountLine,
 	GATEWAY_LABELS,
-	isBogoSlot,
 	isDiscountSettled,
 	orderNetDue,
 } from "@fresclean/api/rules";
@@ -52,14 +51,17 @@ import { flattenOrderLines } from "@/features/orders/lib/order-lines";
 import {
 	isOnlinePaymentReady,
 	paymentMethodsQueries,
+	toCounterPaymentMethodOptions,
 } from "@/features/payment-methods/api";
-import {
-	type AppliedVoucher,
-	getCartPricing,
-} from "@/features/transactions/cart/cart";
+import type { AppliedVoucher } from "@/features/transactions/cart/cart";
 import { CampaignTileGroup } from "@/features/transactions/components/campaign-tile-group";
+import { DiscountPreviewRows } from "@/features/transactions/components/discount-preview-rows";
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
 import { useAvailableCampaigns } from "@/features/transactions/hooks/useCheckoutPricing";
+import {
+	previewDiscounts,
+	toDiscountLines,
+} from "@/features/transactions/lib/discount-preview";
 import { onQrisPaid } from "@/lib/cache-events";
 import { formatClock } from "@/lib/dayjs";
 import { formatMoney, parseMoney } from "@/shared/money";
@@ -328,17 +330,9 @@ const PaymentMethodField = () => {
 	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
 	const gatewayQuery = useQuery(paymentMethodsQueries.gateway());
 	const gateway = gatewayQuery.data?.gateway;
-	const paymentMethods = Array.isArray(paymentMethodsQuery.data)
-		? paymentMethodsQuery.data
-		: [];
-	// The gateway's PaymentMethod is booked only when its money arrives, so a
-	// cashier can't tick it for a QRIS the Customer never paid.
-	const items = paymentMethods
-		.filter((method) => !method.gateway)
-		.map((method) => ({
-			value: String(method.id),
-			label: method.name,
-		}));
+	const items = toCounterPaymentMethodOptions(
+		Array.isArray(paymentMethodsQuery.data) ? paymentMethodsQuery.data : [],
+	);
 	if (gateway && isOnlinePaymentReady(gatewayQuery.data)) {
 		items.push({
 			value: QRIS_METHOD,
@@ -499,56 +493,26 @@ const CollectPaymentTotals = ({
 		name: "discount",
 	});
 
-	const pricing = getCartPricing({
-		subtotal: grossTotal,
-		campaigns: [
-			...eligibleCampaigns.filter((campaign) =>
-				campaignIds.includes(String(campaign.id)),
-			),
-			...vouchers.map((entry) => entry.campaign),
-		],
-		serviceLines,
-		manualDiscount: discount,
-	});
 	const deliveryFee = parseMoney(detail.delivery_fee);
-	const toCollect = orderNetDue({
+	const preview = previewDiscounts({
 		grossTotal,
-		discount: pricing.totalDiscount,
-		refunded: parseMoney(detail.refunded_amount),
+		lines: serviceLines,
+		eligible: eligibleCampaigns,
+		pickedCampaignIds: campaignIds,
+		vouchers,
+		manualDiscount: discount,
 		deliveryFee,
+		refunded: parseMoney(detail.refunded_amount),
 	});
 
 	return (
 		<>
-			{pricing.totalDiscount > 0 || deliveryFee > 0 ? (
-				<dl className="grid gap-1.5 text-body tabular-nums">
-					{pricing.campaignBreakdown.map(({ campaign, amount }) => (
-						<div className="flex justify-between gap-4" key={campaign.id}>
-							<dt className="text-muted-foreground">
-								{campaign.code} ({campaign.name})
-							</dt>
-							<dd className="text-destructive tabular-nums">
-								-{formatMoney(amount)}
-							</dd>
-						</div>
-					))}
-					{pricing.manualDiscount > 0 ? (
-						<div className="flex justify-between gap-4">
-							<dt className="text-muted-foreground">Manual discount</dt>
-							<dd className="text-destructive tabular-nums">
-								-{formatMoney(pricing.manualDiscount)}
-							</dd>
-						</div>
-					) : null}
-					{deliveryFee > 0 ? (
-						<div className="flex justify-between gap-4">
-							<dt className="text-muted-foreground">Delivery fee</dt>
-							<dd className="tabular-nums">{formatMoney(deliveryFee)}</dd>
-						</div>
-					) : null}
+			{preview.totalDiscount > 0 || deliveryFee > 0 ? (
+				<dl className="grid gap-1.5">
+					<DiscountPreviewRows rows={preview.rows} />
 				</dl>
 			) : null}
-			<ToCollectLine amount={toCollect} />
+			<ToCollectLine amount={preview.amountDue} />
 		</>
 	);
 };
@@ -564,12 +528,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 	const storeId = detail.store_id ?? undefined;
 	const grossTotal = parseMoney(detail.total);
 
-	// The server's own BOGO slot rule, so the preview matches what payment settles.
-	const serviceLines = flattenOrderLines(detail).flatMap((line) =>
-		line.service !== null && isBogoSlot(line)
-			? [{ price: parseMoney(line.price), service_id: line.service.id }]
-			: [],
-	);
+	const serviceLines = toDiscountLines(flattenOrderLines(detail));
 
 	const { campaignsQuery, availableCampaigns: eligibleCampaigns } =
 		useAvailableCampaigns(storeId, grossTotal, serviceLines);
@@ -610,13 +569,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
 								eligibleCampaigns={eligibleCampaigns}
 								hasStore={storeId !== undefined}
 								isLoading={campaignsQuery.isPending}
-								onToggle={(campaignId) =>
-									field.onChange(
-										field.value.includes(campaignId)
-											? field.value.filter((value) => value !== campaignId)
-											: [...field.value, campaignId],
-									)
-								}
+								onChange={field.onChange}
 								selectedIds={field.value}
 							/>
 							<VoucherField

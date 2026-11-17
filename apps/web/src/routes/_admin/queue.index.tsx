@@ -50,7 +50,8 @@ import {
 	WORKSHOP_SERVICE_STATUSES,
 } from "@/features/orders/lib/queue-search-values";
 import { storesQueries } from "@/features/stores/api";
-import { usersQueries } from "@/features/users/api";
+import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { pickStore, storeScope } from "@/features/users/lib/store-scope";
 import { useLoadMore } from "@/hooks/useLoadMore";
 import { useMinuteClock } from "@/hooks/useMinuteClock";
 import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
@@ -97,8 +98,6 @@ export const Route = createFileRoute("/_admin/queue/")({
 		if (search.storeId !== undefined || cause === "preload") {
 			return;
 		}
-		const { me } = context;
-		const userStoreIds = me.userStores.map((item) => item.store_id);
 		const currentUser = getCurrentUser();
 		const persistedStoreId = currentUser
 			? useQueuePreferencesStore.getState().storeIdByUser[
@@ -106,16 +105,11 @@ export const Route = createFileRoute("/_admin/queue/")({
 				]
 			: undefined;
 		// Only a Store this worker may still see — one moved between Stores
-		// since must not land on the old rack.
-		const restoredStoreId =
-			cause === "enter" &&
-			persistedStoreId !== undefined &&
-			(me.role === "admin" || userStoreIds.includes(persistedStoreId))
-				? persistedStoreId
-				: undefined;
-		// A worker always has a rack; only an admin may look at none.
-		const storeId =
-			restoredStoreId ?? (me.role === "admin" ? undefined : userStoreIds[0]);
+		// since must not land on the old rack. A worker always has a rack; only
+		// an admin may look at none.
+		const storeId = pickStore(storeScope(context.me), {
+			remembered: cause === "enter" ? persistedStoreId : undefined,
+		});
 		if (storeId !== undefined) {
 			throw redirect({
 				to: "/queue",
@@ -154,10 +148,7 @@ function QueuePage() {
 	}
 	const now = useMinuteClock();
 
-	const meQuery = useQuery({
-		...usersQueries.me(),
-		enabled: !!currentUser,
-	});
+	const scope = useStoreScope();
 	const currentUserKey = currentUser ? String(currentUser.id) : "";
 	const persistedStoreId = useQueuePreferencesStore(
 		(state) => state.storeIdByUser[currentUserKey],
@@ -165,10 +156,6 @@ function QueuePage() {
 	const setPersistedStoreId = useQueuePreferencesStore(
 		(state) => state.setStoreId,
 	);
-
-	const me = meQuery.data;
-	// DB-fresh role — JWT claim goes stale on mid-session role changes.
-	const role = me?.role;
 
 	// With a Store in the URL, remember it — however it got there: the filter
 	// dialog, a scan, or a line's back link. beforeLoad restores it.
@@ -202,9 +189,7 @@ function QueuePage() {
 			? search.categoryMode
 			: persistedCategory?.mode) ?? "only";
 
-	const parsedStoreId =
-		search.storeId ??
-		(role === "admin" ? undefined : me?.userStores[0]?.store_id);
+	const parsedStoreId = search.storeId ?? pickStore(scope);
 	const selectedStatus = search.status;
 	const storesQuery = useQuery(storesQueries.list());
 	const categoriesQuery = useQuery({
@@ -343,10 +328,6 @@ function QueuePage() {
 		lookupMutation.mutate({ mode: "scan", value: rawValue });
 	});
 
-	const allowedStoreIds =
-		role === "admin"
-			? undefined
-			: (me?.userStores.map((item) => item.store_id) ?? []);
 	const queuePages = queueQuery.data?.pages;
 	const hasQueueItems = queuePages?.some((page) => page.items.length > 0);
 	const totalItems = queuePages?.[0]?.meta.total;
@@ -400,7 +381,7 @@ function QueuePage() {
 	// needs one.
 	const filterChipsFor = (f: QueueFilterValues): FilterChip[] => {
 		const chips: FilterChip[] = [];
-		if (role === "admin" && f.storeId !== undefined) {
+		if (scope.isAdmin && f.storeId !== undefined) {
 			const store = storesQuery.data?.find((s) => s.id === f.storeId);
 			chips.push({
 				id: "store",
@@ -529,7 +510,7 @@ function QueuePage() {
 								categoryId: undefined,
 								dateFrom: undefined,
 								dateTo: undefined,
-								storeId: role === "admin" ? undefined : f.storeId,
+								storeId: scope.isAdmin ? undefined : f.storeId,
 							})}
 							countOf={(f) => filterChipsFor(f).length}
 							onApply={applyFilters}
@@ -542,7 +523,7 @@ function QueuePage() {
 							{(draft, setDraft) => (
 								<div className="grid gap-4">
 									<StoreSelect
-										allowedStoreIds={allowedStoreIds}
+										allowedStoreIds={scope.allowedStoreIds}
 										id="queue-store"
 										onValueChange={(value) =>
 											setDraft({ storeId: value ? Number(value) : undefined })
@@ -610,7 +591,7 @@ function QueuePage() {
 				</StickyControls>
 
 				<section className="grid min-w-0 gap-2">
-					{role === "admin" && parsedStoreId === undefined ? (
+					{scope.isAdmin && parsedStoreId === undefined ? (
 						<EmptyState icon={Store01Icon}>Select a store</EmptyState>
 					) : null}
 

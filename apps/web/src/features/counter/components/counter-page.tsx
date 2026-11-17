@@ -21,7 +21,8 @@ import { useJakartaToday } from "@/features/counter/hooks/useJakartaToday";
 import { StoreSelect } from "@/features/orders/components/store-select";
 import { useOrderSheet } from "@/features/orders/hooks/useOrderSheet";
 import { storesQueries } from "@/features/stores/api";
-import { usersQueries } from "@/features/users/api";
+import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { pickStore } from "@/features/users/lib/store-scope";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export type CounterTab = "status" | "summary";
@@ -174,19 +175,16 @@ export const CounterPage = ({
 	storeId,
 	tab,
 }: CounterPageProps) => {
-	const { data: me } = useQuery(usersQueries.me());
+	const scope = useStoreScope();
 	const storesQuery = useQuery(storesQueries.list());
 	const stores = storesQuery.data ?? [];
 
-	const isAdmin = me?.role === "admin";
-	const ownStoreIds = me?.userStores.map((item) => item.store_id) ?? [];
-	const firstStoreId = isAdmin ? stores[0]?.id : ownStoreIds[0];
 	// A link shared from another Store falls back to the worker's own Store.
-	const selectedStoreId =
-		storeId && (isAdmin || ownStoreIds.includes(storeId))
-			? storeId
-			: firstStoreId;
-	const hasPicker = isAdmin || ownStoreIds.length > 1;
+	const selectedStoreId = pickStore(scope, {
+		requested: storeId,
+		adminDefault: stores[0]?.id,
+	});
+	const hasPicker = scope.isAdmin || (scope.allowedStoreIds?.length ?? 0) > 1;
 	const today = useJakartaToday();
 	// A date after today, from a hand-edited link, falls back to today.
 	const day = date && date < today ? date : today;
@@ -215,7 +213,7 @@ export const CounterPage = ({
 			<PageHeader
 				actions={
 					<StoreSelect
-						allowedStoreIds={isAdmin ? undefined : ownStoreIds}
+						allowedStoreIds={scope.allowedStoreIds}
 						disabled={!hasPicker}
 						hideLabel
 						id="counter-store"

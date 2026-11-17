@@ -58,6 +58,13 @@ export const paymentMethodsQueries = {
 export const isOnlinePaymentReady = (info: PaymentGatewayInfo | undefined) =>
 	Boolean(info?.gateway && info.payment_method);
 
+// The gateway's PaymentMethod is booked only when its money arrives through a
+// QRIS, so a cashier can't tick it for a QRIS the Customer never paid.
+export const toCounterPaymentMethodOptions = (methods: PaymentMethod[]) =>
+	methods
+		.filter((method) => !method.gateway)
+		.map((method) => ({ value: String(method.id), label: method.name }));
+
 export function createPaymentMethod(payload: CreatePaymentMethodPayload) {
 	return parseResponse(
 		rpc.api.admin["payment-methods"].$post({ json: payload }),

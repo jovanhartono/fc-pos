@@ -4,12 +4,11 @@
 // From packages/server, with the target environment's S3_* and STORAGE_PREFIX:
 //   bun run scripts/backfill-photo-thumbnails.ts
 import {
-  listStoredObjects,
   ORDER_PHOTO_PREFIX,
   photoKeyOf,
   thumbnailKey,
-  writePhotoThumbnail,
-} from "@/utils/s3";
+} from "@/utils/photo-key";
+import { listStoredObjects, writePhotoThumbnail } from "@/utils/s3";
 
 const CONCURRENCY = 8;
 

@@ -45,7 +45,7 @@ Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`.
 
 Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as does Neon. Photos live in Cloudflare R2 (APAC), served via `https://cdn.fresclean.id` (moved off S3 and CloudFront on 2026-10-28).
 
-Each environment has its own bucket, `fresclean-prod` and `fresclean-dev`, and an R2 token that reaches only that bucket, so a laptop can't touch a Complaint's evidence. Keys still carry the environment that wrote them: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/s3.ts`. It reads `STORAGE_PREFIX`, set per Vercel environment alongside `DATABASE_URL` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed rows point at `seed/` keys that were never uploaded, so seeded photos show broken.
+Each environment has its own bucket, `fresclean-prod` and `fresclean-dev`, and an R2 token that reaches only that bucket, so a laptop can't touch a Complaint's evidence. Keys still carry the environment that wrote them: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/photo-key.ts`. It reads `STORAGE_PREFIX`, set per Vercel environment alongside `DATABASE_URL` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed rows point at `seed/` keys that were never uploaded, so seeded photos show broken.
 
 Indonesian ISPs block `*.r2.dev`, so the bucket's r2.dev URL stays off; photos go through the custom domains and uploads through `<account>.r2.cloudflarestorage.com`. Cloudflare keeps a photo for a year at the edge and in the browser (`immutable`), since a key's photo never changes; errors aren't cached.
 

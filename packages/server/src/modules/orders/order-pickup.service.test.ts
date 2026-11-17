@@ -119,12 +119,7 @@ mock.module("@/db", () => ({
 
 const STORAGE_ENV_PREFIX = "dev/";
 
-// Taken before the mock replaces the module, so the real key checks run here.
-const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
-
 mock.module("@/utils/s3", () => ({
-  STORAGE_ENV_PREFIX,
-  assertPhotoKeyUnder,
   buildMediaUrl: (path: string) => `https://cdn.test/${path}`,
   createPresignedUploadUrl: (input: { contentType: string; key: string }) => {
     s3Calls.presigned.push(input);
@@ -134,7 +129,6 @@ mock.module("@/utils/s3", () => ({
       expires_in_seconds: 300,
     };
   },
-  newPhotoKey,
   optimizeUploadedImage: (key: string) => {
     s3Calls.optimized.push(key);
     return Promise.resolve();

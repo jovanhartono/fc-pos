@@ -23,6 +23,7 @@ import type {
 } from "@/features/orders/lib/order-filter-values";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { storesQueries } from "@/features/stores/api";
+import type { StoreScope } from "@/features/users/lib/store-scope";
 import { formatPaymentStatus } from "@/lib/status";
 
 type OrderStatusFilter = (typeof ORDER_STATUS_VALUES)[number];
@@ -46,8 +47,7 @@ export interface OrderFilterValues {
 
 interface OrderFiltersProps {
 	values: OrderFilterValues;
-	role?: string;
-	userStoreIds: number[];
+	scope: StoreScope;
 	onChange: (patch: Partial<OrderFilterValues>) => void;
 	// The list's first page for a set of picks; undefined while it can't load.
 	listQueryFor: (picks: OrderFilterValues) => FetchOrdersQuery | undefined;
@@ -98,8 +98,7 @@ const idPrefix = "orders-filter";
 
 const FilterFields = ({
 	values,
-	role,
-	userStoreIds,
+	scope,
 	onChange,
 }: Omit<OrderFiltersProps, "listQueryFor">) => {
 	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
@@ -121,8 +120,8 @@ const FilterFields = ({
 				onValueChange={(value) =>
 					onChange({ storeId: value ? Number(value) : undefined })
 				}
-				allowedStoreIds={role === "admin" ? undefined : userStoreIds}
-				allOptionLabel={role === "admin" ? "All stores" : undefined}
+				allowedStoreIds={scope.allowedStoreIds}
+				allOptionLabel={scope.isAdmin ? "All stores" : undefined}
 				placeholder="Select store"
 			/>
 			<FilterField id={`${idPrefix}-date`} label="Created date">
@@ -190,12 +189,11 @@ const FilterFields = ({
 
 export const OrderFilters = ({
 	values,
-	role,
-	userStoreIds,
+	scope,
 	onChange,
 	listQueryFor,
 }: OrderFiltersProps) => {
-	const isAdmin = role === "admin";
+	const { isAdmin } = scope;
 	const storesQuery = useQuery(storesQueries.list());
 	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
 
@@ -300,12 +298,7 @@ export const OrderFilters = ({
 			}}
 		>
 			{(draft, setDraft) => (
-				<FilterFields
-					values={draft}
-					role={role}
-					userStoreIds={userStoreIds}
-					onChange={setDraft}
-				/>
+				<FilterFields values={draft} scope={scope} onChange={setDraft} />
 			)}
 		</FilterPanel>
 	);

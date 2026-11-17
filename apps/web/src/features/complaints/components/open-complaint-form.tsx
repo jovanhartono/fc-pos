@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { UseMutationResult } from "@tanstack/react-query";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
 import { DialogFormActions } from "@/components/form/dialog-form-actions";
@@ -9,8 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import type { OpenComplaintPayload } from "@/features/complaints/api";
+import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
+import type { OrderLine } from "@/features/orders/lib/order-lines";
+import {
+	formatOrderServiceItemDetails,
+	getShortItemTag,
+} from "@/lib/order-service-item-details";
 import { cn } from "@/lib/utils";
+import { useDialog } from "@/stores/dialog-store";
 
 const openComplaintSchema = z.object({
 	order_service_id: z.number().int().positive(),
@@ -31,24 +36,26 @@ export interface ComplaintLineOption {
 	details: string;
 }
 
-type OpenComplaintMutation = UseMutationResult<
-	unknown,
-	Error,
-	OpenComplaintPayload,
-	unknown
->;
-
 interface OpenComplaintFormProps {
-	closeDialog: () => void;
-	lines: ComplaintLineOption[];
-	mutation: OpenComplaintMutation;
+	lines: OrderLine[];
+	orderCode: string;
 }
 
 export const OpenComplaintForm = ({
-	closeDialog,
-	lines,
-	mutation,
+	lines: orderLines,
+	orderCode,
 }: OpenComplaintFormProps) => {
+	const closeDialog = useDialog((s) => s.closeDialog);
+	const mutation = useOpenComplaintMutation();
+	const lines: ComplaintLineOption[] = orderLines.map((line) => ({
+		id: line.id,
+		itemCode: getShortItemTag({
+			order_code: orderCode,
+			item_code: line.item.item_code,
+		}),
+		serviceName: line.service?.name ?? "Service",
+		details: formatOrderServiceItemDetails(line.item),
+	}));
 	const form = useForm<OpenComplaintValues>({
 		resolver: zodResolver(openComplaintSchema),
 		defaultValues: {

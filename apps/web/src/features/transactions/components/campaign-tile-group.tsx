@@ -20,7 +20,7 @@ interface CampaignTileGroupProps {
 	selectedIds: string[];
 	hasStore: boolean;
 	isLoading: boolean;
-	onToggle: (campaignId: string) => void;
+	onChange: (ids: string[]) => void;
 }
 
 // Every state is one tile tall, so the form below doesn't jump when a
@@ -35,7 +35,7 @@ export const CampaignTileGroup = ({
 	selectedIds,
 	hasStore,
 	isLoading,
-	onToggle,
+	onChange,
 }: CampaignTileGroupProps) => {
 	if (!hasStore) {
 		return <p className={EMPTY_CLASS}>Select store first to load campaigns</p>;
@@ -57,13 +57,20 @@ export const CampaignTileGroup = ({
 		<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
 			{eligibleCampaigns.map((campaign) => {
 				const campaignId = String(campaign.id);
+				const isSelected = selectedIds.includes(campaignId);
 				return (
 					<CampaignTile
 						code={campaign.code}
 						discountLabel={campaignDiscountLabel(campaign)}
-						isSelected={selectedIds.includes(campaignId)}
+						isSelected={isSelected}
 						key={campaign.id}
-						onToggle={() => onToggle(campaignId)}
+						onToggle={() =>
+							onChange(
+								isSelected
+									? selectedIds.filter((id) => id !== campaignId)
+									: [...selectedIds, campaignId],
+							)
+						}
 					/>
 				);
 			})}

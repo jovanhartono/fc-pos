@@ -9,13 +9,8 @@ import { getOrderStateOrThrow } from "@/modules/orders/order-read.repository";
 import { completePickup } from "@/modules/orders/order-status-machine";
 import { assertCanProcessPickup } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
-import {
-  assertPhotoKeyUnder,
-  buildMediaUrl,
-  createPresignedUploadUrl,
-  newPhotoKey,
-  optimizeUploadedImage,
-} from "@/utils/s3";
+import { acceptPhotoUpload, presignPhotoUpload } from "@/utils/photo-upload";
+import { buildMediaUrl } from "@/utils/s3";
 
 // ADR-0005: the Pickup code proves the Customer at the counter placed this Order.
 // Checked per Order, never used to look one up.
@@ -47,11 +42,7 @@ export async function createOrderPickupEventPresign({
 
   assertOrderPaidForPickup(order);
 
-  const key = newPhotoKey({ kind: "pickup", orderId });
-  return createPresignedUploadUrl({
-    contentType: body.content_type,
-    key,
-  });
+  return presignPhotoUpload({ kind: "pickup", orderId }, body.content_type);
 }
 
 export async function createOrderPickupEvent({
@@ -83,9 +74,7 @@ export async function createOrderPickupEvent({
 
   assertPickupCodeMatches(order, body.pickup_code);
 
-  assertPhotoKeyUnder(body.image_path, { kind: "pickup", orderId });
-
-  await optimizeUploadedImage(body.image_path);
+  await acceptPhotoUpload({ kind: "pickup", orderId }, body.image_path);
 
   // If another cashier hands back the same Items at the same moment, fewer lines
   // flip and this pickup event is rolled back.

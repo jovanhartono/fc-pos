@@ -35,7 +35,8 @@ import {
 	summarizeCheckoutIssues,
 } from "@/features/transactions/lib/checkout-issues";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
-import { usersQueries } from "@/features/users/api";
+import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { canOpenStore } from "@/features/users/lib/store-scope";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";
 import { useTransactionPreferencesStore } from "@/stores/transaction-preferences-store";
@@ -143,28 +144,14 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 			name: "selectedStoreId",
 		}) ?? "";
 	const storesQuery = useQuery(storesQueries.list());
-	const meQuery = useQuery({
-		...usersQueries.me(),
-		enabled: !!currentUser,
-	});
-
-	// Role from the server, not the sign-in token, which goes stale when an
-	// admin changes it mid-session.
-	const isAdmin = meQuery.data?.role === "admin";
+	const scope = useStoreScope();
+	const { isAdmin } = scope;
 
 	const stores = storesQuery.data ?? [];
-	let visibleStores = stores;
-	if (!isAdmin) {
-		const userStoreIds =
-			meQuery.data?.userStores?.map((item) => item.store_id) ?? [];
-		visibleStores = stores.filter((store) => userStoreIds.includes(store.id));
-	}
+	const visibleStores = stores.filter((store) => canOpenStore(scope, store.id));
 
 	useEffect(() => {
-		const canResolveStoreSelection =
-			storesQuery.isSuccess && (isAdmin || meQuery.isSuccess);
-
-		if (!canResolveStoreSelection || !currentUserKey) {
+		if (!storesQuery.isSuccess || !currentUserKey) {
 			return;
 		}
 
@@ -196,7 +183,6 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		}
 	}, [
 		clearPersistedSelectedStoreId,
-		meQuery.isSuccess,
 		currentUserKey,
 		form,
 		isAdmin,
@@ -207,7 +193,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
 		visibleStores,
 	]);
 
-	const isBootstrapping = storesQuery.isPending || meQuery.isPending;
+	const isBootstrapping = storesQuery.isPending;
 
 	const createMutation = useMutation({
 		mutationKey: ["create-pos-order"],

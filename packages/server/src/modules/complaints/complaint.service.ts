@@ -8,7 +8,6 @@ import {
   findComplaints,
   findItemLines,
   insertComplaint,
-  insertReworkLine,
   lockOrderServiceState,
 } from "@/modules/complaints/complaint.repository";
 import {
@@ -18,8 +17,7 @@ import {
 } from "@/modules/complaints/complaint.schema";
 import {
   type DbExecutor,
-  logReworkQueued,
-  recomputeOrderRollup,
+  queueReworkLine,
 } from "@/modules/orders/order-status-machine";
 import { isComplainableLine, isComplainableStatus } from "@/schema/complaint";
 import { isInWorkshop } from "@/schema/order-status";
@@ -37,7 +35,7 @@ type SubjectService = NonNullable<
 
 // The same shoes come back over the counter, so the Rework line reuses the
 // complained Item and its tag (ADR-0013, ADR-0017).
-async function createReworkLine(
+function createReworkLine(
   tx: DbExecutor,
   {
     complaintId,
@@ -54,26 +52,13 @@ async function createReworkLine(
     throw new BadRequestException("Order service is not attached to an order");
   }
 
-  const line = await insertReworkLine(tx, {
-    order_id: order.id,
-    item_id: subject.item_id,
-    service_id: subject.service_id,
-    price: "0",
-    cogs_snapshot: "0",
-    is_priority: true,
-    status: "queued",
-    complaint_id: complaintId,
-  });
-
-  await logReworkQueued(tx, {
+  return queueReworkLine(tx, {
     by: userId,
-    note: `Rework for complaint #${complaintId}`,
-    serviceId: line.id,
+    complaintId,
+    itemId: subject.item_id,
+    orderId: order.id,
+    serviceId: subject.service_id,
   });
-
-  await recomputeOrderRollup(tx, order.id, userId);
-
-  return line;
 }
 
 async function lockSubjectLine(tx: DbExecutor, subject: SubjectService) {

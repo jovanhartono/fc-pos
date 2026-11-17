@@ -3,24 +3,23 @@ import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-	NonTerminalServiceStatus,
-	UpdateStatusMutation,
-} from "./order-service-dialog.types";
+import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
+import type { NonTerminalServiceStatus } from "@/features/orders/lib/order-service-actions";
+import { useDialog } from "@/stores/dialog-store";
 
 interface ServiceStatusConfirmFormProps {
+	orderId: number;
 	serviceId: number;
 	nextStatus: NonTerminalServiceStatus;
-	updateStatusMutation: UpdateStatusMutation;
-	closeDialog: () => void;
 }
 
 export const ServiceStatusConfirmForm = ({
+	orderId,
 	serviceId,
 	nextStatus,
-	updateStatusMutation,
-	closeDialog,
 }: ServiceStatusConfirmFormProps) => {
+	const closeDialog = useDialog((s) => s.closeDialog);
+	const updateStatusMutation = useUpdateServiceStatusMutation(orderId);
 	const noteId = useId();
 	const [note, setNote] = useState("");
 	const isPending = updateStatusMutation.isPending;

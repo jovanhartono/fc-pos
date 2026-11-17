@@ -17,7 +17,6 @@ import {
 import {
   GATEWAY_LABELS,
   type GatewayCharge,
-  type GatewayChargeRef,
   type GatewayNotificationInput,
   type GatewayStatusResult,
   type PaymentGatewayName,
@@ -39,6 +38,11 @@ import {
   updatePendingChargesCancelled,
   updateUnsettledChargeById,
 } from "@/modules/payments/payment-charge.repository";
+import {
+  cancelAtGateway,
+  cancelOrderPendingCharges,
+  chargeRef,
+} from "@/modules/payments/payment-charge-close";
 import { orderNetDue } from "@/schema/discount";
 import { hasUnpricedLine } from "@/schema/unpriced-line";
 
@@ -201,41 +205,6 @@ async function requireActiveGateway() {
   }
 
   return gateway;
-}
-
-function chargeRef(charge: PaymentCharge): GatewayChargeRef {
-  return {
-    hasQr: charge.qr_content !== null,
-    providerRef: charge.provider_ref,
-    reference: charge.reference,
-  };
-}
-
-async function cancelAtGateway(charges: PaymentCharge[]) {
-  await Promise.allSettled(
-    charges.map((charge) =>
-      getPaymentGateway(charge.gateway)
-        .cancelCharge(chargeRef(charge))
-        .catch((error) => {
-          console.warn("gateway cancel failed", charge.reference, error);
-        })
-    )
-  );
-}
-
-// After a payment, a line cancel or a Repair price: a QR still on screen would
-// take the old amount. Never fails the change that already went through.
-export async function cancelOrderPendingCharges(
-  orderId: number,
-  { except }: { except?: number } = {}
-) {
-  try {
-    await cancelAtGateway(
-      await updatePendingChargesCancelled(orderId, { except })
-    );
-  } catch (error) {
-    console.error("cancelling pending charges failed", orderId, error);
-  }
 }
 
 export async function createPaymentCharge({

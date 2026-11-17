@@ -41,6 +41,23 @@ export const getRowItemDetails = (row: Omit<ItemNameFields, "item_code">) =>
 export const getItemName = (row: ItemNameFields) =>
 	getRowItemDetails(row) ?? row.item_code;
 
+interface ShortItemTagFields {
+	order_code: string;
+	item_code: string;
+}
+
+// The Item code without its "<order code>-" prefix, for rows that already
+// show the Order code.
+export const getShortItemTag = ({
+	order_code,
+	item_code,
+}: ShortItemTagFields): string => {
+	const orderPrefix = `${order_code}-`;
+	return item_code.startsWith(orderPrefix)
+		? item_code.slice(orderPrefix.length)
+		: item_code;
+};
+
 export function formatOrderServiceItemDetails(details: ServiceItemDetails) {
 	return getOrderServiceItemDetails(details) ?? "No item details";
 }

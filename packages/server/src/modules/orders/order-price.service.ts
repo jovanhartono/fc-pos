@@ -1,5 +1,4 @@
 import { and, eq, ne, sql } from "drizzle-orm";
-import { db } from "@/db";
 import {
   orderServicePriceLogsTable,
   ordersServicesTable,
@@ -7,16 +6,17 @@ import {
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import type { PatchOrderServicePriceInput } from "@/modules/orders/order-admin.schema";
-import { getOrderStateOrThrow } from "@/modules/orders/order-read.repository";
 import {
   assertLinePrice,
-  revalidateSettledPromo,
+  changeUnpaidOrder,
 } from "@/modules/orders/order-settlement.service";
 import type { JWTPayload } from "@/types";
 
 // Open to any staff on purpose (ADR-0018 / ADR-0004): whoever inspected the Item
 // agrees the price with the Customer, often over WhatsApp. The price log is the check.
-export async function setOrderServicePrice({
+// A lowered price can drop the Order under its promo's minimum, which
+// changeUnpaidOrder rechecks.
+export function setOrderServicePrice({
   orderId,
   serviceId,
   body,
@@ -27,8 +27,7 @@ export async function setOrderServicePrice({
   body: PatchOrderServicePriceInput;
   user: JWTPayload;
 }) {
-  return await db.transaction(async (tx) => {
-    const order = await getOrderStateOrThrow(tx, orderId);
+  return changeUnpaidOrder(orderId, user.id, async (tx, order) => {
     // Payment freezes prices (ADR-0018); a wrong price after that is a Refund.
     // This is only the friendly error; the guarded write below wins any race.
     if (order.payment_status === "paid") {
@@ -91,10 +90,6 @@ export async function setOrderServicePrice({
       from_price: line.price,
       to_price: nextPrice,
     });
-
-    // A lowered price can drop the Order under its promo's minimum, or a 100k
-    // discount would stay on a 160k Order.
-    await revalidateSettledPromo(tx, orderId, user.id);
 
     return updated;
   });

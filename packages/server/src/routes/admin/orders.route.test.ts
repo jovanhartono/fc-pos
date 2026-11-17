@@ -132,13 +132,7 @@ mock.module("@/modules/orders/order-delivery-fee.service", () => ({
   },
 }));
 
-const closedChargesOf: number[] = [];
-
 mock.module("@/modules/payments/payment-charge.service", () => ({
-  cancelOrderPendingCharges: (orderId: number) => {
-    closedChargesOf.push(orderId);
-    return Promise.resolve();
-  },
   cancelPaymentCharge: marker("cancelPaymentCharge"),
   createPaymentCharge: marker("createPaymentCharge"),
   getOpenQrisCharge: marker("getOpenQrisCharge"),
@@ -173,7 +167,6 @@ const call = (path: string, method = "GET") =>
 beforeEach(() => {
   orderAccessCalls.length = 0;
   reached.length = 0;
-  closedChargesOf.length = 0;
   feeWrites.length = 0;
 });
 
@@ -185,23 +178,19 @@ describe("setting a Delivery fee", () => {
       method: "PATCH",
     });
 
-  // A GoSend quote lands after drop-off: the Customer's open QR still asks for
-  // the old amount, so it has to go.
-  it("saves the fee and closes the open QRIS, since the amount due moved", async () => {
+  it("saves the fee a GoSend quote brought in after drop-off", async () => {
     const res = await patchFee(123, "25.000");
 
     expect(res.status).toBe(200);
     expect(feeWrites).toEqual([25_000]);
-    expect(closedChargesOf).toEqual([123]);
     expect(orderAccessCalls).toEqual([{ userId: 7, orderId: 123 }]);
   });
 
-  it("refuses another Store's Order before touching the fee or its QRIS", async () => {
+  it("refuses another Store's Order before touching the fee", async () => {
     const res = await patchFee(777, "25000");
 
     expect(res.status).toBe(403);
     expect(feeWrites).toEqual([]);
-    expect(closedChargesOf).toEqual([]);
   });
 
   it("refuses a negative fee", async () => {
@@ -209,22 +198,6 @@ describe("setting a Delivery fee", () => {
 
     expect(res.status).toBe(400);
     expect(feeWrites).toEqual([]);
-    expect(closedChargesOf).toEqual([]);
-  });
-});
-
-describe("cancelling lines while a QRIS is open", () => {
-  it("closes the QRIS, since the total dropped", async () => {
-    const res = await app.request("/orders/123/cancel", {
-      body: JSON.stringify({
-        items: [{ order_service_id: 45, reason: "customer_request" }],
-      }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
-
-    expect(res.status).toBe(200);
-    expect(closedChargesOf).toEqual([123]);
   });
 });
 

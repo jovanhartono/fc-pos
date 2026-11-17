@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { oneDecimalFormatter } from "@/features/reports/utils/format";
+import { paceText } from "@/features/reports/utils/format";
 import { UserAvatar } from "@/features/users/components/user-avatar";
 
 interface PersonNameProps {
@@ -24,9 +24,6 @@ export const PersonName = ({
 		</span>
 	</span>
 );
-
-export const paceText = (perDay: number | null) =>
-	perDay === null ? "—" : `${oneDecimalFormatter.format(perDay)}/day`;
 
 interface PaceProps {
 	perDay: number | null;

@@ -12,9 +12,8 @@ import type {
   PostOrderCancelInput,
   PostOrderRefundInput,
 } from "@/modules/orders/order-admin.schema";
-import { getOrderStateOrThrow } from "@/modules/orders/order-read.repository";
 import { refundableAmount } from "@/modules/orders/order-refund-status";
-import { revalidateSettledPromo } from "@/modules/orders/order-settlement.service";
+import { changeUnpaidOrder } from "@/modules/orders/order-settlement.service";
 import {
   applyRefundTransition,
   cancelOrderServices,
@@ -368,75 +367,70 @@ export async function cancelOrder({
     );
   }
 
-  const order = await getOrderStateOrThrow(db, orderId);
-
-  assertCanCancelOrderService(user, order);
-
   const serviceLines = lines.filter((line) => line.kind === "service");
   const productLines = lines.filter((line) => line.kind === "product");
 
-  const productRows =
-    productLines.length > 0
-      ? await db.query.ordersProductsTable.findMany({
-          where: {
-            order_id: orderId,
-            id: { in: productLines.map((l) => l.id) },
-          },
-          columns: {
-            id: true,
-            qty: true,
-            product_id: true,
-            refunded_at: true,
-            cancelled_at: true,
-          },
-        })
-      : [];
-  const productRowById = new Map(productRows.map((row) => [row.id, row]));
+  const reworkIds = await changeUnpaidOrder(
+    orderId,
+    user.id,
+    async (tx, order) => {
+      assertCanCancelOrderService(user, order);
 
-  for (const line of productLines) {
-    const row = productRowById.get(line.id);
-    if (!row) {
-      throw new BadRequestException(
-        `Product line ${line.id} not found on this order`
-      );
+      const productRows =
+        productLines.length > 0
+          ? await tx.query.ordersProductsTable.findMany({
+              where: {
+                order_id: orderId,
+                id: { in: productLines.map((l) => l.id) },
+              },
+              columns: {
+                id: true,
+                qty: true,
+                product_id: true,
+                refunded_at: true,
+                cancelled_at: true,
+              },
+            })
+          : [];
+      const productRowById = new Map(productRows.map((row) => [row.id, row]));
+
+      for (const line of productLines) {
+        const row = productRowById.get(line.id);
+        if (!row) {
+          throw new BadRequestException(
+            `Product line ${line.id} not found on this order`
+          );
+        }
+        if (row.cancelled_at) {
+          throw new BadRequestException(
+            `Product line ${line.id} is already cancelled`
+          );
+        }
+        if (row.refunded_at) {
+          throw new BadRequestException(
+            `Product line ${line.id} is refunded and cannot be cancelled`
+          );
+        }
+      }
+
+      const cancelled =
+        serviceLines.length > 0
+          ? await cancelOrderServices(tx, {
+              by: user.id,
+              lines: serviceLines.map((line) => ({
+                note: line.note,
+                reason: line.reason,
+                serviceId: line.id,
+              })),
+              orderId,
+            })
+          : { reworkIds: [] };
+
+      await cancelProductLines(tx, productLines, productRowById);
+
+      return cancelled.reworkIds;
     }
-    if (row.cancelled_at) {
-      throw new BadRequestException(
-        `Product line ${line.id} is already cancelled`
-      );
-    }
-    if (row.refunded_at) {
-      throw new BadRequestException(
-        `Product line ${line.id} is refunded and cannot be cancelled`
-      );
-    }
-  }
-
-  const reworkIds = await db.transaction(async (tx) => {
-    const cancelled =
-      serviceLines.length > 0
-        ? await cancelOrderServices(tx, {
-            by: user.id,
-            lines: serviceLines.map((line) => ({
-              note: line.note,
-              reason: line.reason,
-              serviceId: line.id,
-            })),
-            orderId,
-          })
-        : { reworkIds: [] };
-
-    await cancelProductLines(tx, productLines, productRowById);
-
-    // Status read before the cancel: an Order already cancelled gave its
-    // redemptions back, and doing it again would hand the Customer a second
-    // free Voucher use (ADR-0015).
-    if (order.status !== "cancelled") {
-      await revalidateSettledPromo(tx, orderId, user.id);
-    }
-
-    return cancelled.reworkIds;
-  });
+  );
 
   return {
     cancelled_service_ids: [
