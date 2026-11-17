@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+
 import app from "@/app";
 
 app.post("/clock-out", (c) => c.text("ok"));

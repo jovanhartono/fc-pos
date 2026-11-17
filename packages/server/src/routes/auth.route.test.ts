@@ -1,6 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
 import type { JwtVariables } from "hono/jwt";
+
 import type { usersTable } from "@/db/schema";
 import type { AuthUser } from "@/types/jwt";
 import { errorHandler } from "@/utils/error-handler";
@@ -26,7 +28,7 @@ mock.module("@/db", () => ({
 
 process.env.JWT_SECRET ??= "test-secret";
 
-const authRoutes = (await import("@/routes/auth")).default;
+const { default: authRoutes } = await import("@/routes/auth");
 
 const app = new Hono<{ Variables: JwtVariables<AuthUser> }>().route(
   "/auth",

@@ -1,21 +1,24 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { eq } from "drizzle-orm";
+
 import {
   complaintsTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
   ordersTable,
 } from "@/db/schema";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // Loaded after the swap above: a static import would bind the shop's real
 // database before the mock runs.
 const { createOrder } = await import("@/modules/orders/order.service");
-const { listTurnaroundLines } = await import(
-  "@/modules/reports/turnaround.repository"
-);
+const { listTurnaroundLines } =
+  await import("@/modules/reports/turnaround.repository");
 
 const HOUR_MS = 3_600_000;
 const jkt = (local: string) => new Date(`${local}:00+07:00`);

@@ -18,9 +18,8 @@ mock.module("@/modules/users/user.repository", () => ({
   },
 }));
 
-const { changeOwnPassword, resetUserPassword } = await import(
-  "@/modules/users/user.service"
-);
+const { changeOwnPassword, resetUserPassword } =
+  await import("@/modules/users/user.service");
 
 describe("changing your own password", () => {
   it("refuses a wrong current password and writes nothing", async () => {

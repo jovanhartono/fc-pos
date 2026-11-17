@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { createHash } from "node:crypto";
+
 import { midtransGateway } from "./midtrans";
 import type { GatewayChargeInput } from "./types";
 
@@ -11,7 +12,7 @@ interface Call {
   url: string;
 }
 
-const JAKARTA_TIMESTAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \+0700$/;
+const JAKARTA_TIMESTAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \+0700$/u;
 const realFetch = globalThis.fetch;
 let calls: Call[] = [];
 
@@ -19,7 +20,7 @@ const stubFetch = (body: unknown, status = 200) => {
   globalThis.fetch = ((url: string, init: RequestInit) => {
     calls.push({ url, init });
     return Promise.resolve(
-      new Response(JSON.stringify(body), {
+      Response.json(body, {
         status,
         headers: { "Content-Type": "application/json" },
       })

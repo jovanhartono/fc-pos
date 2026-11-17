@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import {
   fromNotAfterTo,
   fromNotAfterToIssue,
@@ -35,10 +36,10 @@ const shiftTime = z.iso.datetime().transform((value) => new Date(value));
 
 const shiftTimes = { clock_in_at: shiftTime, clock_out_at: shiftTime };
 
-function checkShiftTimes(
+const checkShiftTimes = (
   body: { clock_in_at: Date; clock_out_at?: Date },
   ctx: z.RefinementCtx
-) {
+) => {
   if (!body.clock_out_at) {
     return;
   }
@@ -57,7 +58,7 @@ function checkShiftTimes(
       path: ["clock_out_at"],
     });
   }
-}
+};
 
 export const PATCHShiftSchema = z
   .object({

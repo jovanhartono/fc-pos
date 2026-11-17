@@ -1,6 +1,9 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { eq } from "drizzle-orm";
+
 import {
   complaintsTable,
   orderServiceStatusLogsTable,
@@ -8,7 +11,8 @@ import {
   storesTable,
   usersTable,
 } from "@/db/schema";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // August at the Kemang shop, told through the status log. Adi, Bayu and Citra
@@ -18,9 +22,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Loaded after the swap above: a static import would bind the shop's real
 // database before the mock runs.
 const { createOrder } = await import("@/modules/orders/order.service");
-const { getQualityReport, getQcRejectsReport } = await import(
-  "@/modules/reports/quality.service"
-);
+const { getQualityReport, getQcRejectsReport } =
+  await import("@/modules/reports/quality.service");
 
 const AUGUST = { from: "2026-08-01", to: "2026-08-31" };
 

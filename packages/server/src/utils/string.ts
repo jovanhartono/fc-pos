@@ -4,4 +4,4 @@ export const toTitleCase = (value: string): string =>
   value
     .trim()
     .toLowerCase()
-    .replaceAll(/(^|\s)\p{L}/gu, (segment) => segment.toUpperCase());
+    .replaceAll(/(?:^|\s)\p{L}/gu, (segment) => segment.toUpperCase());

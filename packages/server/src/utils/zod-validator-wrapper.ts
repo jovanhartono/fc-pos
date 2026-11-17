@@ -1,6 +1,7 @@
 import { zValidator as zv } from "@hono/zod-validator";
 import type { ValidationTargets } from "hono/types";
 import type { $ZodType } from "zod/v4/core";
+
 import { BadRequestException } from "@/http-exceptions";
 
 export const zodValidator = <

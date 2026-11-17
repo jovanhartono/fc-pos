@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import type { DbExecutor } from "@/db";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
@@ -24,9 +25,8 @@ mock.module("@/modules/campaigns/campaign.repository", () => ({
   listCampaigns: () => Promise.resolve(repo.listed),
 }));
 
-const { resolveVoucherCode, getUsableCampaigns, hasLiveVoucher } = await import(
-  "@/modules/campaigns/campaign.service"
-);
+const { resolveVoucherCode, getUsableCampaigns, hasLiveVoucher } =
+  await import("@/modules/campaigns/campaign.service");
 
 const makeVoucherCampaign = (over: AnyObj = {}) => ({
   id: 7,
@@ -154,16 +154,16 @@ const makeListedRow = (over: AnyObj = {}) => ({
   ...over,
 });
 
-describe("getUsableCampaigns", () => {
-  const call = (campaignIds: number[]) =>
-    getUsableCampaigns(EXECUTOR, {
-      campaignIds,
-      grossTotal: 100_000,
-      lines: [],
-      storeId: 1,
-      storeCode: "JKT",
-    });
+const call = (campaignIds: number[]) =>
+  getUsableCampaigns(EXECUTOR, {
+    campaignIds,
+    grossTotal: 100_000,
+    lines: [],
+    storeId: 1,
+    storeCode: "JKT",
+  });
 
+describe("getUsableCampaigns", () => {
   it("rejects when a requested campaign id is missing", async () => {
     repo.byIds = [makeListedRow({ id: 1 })];
     const error = await captureRejection(call([1, 2]));

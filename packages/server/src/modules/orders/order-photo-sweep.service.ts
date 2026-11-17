@@ -21,7 +21,7 @@ export interface PhotoSweepResult {
  * the batch is confirmed, so an abandoned batch leaves files behind.
  * Safe to run twice or miss a run: it compares bucket and database every time.
  */
-export async function sweepOrphanedOrderPhotos(): Promise<PhotoSweepResult> {
+export const sweepOrphanedOrderPhotos = async (): Promise<PhotoSweepResult> => {
   // Only this environment's prefix, so a dev sweep never reaches prod's photos.
   const stored = await listStoredObjects(ORDER_PHOTO_PREFIX);
   // Bucket first, database second, so a photo filed mid-run is never taken for
@@ -49,4 +49,4 @@ export async function sweepOrphanedOrderPhotos(): Promise<PhotoSweepResult> {
   }
 
   return { deleted: orphaned.length, scanned: stored.length };
-}
+};

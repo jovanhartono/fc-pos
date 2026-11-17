@@ -4,8 +4,11 @@ import {
   randomInt,
   sign as rsaSign,
 } from "node:crypto";
+
 import dayjs from "dayjs";
+
 import { JAKARTA_TZ } from "@/utils/date";
+
 import type {
   GatewayCharge,
   GatewayChargeInput,
@@ -23,7 +26,7 @@ const EXPIRE_PATH = "/snap-adapter/b2b/v1.0/qr/qr-expire";
 
 const TIMEOUT_MS = 10_000;
 const MINUTE_MS = 60_000;
-const ESCAPED_NEWLINE_REGEX = /\\n/g;
+const ESCAPED_NEWLINE_REGEX = /\\n/gu;
 
 // Refunded and not-found change nothing here: a refund only follows a paid
 // charge, and an unscanned QR has no payment yet.
@@ -76,7 +79,7 @@ export const dokuQrisConfig = (api: DokuApi): QrisConfig | null => {
   return {
     ...api,
     // A one-line .env value carries the PEM's line breaks as \n.
-    privateKey: DOKU_PRIVATE_KEY.replace(ESCAPED_NEWLINE_REGEX, "\n"),
+    privateKey: DOKU_PRIVATE_KEY.replaceAll(ESCAPED_NEWLINE_REGEX, "\n"),
     merchantId: DOKU_QRIS_MERCHANT_ID,
     terminalId: DOKU_QRIS_TERMINAL_ID,
     postalCode: DOKU_QRIS_POSTAL_CODE,

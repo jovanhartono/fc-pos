@@ -1,29 +1,30 @@
 import { useEffect, useState } from "react";
+
 import type { TurnaroundReport } from "@/features/reports/api";
 import { TURNAROUND_COLORS } from "@/features/reports/utils/palette";
 import {
-	axisMaxHours,
-	dayTickHours,
-	jitter,
-	longDuration,
-	shortDay,
-	shortDuration,
+  axisMaxHours,
+  dayTickHours,
+  jitter,
+  longDuration,
+  shortDay,
+  shortDuration,
 } from "@/features/reports/utils/turnaround";
-import { useElementWidth } from "@/hooks/useElementWidth";
+import { useElementWidth } from "@/hooks/use-element-width";
 
 type TurnaroundItem = TurnaroundReport["items"][number];
 
 interface TurnaroundDotChartProps {
-	// `index` is the Item's place in the whole report, so its height holds still
-	// while the owner flips between Categories.
-	dots: { index: number; item: TurnaroundItem }[];
-	row: Pick<TurnaroundReport["rows"][number], "p75" | "p90" | "p99">;
+  // `index` is the Item's place in the whole report, so its height holds still
+  // while the owner flips between Categories.
+  dots: { index: number; item: TurnaroundItem }[];
+  row: Pick<TurnaroundReport["rows"][number], "p75" | "p90" | "p99">;
 }
 
 interface HoverState {
-	dot: number;
-	left: number;
-	top: number;
+  dot: number;
+  left: number;
+  top: number;
 }
 
 const LABEL_BAND = 36;
@@ -32,219 +33,219 @@ const HIT_RADIUS = 12;
 const TOOLTIP_WIDTH = 256;
 
 const useDotLayout = (
-	dots: TurnaroundDotChartProps["dots"],
-	p99: number | null,
+  dots: TurnaroundDotChartProps["dots"],
+  p99: number | null
 ) => {
-	const max = axisMaxHours(
-		p99,
-		dots.map((d) => d.item.hours),
-	);
-	const ticks = dayTickHours(max);
-	const { ref, width } = useElementWidth();
-	const height = width < 480 ? 170 : 210;
-	const plotHeight = height - LABEL_BAND;
-	const points = dots.map(({ index, item }) => ({
-		item,
-		x: (Math.min(item.hours, max) / max) * width,
-		y: LABEL_BAND + DOT_PAD + jitter(index) * (plotHeight - DOT_PAD * 2),
-		over: item.hours > max,
-	}));
-	return { height, max, points, ref, ticks, width };
+  const max = axisMaxHours(
+    p99,
+    dots.map((d) => d.item.hours)
+  );
+  const ticks = dayTickHours(max);
+  const { ref, width } = useElementWidth();
+  const height = width < 480 ? 170 : 210;
+  const plotHeight = height - LABEL_BAND;
+  const points = dots.map(({ index, item }) => ({
+    item,
+    x: (Math.min(item.hours, max) / max) * width,
+    y: LABEL_BAND + DOT_PAD + jitter(index) * (plotHeight - DOT_PAD * 2),
+    over: item.hours > max,
+  }));
+  return { height, max, points, ref, ticks, width };
 };
 
 export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
-	const { height, max, points, ref, ticks, width } = useDotLayout(
-		dots,
-		row.p99,
-	);
-	const [hover, setHover] = useState<HoverState | null>(null);
-	// Switching Category keeps the chart mounted, so the page doesn't jump; an
-	// open tooltip would point at another Item, so it closes.
-	const [shownDots, setShownDots] = useState(dots);
-	if (shownDots !== dots) {
-		setShownDots(dots);
-		setHover(null);
-	}
-	useEffect(() => {
-		const hide = () => setHover(null);
-		const hideOutside = (event: PointerEvent) => {
-			if (!ref.current?.contains(event.target as Node)) {
-				hide();
-			}
-		};
-		window.addEventListener("scroll", hide, true);
-		window.addEventListener("pointerdown", hideOutside);
-		return () => {
-			window.removeEventListener("scroll", hide, true);
-			window.removeEventListener("pointerdown", hideOutside);
-		};
-	}, [ref]);
-	const xOf = (hours: number) => (Math.min(hours, max) / max) * width;
+  const { height, max, points, ref, ticks, width } = useDotLayout(
+    dots,
+    row.p99
+  );
+  const [hover, setHover] = useState<HoverState | null>(null);
+  // Switching Category keeps the chart mounted, so the page doesn't jump; an
+  // open tooltip would point at another Item, so it closes.
+  const [shownDots, setShownDots] = useState(dots);
+  if (shownDots !== dots) {
+    setShownDots(dots);
+    setHover(null);
+  }
+  useEffect(() => {
+    const hide = () => setHover(null);
+    const hideOutside = (event: PointerEvent) => {
+      if (!ref.current?.contains(event.target as Node)) {
+        hide();
+      }
+    };
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("pointerdown", hideOutside);
+    return () => {
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("pointerdown", hideOutside);
+    };
+  }, [ref]);
+  const xOf = (hours: number) => (Math.min(hours, max) / max) * width;
 
-	// One handler on the plot, so a phone tap finds the nearest dot instead of
-	// needing a 6px target.
-	const handlePoint = (event: React.PointerEvent<SVGSVGElement>) => {
-		const box = event.currentTarget.getBoundingClientRect();
-		const px = event.clientX - box.left;
-		const py = event.clientY - box.top;
-		let best = -1;
-		let bestDistance = HIT_RADIUS;
-		points.forEach((p, i) => {
-			const distance = Math.hypot(p.x - px, p.y - py);
-			if (distance < bestDistance) {
-				best = i;
-				bestDistance = distance;
-			}
-		});
-		if (best === -1) {
-			setHover(null);
-			return;
-		}
-		if (best === hover?.dot) {
-			return;
-		}
-		setHover({
-			dot: best,
-			left: box.left + points[best].x,
-			top: box.top + points[best].y,
-		});
-	};
+  // One handler on the plot, so a phone tap finds the nearest dot instead of
+  // needing a 6px target.
+  const handlePoint = (event: React.PointerEvent<SVGSVGElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const px = event.clientX - box.left;
+    const py = event.clientY - box.top;
+    let best = -1;
+    let bestDistance = HIT_RADIUS;
+    for (const [i, p] of points.entries()) {
+      const distance = Math.hypot(p.x - px, p.y - py);
+      if (distance < bestDistance) {
+        best = i;
+        bestDistance = distance;
+      }
+    }
+    if (best === -1) {
+      setHover(null);
+      return;
+    }
+    if (best === hover?.dot) {
+      return;
+    }
+    setHover({
+      dot: best,
+      left: box.left + points[best].x,
+      top: box.top + points[best].y,
+    });
+  };
 
-	// A phone has no hover: the browser sends pointerleave as the finger lifts,
-	// which would hide the tooltip the owner just tapped open.
-	const handleLeave = (event: React.PointerEvent<SVGSVGElement>) => {
-		if (event.pointerType === "mouse") {
-			setHover(null);
-		}
-	};
+  // A phone has no hover: the browser sends pointerleave as the finger lifts,
+  // which would hide the tooltip the owner just tapped open.
+  const handleLeave = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (event.pointerType === "mouse") {
+      setHover(null);
+    }
+  };
 
-	const hovered = hover ? points[hover.dot] : null;
-	const flip = hover
-		? hover.left + TOOLTIP_WIDTH + 18 > window.innerWidth
-		: false;
+  const hovered = hover ? points[hover.dot] : null;
+  const flip = hover
+    ? hover.left + TOOLTIP_WIDTH + 18 > window.innerWidth
+    : false;
 
-	return (
-		<div ref={ref} className="@container relative min-w-0">
-			{/* The chart's own height (plot plus day labels) before its width is
+  return (
+    <div ref={ref} className="@container relative min-w-0">
+      {/* The chart's own height (plot plus day labels) before its width is
 			    measured, so the table under it doesn't drop a beat later. */}
-			{width === 0 && (
-				<div aria-hidden className="h-[186px] @min-[30rem]:h-[226px]" />
-			)}
-			{width > 0 && (
-				<>
-					<svg
-						aria-hidden="true"
-						className="block touch-pan-y overflow-visible"
-						height={height}
-						onPointerDown={handlePoint}
-						onPointerLeave={handleLeave}
-						onPointerMove={handlePoint}
-						width={width}
-					>
-						{ticks.map((t) => (
-							<line
-								key={t}
-								stroke="var(--border)"
-								strokeDasharray="2 3"
-								x1={xOf(t)}
-								x2={xOf(t)}
-								y1={0}
-								y2={height}
-							/>
-						))}
-						{points.map((p, i) => {
-							const color =
-								row.p90 !== null && p.item.hours > row.p90
-									? TURNAROUND_COLORS.late
-									: TURNAROUND_COLORS.dot;
-							return (
-								<circle
-									cx={p.x}
-									cy={p.y}
-									fill={p.over ? "none" : color}
-									fillOpacity={i === hover?.dot ? 1 : 0.55}
-									key={`${p.item.ready_day}-${i}`}
-									r={p.over ? 3.2 : 3}
-									stroke={p.over ? color : "none"}
-								/>
-							);
-						})}
-						{(["p75", "p90"] as const).map((key, n) => {
-							const value = row[key];
-							if (value === null || value > max) {
-								return null;
-							}
-							const x = xOf(value);
-							return (
-								<g key={key}>
-									<line
-										stroke={TURNAROUND_COLORS.percentile}
-										strokeWidth={1.5}
-										x1={x}
-										x2={x}
-										y1={LABEL_BAND - 2}
-										y2={height}
-									/>
-									<text
-										fill={TURNAROUND_COLORS.percentile}
-										fontSize={11}
-										fontWeight={500}
-										textAnchor={x > width - 60 ? "end" : "middle"}
-										x={x}
-										y={10 + n * 11}
-									>
-										{key} {shortDuration(value)}
-									</text>
-								</g>
-							);
-						})}
-					</svg>
-					<svg aria-hidden="true" className="block" height={16} width={width}>
-						{ticks
-							.filter((t) => xOf(t) <= width - 64)
-							.map((t) => (
-								<text
-									fill="var(--muted-foreground)"
-									fontSize={11}
-									key={t}
-									textAnchor={t === 0 ? "start" : "middle"}
-									x={xOf(t)}
-									y={12}
-								>
-									{t / 24}d
-								</text>
-							))}
-						<text
-							fill="var(--muted-foreground)"
-							fontSize={11}
-							textAnchor="end"
-							x={width}
-							y={12}
-						>
-							○ slower
-						</text>
-					</svg>
-				</>
-			)}
-			{hover !== null && hovered !== null && (
-				<div
-					className="pointer-events-none fixed z-50 max-w-64 rounded-md border bg-popover px-2.5 py-2 text-footnote text-popover-foreground shadow-lg"
-					style={{
-						left: flip ? hover.left - 10 : hover.left + 10,
-						top: hover.top,
-						transform: flip ? "translate(-100%, -50%)" : "translateY(-50%)",
-					}}
-				>
-					<strong className="font-medium">
-						{longDuration(hovered.item.hours)}
-					</strong>
-					{` · ready ${shortDay(hovered.item.ready_day)} · ${hovered.item.store_code}`}
-					{hovered.item.priority ? " · Priority" : ""}
-					{hovered.item.services.map((service) => (
-						<p key={service}>{service}</p>
-					))}
-				</div>
-			)}
-		</div>
-	);
+      {width === 0 && (
+        <div aria-hidden className="h-[186px] @min-[30rem]:h-[226px]" />
+      )}
+      {width > 0 && (
+        <>
+          <svg
+            aria-hidden="true"
+            className="block touch-pan-y overflow-visible"
+            height={height}
+            onPointerDown={handlePoint}
+            onPointerLeave={handleLeave}
+            onPointerMove={handlePoint}
+            width={width}
+          >
+            {ticks.map((t) => (
+              <line
+                key={t}
+                stroke="var(--border)"
+                strokeDasharray="2 3"
+                x1={xOf(t)}
+                x2={xOf(t)}
+                y1={0}
+                y2={height}
+              />
+            ))}
+            {points.map((p, i) => {
+              const color =
+                row.p90 !== null && p.item.hours > row.p90
+                  ? TURNAROUND_COLORS.late
+                  : TURNAROUND_COLORS.dot;
+              return (
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  fill={p.over ? "none" : color}
+                  fillOpacity={i === hover?.dot ? 1 : 0.55}
+                  key={`${p.item.ready_day}-${i}`}
+                  r={p.over ? 3.2 : 3}
+                  stroke={p.over ? color : "none"}
+                />
+              );
+            })}
+            {(["p75", "p90"] as const).map((key, n) => {
+              const value = row[key];
+              if (value === null || value > max) {
+                return null;
+              }
+              const x = xOf(value);
+              return (
+                <g key={key}>
+                  <line
+                    stroke={TURNAROUND_COLORS.percentile}
+                    strokeWidth={1.5}
+                    x1={x}
+                    x2={x}
+                    y1={LABEL_BAND - 2}
+                    y2={height}
+                  />
+                  <text
+                    fill={TURNAROUND_COLORS.percentile}
+                    fontSize={11}
+                    fontWeight={500}
+                    textAnchor={x > width - 60 ? "end" : "middle"}
+                    x={x}
+                    y={10 + n * 11}
+                  >
+                    {key} {shortDuration(value)}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+          <svg aria-hidden="true" className="block" height={16} width={width}>
+            {ticks
+              .filter((t) => xOf(t) <= width - 64)
+              .map((t) => (
+                <text
+                  fill="var(--muted-foreground)"
+                  fontSize={11}
+                  key={t}
+                  textAnchor={t === 0 ? "start" : "middle"}
+                  x={xOf(t)}
+                  y={12}
+                >
+                  {t / 24}d
+                </text>
+              ))}
+            <text
+              fill="var(--muted-foreground)"
+              fontSize={11}
+              textAnchor="end"
+              x={width}
+              y={12}
+            >
+              ○ slower
+            </text>
+          </svg>
+        </>
+      )}
+      {hover !== null && hovered !== null && (
+        <div
+          className="pointer-events-none fixed z-50 max-w-64 rounded-md border bg-popover px-2.5 py-2 text-footnote text-popover-foreground shadow-lg"
+          style={{
+            left: flip ? hover.left - 10 : hover.left + 10,
+            top: hover.top,
+            transform: flip ? "translate(-100%, -50%)" : "translateY(-50%)",
+          }}
+        >
+          <strong className="font-medium">
+            {longDuration(hovered.item.hours)}
+          </strong>
+          {` · ready ${shortDay(hovered.item.ready_day)} · ${hovered.item.store_code}`}
+          {hovered.item.priority ? " · Priority" : ""}
+          {hovered.item.services.map((service) => (
+            <p key={service}>{service}</p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };

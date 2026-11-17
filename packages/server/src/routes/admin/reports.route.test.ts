@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
+
 import { ForbiddenException } from "@/http-exceptions";
 import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
@@ -70,7 +72,7 @@ mock.module("@/modules/reports/quality.service", () => ({
   },
 }));
 
-const reportsRoutes = (await import("@/routes/admin/reports")).default;
+const { default: reportsRoutes } = await import("@/routes/admin/reports");
 
 const owner: AuthUser = {
   id: 11,

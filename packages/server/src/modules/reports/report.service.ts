@@ -1,4 +1,9 @@
 import { revenue } from "@/modules/reports/money-basis";
+import { listTopServiceRows } from "@/modules/reports/report-range.repository";
+import {
+  getJakartaDayRange,
+  shiftDate,
+} from "@/modules/reports/report-range.util";
 import {
   categoryGrossSalesForRange,
   countAgingQueue,
@@ -18,18 +23,13 @@ import type {
   GetDailyReportQuery,
   GetReportOverviewQuery,
 } from "@/modules/reports/report.schema";
-import { listTopServiceRows } from "@/modules/reports/report-range.repository";
-import {
-  getJakartaDayRange,
-  shiftDate,
-} from "@/modules/reports/report-range.util";
 import {
   countServicesProcessed,
   servicesProcessedTrendSeries,
 } from "@/modules/reports/services-processed";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
-export async function getDailyReport(query: GetDailyReportQuery) {
+export const getDailyReport = async (query: GetDailyReportQuery) => {
   const range = getJakartaDayRange(query.date);
   const storeId = query.store_id;
 
@@ -50,9 +50,9 @@ export async function getDailyReport(query: GetDailyReportQuery) {
     orders_in: ordersIn,
     orders_out: ordersOut,
   };
-}
+};
 
-export async function getReportOverview(query: GetReportOverviewQuery) {
+export const getReportOverview = async (query: GetReportOverviewQuery) => {
   const dayRange = getJakartaDayRange(query.date);
   const storeId = query.store_id;
   const trendDays = query.trend_days;
@@ -121,9 +121,9 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
     })),
     per_store: perStore,
   };
-}
+};
 
-export async function getAgingQueueReport(query?: GetAgingQueueQuery) {
+export const getAgingQueueReport = async (query?: GetAgingQueueQuery) => {
   const pagination = normalizePagination(query, { maxPageSize: 200 });
   const filters = { storeId: query?.store_id };
 
@@ -140,4 +140,4 @@ export async function getAgingQueueReport(query?: GetAgingQueueQuery) {
     items,
     meta: buildPaginationMeta(total, pagination),
   };
-}
+};

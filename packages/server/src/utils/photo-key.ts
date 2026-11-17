@@ -5,7 +5,7 @@ import { PHOTO_THUMBNAIL_SUFFIX } from "@/schema/photo-thumbnail";
 // Set per Vercel environment alongside DATABASE_URL; the two must agree, or the photo sweep judges
 // one environment's photos against the other's Orders and deletes them.
 const rawStoragePrefix = process.env.STORAGE_PREFIX;
-if (!(rawStoragePrefix && /^(dev|prod)\/$/.test(rawStoragePrefix))) {
+if (!(rawStoragePrefix && /^(?:dev|prod)\/$/u.test(rawStoragePrefix))) {
   throw new Error('STORAGE_PREFIX must be "dev/" or "prod/"');
 }
 export const STORAGE_ENV_PREFIX = rawStoragePrefix;
@@ -16,7 +16,7 @@ export type PhotoScope =
   | { kind: "dropoff" | "pickup"; orderId: number }
   | { kind: "avatar"; userId: number };
 
-function photoScopePrefix(scope: PhotoScope): string {
+const photoScopePrefix = (scope: PhotoScope): string => {
   // Outside orders/, so the nightly sweep never judges a staff photo against Orders.
   if (scope.kind === "avatar") {
     return `${STORAGE_ENV_PREFIX}users/${scope.userId}/avatar/`;
@@ -25,16 +25,15 @@ function photoScopePrefix(scope: PhotoScope): string {
   return scope.kind === "item"
     ? `${base}items/${scope.itemId}/`
     : `${base}${scope.kind}/`;
-}
+};
 
-export function newPhotoKey(scope: PhotoScope): string {
-  return `${photoScopePrefix(scope)}${crypto.randomUUID()}`;
-}
+export const newPhotoKey = (scope: PhotoScope): string =>
+  `${photoScopePrefix(scope)}${crypto.randomUUID()}`;
 
 // A stale tab or a replayed request can hand back a path for another Order's
 // folder, another Item's, a `..` escape out of it, or a thumbnail's, which the
 // sweep would then delete as a thumbnail whose photo is gone.
-export function assertPhotoKeyUnder(path: string, scope: PhotoScope): void {
+export const assertPhotoKeyUnder = (path: string, scope: PhotoScope): void => {
   const prefix = photoScopePrefix(scope);
   if (!path.startsWith(prefix)) {
     throw new BadRequestException("Invalid image path");
@@ -50,15 +49,13 @@ export function assertPhotoKeyUnder(path: string, scope: PhotoScope): void {
   ) {
     throw new BadRequestException("Invalid image path");
   }
-}
+};
 
-export function thumbnailKey(key: string): string {
-  return `${key}${PHOTO_THUMBNAIL_SUFFIX}`;
-}
+export const thumbnailKey = (key: string): string =>
+  `${key}${PHOTO_THUMBNAIL_SUFFIX}`;
 
 // The photo a stored file belongs to: itself, or the photo a thumbnail was made from.
-export function photoKeyOf(key: string): string {
-  return key.endsWith(PHOTO_THUMBNAIL_SUFFIX)
+export const photoKeyOf = (key: string): string =>
+  key.endsWith(PHOTO_THUMBNAIL_SUFFIX)
     ? key.slice(0, -PHOTO_THUMBNAIL_SUFFIX.length)
     : key;
-}

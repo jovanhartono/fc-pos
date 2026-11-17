@@ -1,5 +1,6 @@
 import { createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
+
 import { servicesTable } from "@/db/schema";
 import {
   currencySchema,
@@ -28,7 +29,7 @@ export const POSTServiceSchema = z.object({
     .min(1, "Code is required")
     .max(4, "Code must be at most 4 characters")
     .regex(
-      /^[A-Z0-9]+$/,
+      /^[A-Z0-9]+$/u,
       "Code must contain only uppercase letters and numbers"
     ),
 

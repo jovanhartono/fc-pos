@@ -1,9 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import {
-  assertPhotoKeyUnder,
-  type PhotoScope,
-  STORAGE_ENV_PREFIX,
-} from "@/utils/photo-key";
+
+import { assertPhotoKeyUnder, STORAGE_ENV_PREFIX } from "@/utils/photo-key";
+import type { PhotoScope } from "@/utils/photo-key";
 
 // A saved image_path comes from the client, so this is the one gate standing between "the
 // counter's own upload" and "whatever path someone typed" — another Order's folder, another

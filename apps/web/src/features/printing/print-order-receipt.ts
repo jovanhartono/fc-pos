@@ -1,5 +1,6 @@
 import { fetchOrderReceipt } from "@/features/orders/api";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
+
 import { buildReceiptEscPos } from "./build-receipt";
 import type { PrintOptions } from "./printer-transport";
 import { webBluetoothTransport } from "./web-bluetooth-transport";
@@ -9,16 +10,16 @@ import { webBluetoothTransport } from "./web-bluetooth-transport";
 const transport = webBluetoothTransport;
 
 export const printOrderReceipt = async (
-	orderId: number,
-	options: Pick<PrintOptions, "allowPairing">,
+  orderId: number,
+  options: Pick<PrintOptions, "allowPairing">
 ): Promise<void> => {
-	const receipt = await fetchOrderReceipt(orderId);
-	const trackingUrl = buildTrackingUrl(
-		receipt.code,
-		receipt.customer.phone_number,
-	);
-	await transport.print(buildReceiptEscPos(receipt, trackingUrl), {
-		...options,
-		deviceNames: receipt.store.devices.map((device) => device.name),
-	});
+  const receipt = await fetchOrderReceipt(orderId);
+  const trackingUrl = buildTrackingUrl(
+    receipt.code,
+    receipt.customer.phone_number
+  );
+  await transport.print(buildReceiptEscPos(receipt, trackingUrl), {
+    ...options,
+    deviceNames: receipt.store.devices.map((device) => device.name),
+  });
 };

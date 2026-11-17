@@ -1,4 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
+
 import { ForbiddenException, NotFoundException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { AuthUser } from "@/types";
@@ -58,9 +59,8 @@ mock.module("@/modules/orders/order-queue.service", () => ({
   },
 }));
 
-const { resolveOrderLookup } = await import(
-  "@/modules/orders/order-lookup.service"
-);
+const { resolveOrderLookup } =
+  await import("@/modules/orders/order-lookup.service");
 
 const asep: AuthUser = {
   id: 7,

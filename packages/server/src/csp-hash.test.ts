@@ -7,9 +7,9 @@ it("pins the web app's inline script hash in the CSP", async () => {
   const repo = new URL("../../../", import.meta.url);
   const html = await Bun.file(new URL("apps/web/index.html", repo)).text();
   const vercel = await Bun.file(new URL("vercel.json", repo)).text();
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
-    (match) => match[1] ?? ""
-  );
+  const scripts = [
+    ...html.matchAll(/<script>(?<body>[\s\S]*?)<\/script>/gu),
+  ].map((match) => match.groups?.body ?? "");
 
   expect(scripts).toHaveLength(1);
   const hash = new Bun.CryptoHasher("sha256")

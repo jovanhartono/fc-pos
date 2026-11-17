@@ -13,10 +13,10 @@ import { isCollectableItemStatus } from "@/schema/order-status";
 
 // Anyone with the Order code and a phone number can open the page, so the
 // number shown back must not work as a login on the next try.
-function maskPhoneNumber(phone: string) {
+const maskPhoneNumber = (phone: string) => {
   const suffix = phone.slice(-4);
   return `******${suffix}`;
-}
+};
 
 interface TrackProof {
   code: string;
@@ -27,7 +27,7 @@ interface TrackProof {
 // was right.
 const INVALID_PROOF = "Order code or phone number is invalid";
 
-export async function getTrackedOrder({ code, phone_number }: TrackProof) {
+export const getTrackedOrder = async ({ code, phone_number }: TrackProof) => {
   let order = await findTrackedOrder(code, phone_number);
 
   if (!order) {
@@ -74,12 +74,12 @@ export async function getTrackedOrder({ code, phone_number }: TrackProof) {
       phone_number_masked: maskPhoneNumber(orderCustomer.phone_number),
     },
   };
-}
+};
 
 // The Customer's Pay with QRIS button: the same proof as reading the page. The
 // QR comes back to show on the page, or DOKU's QRIS page while its SNAP keys
 // are missing.
-export async function payTrackedOrder({ code, phone_number }: TrackProof) {
+export const payTrackedOrder = async ({ code, phone_number }: TrackProof) => {
   const order = await findTrackedOrderRef(code, phone_number);
 
   if (!order) {
@@ -93,4 +93,4 @@ export async function payTrackedOrder({ code, phone_number }: TrackProof) {
   });
 
   return toTrackChargeView(charge);
-}
+};

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { normalizeComplaintListQuery } from "@/modules/complaints/complaint.schema";
 import { authorizationDouble } from "@/test-support/authorization-double";
@@ -14,12 +15,12 @@ const repo = {
   // The Item's other Services and earlier Rework lines.
   otherItemLines: [] as AnyObj[],
   insertedComplaint: undefined as AnyObj | undefined,
-  queuedReworks: [] as Array<{ executor: unknown; values: AnyObj }>,
+  queuedReworks: [] as { executor: unknown; values: AnyObj }[],
   lineReads: [] as [string, unknown, AnyObj?][],
 };
 
 const authz = {
-  assertCalls: [] as Array<{ userId: number; storeId: number }>,
+  assertCalls: [] as { userId: number; storeId: number }[],
   storeIds: [] as number[],
 };
 
@@ -27,15 +28,14 @@ const TX = { __tx: true };
 
 mock.module("@/db", () => ({
   db: {
-    transaction: (cb: (tx: unknown) => unknown) => cb(TX),
+    transaction: (work: (tx: unknown) => unknown) => work(TX),
   },
 }));
 
 // Spread the real module; transitionOrderService calls its own recompute, so
 // order-status-machine.test.ts never sees this stub.
-const actualStatusMachine = await import(
-  "@/modules/orders/order-status-machine"
-);
+const actualStatusMachine =
+  await import("@/modules/orders/order-status-machine");
 
 mock.module("@/modules/orders/order-status-machine", () => ({
   ...actualStatusMachine,
@@ -81,9 +81,8 @@ mock.module("@/modules/complaints/complaint.repository", () => ({
   findComplaints: () => Promise.resolve({ items: [], total: 0 }),
 }));
 
-const { addRework, openComplaint } = await import(
-  "@/modules/complaints/complaint.service"
-);
+const { addRework, openComplaint } =
+  await import("@/modules/complaints/complaint.service");
 
 const USER = { id: 42, role: "cashier" } as unknown as AuthUser;
 
@@ -244,9 +243,9 @@ describe("openComplaint", () => {
   });
 });
 
-describe("addRework", () => {
-  const add = () => addRework({ user: USER, complaintId: 99 });
+const add = () => addRework({ user: USER, complaintId: 99 });
 
+describe("addRework", () => {
   it("rejects when the complaint is not found", async () => {
     repo.complaintById = undefined;
     const error = await captureRejection(add());

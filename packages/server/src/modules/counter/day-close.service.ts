@@ -18,10 +18,10 @@ import type {
 } from "@/modules/counter/day-close.schema";
 import { countItemsReady } from "@/modules/orders/order-status-machine";
 import {
-  type DateRange,
   getJakartaDayRange,
   jakartaDayOf,
 } from "@/modules/reports/report-range.util";
+import type { DateRange } from "@/modules/reports/report-range.util";
 import { orderNetTotal } from "@/schema/discount";
 
 const NO_METHOD = "No PaymentMethod";
@@ -35,10 +35,10 @@ const byMethodId = (a: DayCloseMethod, b: DayCloseMethod) =>
   (a.payment_method_id ?? Number.POSITIVE_INFINITY) -
   (b.payment_method_id ?? Number.POSITIVE_INFINITY);
 
-function buildCategories(
+const buildCategories = (
   rows: Awaited<ReturnType<typeof listDroppedOffServices>>
-): DayCloseCategory[] {
-  return [...Map.groupBy(rows, (row) => row.category).entries()]
+): DayCloseCategory[] =>
+  [...Map.groupBy(rows, (row) => row.category).entries()]
     .map(([name, lines]) => ({
       count: lines.reduce((sum, line) => sum + line.count, 0),
       name,
@@ -48,18 +48,17 @@ function buildCategories(
           name: line.service,
           service_id: line.service_id,
         }))
-        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+        .toSorted((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
     }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-}
+    .toSorted((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
 // A closed day never changes after the fact: an Order paid or cancelled on a
 // later day was still unpaid when this day closed.
-function buildOrderList(
+const buildOrderList = (
   rows: Awaited<ReturnType<typeof listDroppedOffOrders>>,
   dayEnd: Date
-): DayCloseOrder[] {
-  return rows.map((row) => {
+): DayCloseOrder[] =>
+  rows.map((row) => {
     const isPaid = row.paid_at !== null && row.paid_at < dayEnd;
     return {
       amount: orderNetTotal(row),
@@ -74,9 +73,8 @@ function buildOrderList(
       payment_method_name: isPaid ? (row.method_name ?? NO_METHOD) : null,
     };
   });
-}
 
-async function buildRefunds(storeId: number, range: DateRange) {
+const buildRefunds = async (storeId: number, range: DateRange) => {
   const refunds = await listRefundsInDay(storeId, range);
   const reasons =
     refunds.length > 0
@@ -95,14 +93,14 @@ async function buildRefunds(storeId: number, range: DateRange) {
     ),
     refunded_at: refund.refunded_at.toISOString(),
   }));
-}
+};
 
 // "2 of 3 picked up" as it stood when the day closed, so a past day reads the
 // same after the Customer collects the rest.
-async function buildPickedUpList(
+const buildPickedUpList = async (
   storeId: number,
   range: DateRange
-): Promise<DayClosePickedUpOrder[]> {
+): Promise<DayClosePickedUpOrder[]> => {
   const rows = await listPickedUpOrders(storeId, range);
   const lines =
     rows.length > 0
@@ -132,14 +130,14 @@ async function buildPickedUpList(
       picked_up_at: (order.picked_up_at as Date).toISOString(),
     };
   });
-}
+};
 
 // Refunds stay on their own line: a Refund records no PaymentMethod, so taking
 // it off one would be a guess against the card-terminal slips.
-export async function getDayClose(
+export const getDayClose = async (
   storeId: number,
   date: string
-): Promise<DayClose> {
+): Promise<DayClose> => {
   const range = getJakartaDayRange(date);
   const [paidOrders, refunds, droppedOff, services, products, pickedUpList] =
     await Promise.all([
@@ -171,7 +169,7 @@ export async function getDayClose(
       name: rows[0].payment_method_name,
       payment_method_id: paymentMethodId,
     }))
-    .sort(byMethodId);
+    .toSorted(byMethodId);
 
   const orderList = buildOrderList(droppedOff, range.end);
 
@@ -200,4 +198,4 @@ export async function getDayClose(
     },
     refunds,
   };
-}
+};

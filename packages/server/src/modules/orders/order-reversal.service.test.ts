@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+
 import {
   orderRefundItemsTable,
   orderRefundsTable,
@@ -131,9 +132,9 @@ mock.module("@/db", () => ({
         }),
       },
     },
-    transaction: (cb: (tx: unknown) => unknown) => {
+    transaction: (work: (tx: unknown) => unknown) => {
       writes.transactionCount += 1;
-      return cb(fakeTx);
+      return work(fakeTx);
     },
   },
 }));
@@ -146,9 +147,8 @@ const machine = {
   rollupCalls: [] as { executor: unknown; orderId: number; userId: number }[],
 };
 
-const actualStatusMachine = await import(
-  "@/modules/orders/order-status-machine"
-);
+const actualStatusMachine =
+  await import("@/modules/orders/order-status-machine");
 
 // Held before mocking: read later off the namespace, it would be the double.
 const realApplyRefundTransition = actualStatusMachine.applyRefundTransition;
@@ -183,9 +183,8 @@ const redemption = {
   voidCalls: [] as { billableTotal: number; orderId: number }[],
 };
 
-const actualRedemption = await import(
-  "@/modules/campaigns/campaign-redemption.service"
-);
+const actualRedemption =
+  await import("@/modules/campaigns/campaign-redemption.service");
 
 mock.module("@/modules/campaigns/campaign-redemption.service", () => ({
   ...actualRedemption,
@@ -238,9 +237,8 @@ afterAll(() => {
   mock.module("@/modules/products/product.repository", () => actualProductRepo);
 });
 
-const { cancelOrder, createOrderRefund } = await import(
-  "@/modules/orders/order-reversal.service"
-);
+const { cancelOrder, createOrderRefund } =
+  await import("@/modules/orders/order-reversal.service");
 
 const ADMIN = { id: 42, role: "admin" } as unknown as JWTPayload;
 

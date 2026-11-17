@@ -1,5 +1,6 @@
 import { createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
+
 import { productsTable } from "@/db/schema";
 import {
   currencySchema,
@@ -19,7 +20,7 @@ export const POSTProductSchema = z.object({
     })
     .min(1, "SKU is required")
     .regex(
-      /^[A-Z0-9]+$/,
+      /^[A-Z0-9]+$/u,
       "SKU must contain only uppercase letters and numbers"
     ),
   uom: varcharSchema("UOM"),

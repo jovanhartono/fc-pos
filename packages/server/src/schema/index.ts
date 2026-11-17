@@ -1,44 +1,6 @@
-import z from "zod";
+import { z } from "zod";
+
 import { orderPaymentStatusEnum } from "@/db/schema";
-import {
-  CampaignPayloadSchema as _CampaignPayloadSchema,
-  type CampaignRedemptionMode as _CampaignRedemptionMode,
-  CampaignUpdatePayloadSchema as _CampaignUpdatePayloadSchema,
-} from "@/modules/campaigns/campaign.schema";
-import { POSTCategorySchema as _POSTCategorySchema } from "@/modules/categories/category.schema";
-import {
-  POSTCustomerSchema as _POSTCustomerSchema,
-  PUTCustomerSchema as _PUTCustomerSchema,
-} from "@/modules/customers/customer.schema";
-import {
-  POSTOrderPickupEventPresignSchema as _POSTOrderPickupEventPresignSchema,
-  POSTOrderPickupEventSchema as _POSTOrderPickupEventSchema,
-} from "@/modules/orders/order-admin.schema";
-import { POSTPaymentMethodSchema as _POSTPaymentMethodSchema } from "@/modules/payment-methods/payment-method.schema";
-import { GATEWAY_LABELS as _GATEWAY_LABELS } from "@/modules/payments/gateways/types";
-import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/product.schema";
-import { POSTServiceSchema as _POSTServiceSchema } from "@/modules/services/service.schema";
-import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
-import { POSTStoreDeviceSchema as _POSTStoreDeviceSchema } from "@/modules/stores/store-device.schema";
-
-// The web's form schemas. The rules both sides run live in ./rules, which
-// stays free of zod and the tables.
-export const POSTOrderPickupEventPresignSchema =
-  _POSTOrderPickupEventPresignSchema;
-export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;
-export const CampaignPayloadSchema = _CampaignPayloadSchema;
-export const CampaignUpdatePayloadSchema = _CampaignUpdatePayloadSchema;
-export type CampaignRedemptionMode = _CampaignRedemptionMode;
-export const POSTCustomerSchema = _POSTCustomerSchema;
-export const PUTCustomerSchema = _PUTCustomerSchema;
-export const POSTCategorySchema = _POSTCategorySchema;
-export const POSTPaymentMethodSchema = _POSTPaymentMethodSchema;
-export const GATEWAY_LABELS = _GATEWAY_LABELS;
-export const POSTProductSchema = _POSTProductSchema;
-export const POSTServiceSchema = _POSTServiceSchema;
-export const POSTStoreSchema = _POSTStoreSchema;
-export const POSTStoreDeviceSchema = _POSTStoreDeviceSchema;
-
 import {
   campaignIdsSchema,
   currencySchema,
@@ -49,15 +11,32 @@ import {
   voucherCodesSchema,
 } from "@/schema/common";
 
-import {
-  isValidPhoneNumber as _isValidPhoneNumber,
-  normalizePhoneNumber as _normalizePhoneNumber,
-} from "@/schema/phone";
+// The web's form schemas. The rules both sides run live in ./rules, which
+// stays free of zod and the tables.
+export {
+  POSTOrderPickupEventPresignSchema,
+  POSTOrderPickupEventSchema,
+} from "@/modules/orders/order-admin.schema";
+export {
+  CampaignPayloadSchema,
+  CampaignUpdatePayloadSchema,
+} from "@/modules/campaigns/campaign.schema";
+export type { CampaignRedemptionMode } from "@/modules/campaigns/campaign.schema";
+export {
+  POSTCustomerSchema,
+  PUTCustomerSchema,
+} from "@/modules/customers/customer.schema";
+export { POSTCategorySchema } from "@/modules/categories/category.schema";
+export { POSTPaymentMethodSchema } from "@/modules/payment-methods/payment-method.schema";
+export { GATEWAY_LABELS } from "@/modules/payments/gateways/types";
+export { POSTProductSchema } from "@/modules/products/product.schema";
+export { POSTServiceSchema } from "@/modules/services/service.schema";
+export { POSTStoreSchema } from "@/modules/stores/store.schema";
+export { POSTStoreDeviceSchema } from "@/modules/stores/store-device.schema";
 
 // The phone parser stays here with the forms rather than in ./rules. Given its
 // own entry, it split the app's first download into dozens of small files.
-export const isValidPhoneNumber = _isValidPhoneNumber;
-export const normalizePhoneNumber = _normalizePhoneNumber;
+export { isValidPhoneNumber, normalizePhoneNumber } from "@/schema/phone";
 
 const passwordPairSchema = z.object({
   password: z

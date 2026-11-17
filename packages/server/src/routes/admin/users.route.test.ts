@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
+
 import { BadRequestException } from "@/http-exceptions";
 import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
@@ -54,7 +56,7 @@ mock.module("@/modules/users/user-performance.service", () => ({
   getOwnPerformance: () => Promise.resolve({ role: "admin" }),
 }));
 
-const userRoutes = (await import("@/routes/admin/users")).default;
+const { default: userRoutes } = await import("@/routes/admin/users");
 
 const buAdmin: AuthUser = {
   id: 8,

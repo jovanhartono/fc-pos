@@ -7,6 +7,7 @@ import {
   mock,
   setSystemTime,
 } from "bun:test";
+
 import { ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
@@ -109,7 +110,7 @@ const relationalQuery = (first: () => unknown) => ({
 
 mock.module("@/db", () => ({
   db: {
-    transaction: (cb: (tx: unknown) => unknown) => cb(TX),
+    transaction: (work: (tx: unknown) => unknown) => work(TX),
     query: new Proxy(
       {},
       {
@@ -179,7 +180,7 @@ mock.module("@/modules/orders/order.repository", () => ({
           id: ITEM_ID_BASE + index,
           item_code: row.item_code as string,
         }))
-        .reverse()
+        .toReversed()
     );
   },
   insertOrderServices: (_tx: unknown, rows: AnyObj[]) => {
@@ -255,9 +256,8 @@ mock.module("@/modules/services/service.repository", () => ({
     Promise.resolve(catalog.services.filter((s) => ids.includes(s.id))),
 }));
 
-const { createOrder, getOrderDetailById, listOrders } = await import(
-  "@/modules/orders/order.service"
-);
+const { createOrder, getOrderDetailById, listOrders } =
+  await import("@/modules/orders/order.service");
 
 // 00:30 on 2 Aug in Jakarta, still 1 Aug in UTC: a Store open past midnight
 // must use the Jakarta date, or Order codes repeat yesterday's numbers.
@@ -453,7 +453,7 @@ describe("createOrder", () => {
       storeCode: "JKT",
     });
 
-    const { set } = finalize.writes[0];
+    const [{ set }] = finalize.writes;
     expect(set.total).toBe("50000");
     expect(set.discount).toBe("5000");
     expect(set.paid_amount).toBe("45000");

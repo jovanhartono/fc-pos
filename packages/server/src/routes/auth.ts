@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { sign } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
+
 import { db } from "@/db";
 import { usersTable } from "@/db/schema";
 import { ForbiddenException, UnauthorizedException } from "@/http-exceptions";

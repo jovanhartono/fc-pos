@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { drizzle } from "drizzle-orm/pg-proxy";
+
 import type { DateRange } from "@/modules/reports/report-range.util";
 
 // Whole statements, byte for byte: an added `or paid_at is null` leaves every
@@ -37,7 +39,7 @@ const askedFor = async (run: () => Promise<unknown>) => {
 
   return queries.map((query) => ({
     params: query.params,
-    sql: query.sql.replace(/\s+/g, " ").trim(),
+    sql: query.sql.replaceAll(/\s+/gu, " ").trim(),
   }));
 };
 

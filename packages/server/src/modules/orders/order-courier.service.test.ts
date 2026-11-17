@@ -1,4 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
+
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 
@@ -18,9 +19,8 @@ mock.module("@/modules/users/user.repository", () => ({
   findUserById: (id: number) => Promise.resolve(usersById[id]),
 }));
 
-const { assertActiveCourier } = await import(
-  "@/modules/orders/order-courier.service"
-);
+const { assertActiveCourier } =
+  await import("@/modules/orders/order-courier.service");
 
 describe("assertActiveCourier", () => {
   it("resolves for an active courier", async () => {

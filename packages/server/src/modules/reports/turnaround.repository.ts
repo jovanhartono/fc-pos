@@ -1,4 +1,5 @@
 import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
+
 import { db } from "@/db";
 import {
   categoriesTable,
@@ -8,11 +9,8 @@ import {
   servicesTable,
   storesTable,
 } from "@/db/schema";
-import {
-  type RangeArgs,
-  storeScope,
-  timeWindow,
-} from "@/modules/reports/money-basis";
+import { storeScope, timeWindow } from "@/modules/reports/money-basis";
+import type { RangeArgs } from "@/modules/reports/money-basis";
 
 const logs = orderServiceStatusLogsTable;
 
@@ -57,7 +55,7 @@ const timeline = db
 // Every first-round line of every Item that had a line become ready in the
 // stretch. An Item's ready day is its last line's, so any Item that lands in
 // the stretch has at least one line in it.
-export async function listTurnaroundLines({ range, storeId }: RangeArgs) {
+export const listTurnaroundLines = async ({ range, storeId }: RangeArgs) => {
   const readyInRange = db
     .selectDistinct({ item_id: ordersServicesTable.item_id })
     .from(ordersServicesTable)
@@ -109,4 +107,4 @@ export async function listTurnaroundLines({ range, storeId }: RangeArgs) {
         notInArray(ordersServicesTable.status, ["refunded", "cancelled"])
       )
     );
-}
+};

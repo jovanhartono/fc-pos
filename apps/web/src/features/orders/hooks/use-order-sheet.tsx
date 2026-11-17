@@ -1,0 +1,102 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { lazy, Suspense, useEffect, useEffectEvent } from "react";
+
+import { ordersQueries } from "@/features/orders/api";
+import { OrderDetailSkeleton } from "@/features/orders/components/order-detail-skeleton";
+import { OrderWalk } from "@/features/orders/components/order-walk";
+import { useOrderWalkStore } from "@/stores/order-walk-store";
+import { useSheet } from "@/stores/sheet-store";
+
+// The Order and its forms are most of the Orders and Counter pages' code, so
+// it loads when the sheet first opens; until then the sheet shows a skeleton.
+const OrderDetailView = lazy(() =>
+  import("@/features/orders/components/order-detail-view").then((module) => ({
+    default: module.OrderDetailView,
+  }))
+);
+
+// A neighbour fetched this recently isn't fetched again on every list refresh.
+const NEIGHBOUR_STALE_TIME = 30_000;
+
+interface UseOrderSheetOptions {
+  // The list has loaded, so the sheet can count the Order's place in it.
+  isReady: boolean;
+  onClose: () => Promise<void>;
+  onSelect: (orderId: number) => void;
+  // The Order in the URL; undefined keeps the sheet shut.
+  openId?: number;
+  orders: { code?: string; id: number }[];
+}
+
+export const orderSheetPayload = (orderId: number, code: string) => ({
+  // The Order's own header already shows its code.
+  title: <span className="sr-only">{code}</span>,
+  backLabel: code,
+  content: () => (
+    <Suspense fallback={<OrderDetailSkeleton />}>
+      <OrderDetailView orderId={orderId} />
+    </Suspense>
+  ),
+});
+
+// The URL's ?open= drives the global sheet: a tablet or desktop opens the
+// Order over the list, walks to the next one in place, and leaving the page
+// closes it.
+export const useOrderSheet = ({
+  isReady,
+  onClose,
+  onSelect,
+  openId,
+  orders,
+}: UseOrderSheetOptions) => {
+  useEffect(() => {
+    useOrderWalkStore.setState({ orders });
+  }, [orders]);
+
+  // Re-opening an open sheet only swaps what it shows, so walking doesn't
+  // slide it out and in. A list refetch must not, or it would throw away a
+  // payment form opened over the Order.
+  const openOrderSheet = useEffectEvent((orderId: number) => {
+    const code = orders.find((order) => order.id === orderId)?.code ?? "Order";
+    useSheet.getState().openSheet({
+      ...orderSheetPayload(orderId, code),
+      actions: (
+        <OrderWalk onClose={onClose} onSelect={onSelect} openId={orderId} />
+      ),
+      isRestoredOnBack: true,
+      onClose,
+    });
+  });
+  useEffect(() => {
+    if (openId === undefined || !isReady) {
+      return;
+    }
+    openOrderSheet(openId);
+  }, [openId, isReady]);
+
+  // The Orders either side of the open one are fetched ahead, so a cashier
+  // walking the list with J/K lands on a filled Order, not a skeleton.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (openId === undefined) {
+      return;
+    }
+    const index = orders.findIndex((order) => order.id === openId);
+    for (const neighbour of [orders[index - 1], orders[index + 1]]) {
+      if (index !== -1 && neighbour) {
+        void queryClient.prefetchQuery({
+          ...ordersQueries.detail(neighbour.id),
+          staleTime: NEIGHBOUR_STALE_TIME,
+        });
+      }
+    }
+  }, [openId, orders, queryClient]);
+
+  const isOpen = openId !== undefined;
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    return () => useSheet.getState().closeSheetInstantly();
+  }, [isOpen]);
+};

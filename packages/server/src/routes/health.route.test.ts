@@ -1,4 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
 
 const executeMock = mock((): Promise<unknown> => Promise.resolve());
@@ -7,7 +8,7 @@ mock.module("@/db", () => ({
   db: { execute: executeMock },
 }));
 
-const healthRoutes = (await import("@/routes/health")).default;
+const { default: healthRoutes } = await import("@/routes/health");
 
 const app = new Hono().route("/health", healthRoutes);
 

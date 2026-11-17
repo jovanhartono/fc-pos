@@ -3,7 +3,9 @@
 // browser-renderable WebP survives the upload path.
 
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
+
 import { s3 } from "bun";
+
 import { BadRequestException } from "@/http-exceptions";
 import { PHOTO_TILE_SIZE } from "@/schema/photo-thumbnail";
 import { buildMediaUrl, optimizeUploadedImage } from "@/utils/s3";
@@ -68,6 +70,8 @@ interface StubOptions {
   size?: number;
 }
 
+const imageFailure = (code: string) => Object.assign(new Error(code), { code });
+
 /** Stands in for the object the counter phone just PUT to its presigned URL. */
 const stubUpload = ({ decode, header, size = 400_000 }: StubOptions) => {
   const calls: StubbedUpload = {
@@ -85,6 +89,7 @@ const stubUpload = ({ decode, header, size = 400_000 }: StubOptions) => {
         return {
           webp: (...webpArgs: unknown[]) => {
             pass.webp = webpArgs;
+            // oxlint-disable-next-line eslint/require-await -- a failed decode must reject like Bun's encoder, not throw
             return { bytes: async () => decode() };
           },
         };
@@ -121,10 +126,6 @@ const stubUpload = ({ decode, header, size = 400_000 }: StubOptions) => {
   return { calls, restore: () => spy.mockRestore() };
 };
 
-function imageFailure(code: string) {
-  return Object.assign(new Error(code), { code });
-}
-
 const jpegHeader = () => ({ format: "jpeg", height: 1920, width: 2560 });
 const webpHeader = () => ({ format: "webp", height: 1920, width: 2560 });
 
@@ -145,10 +146,12 @@ const landscapeWebp = await new Bun.Image(Buffer.from(ONE_PIXEL_PNG, "base64"))
   .webp()
   .bytes();
 
+const restoreNothing = () => {
+  // replaced per test
+};
+
 describe("optimizeUploadedImage", () => {
-  let restore = () => {
-    // replaced per test
-  };
+  let restore: () => void = restoreNothing;
 
   afterEach(() => restore());
 

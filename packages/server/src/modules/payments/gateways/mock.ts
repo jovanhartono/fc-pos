@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+
 import { signatureOf as dokuSignature, dokuTimestamp } from "./doku";
 import { signatureOf as midtransSignature } from "./midtrans";
 import type { PaymentGateway, PaymentGatewayName } from "./types";
@@ -33,7 +34,7 @@ export const withMockGateway = (real: PaymentGateway): PaymentGateway => ({
 });
 
 // The last base64 character before any padding.
-const LAST_SIGNATURE_CHAR_REGEX = /.(?==*$)/;
+const LAST_SIGNATURE_CHAR_REGEX = /.(?==*$)/u;
 
 // No "paid a different amount": QRIS and checkout lock the amount we send.
 export type MockOutcome = "paid" | "expired" | "failed";

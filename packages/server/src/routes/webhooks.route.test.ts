@@ -1,6 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
 import type { JwtVariables } from "hono/jwt";
+
 import type {
   GatewayNotificationInput,
   PaymentGateway,
@@ -51,7 +53,7 @@ mock.module("@/modules/payments/gateways", () => ({
   getPaymentGateway: () => fakeGateway,
 }));
 
-const webhookRoutes = (await import("@/routes/webhooks")).default;
+const { default: webhookRoutes } = await import("@/routes/webhooks");
 
 const app = new Hono<{ Variables: JwtVariables<AuthUser> }>()
   .basePath("/api")

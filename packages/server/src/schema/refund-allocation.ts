@@ -1,10 +1,6 @@
 import { BadRequestException } from "@/http-exceptions";
-import {
-  type BogoSlotLine,
-  bogoFreeCount,
-  type CampaignDiscountInput,
-  isBogoSlot,
-} from "@/schema/discount";
+import { bogoFreeCount, isBogoSlot } from "@/schema/discount";
+import type { BogoSlotLine, CampaignDiscountInput } from "@/schema/discount";
 
 export type RefundLineKind = "service" | "product";
 
@@ -13,13 +9,9 @@ export interface RefundLineRef {
   kind: RefundLineKind;
 }
 
-export function lineKey(kind: RefundLineKind, id: number) {
-  return `${kind}:${id}`;
-}
+export const lineKey = (kind: RefundLineKind, id: number) => `${kind}:${id}`;
 
-function roundCurrencyUnit(value: number) {
-  return Math.round(value);
-}
+const roundCurrencyUnit = (value: number) => Math.round(value);
 
 export interface DiscountShareLine {
   // Null unless a Buy N Get M can count this line.
@@ -29,8 +21,10 @@ export interface DiscountShareLine {
   key: string;
 }
 
-export interface BogoDiscount
-  extends Pick<CampaignDiscountInput, "buy_quantity" | "free_quantity"> {
+export interface BogoDiscount extends Pick<
+  CampaignDiscountInput,
+  "buy_quantity" | "free_quantity"
+> {
   amount: number;
   eligibleServiceIds: number[];
 }
@@ -43,10 +37,10 @@ interface PoolLine {
 
 // Only lines that fill a whole group earned the free ones, cheapest first as
 // at checkout (ADR-0007).
-function groupedLines(
+const groupedLines = (
   pool: DiscountShareLine[],
   bogo: BogoDiscount
-): PoolLine[] {
+): PoolLine[] => {
   const freeCount = bogoFreeCount(bogo, pool.length);
   // Less than a group left after a cancellation: the free amount stays here.
   if (freeCount === 0) {
@@ -55,7 +49,7 @@ function groupedLines(
   const filled =
     (freeCount / (bogo.free_quantity ?? 1)) *
     ((bogo.buy_quantity ?? 0) + (bogo.free_quantity ?? 0));
-  const sorted = [...pool].sort((a, b) => a.gross - b.gross);
+  const sorted = pool.toSorted((a, b) => a.gross - b.gross);
   const cut = sorted[filled - 1].gross;
   const below = sorted.filter((line) => line.gross < cut);
   const atCut = sorted.filter((line) => line.gross === cut);
@@ -65,12 +59,12 @@ function groupedLines(
     ...below.map((line) => ({ fraction: 1, line })),
     ...atCut.map((line) => ({ fraction: share, line })),
   ];
-}
+};
 
 // A free DCS from "Pay 4 Get 1" was earned by the DCS lines alone, so
 // refunding a Hard Stain on the same Order returns its full price. Whatever
 // discount is left (manual, fixed, %) spreads over the whole Order.
-export function lineDiscountShares({
+export const lineDiscountShares = ({
   bogoDiscounts,
   lines,
   orderDiscount,
@@ -78,7 +72,7 @@ export function lineDiscountShares({
   bogoDiscounts: BogoDiscount[];
   lines: DiscountShareLine[];
   orderDiscount: number;
-}): Map<string, number> {
+}): Map<string, number> => {
   const shares = new Map(lines.map((line) => [line.key, 0]));
   // Weighed by what each line has left, so no line carries more than its
   // price, and a % taken after a free Service lands where checkout took it.
@@ -92,12 +86,12 @@ export function lineDiscountShares({
     if (amount <= 0) {
       return 0;
     }
-    pool.forEach(({ line }, index) => {
+    for (const [index, { line }] of pool.entries()) {
       shares.set(
         line.key,
         (shares.get(line.key) ?? 0) + (room[index] / poolRoom) * amount
       );
-    });
+    }
     return amount;
   };
 
@@ -114,11 +108,11 @@ export function lineDiscountShares({
     lines.map((line) => ({ fraction: 1, line }))
   );
   return shares;
-}
+};
 
 // How much of a line is still refundable: the line's gross minus its share
 // of the order discount, minus what was already refunded.
-export function lineRefundCap({
+export const lineRefundCap = ({
   alreadyRefunded,
   discountShare,
   grossLine,
@@ -126,9 +120,7 @@ export function lineRefundCap({
   alreadyRefunded: number;
   discountShare: number;
   grossLine: number;
-}) {
-  return Math.max(0, grossLine - discountShare - alreadyRefunded);
-}
+}) => Math.max(0, grossLine - discountShare - alreadyRefunded);
 
 type Money = string | null;
 
@@ -155,7 +147,7 @@ interface RefundCapCampaignRow {
 
 // The server books refunds and the Refund dialog previews them from this one
 // function, so the cashier never sees an amount the server won't pay out.
-export function orderLineRefundCaps({
+export const orderLineRefundCaps = ({
   campaigns,
   discount,
   products,
@@ -167,7 +159,7 @@ export function orderLineRefundCaps({
   products: RefundCapProductRow[];
   refundedByLineKey: Map<string, number>;
   services: RefundCapServiceRow[];
-}): Map<string, number> {
+}): Map<string, number> => {
   const lines = [
     ...services.map((row) => ({
       bogoServiceId: isBogoSlot(row) ? (row.service_id ?? null) : null,
@@ -212,17 +204,17 @@ export function orderLineRefundCaps({
           }),
     ])
   );
-}
+};
 
 // Whole rupiah per line: floor each cap, then hand the leftover to the largest
 // remainders (ties: kind, then lower id) so the lines sum to the rounded total.
-export function allocateRefund<T extends RefundLineRef>({
+export const allocateRefund = <T extends RefundLineRef>({
   capsByLineKey,
   lines,
 }: {
   capsByLineKey: Map<string, number>;
   lines: T[];
-}): (T & { amount: number })[] {
+}): (T & { amount: number })[] => {
   const refundItems = lines.map((line) => {
     const maxRefundable = capsByLineKey.get(lineKey(line.kind, line.id)) ?? 0;
     if (maxRefundable <= 0) {
@@ -246,7 +238,7 @@ export function allocateRefund<T extends RefundLineRef>({
     roundedTotalRefundAmount -
     refundItems.reduce((sum, item) => sum + item.amount, 0);
 
-  const itemsByLargestRemainder = [...refundItems].sort((left, right) => {
+  const itemsByLargestRemainder = refundItems.toSorted((left, right) => {
     const remainderDiff =
       right.preciseAmount - right.amount - (left.preciseAmount - left.amount);
 
@@ -275,6 +267,7 @@ export function allocateRefund<T extends RefundLineRef>({
   }
 
   return refundItems.map(
-    ({ preciseAmount, ...item }) => item as T & { amount: number }
+    ({ preciseAmount: _preciseAmount, ...item }) =>
+      item as T & { amount: number }
   );
-}
+};

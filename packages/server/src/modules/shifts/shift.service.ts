@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+
 import type { shiftsTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { assertIsAdmin } from "@/modules/permissions/permissions";
@@ -33,14 +34,69 @@ import { distanceKm } from "@/utils/geo";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 import { isUniqueViolation } from "@/utils/pg-error";
 
+const todayStart = () => jakartaDayStart(jakartaNow().toDate());
+
+const atJakarta = (date: Date | null) => dayjs(date).tz(JAKARTA_TZ);
+
+const forgottenClockOutNote = (
+  shift: Pick<typeof shiftsTable.$inferSelect, "clock_in_at" | "clock_out_at">
+) =>
+  `You forgot to clock out on ${atJakarta(shift.clock_in_at).format("D MMM")}. Shift closed at ${atJakarta(shift.clock_out_at).format("HH:mm")}.`;
+
+const assertStoreForWorker = (
+  worker: Awaited<ReturnType<typeof findUserDetailById>>,
+  store: Awaited<ReturnType<typeof findStoreById>>
+) => {
+  if (!worker) {
+    throw new NotFoundException("User does not exist");
+  }
+  if (!store?.is_active) {
+    throw new BadRequestException("Pick an active store");
+  }
+  if (!worker.userStores.some(({ store_id }) => store_id === store.id)) {
+    throw new BadRequestException(
+      `${worker.name} is not assigned to that store`
+    );
+  }
+};
+
+const assertShiftTimesFree = async ({
+  userId,
+  shiftId,
+  clock_in_at,
+  clock_out_at,
+}: {
+  userId: number;
+  shiftId?: number;
+  clock_in_at: Date;
+  clock_out_at?: Date;
+}) => {
+  if (clock_out_at && clock_out_at > new Date()) {
+    throw new BadRequestException("Clock out cannot be in the future");
+  }
+  if (clock_in_at > new Date()) {
+    throw new BadRequestException("Clock in cannot be in the future");
+  }
+
+  const overlap = await findOverlappingShift({
+    shiftId,
+    userId,
+    clockIn: clock_in_at,
+    clockOut: clock_out_at,
+  });
+  if (overlap) {
+    throw new BadRequestException("These times overlap another shift");
+  }
+};
+
 // Location is required, or one tap on Deny skips the check. A worker is turned
 // away only when even the near edge of the phone's error circle is outside the
 // radius, so a bad indoor fix costs nobody their Shift. Nothing is kept (ADR-0020).
-async function assertWithinClockInRadius(
+const assertWithinClockInRadius = async (
   user: JWTPayload,
   storeId: number,
   coordinates?: ClockInCoordinates
-) {
+) => {
   if (!clockInRequiresLocation(user.role)) {
     return;
   }
@@ -65,9 +121,9 @@ async function assertWithinClockInRadius(
       `You are ${distance.toFixed(1)} km from ${store.name}. Clock in once you are at the store.`
     );
   }
-}
+};
 
-export async function clockIn({
+export const clockIn = async ({
   user,
   storeId,
   coordinates,
@@ -75,7 +131,7 @@ export async function clockIn({
   user: AuthUser;
   storeId: number;
   coordinates?: ClockInCoordinates;
-}) {
+}) => {
   await assertStoreAccess(user, storeId);
 
   const latest = await findLatestShiftByUserId(user.id);
@@ -108,9 +164,9 @@ export async function clockIn({
     }
     throw error;
   }
-}
+};
 
-export async function clockOut(user: JWTPayload) {
+export const clockOut = async (user: JWTPayload) => {
   // Tapped the morning after: without this the 08:00 start and today's tap
   // become one 30-hour Shift. See ADR-0025.
   const [forgotten] = await closeOpenShiftsBefore(todayStart(), user.id);
@@ -123,20 +179,21 @@ export async function clockOut(user: JWTPayload) {
     throw new NotFoundException("You're not On shift");
   }
   return { shift, message: "Clocked out" };
-}
+};
 
 // Nobody works past midnight, so every Shift still open now is auto-closed
 // (ADR-0025).
-export async function closeForgottenShifts() {
+export const closeForgottenShifts = async () => {
   const cutoff = todayStart();
-  const closed = (await closeOpenShiftsBefore(cutoff)).length;
+  const closedShifts = await closeOpenShiftsBefore(cutoff);
+  const closed = closedShifts.length;
 
   return { closed, cutoff };
-}
+};
 
 // An admin entering the real hours, usually overtime a worker forgot to clock
 // out of. Payroll reads these times, so the Shift records who changed them.
-export async function updateShift({
+export const updateShift = async ({
   user,
   shiftId,
   body,
@@ -144,7 +201,7 @@ export async function updateShift({
   user: JWTPayload;
   shiftId: number;
   body: PatchShiftBody;
-}) {
+}) => {
   assertIsAdmin(user);
 
   const shift = await findShiftById(shiftId);
@@ -181,16 +238,16 @@ export async function updateShift({
     throw new BadRequestException("This shift has ended. Enter the clock out.");
   }
   return updated;
-}
+};
 
 // A mistaken clock-in or a duplicate, kept out of payroll.
-export async function deleteShift({
+export const deleteShift = async ({
   user,
   shiftId,
 }: {
   user: JWTPayload;
   shiftId: number;
-}) {
+}) => {
   assertIsAdmin(user);
 
   const deleted = await deleteShiftById(shiftId);
@@ -198,17 +255,17 @@ export async function deleteShift({
     throw new NotFoundException("Shift does not exist");
   }
   return deleted;
-}
+};
 
 // Today's work when yesterday's Auto-closed Shift was the one tapped out, so the
 // worker never clocked in today (ADR-0025).
-export async function createShift({
+export const createShift = async ({
   user,
   body,
 }: {
   user: JWTPayload;
   body: PostShiftBody;
-}) {
+}) => {
   assertIsAdmin(user);
 
   const [worker, store] = await Promise.all([
@@ -223,73 +280,15 @@ export async function createShift({
   await assertShiftTimesFree({ ...body, userId: worker.id });
 
   return insertShift({ ...body, edited_by: user.id });
-}
+};
 
-function assertStoreForWorker(
-  worker: Awaited<ReturnType<typeof findUserDetailById>>,
-  store: Awaited<ReturnType<typeof findStoreById>>
-) {
-  if (!worker) {
-    throw new NotFoundException("User does not exist");
-  }
-  if (!store?.is_active) {
-    throw new BadRequestException("Pick an active store");
-  }
-  if (!worker.userStores.some(({ store_id }) => store_id === store.id)) {
-    throw new BadRequestException(
-      `${worker.name} is not assigned to that store`
-    );
-  }
-}
+export const getCurrentShift = (user: JWTPayload) =>
+  findOpenShiftByUserId(user.id);
 
-async function assertShiftTimesFree({
-  userId,
-  shiftId,
-  clock_in_at,
-  clock_out_at,
-}: {
-  userId: number;
-  shiftId?: number;
-  clock_in_at: Date;
-  clock_out_at?: Date;
-}) {
-  if (clock_out_at && clock_out_at > new Date()) {
-    throw new BadRequestException("Clock out cannot be in the future");
-  }
-  if (clock_in_at > new Date()) {
-    throw new BadRequestException("Clock in cannot be in the future");
-  }
-
-  const overlap = await findOverlappingShift({
-    shiftId,
-    userId,
-    clockIn: clock_in_at,
-    clockOut: clock_out_at,
-  });
-  if (overlap) {
-    throw new BadRequestException("These times overlap another shift");
-  }
-}
-
-function todayStart() {
-  return jakartaDayStart(jakartaNow().toDate());
-}
-
-function forgottenClockOutNote(
-  shift: Pick<typeof shiftsTable.$inferSelect, "clock_in_at" | "clock_out_at">
-) {
-  const at = (date: Date | null) => dayjs(date).tz(JAKARTA_TZ);
-  return `You forgot to clock out on ${at(shift.clock_in_at).format("D MMM")}. Shift closed at ${at(shift.clock_out_at).format("HH:mm")}.`;
-}
-
-export function getCurrentShift(user: JWTPayload) {
-  return findOpenShiftByUserId(user.id);
-}
-
-export async function getShiftsOverview(
+export const getShiftsOverview = async (
   user: JWTPayload,
   query: GetShiftsOverviewQuery
-) {
+) => {
   assertIsAdmin(user);
 
   const { from, to, store_id: storeId } = query;
@@ -303,12 +302,14 @@ export async function getShiftsOverview(
   );
 
   return {
-    people: [...people.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    people: [...people.values()].toSorted((a, b) =>
+      a.name.localeCompare(b.name)
+    ),
     days: rows.map(({ name: _name, role: _role, ...day }) => day),
   };
-}
+};
 
-export async function getShifts(user: JWTPayload, query?: GetShiftsQuery) {
+export const getShifts = async (user: JWTPayload, query?: GetShiftsQuery) => {
   const effectiveQuery =
     user.role === "admin" ? query : { ...query, user_id: user.id };
   const pagination = normalizePagination(effectiveQuery, { maxPageSize: 100 });
@@ -326,4 +327,4 @@ export async function getShifts(user: JWTPayload, query?: GetShiftsQuery) {
     items,
     meta: buildPaginationMeta(total, pagination),
   };
-}
+};

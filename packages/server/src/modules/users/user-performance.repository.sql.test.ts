@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { drizzle } from "drizzle-orm/pg-proxy";
+
 import type { DateRange } from "@/modules/reports/report-range.util";
 
 const queries: string[] = [];
 
 mock.module("@/db", () => ({
   db: drizzle((sql) => {
-    queries.push(sql.replace(/\s+/g, " "));
+    queries.push(sql.replaceAll(/\s+/gu, " "));
     return Promise.resolve({ rows: [] });
   }),
 }));

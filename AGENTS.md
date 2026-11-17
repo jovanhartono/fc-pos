@@ -19,11 +19,12 @@ bun x ultracite check
 
 A change is done when the last three pass from the repo root. The pre-commit hook only runs `ultracite fix` on staged files.
 
-**Dependency pins:** `bun update --latest` downgrades packages on an `rc` dist-tag. drizzle-orm/drizzle-kit stay pinned at `1.0.0-rc.5` and Biome at `2.5.15` (root `catalog`); bump them by hand, on purpose. `oxc-transform-react` (the React Compiler, `apps/web`) must stay in `@vitejs/plugin-react`'s peer range; bump the two together.
+**Dependency pins:** `bun update --latest` downgrades packages on an `rc` dist-tag. drizzle-orm/drizzle-kit stay pinned at `1.0.0-rc.5`; bump them by hand, on purpose. `oxc-transform-react` (the React Compiler, `apps/web`) must stay in `@vitejs/plugin-react`'s peer range; bump the two together.
 
 ## Environment Variables
 
 The server reads from `process.env`:
+
 - `DATABASE_URL` - Neon PostgreSQL connection string, set per Vercel environment (Production/Preview/Development)
 - `STORAGE_PREFIX` - `dev/` or `prod/`, set per Vercel environment alongside `DATABASE_URL`
 - `JWT_SECRET` - Secret key for JWT authentication
@@ -55,8 +56,7 @@ The API is a plain Bun function, not a Docker container: a container bills its m
 
 ## Edge protection
 
-Vercel WAF rate limit rules to keep, since the API scales to zero and an
-in-process limiter would reset with it — no in-process limiter is by design:
+Vercel WAF rate limit rules to keep, since the API scales to zero and an in-process limiter would reset with it — no in-process limiter is by design:
 
 - `/api/auth/login` — 10 requests per 60s per IP, deny
 - `/api/public/*` — 60 requests per 60s per IP, deny (Pro plan)
@@ -81,7 +81,7 @@ The server exports `AppType` from `src/index.ts`. The web app uses Hono's `hc<Ap
 
 ## Linting & Formatting
 
-**Ultracite** (Biome preset): `bun x ultracite fix` / `check`. Always from the repo root — running from `apps/web` or `packages/server` mangles paths. Rules switched off in `biome.jsonc` carry their reason there; read it before turning one back on.
+**Ultracite** (oxlint + oxfmt presets, followed as shipped): `bun x ultracite fix` / `check`. Always from the repo root — running from `apps/web` or `packages/server` mangles paths. The few rules switched off in `oxlint.config.ts` carry their reason there; read it before turning one back on. A one-off exception is `// oxlint-disable-next-line <rule> -- <reason>`.
 
 ## Domain, Decisions, Scope (read first)
 

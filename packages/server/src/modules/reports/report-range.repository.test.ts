@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { drizzle } from "drizzle-orm/pg-proxy";
+
 import type { DateRange } from "@/modules/reports/report-range.util";
 
 // A fake row is a positional array in the query's column order, not a named
@@ -168,12 +170,14 @@ describe("reading rupiah back out of Postgres", () => {
   it("averages a promo's order value without rounding to whole rupiah", async () => {
     // Three Rp10.000-ish orders on one voucher: the average lands between
     // rupiah and is reported as-is, sen and all.
-    rowQueue.push([[7, "Grand Opening", "OPEN26", "9000"]]);
-    rowQueue.push([
-      [7, 101, "9000", "10000"],
-      [7, 102, "9001", "10001"],
-      [7, 103, "9001", "10001"],
-    ]);
+    rowQueue.push(
+      [[7, "Grand Opening", "OPEN26", "9000"]],
+      [
+        [7, 101, "9000", "10000"],
+        [7, 102, "9001", "10001"],
+        [7, 103, "9001", "10001"],
+      ]
+    );
 
     const rows = await listCampaignEffectivenessRows({ range: AUGUST });
 

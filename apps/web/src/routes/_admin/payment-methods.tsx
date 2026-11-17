@@ -2,6 +2,7 @@ import { Add01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+
 import { ActiveBadge } from "@/components/active-badge";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -10,164 +11,166 @@ import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
-	createPaymentMethod,
-	type PaymentMethod,
-	paymentMethodsKeys,
-	paymentMethodsQueries,
-	updatePaymentMethod,
+  createPaymentMethod,
+  paymentMethodsKeys,
+  paymentMethodsQueries,
+  updatePaymentMethod,
 } from "@/features/payment-methods/api";
-import {
-	PaymentMethodForm,
-	type PaymentMethodFormState,
-} from "@/features/payment-methods/components/payment-method-form";
+import type { PaymentMethod } from "@/features/payment-methods/api";
+import { PaymentMethodForm } from "@/features/payment-methods/components/payment-method-form";
+import type { PaymentMethodFormState } from "@/features/payment-methods/components/payment-method-form";
 import { useSheet } from "@/stores/sheet-store";
 
+const columnsFor = (
+  onEdit: (paymentMethod: PaymentMethod) => void
+): DataTableColumnDef<PaymentMethod>[] => [
+  {
+    accessorKey: "name",
+    header: "Payment method",
+    meta: { kind: "name", width: { percent: 50, minRem: 9 } },
+  },
+  {
+    accessorKey: "code",
+    header: "Code",
+    meta: { kind: "code", width: { percent: 26, minRem: 4.5 } },
+  },
+  {
+    id: "status",
+    header: "Status",
+    meta: {
+      width: { percent: 12, minRem: 4.5 },
+      mobileCard: { slot: "status" },
+    },
+    cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    meta: {
+      width: { percent: 12, minRem: 4.5 },
+      mobileCard: { slot: "title-end" },
+    },
+    cell: ({ row }) => (
+      <EditRowButton
+        label={`Edit ${row.original.name}`}
+        onClick={() => onEdit(row.original)}
+      />
+    ),
+  },
+];
+
+const PaymentMethodsPage = () => {
+  const queryClient = useQueryClient();
+  const { openSheet, closeSheet } = useSheet();
+
+  const { data: paymentMethods = [], isPending } = useQuery(
+    paymentMethodsQueries.list()
+  );
+
+  const createMutation = useMutation({
+    mutationKey: ["create-payment-method"],
+    mutationFn: createPaymentMethod,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: paymentMethodsKeys.all,
+      });
+      closeSheet();
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationKey: ["update-payment-method"],
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number;
+      payload: Parameters<typeof updatePaymentMethod>[1];
+    }) => updatePaymentMethod(id, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: paymentMethodsKeys.all,
+      });
+      closeSheet();
+    },
+  });
+
+  const handleOpenEditSheet = (paymentMethod: PaymentMethod) => {
+    openSheet({
+      title: "Edit Payment Method",
+      content: () => (
+        <PaymentMethodForm
+          defaultValues={{
+            name: paymentMethod.name,
+            code: paymentMethod.code,
+            is_active: paymentMethod.is_active,
+            gateway: paymentMethod.gateway,
+          }}
+          handleOnSubmit={async (values) => {
+            await updateMutation.mutateAsync({
+              id: paymentMethod.id,
+              payload: values,
+            });
+          }}
+          isEditing
+          onReset={closeSheet}
+        />
+      ),
+    });
+  };
+
+  const handleOpenCreateSheet = () => {
+    openSheet({
+      title: "Add Payment Method",
+      content: () => (
+        <PaymentMethodForm
+          handleOnSubmit={async (values: PaymentMethodFormState) => {
+            await createMutation.mutateAsync(values);
+          }}
+          isEditing={false}
+          onReset={closeSheet}
+        />
+      ),
+    });
+  };
+
+  const columns = columnsFor(handleOpenEditSheet);
+
+  return (
+    <>
+      <PageHeader
+        title="Payment Methods"
+        count={isPending ? undefined : paymentMethods.length}
+        countNoun="payment method"
+        actions={
+          <Button
+            onClick={handleOpenCreateSheet}
+            icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
+          >
+            Add Payment Method
+          </Button>
+        }
+      />
+      <ListPanel>
+        <DataTable
+          emptyIcon={Wallet01Icon}
+          columns={columns}
+          data={paymentMethods}
+          isCardGrouped
+          skeletonCardClassName="h-19"
+          isLoading={isPending}
+          sortable
+          emptyMessage="No payment methods."
+        />
+      </ListPanel>
+    </>
+  );
+};
+
 export const Route = createFileRoute("/_admin/payment-methods")({
-	loader: ({ context }) =>
-		context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
-	component: PaymentMethodsPage,
-	// Past a second, the page itself draws with skeleton rows.
-	pendingComponent: PaymentMethodsPage,
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
+  component: PaymentMethodsPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: PaymentMethodsPage,
 });
-
-function PaymentMethodsPage() {
-	const queryClient = useQueryClient();
-	const { openSheet, closeSheet } = useSheet();
-
-	const { data: paymentMethods = [], isPending } = useQuery(
-		paymentMethodsQueries.list(),
-	);
-
-	const createMutation = useMutation({
-		mutationKey: ["create-payment-method"],
-		mutationFn: createPaymentMethod,
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({
-				queryKey: paymentMethodsKeys.all,
-			});
-			closeSheet();
-		},
-	});
-
-	const updateMutation = useMutation({
-		mutationKey: ["update-payment-method"],
-		mutationFn: ({
-			id,
-			payload,
-		}: {
-			id: number;
-			payload: Parameters<typeof updatePaymentMethod>[1];
-		}) => updatePaymentMethod(id, payload),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({
-				queryKey: paymentMethodsKeys.all,
-			});
-			closeSheet();
-		},
-	});
-
-	const handleOpenEditSheet = (paymentMethod: PaymentMethod) => {
-		openSheet({
-			title: "Edit Payment Method",
-			content: () => (
-				<PaymentMethodForm
-					defaultValues={{
-						name: paymentMethod.name,
-						code: paymentMethod.code,
-						is_active: paymentMethod.is_active,
-						gateway: paymentMethod.gateway,
-					}}
-					handleOnSubmit={async (values) => {
-						await updateMutation.mutateAsync({
-							id: paymentMethod.id,
-							payload: values,
-						});
-					}}
-					isEditing
-					onReset={closeSheet}
-				/>
-			),
-		});
-	};
-
-	const handleOpenCreateSheet = () => {
-		openSheet({
-			title: "Add Payment Method",
-			content: () => (
-				<PaymentMethodForm
-					handleOnSubmit={async (values: PaymentMethodFormState) => {
-						await createMutation.mutateAsync(values);
-					}}
-					isEditing={false}
-					onReset={closeSheet}
-				/>
-			),
-		});
-	};
-
-	const columns: DataTableColumnDef<PaymentMethod>[] = [
-		{
-			accessorKey: "name",
-			header: "Payment method",
-			meta: { kind: "name", width: { percent: 50, minRem: 9 } },
-		},
-		{
-			accessorKey: "code",
-			header: "Code",
-			meta: { kind: "code", width: { percent: 26, minRem: 4.5 } },
-		},
-		{
-			id: "status",
-			header: "Status",
-			meta: {
-				width: { percent: 12, minRem: 4.5 },
-				mobileCard: { slot: "status" },
-			},
-			cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
-		},
-		{
-			id: "actions",
-			header: "Actions",
-			meta: {
-				width: { percent: 12, minRem: 4.5 },
-				mobileCard: { slot: "title-end" },
-			},
-			cell: ({ row }) => (
-				<EditRowButton
-					label={`Edit ${row.original.name}`}
-					onClick={() => handleOpenEditSheet(row.original)}
-				/>
-			),
-		},
-	];
-
-	return (
-		<>
-			<PageHeader
-				title="Payment Methods"
-				count={isPending ? undefined : paymentMethods.length}
-				countNoun="payment method"
-				actions={
-					<Button
-						onClick={handleOpenCreateSheet}
-						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
-					>
-						Add Payment Method
-					</Button>
-				}
-			/>
-			<ListPanel>
-				<DataTable
-					emptyIcon={Wallet01Icon}
-					columns={columns}
-					data={paymentMethods}
-					isCardGrouped
-					skeletonCardClassName="h-19"
-					isLoading={isPending}
-					sortable
-					emptyMessage="No payment methods."
-				/>
-			</ListPanel>
-		</>
-	);
-}

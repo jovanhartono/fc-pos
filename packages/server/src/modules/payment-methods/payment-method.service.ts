@@ -1,4 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
+
 import type { paymentMethodsTable } from "@/db/schema";
 import {
   findPaymentMethodById,
@@ -8,25 +9,22 @@ import {
 } from "@/modules/payment-methods/payment-method.repository";
 import type { GetPaymentMethodsQuery } from "@/modules/payment-methods/payment-method.schema";
 
-export function getPaymentMethods(query?: GetPaymentMethodsQuery) {
-  return listPaymentMethods({ is_active: query?.is_active });
-}
+export const getPaymentMethods = (query?: GetPaymentMethodsQuery) =>
+  listPaymentMethods({ is_active: query?.is_active });
 
-export function getPaymentMethodById(id: number) {
-  return findPaymentMethodById(id);
-}
+export const getPaymentMethodById = (id: number) => findPaymentMethodById(id);
 
-export async function createPaymentMethod(
+export const createPaymentMethod = async (
   values: InferInsertModel<typeof paymentMethodsTable>
-) {
+) => {
   const [paymentMethod] = await insertPaymentMethod(values);
   return paymentMethod;
-}
+};
 
-export async function updatePaymentMethod(
+export const updatePaymentMethod = async (
   id: number,
   values: Partial<InferInsertModel<typeof paymentMethodsTable>>
-) {
+) => {
   const [paymentMethod] = await updatePaymentMethodById(id, values);
   return paymentMethod ?? null;
-}
+};

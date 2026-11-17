@@ -1,104 +1,108 @@
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Fragment, type ReactNode } from "react";
+import { Fragment } from "react";
+import type { ReactNode } from "react";
+
 import { cn } from "@/lib/utils";
 
 // A row that opens something. The hover fill reaches past the text, so the
 // text still lines up with the heading above the list.
 export const ROW_TAP =
-	"-mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-ring-inset";
+  "-mx-2 flex w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-ring-inset";
 // A Complaint and its Reworks step in under the line they belong to.
 export const ROW_TAP_NESTED = "pt-1 pl-7";
 export const ROW_TITLE = "text-body leading-5 compact:text-subhead";
 
 export const RowChevron = () => (
-	<HugeiconsIcon
-		icon={ArrowRight01Icon}
-		aria-hidden="true"
-		className="size-3.5 shrink-0 text-muted-foreground/50"
-	/>
+  <HugeiconsIcon
+    icon={ArrowRight01Icon}
+    aria-hidden="true"
+    className="size-3.5 shrink-0 text-muted-foreground/50"
+  />
 );
 
 interface RowLabelProps {
-	label: string;
-	children: ReactNode;
+  label: string;
+  children: ReactNode;
 }
 
 // "rejected by Sari" wraps as one piece, never between the role and the name.
 export const RowLabel = ({ label, children }: RowLabelProps) => (
-	<span className="whitespace-nowrap">
-		{label} {children}
-	</span>
+  <span className="whitespace-nowrap">
+    {label} {children}
+  </span>
 );
 
 interface MessageRowContentProps {
-	// The Item as cashiers remember it (brand · model · colour · size). Left
-	// out inside the Item card, which already names it.
-	item?: string;
-	date: string;
-	// "Complaint #7", in red.
-	lead?: string;
-	details?: ReactNode[];
-	badge?: ReactNode;
-	text: string | null;
+  // The Item as cashiers remember it (brand · model · colour · size). Left
+  // out inside the Item card, which already names it.
+  item?: string;
+  date: string;
+  // "Complaint #7", in red.
+  lead?: string;
+  details?: ReactNode[];
+  badge?: ReactNode;
+  text: string | null;
 }
+
+const NO_DETAILS: ReactNode[] = [];
 
 // One Complaint or QC reject. The badge takes the top right like a line's
 // status, so a red "Complaint #N" never shares a line with a red Refunded.
 export const MessageRowContent = ({
-	item,
-	date,
-	lead,
-	details = [],
-	badge,
-	text,
+  item,
+  date,
+  lead,
+  details = NO_DETAILS,
+  badge,
+  text,
 }: MessageRowContentProps) => {
-	const what = (
-		<>
-			{lead ? <span className="text-destructive">{lead}</span> : null}
-			{details.filter(Boolean).map((detail, index) => (
-				<Fragment key={index}>
-					{lead || index > 0 ? " · " : null}
-					{detail}
-				</Fragment>
-			))}
-		</>
-	);
-	// Apple's tiers: the Item leads, the words are the content, and the date and
-	// who-did-what sit back in grey.
-	const dateCell = (
-		<span className="justify-self-end text-muted-foreground text-subhead tabular-nums">
-			{date}
-		</span>
-	);
+  const what = (
+    <>
+      {lead ? <span className="text-destructive">{lead}</span> : null}
+      {details.filter(Boolean).map((detail, index) => (
+        <Fragment key={index}>
+          {lead || index > 0 ? " · " : null}
+          {detail}
+        </Fragment>
+      ))}
+    </>
+  );
+  // Apple's tiers: the Item leads, the words are the content, and the date and
+  // who-did-what sit back in grey.
+  const dateCell = (
+    <span className="justify-self-end text-subhead text-muted-foreground tabular-nums">
+      {date}
+    </span>
+  );
 
-	return (
-		<>
-			<span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
-				{item ? (
-					<>
-						<span className={cn(ROW_TITLE, "font-medium")}>{item}</span>
-						{badge ? (
-							<span className="justify-self-end">{badge}</span>
-						) : (
-							dateCell
-						)}
-						<span className="text-muted-foreground text-subhead">{what}</span>
-						{badge ? dateCell : null}
-					</>
-				) : (
-					<>
-						<span className={ROW_TITLE}>{what}</span>
-						{dateCell}
-					</>
-				)}
-				<span className="col-span-2 line-clamp-2 text-pretty text-subhead">
-					{text?.trim() || (
-						<span className="text-muted-foreground">No note</span>
-					)}
-				</span>
-			</span>
-			<RowChevron />
-		</>
-	);
+  return (
+    <>
+      <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
+        {item ? (
+          <>
+            <span className={cn(ROW_TITLE, "font-medium")}>{item}</span>
+            {badge ? (
+              <span className="justify-self-end">{badge}</span>
+            ) : (
+              dateCell
+            )}
+            <span className="text-subhead text-muted-foreground">{what}</span>
+            {badge ? dateCell : null}
+          </>
+        ) : (
+          <>
+            <span className={ROW_TITLE}>{what}</span>
+            {dateCell}
+          </>
+        )}
+        <span className="col-span-2 line-clamp-2 text-subhead text-pretty">
+          {text?.trim() || (
+            <span className="text-muted-foreground">No note</span>
+          )}
+        </span>
+      </span>
+      <RowChevron />
+    </>
+  );
 };

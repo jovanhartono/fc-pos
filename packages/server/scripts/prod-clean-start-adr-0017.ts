@@ -55,9 +55,10 @@ const client = await pool.connect();
 const counts = async (tables: string[]) => {
   const out: string[] = [];
   for (const table of tables) {
-    const [row] = (
-      await client.query(`select count(*)::int as n from "${table}"`)
-    ).rows;
+    const result = await client.query(
+      `select count(*)::int as n from "${table}"`
+    );
+    const [row] = result.rows;
     out.push(`${table}=${row.n}`);
   }
   return out.join(" ");
@@ -72,10 +73,10 @@ try {
     `TRUNCATE TABLE ${WIPE.map((t) => `"${t}"`).join(", ")} RESTART IDENTITY CASCADE`
   );
   await client.query("COMMIT");
-  console.log("WIPE after: ", await counts(WIPE));
+  console.log("WIPE after:", await counts(WIPE));
 
   const keepAfter = await counts(KEEP);
-  console.log("KEEP after: ", keepAfter);
+  console.log("KEEP after:", keepAfter);
   if (keepAfter !== keepBefore) {
     throw new Error("shop configuration changed during the wipe — stop here");
   }
@@ -88,21 +89,20 @@ try {
   await client.query(sql);
   console.log("migration committed");
 
-  const [tables] = (
-    await client.query(
-      `select count(*)::int as n from information_schema.tables where table_schema='public' and table_type='BASE TABLE'`
-    )
-  ).rows;
-  const [columns] = (
-    await client.query(
-      `select count(*)::int as n from information_schema.columns where table_schema='public'`
-    )
-  ).rows;
-  const serviceColumns = (
-    await client.query(
-      `select column_name from information_schema.columns where table_schema='public' and table_name='orders_services' order by 1`
-    )
-  ).rows.map((row: { column_name: string }) => row.column_name);
+  const tableCount = await client.query(
+    `select count(*)::int as n from information_schema.tables where table_schema='public' and table_type='BASE TABLE'`
+  );
+  const [tables] = tableCount.rows;
+  const columnCount = await client.query(
+    `select count(*)::int as n from information_schema.columns where table_schema='public'`
+  );
+  const [columns] = columnCount.rows;
+  const serviceColumnRows = await client.query(
+    `select column_name from information_schema.columns where table_schema='public' and table_name='orders_services' order by 1`
+  );
+  const serviceColumns = serviceColumnRows.rows.map(
+    (row: { column_name: string }) => row.column_name
+  );
   console.log(
     `schema: ${tables.n} tables, ${columns.n} columns (dev is 27 / 231)`
   );

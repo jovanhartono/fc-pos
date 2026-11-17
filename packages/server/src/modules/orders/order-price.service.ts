@@ -1,4 +1,5 @@
 import { and, eq, ne, sql } from "drizzle-orm";
+
 import {
   orderServicePriceLogsTable,
   ordersServicesTable,
@@ -16,7 +17,7 @@ import type { JWTPayload } from "@/types";
 // agrees the price with the Customer, often over WhatsApp. The price log is the check.
 // A lowered price can drop the Order under its promo's minimum, which
 // changeUnpaidOrder rechecks.
-export function setOrderServicePrice({
+export const setOrderServicePrice = ({
   orderId,
   serviceId,
   body,
@@ -26,8 +27,8 @@ export function setOrderServicePrice({
   serviceId: number;
   body: PatchOrderServicePriceInput;
   user: JWTPayload;
-}) {
-  return changeUnpaidOrder(orderId, user.id, async (tx, order) => {
+}) =>
+  changeUnpaidOrder(orderId, user.id, async (tx, order) => {
     // Payment freezes prices (ADR-0018); a wrong price after that is a Refund.
     // This is only the friendly error; the guarded write below wins any race.
     if (order.payment_status === "paid") {
@@ -93,4 +94,3 @@ export function setOrderServicePrice({
 
     return updated;
   });
-}

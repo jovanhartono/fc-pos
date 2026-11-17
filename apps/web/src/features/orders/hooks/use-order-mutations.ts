@@ -1,0 +1,168 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import {
+  cancelOrder,
+  cancelPaymentCharge,
+  createOrderRefund,
+  createPaymentCharge,
+  ordersKeys,
+  setOrderServicePrice,
+  updateOrderCourier,
+  updateOrderDeliveryFee,
+  updateOrderPayment,
+  updateOrderServiceStatus,
+} from "@/features/orders/api";
+import type {
+  CreatePaymentChargePayload,
+  SetOrderServicePricePayload,
+  UpdateOrderPaymentPayload,
+  UpdateOrderServiceStatusPayload,
+} from "@/features/orders/api";
+import { onOrderMoved, onRedemptionSpent } from "@/lib/cache-events";
+
+export const useRefreshOrder = () => {
+  const queryClient = useQueryClient();
+
+  return async () => {
+    await onOrderMoved(queryClient);
+  };
+};
+
+export const useUpdateServiceStatusMutation = (orderId: number) => {
+  const refreshOrder = useRefreshOrder();
+
+  return useMutation({
+    mutationFn: ({
+      serviceId,
+      payload,
+    }: {
+      serviceId: number;
+      payload: UpdateOrderServiceStatusPayload;
+    }) => updateOrderServiceStatus(orderId, serviceId, payload),
+    onSuccess: async () => {
+      await refreshOrder();
+    },
+  });
+};
+
+// ADR-0018: any staff may set or correct a price; the price log is the oversight.
+export const useSetServicePriceMutation = (orderId: number) => {
+  const refreshOrder = useRefreshOrder();
+
+  return useMutation({
+    mutationFn: ({
+      serviceId,
+      payload,
+    }: {
+      serviceId: number;
+      payload: SetOrderServicePricePayload;
+    }) => setOrderServicePrice(orderId, serviceId, payload),
+    onSuccess: async () => {
+      await refreshOrder();
+    },
+  });
+};
+
+export const useOrderPaymentMutation = (orderId: number) => {
+  const queryClient = useQueryClient();
+  const refreshOrder = useRefreshOrder();
+
+  return useMutation({
+    mutationFn: (payload: UpdateOrderPaymentPayload) =>
+      updateOrderPayment(orderId, payload),
+    // Campaigns and Vouchers get spent here, so one that just hit its Usage
+    // limit stops showing at the next checkout.
+    onSuccess: async () => {
+      await Promise.all([refreshOrder(), onRedemptionSpent(queryClient)]);
+    },
+  });
+};
+
+// The charge is seeded into its poll's cache, so the QR shows without a second
+// round trip.
+export const useCreatePaymentChargeMutation = (orderId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreatePaymentChargePayload) =>
+      createPaymentCharge(orderId, payload),
+    onSuccess: (charge) => {
+      queryClient.setQueryData(
+        ordersKeys.paymentCharge(orderId, charge.id),
+        charge
+      );
+      // Showing it closed every other pending charge on the Order.
+      queryClient.setQueryData(ordersKeys.openPaymentCharge(orderId), charge);
+    },
+    // The QRIS dialog says why, with Try Again.
+    onError: () => null,
+  });
+};
+
+export const useCancelPaymentChargeMutation = (orderId: number) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (chargeId: number) => cancelPaymentCharge(orderId, chargeId),
+    onSuccess: (charge) => {
+      queryClient.setQueryData(
+        ordersKeys.paymentCharge(orderId, charge.id),
+        charge
+      );
+      queryClient.setQueryData(ordersKeys.openPaymentCharge(orderId), null);
+    },
+  });
+};
+
+export const useUpdateOrderCourierMutation = (orderId: number) => {
+  const refreshOrder = useRefreshOrder();
+
+  return useMutation({
+    mutationFn: (collectedBy: number | null) =>
+      updateOrderCourier(orderId, { collected_by: collectedBy }),
+    onSuccess: async () => {
+      await refreshOrder();
+    },
+  });
+};
+
+export const useUpdateOrderDeliveryFeeMutation = (orderId: number) => {
+  const refreshOrder = useRefreshOrder();
+
+  return useMutation({
+    mutationFn: (deliveryFee: string) =>
+      updateOrderDeliveryFee(orderId, { delivery_fee: deliveryFee || "0" }),
+    onSuccess: async () => {
+      await refreshOrder();
+    },
+  });
+};
+
+export const useRefundOrderMutation = () => {
+  const refreshOrder = useRefreshOrder();
+
+  return useMutation({
+    mutationFn: ({
+      orderId: targetOrderId,
+      payload,
+    }: {
+      orderId: number;
+      payload: Parameters<typeof createOrderRefund>[1];
+    }) => createOrderRefund(targetOrderId, payload),
+    onSuccess: async () => {
+      await refreshOrder();
+    },
+  });
+};
+
+export const useCancelOrderMutation = (orderId: number) => {
+  const refreshOrder = useRefreshOrder();
+
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof cancelOrder>[1]) =>
+      cancelOrder(orderId, payload),
+    onSuccess: async () => {
+      await refreshOrder();
+    },
+  });
+};

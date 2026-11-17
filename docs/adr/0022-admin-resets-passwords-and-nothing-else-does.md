@@ -9,7 +9,7 @@ A `users` row carries username, name, password, role and `is_active` — no emai
 ## Considered options
 
 - **Self-service change-password** (user supplies their current password) — rejected for now. It solves "I want to rotate mine", not "I forgot mine", which is the case that actually blocks someone from working. It is additive later if the need appears. _Added in #57; see the amendment above._
-- **Force a change at next login** — rejected. It needs a `must_change_password` column, a gated login response and a change-password screen, and it is only worth that if self-service exists to change it *to*.
+- **Force a change at next login** — rejected. It needs a `must_change_password` column, a gated login response and a change-password screen, and it is only worth that if self-service exists to change it _to_.
 - **Refuse when the target is an admin**, making the lockout below an enforced rule — rejected. Prod runs a single admin account today, so the guard would do nothing until a second one existed, and on the day it did exist it would block the obvious fix.
 
 ## Consequences

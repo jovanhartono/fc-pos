@@ -8,23 +8,23 @@ interface PhotoGateLine {
 
 // ADR-0019: any live photo on the Item starts work on it, but a Rework needs
 // one taken after its round was queued. An undated round uses its Complaint.
-export function hasStartPhoto(
-  photos: ReadonlyArray<{ created_at: Date }>,
+export const hasStartPhoto = (
+  photos: readonly { created_at: Date }[],
   line: PhotoGateLine
-): boolean {
+): boolean => {
   if (!line.reworkOf) {
     return photos.length > 0;
   }
   const since = line.rework_opened_at ?? line.reworkOf.created_at;
   return photos.some((photo) => photo.created_at > since);
-}
+};
 
 // No module-level `db`, so the status machine can import it without opening a
 // database connection.
-export async function assertStartPhoto(
+export const assertStartPhoto = async (
   executor: DbExecutor,
   line: { id: number; item_id: number; complaint_id: number | null }
-) {
+) => {
   const [photos, complaint, openingLog] = await Promise.all([
     executor.query.itemImagesTable.findMany({
       where: { item_id: line.item_id, deleted_at: { isNull: true } },
@@ -54,4 +54,4 @@ export async function assertStartPhoto(
         : "Add an item photo before starting work"
     );
   }
-}
+};

@@ -1,565 +1,561 @@
 import {
-	ArrowLeft01Icon,
-	ArrowRight01Icon,
-	Calendar03Icon,
-	Cancel01Icon,
-	Loading03Icon,
-	Tick02Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  Calendar03Icon,
+  Cancel01Icon,
+  Loading03Icon,
+  Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-	lazy,
-	type ReactElement,
-	type ReactNode,
-	Suspense,
-	useEffect,
-	useState,
-} from "react";
+import { lazy, Suspense, useEffect, useEffectEvent, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { DateRange, Matcher } from "react-day-picker";
+
 import { Button } from "@/components/ui/button";
 import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-	Sheet,
-	SheetContent,
-	SheetFooter,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import { useIsCoarsePointer, useIsMobile } from "@/hooks/use-mobile";
+import { useMountValue } from "@/hooks/use-mount-value";
 import dayjs from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
-import {
-	type DatePreset,
-	getPresets,
-	jakartaToday,
-	matchPreset,
-	type RangePreset,
-} from "@/shared/date-presets";
+import { getPresets, jakartaToday, matchPreset } from "@/shared/date-presets";
+import type { DatePreset, RangePreset } from "@/shared/date-presets";
 
 const DISPLAY_FORMAT = "MMM D, YYYY";
 const WIRE_FORMAT = "YYYY-MM-DD";
 // Sits in filter rows beside Selects, so it wears the Select's border and fill.
 const FIELD_TRIGGER =
-	"h-9 pointer-coarse:h-11 justify-start border-input font-normal dark:border-input dark:bg-input/30 dark:hover:bg-input/50";
+  "h-9 pointer-coarse:h-11 justify-start border-input font-normal dark:border-input dark:bg-input/30 dark:hover:bg-input/50";
 
 interface PickerIconProps {
-	isLoading?: boolean;
+  isLoading?: boolean;
 }
 
 // Every list page with a date filter would otherwise load the calendar with
 // the page; it loads the first time a picker opens instead.
 const Calendar = lazy(() =>
-	import("@/components/ui/calendar").then((module) => ({
-		default: module.Calendar,
-	})),
+  import("@/components/ui/calendar").then((module) => ({
+    default: module.Calendar,
+  }))
 );
 
 // The calendar's footprint, so a popover opened before the code arrives doesn't
 // grow under the pointer. One month at 36px cells is w-67.
 interface CalendarSlotProps {
-	children: ReactNode;
-	className: string;
+  children: ReactNode;
+  className: string;
 }
 
 const CalendarSlot = ({ children, className }: CalendarSlotProps) => (
-	<Suspense fallback={<div aria-busy className={className} />}>
-		{children}
-	</Suspense>
+  <Suspense fallback={<div aria-busy className={className} />}>
+    {children}
+  </Suspense>
 );
 
 const PickerIcon = ({ isLoading }: PickerIconProps) => (
-	<HugeiconsIcon
-		icon={isLoading ? Loading03Icon : Calendar03Icon}
-		className={cn("size-4", isLoading && "animate-spin")}
-	/>
+  <HugeiconsIcon
+    icon={isLoading ? Loading03Icon : Calendar03Icon}
+    className={cn("size-4", isLoading && "animate-spin")}
+  />
 );
 
 interface DatePickerProps {
-	id?: string;
-	value?: string;
-	onChange: (value: string | undefined) => void;
-	placeholder?: string;
-	disabled?: boolean;
-	min?: string;
-	max?: string;
-	className?: string;
-	displayFormat?: string;
-	// "right" makes a form field read like the Select triggers beside it.
-	iconLocation?: "left" | "right";
-	// Swaps the calendar icon for a spinner while the page behind fetches the
-	// picked day, so the old day stays readable until the new one arrives.
-	isLoading?: boolean;
+  id?: string;
+  value?: string;
+  onChange: (value: string | undefined) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  min?: string;
+  max?: string;
+  className?: string;
+  displayFormat?: string;
+  // "right" makes a form field read like the Select triggers beside it.
+  iconLocation?: "left" | "right";
+  // Swaps the calendar icon for a spinner while the page behind fetches the
+  // picked day, so the old day stays readable until the new one arrives.
+  isLoading?: boolean;
 }
 
 export const DatePicker = ({
-	id,
-	value,
-	onChange,
-	placeholder = "Pick a date",
-	disabled,
-	min,
-	max,
-	className,
-	displayFormat = DISPLAY_FORMAT,
-	iconLocation = "left",
-	isLoading,
+  id,
+  value,
+  onChange,
+  placeholder = "Pick a date",
+  disabled,
+  min,
+  max,
+  className,
+  displayFormat = DISPLAY_FORMAT,
+  iconLocation = "left",
+  isLoading,
 }: DatePickerProps) => {
-	const [isOpen, setIsOpen] = useState(false);
-	const selected = value ? dayjs(value).toDate() : undefined;
+  const [isOpen, setIsOpen] = useState(false);
+  const selected = value ? dayjs(value).toDate() : undefined;
 
-	const matchers: Matcher[] = [];
-	if (max) {
-		matchers.push({ after: dayjs(max).toDate() });
-	}
-	if (min) {
-		matchers.push({ before: dayjs(min).toDate() });
-	}
-	const disabledMatchers = matchers.length > 0 ? matchers : undefined;
+  const matchers: Matcher[] = [];
+  if (max) {
+    matchers.push({ after: dayjs(max).toDate() });
+  }
+  if (min) {
+    matchers.push({ before: dayjs(min).toDate() });
+  }
+  const disabledMatchers = matchers.length > 0 ? matchers : undefined;
 
-	return (
-		<Popover open={isOpen} onOpenChange={setIsOpen}>
-			<PopoverTrigger
-				render={
-					<Button
-						id={id}
-						type="button"
-						variant="outline"
-						disabled={disabled}
-						className={cn(
-							FIELD_TRIGGER,
-							!value && "text-muted-foreground",
-							className,
-						)}
-						aria-busy={isLoading || undefined}
-						iconLocation={iconLocation}
-						icon={<PickerIcon isLoading={isLoading} />}
-					/>
-				}
-			>
-				<span className="truncate">
-					{/* biome-ignore lint/suspicious/noLeakedRender: placeholder is a string prop, so no 0 or NaN can reach the DOM */}
-					{value ? dayjs(value).format(displayFormat) : placeholder}
-				</span>
-			</PopoverTrigger>
-			<PopoverContent align="start" className="w-auto p-0">
-				<CalendarSlot className="h-72 w-67">
-					<Calendar
-						mode="single"
-						selected={selected}
-						defaultMonth={selected}
-						disabled={disabledMatchers}
-						onSelect={(date) => {
-							onChange(date ? dayjs(date).format(WIRE_FORMAT) : undefined);
-							setIsOpen(false);
-						}}
-					/>
-				</CalendarSlot>
-			</PopoverContent>
-		</Popover>
-	);
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            className={cn(
+              FIELD_TRIGGER,
+              !value && "text-muted-foreground",
+              className
+            )}
+            aria-busy={isLoading || undefined}
+            iconLocation={iconLocation}
+            icon={<PickerIcon isLoading={isLoading} />}
+          />
+        }
+      >
+        <span className="truncate">
+          {value ? dayjs(value).format(displayFormat) : placeholder}
+        </span>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-0">
+        <CalendarSlot className="h-72 w-67">
+          <Calendar
+            mode="single"
+            selected={selected}
+            defaultMonth={selected}
+            disabled={disabledMatchers}
+            onSelect={(date) => {
+              onChange(date ? dayjs(date).format(WIRE_FORMAT) : undefined);
+              setIsOpen(false);
+            }}
+          />
+        </CalendarSlot>
+      </PopoverContent>
+    </Popover>
+  );
 };
 
 interface DateRangePickerProps {
-	id?: string;
-	from?: string;
-	to?: string;
-	preset?: DatePreset;
-	// The page saves the tapped preset, so dates picked on the calendar stay
-	// dates even when they match a preset.
-	isPresetKept?: boolean;
-	onChange: (value: {
-		from?: string;
-		to?: string;
-		preset?: DatePreset;
-	}) => void;
-	onClear?: () => void;
-	placeholder?: string;
-	disabled?: boolean;
-	numberOfMonths?: number;
-	className?: string;
-	resetOnSelect?: boolean;
-	commitOnComplete?: boolean;
-	fullWidth?: boolean;
-	isLoading?: boolean;
+  id?: string;
+  from?: string;
+  to?: string;
+  preset?: DatePreset;
+  // The page saves the tapped preset, so dates picked on the calendar stay
+  // dates even when they match a preset.
+  isPresetKept?: boolean;
+  onChange: (value: {
+    from?: string;
+    to?: string;
+    preset?: DatePreset;
+  }) => void;
+  onClear?: () => void;
+  placeholder?: string;
+  disabled?: boolean;
+  numberOfMonths?: number;
+  className?: string;
+  resetOnSelect?: boolean;
+  commitOnComplete?: boolean;
+  fullWidth?: boolean;
+  isLoading?: boolean;
 }
 
 interface DateRangeViewProps {
-	trigger: ReactElement;
-	label: string;
-	isOpen: boolean;
-	onOpenChange: (open: boolean) => void;
-	presets: RangePreset[];
-	activePreset: RangePreset | undefined;
-	draftRange: DateRange | undefined;
-	onDraftChange: (range: DateRange | undefined) => void;
-	onPresetSelect: (preset: RangePreset) => void;
-	notFuture: Matcher;
-	resetOnSelect: boolean;
+  trigger: ReactElement;
+  label: string;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  presets: RangePreset[];
+  activePreset: RangePreset | undefined;
+  draftRange: DateRange | undefined;
+  onDraftChange: (range: DateRange | undefined) => void;
+  onPresetSelect: (preset: RangePreset) => void;
+  notFuture: Matcher;
+  resetOnSelect: boolean;
 }
 
 const SHEET_ROW = "h-11 w-full justify-between px-4 text-body font-normal";
 
 const DateRangeSheet = ({
-	trigger,
-	label,
-	isOpen,
-	onOpenChange,
-	presets,
-	activePreset,
-	draftRange,
-	onDraftChange,
-	onPresetSelect,
-	notFuture,
-	resetOnSelect,
-	onCommit,
+  trigger,
+  label,
+  isOpen,
+  onOpenChange,
+  presets,
+  activePreset,
+  draftRange,
+  onDraftChange,
+  onPresetSelect,
+  notFuture,
+  resetOnSelect,
+  onCommit,
 }: DateRangeViewProps & { onCommit: () => void }) => {
-	const [isPickingCustom, setIsPickingCustom] = useState(false);
+  const [isPickingCustom, setIsPickingCustom] = useState(false);
 
-	return (
-		<Sheet
-			open={isOpen}
-			onOpenChange={(open) => {
-				onOpenChange(open);
-				if (!open) {
-					setIsPickingCustom(false);
-				}
-			}}
-			side="bottom"
-		>
-			<SheetTrigger render={trigger}>
-				<span className="truncate">{label}</span>
-			</SheetTrigger>
-			<SheetContent
-				showCloseButton={!isPickingCustom}
-				className="max-h-[88svh] gap-0 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
-			>
-				{isPickingCustom ? (
-					<>
-						<SheetHeader className="shrink-0 flex-row items-center gap-1 border-b p-2">
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon"
-								aria-label="Back to presets"
-								onClick={() => setIsPickingCustom(false)}
-								icon={
-									<HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-								}
-							/>
-							<SheetTitle>Custom Range</SheetTitle>
-						</SheetHeader>
-						<div className="shrink-0 border-b px-4 py-3 text-body">
-							{draftRange?.from
-								? dayjs(draftRange.from).format(DISPLAY_FORMAT)
-								: "Start"}
-							{" – "}
-							{draftRange?.to
-								? dayjs(draftRange.to).format(DISPLAY_FORMAT)
-								: "End"}
-						</div>
-						<div className="min-h-0 flex-1 overflow-y-auto">
-							<CalendarSlot className="h-79 w-full">
-								<Calendar
-									mode="range"
-									resetOnSelect={resetOnSelect}
-									className="w-full [--cell-size:--spacing(11)] p-3"
-									classNames={{ root: "w-full", week: "mt-1 flex w-full" }}
-									defaultMonth={draftRange?.from}
-									selected={draftRange}
-									numberOfMonths={1}
-									disabled={notFuture}
-									onSelect={onDraftChange}
-								/>
-							</CalendarSlot>
-						</div>
-						<SheetFooter className="shrink-0 border-t border-border/70 p-3">
-							<Button
-								type="button"
-								className="h-11 w-full"
-								disabled={!(draftRange?.from && draftRange?.to)}
-								onClick={onCommit}
-							>
-								Apply
-							</Button>
-						</SheetFooter>
-					</>
-				) : (
-					<>
-						<SheetHeader className="shrink-0 border-b px-4 py-3">
-							<SheetTitle>Date Range</SheetTitle>
-						</SheetHeader>
-						<div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-							{presets.map((preset) => (
-								<Button
-									type="button"
-									key={preset.id}
-									variant="ghost"
-									onClick={() => onPresetSelect(preset)}
-									className={SHEET_ROW}
-								>
-									{preset.label}
-									{activePreset?.id === preset.id ? (
-										<HugeiconsIcon
-											icon={Tick02Icon}
-											className="size-4"
-											strokeWidth={2}
-										/>
-									) : null}
-								</Button>
-							))}
-						</div>
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={() => setIsPickingCustom(true)}
-							className={cn(SHEET_ROW, "shrink-0 border-t border-border/70")}
-						>
-							Custom Range
-							<HugeiconsIcon
-								icon={ArrowRight01Icon}
-								className="size-4 text-muted-foreground"
-							/>
-						</Button>
-					</>
-				)}
-			</SheetContent>
-		</Sheet>
-	);
+  return (
+    <Sheet
+      open={isOpen}
+      onOpenChange={(open) => {
+        onOpenChange(open);
+        if (!open) {
+          setIsPickingCustom(false);
+        }
+      }}
+      side="bottom"
+    >
+      <SheetTrigger render={trigger}>
+        <span className="truncate">{label}</span>
+      </SheetTrigger>
+      <SheetContent
+        showCloseButton={!isPickingCustom}
+        className="max-h-[88svh] gap-0 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
+      >
+        {isPickingCustom ? (
+          <>
+            <SheetHeader className="shrink-0 flex-row items-center gap-1 border-b p-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Back to presets"
+                onClick={() => setIsPickingCustom(false)}
+                icon={
+                  <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+                }
+              />
+              <SheetTitle>Custom Range</SheetTitle>
+            </SheetHeader>
+            <div className="shrink-0 border-b px-4 py-3 text-body">
+              {draftRange?.from
+                ? dayjs(draftRange.from).format(DISPLAY_FORMAT)
+                : "Start"}
+              {" – "}
+              {draftRange?.to
+                ? dayjs(draftRange.to).format(DISPLAY_FORMAT)
+                : "End"}
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <CalendarSlot className="h-79 w-full">
+                <Calendar
+                  mode="range"
+                  resetOnSelect={resetOnSelect}
+                  className="w-full p-3 [--cell-size:--spacing(11)]"
+                  classNames={{ root: "w-full", week: "mt-1 flex w-full" }}
+                  defaultMonth={draftRange?.from}
+                  selected={draftRange}
+                  numberOfMonths={1}
+                  disabled={notFuture}
+                  onSelect={onDraftChange}
+                />
+              </CalendarSlot>
+            </div>
+            <SheetFooter className="shrink-0 border-t border-border/70 p-3">
+              <Button
+                type="button"
+                className="h-11 w-full"
+                disabled={!(draftRange?.from && draftRange?.to)}
+                onClick={onCommit}
+              >
+                Apply
+              </Button>
+            </SheetFooter>
+          </>
+        ) : (
+          <>
+            <SheetHeader className="shrink-0 border-b px-4 py-3">
+              <SheetTitle>Date Range</SheetTitle>
+            </SheetHeader>
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+              {presets.map((preset) => (
+                <Button
+                  type="button"
+                  key={preset.id}
+                  variant="ghost"
+                  onClick={() => onPresetSelect(preset)}
+                  className={SHEET_ROW}
+                >
+                  {preset.label}
+                  {activePreset?.id === preset.id ? (
+                    <HugeiconsIcon
+                      icon={Tick02Icon}
+                      className="size-4"
+                      strokeWidth={2}
+                    />
+                  ) : null}
+                </Button>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsPickingCustom(true)}
+              className={cn(SHEET_ROW, "shrink-0 border-t border-border/70")}
+            >
+              Custom Range
+              <HugeiconsIcon
+                icon={ArrowRight01Icon}
+                className="size-4 text-muted-foreground"
+              />
+            </Button>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
 };
 
 const DateRangePopover = ({
-	trigger,
-	label,
-	isOpen,
-	onOpenChange,
-	presets,
-	activePreset,
-	draftRange,
-	onDraftChange,
-	onPresetSelect,
-	notFuture,
-	resetOnSelect,
-	numberOfMonths,
+  trigger,
+  label,
+  isOpen,
+  onOpenChange,
+  presets,
+  activePreset,
+  draftRange,
+  onDraftChange,
+  onPresetSelect,
+  notFuture,
+  resetOnSelect,
+  numberOfMonths,
 }: DateRangeViewProps & { numberOfMonths: number }) => {
-	// A second month plus the preset rail overflows a narrow desktop window; touch
-	// devices never reach here, they get the sheet.
-	const isMobile = useIsMobile(640);
-	const months = isMobile ? 1 : numberOfMonths;
+  // A second month plus the preset rail overflows a narrow desktop window; touch
+  // devices never reach here, they get the sheet.
+  const isMobile = useIsMobile(640);
+  const months = isMobile ? 1 : numberOfMonths;
 
-	return (
-		<Popover open={isOpen} onOpenChange={onOpenChange}>
-			<PopoverTrigger render={trigger}>
-				<span className="truncate">{label}</span>
-			</PopoverTrigger>
-			<PopoverContent
-				align="start"
-				className="w-[min(19rem,calc(100vw-4rem))] p-0 sm:w-auto"
-			>
-				<div className="flex flex-col sm:flex-row">
-					<div className="grid grid-cols-3 gap-1 border-b p-1.5 sm:w-36 sm:auto-rows-min sm:grid-cols-1 sm:border-r sm:border-b-0 sm:p-2">
-						{presets.map((preset) => (
-							<button
-								type="button"
-								key={preset.id}
-								onClick={() => onPresetSelect(preset)}
-								className={cn(
-									"rounded-[calc(var(--radius)-6px)] border px-2 py-1 sm:rounded-[calc(var(--radius)-8px)] text-footnote sm:py-1.5 sm:text-left",
-									activePreset?.id === preset.id
-										? "border-primary bg-primary text-primary-foreground"
-										: "border-border/70 text-muted-foreground hover:text-foreground",
-								)}
-							>
-								{preset.label}
-							</button>
-						))}
-					</div>
-					<CalendarSlot
-						className={cn(
-							"mx-auto h-72 sm:mx-0",
-							months > 1 ? "w-134" : "w-67",
-						)}
-					>
-						<Calendar
-							className="mx-auto sm:mx-0"
-							mode="range"
-							resetOnSelect={resetOnSelect}
-							defaultMonth={draftRange?.from}
-							selected={draftRange}
-							numberOfMonths={months}
-							disabled={notFuture}
-							onSelect={onDraftChange}
-						/>
-					</CalendarSlot>
-				</div>
-			</PopoverContent>
-		</Popover>
-	);
+  return (
+    <Popover open={isOpen} onOpenChange={onOpenChange}>
+      <PopoverTrigger render={trigger}>
+        <span className="truncate">{label}</span>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-[min(19rem,calc(100vw-4rem))] p-0 sm:w-auto"
+      >
+        <div className="flex flex-col sm:flex-row">
+          <div className="grid grid-cols-3 gap-1 border-b p-1.5 sm:w-36 sm:auto-rows-min sm:grid-cols-1 sm:border-r sm:border-b-0 sm:p-2">
+            {presets.map((preset) => (
+              <button
+                type="button"
+                key={preset.id}
+                onClick={() => onPresetSelect(preset)}
+                className={cn(
+                  "rounded-[calc(var(--radius)-6px)] border px-2 py-1 text-footnote sm:rounded-[calc(var(--radius)-8px)] sm:py-1.5 sm:text-left",
+                  activePreset?.id === preset.id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/70 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <CalendarSlot
+            className={cn(
+              "mx-auto h-72 sm:mx-0",
+              months > 1 ? "w-134" : "w-67"
+            )}
+          >
+            <Calendar
+              className="mx-auto sm:mx-0"
+              mode="range"
+              resetOnSelect={resetOnSelect}
+              defaultMonth={draftRange?.from}
+              selected={draftRange}
+              numberOfMonths={months}
+              disabled={notFuture}
+              onSelect={onDraftChange}
+            />
+          </CalendarSlot>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 };
 
+// oxlint-disable-next-line eslint/complexity -- one picker covering presets, draft range and clear
 export const DateRangePicker = ({
-	id,
-	from,
-	to,
-	preset,
-	isPresetKept = false,
-	onChange,
-	onClear,
-	placeholder = "Pick a date range",
-	disabled,
-	numberOfMonths = 2,
-	className,
-	resetOnSelect = false,
-	commitOnComplete = false,
-	fullWidth = false,
-	isLoading,
+  id,
+  from,
+  to,
+  preset,
+  isPresetKept = false,
+  onChange,
+  onClear,
+  placeholder = "Pick a date range",
+  disabled,
+  numberOfMonths = 2,
+  className,
+  resetOnSelect = false,
+  commitOnComplete = false,
+  fullWidth = false,
+  isLoading,
 }: DateRangePickerProps) => {
-	const selectedFromProps: DateRange | undefined =
-		from || to
-			? {
-					from: from ? dayjs(from).toDate() : undefined,
-					to: to ? dayjs(to).toDate() : undefined,
-				}
-			: undefined;
+  const selectedFromProps: DateRange | undefined =
+    from || to
+      ? {
+          from: from ? dayjs(from).toDate() : undefined,
+          to: to ? dayjs(to).toDate() : undefined,
+        }
+      : undefined;
 
-	const [draftRange, setDraftRange] = useState<DateRange | undefined>(
-		selectedFromProps,
-	);
-	const [isOpen, setIsOpen] = useState(false);
-	const isCoarsePointer = useIsCoarsePointer();
+  const [draftRange, setDraftRange] = useState<DateRange | undefined>(
+    selectedFromProps
+  );
+  const [isOpen, setIsOpen] = useState(false);
+  const isCoarsePointer = useIsCoarsePointer();
 
-	useEffect(() => {
-		setDraftRange(selectedFromProps);
-	}, [selectedFromProps]);
+  const resetDraftRange = useEffectEvent(() =>
+    setDraftRange(selectedFromProps)
+  );
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- the draft resets when the chosen range changes from outside
+    resetDraftRange();
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a new from or to is what triggers the reset
+  }, [from, to]);
 
-	const displayRange = draftRange ?? selectedFromProps;
-	const hasValue = Boolean(from || to);
-	const showClear = Boolean(onClear) && hasValue;
+  const displayRange = draftRange ?? selectedFromProps;
+  const hasValue = Boolean(from || to);
+  const showClear = Boolean(onClear) && hasValue;
 
-	const [presets] = useState(getPresets);
-	const matchedPreset =
-		displayRange?.from && displayRange?.to
-			? matchPreset(
-					presets,
-					dayjs(displayRange.from).format(WIRE_FORMAT),
-					dayjs(displayRange.to).format(WIRE_FORMAT),
-					preset,
-				)
-			: undefined;
-	const activePreset =
-		isPresetKept && matchedPreset?.id !== preset ? undefined : matchedPreset;
+  const presets = useMountValue(getPresets);
+  const matchedPreset =
+    displayRange?.from && displayRange?.to
+      ? matchPreset(
+          presets,
+          dayjs(displayRange.from).format(WIRE_FORMAT),
+          dayjs(displayRange.to).format(WIRE_FORMAT),
+          preset
+        )
+      : undefined;
+  const activePreset =
+    isPresetKept && matchedPreset?.id !== preset ? undefined : matchedPreset;
 
-	const emitRange = (range: DateRange | undefined) => {
-		onChange({
-			from: range?.from ? dayjs(range.from).format(WIRE_FORMAT) : undefined,
-			to: range?.to ? dayjs(range.to).format(WIRE_FORMAT) : undefined,
-		});
-	};
+  const emitRange = (range: DateRange | undefined) => {
+    onChange({
+      from: range?.from ? dayjs(range.from).format(WIRE_FORMAT) : undefined,
+      to: range?.to ? dayjs(range.to).format(WIRE_FORMAT) : undefined,
+    });
+  };
 
-	const handlePresetSelect = (tapped: RangePreset) => {
-		setDraftRange({
-			from: dayjs(tapped.from).toDate(),
-			to: dayjs(tapped.to).toDate(),
-		});
-		onChange({ from: tapped.from, to: tapped.to, preset: tapped.id });
-		setIsOpen(false);
-	};
+  const handlePresetSelect = (tapped: RangePreset) => {
+    setDraftRange({
+      from: dayjs(tapped.from).toDate(),
+      to: dayjs(tapped.to).toDate(),
+    });
+    onChange({ from: tapped.from, to: tapped.to, preset: tapped.id });
+    setIsOpen(false);
+  };
 
-	const label = (() => {
-		if (activePreset) {
-			return activePreset.label;
-		}
-		if (displayRange?.from && displayRange?.to) {
-			if (dayjs(displayRange.from).isSame(displayRange.to, "day")) {
-				return dayjs(displayRange.from).format(DISPLAY_FORMAT);
-			}
-			return `${dayjs(displayRange.from).format(DISPLAY_FORMAT)} - ${dayjs(displayRange.to).format(DISPLAY_FORMAT)}`;
-		}
-		if (displayRange?.from) {
-			return dayjs(displayRange.from).format(DISPLAY_FORMAT);
-		}
-		if (displayRange?.to) {
-			return dayjs(displayRange.to).format(DISPLAY_FORMAT);
-		}
-		return placeholder;
-	})();
+  const label = (() => {
+    if (activePreset) {
+      return activePreset.label;
+    }
+    if (displayRange?.from && displayRange?.to) {
+      if (dayjs(displayRange.from).isSame(displayRange.to, "day")) {
+        return dayjs(displayRange.from).format(DISPLAY_FORMAT);
+      }
+      return `${dayjs(displayRange.from).format(DISPLAY_FORMAT)} - ${dayjs(displayRange.to).format(DISPLAY_FORMAT)}`;
+    }
+    if (displayRange?.from) {
+      return dayjs(displayRange.from).format(DISPLAY_FORMAT);
+    }
+    if (displayRange?.to) {
+      return dayjs(displayRange.to).format(DISPLAY_FORMAT);
+    }
+    return placeholder;
+  })();
 
-	const shared: DateRangeViewProps = {
-		trigger: (
-			<Button
-				id={id}
-				type="button"
-				variant="outline"
-				disabled={disabled}
-				className={cn(
-					FIELD_TRIGGER,
-					fullWidth && "w-full",
-					!hasValue && "text-muted-foreground",
-					showClear && "pr-9",
-					className,
-				)}
-				aria-busy={isLoading || undefined}
-				icon={<PickerIcon isLoading={isLoading} />}
-			/>
-		),
-		label,
-		isOpen,
-		onOpenChange: setIsOpen,
-		presets,
-		activePreset,
-		draftRange: displayRange,
-		onDraftChange: setDraftRange,
-		onPresetSelect: handlePresetSelect,
-		notFuture: { after: dayjs(jakartaToday()).toDate() },
-		resetOnSelect,
-	};
+  const shared: DateRangeViewProps = {
+    trigger: (
+      <Button
+        id={id}
+        type="button"
+        variant="outline"
+        disabled={disabled}
+        className={cn(
+          FIELD_TRIGGER,
+          fullWidth && "w-full",
+          !hasValue && "text-muted-foreground",
+          showClear && "pr-9",
+          className
+        )}
+        aria-busy={isLoading || undefined}
+        icon={<PickerIcon isLoading={isLoading} />}
+      />
+    ),
+    label,
+    isOpen,
+    onOpenChange: setIsOpen,
+    presets,
+    activePreset,
+    draftRange: displayRange,
+    onDraftChange: setDraftRange,
+    onPresetSelect: handlePresetSelect,
+    notFuture: { after: dayjs(jakartaToday()).toDate() },
+    resetOnSelect,
+  };
 
-	const picker = isCoarsePointer ? (
-		<DateRangeSheet
-			{...shared}
-			onCommit={() => {
-				emitRange(draftRange);
-				setIsOpen(false);
-			}}
-		/>
-	) : (
-		<DateRangePopover
-			{...shared}
-			numberOfMonths={numberOfMonths}
-			onDraftChange={(range) => {
-				setDraftRange(range);
-				if (commitOnComplete && !(range?.from && range?.to)) {
-					return;
-				}
-				if (!(range?.from || range?.to) && !hasValue) {
-					return;
-				}
-				emitRange(range);
-			}}
-		/>
-	);
+  const picker = isCoarsePointer ? (
+    <DateRangeSheet
+      {...shared}
+      onCommit={() => {
+        emitRange(draftRange);
+        setIsOpen(false);
+      }}
+    />
+  ) : (
+    <DateRangePopover
+      {...shared}
+      numberOfMonths={numberOfMonths}
+      onDraftChange={(range) => {
+        setDraftRange(range);
+        if (commitOnComplete && !(range?.from && range?.to)) {
+          return;
+        }
+        if (!(range?.from || range?.to) && !hasValue) {
+          return;
+        }
+        emitRange(range);
+      }}
+    />
+  );
 
-	if (!onClear) {
-		return picker;
-	}
+  if (!onClear) {
+    return picker;
+  }
 
-	return (
-		<div className={cn("relative inline-flex w-fit", fullWidth && "w-full")}>
-			{picker}
-			{showClear ? (
-				<button
-					type="button"
-					aria-label="Clear date range"
-					onClick={onClear}
-					className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-				>
-					<HugeiconsIcon icon={Cancel01Icon} className="size-4" />
-				</button>
-			) : null}
-		</div>
-	);
+  return (
+    <div className={cn("relative inline-flex w-fit", fullWidth && "w-full")}>
+      {picker}
+      {showClear ? (
+        <button
+          type="button"
+          aria-label="Clear date range"
+          onClick={onClear}
+          className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+        </button>
+      ) : null}
+    </div>
+  );
 };

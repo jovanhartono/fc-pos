@@ -1,23 +1,10 @@
 import { eq } from "drizzle-orm";
 import type z from "zod";
+
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
-import {
-  countOrdersByStatus,
-  findOrders,
-  insertItems,
-  insertOrder,
-  insertOrderProducts,
-  insertOrderServices,
-  type OrderTx,
-  reserveNextOrderNumber,
-} from "@/modules/orders/order.repository";
-import {
-  type GetOrdersQuery,
-  normalizeOrderListQuery,
-} from "@/modules/orders/order.schema";
 import { assertActiveCourier } from "@/modules/orders/order-courier.service";
 import { assertCashierPaymentMethod } from "@/modules/orders/order-payment.service";
 import { hasStartPhoto } from "@/modules/orders/order-photo-gate.repository";
@@ -31,13 +18,25 @@ import {
   assertDiscountRequestAllowed,
   assertLinePrice,
   assertPayable,
-  type SettlementLine,
   settleDiscount,
 } from "@/modules/orders/order-settlement.service";
+import type { SettlementLine } from "@/modules/orders/order-settlement.service";
 import {
   deriveItemStatus,
   summarizeOrderFulfillment,
 } from "@/modules/orders/order-status-machine";
+import {
+  countOrdersByStatus,
+  findOrders,
+  insertItems,
+  insertOrder,
+  insertOrderProducts,
+  insertOrderServices,
+  reserveNextOrderNumber,
+} from "@/modules/orders/order.repository";
+import type { OrderTx } from "@/modules/orders/order.repository";
+import { normalizeOrderListQuery } from "@/modules/orders/order.schema";
+import type { GetOrdersQuery } from "@/modules/orders/order.schema";
 import {
   decrementProductsStock,
   findProducts,
@@ -53,9 +52,11 @@ import { jakartaNow } from "@/utils/date";
 import { buildPaginationMeta } from "@/utils/pagination";
 import { buildMediaUrl } from "@/utils/s3";
 
-function formatOrderCode(storeCode: string, dateStr: string, sequence: number) {
-  return `#${storeCode}/${dateStr}/${sequence}`;
-}
+const formatOrderCode = (
+  storeCode: string,
+  dateStr: string,
+  sequence: number
+) => `#${storeCode}/${dateStr}/${sequence}`;
 
 // `item_index` points into the payload's Items array: they have no ids until
 // inserted, so position is the only handle.
@@ -67,10 +68,10 @@ interface ExpandedServiceItem {
   price?: number;
 }
 
-function expandOrderServices(
+const expandOrderServices = (
   payloadItems: z.infer<typeof POSTOrderSchema>["items"] = []
-): ExpandedServiceItem[] {
-  return payloadItems.flatMap((item, item_index) =>
+): ExpandedServiceItem[] =>
+  payloadItems.flatMap((item, item_index) =>
     item.services.map((service) => ({
       id: service.id,
       is_priority: service.is_priority,
@@ -79,7 +80,6 @@ function expandOrderServices(
       price: service.price,
     }))
   );
-}
 
 type DbService = Awaited<ReturnType<typeof findServices>>[number];
 
@@ -97,10 +97,14 @@ interface CatalogLine<TItem, TRow> {
 // The POS stays open for hours and only hides retired catalog entries on screen,
 // so the Cart is checked against the live catalog here, before a daily Order
 // number is used up.
-function resolveCatalogLines<
+const resolveCatalogLines = <
   TItem extends { id: number },
   TRow extends { id: number; is_active: boolean },
->(label: string, items: TItem[], rows: TRow[]): CatalogLine<TItem, TRow>[] {
+>(
+  label: string,
+  items: TItem[],
+  rows: TRow[]
+): CatalogLine<TItem, TRow>[] => {
   const rowsById = new Map(rows.map((row) => [row.id, row]));
   const missing = new Set<number>();
   const inactive = new Set<number>();
@@ -131,15 +135,15 @@ function resolveCatalogLines<
   }
 
   return lines;
-}
+};
 
 // ADR-0018: a catalog-priced Service always takes the catalog price, whatever the
 // POS sent. A Repair keeps the cashier's agreed price, or stays blank until the
 // workshop inspects the Item, and payment waits on it.
-function resolveServiceLinePrice(
+const resolveServiceLinePrice = (
   item: ExpandedServiceItem,
   service: DbService
-): string | null {
+): string | null => {
   if (service.price !== null) {
     return service.price;
   }
@@ -151,7 +155,7 @@ function resolveServiceLinePrice(
   assertLinePrice(item.price);
 
   return item.price.toString();
-}
+};
 
 type PricedServiceLine = CatalogLine<ExpandedServiceItem, DbService> & {
   price: string | null;
@@ -159,7 +163,7 @@ type PricedServiceLine = CatalogLine<ExpandedServiceItem, DbService> & {
 
 // One Item code per Item, not per line: a pair in for a clean and a repaint
 // carries one code (ADR-0017).
-function buildItemRows({
+const buildItemRows = ({
   code,
   items,
   orderId,
@@ -167,8 +171,8 @@ function buildItemRows({
   code: string;
   items: NonNullable<z.infer<typeof POSTOrderSchema>["items"]>;
   orderId: number;
-}) {
-  return items.map((item, index) => ({
+}) =>
+  items.map((item, index) => ({
     brand: item.brand,
     color: item.color,
     // Tags printed before ADR-0017 end in -S and still work: lookups match the
@@ -178,9 +182,8 @@ function buildItemRows({
     order_id: orderId,
     size: item.size,
   }));
-}
 
-function buildOrderServiceRows({
+const buildOrderServiceRows = ({
   itemIds,
   orderId,
   serviceLines,
@@ -188,8 +191,8 @@ function buildOrderServiceRows({
   itemIds: number[];
   orderId: number;
   serviceLines: PricedServiceLine[];
-}) {
-  return serviceLines.map(({ item, row: service, price }) => ({
+}) =>
+  serviceLines.map(({ item, row: service, price }) => ({
     is_priority: item.is_priority ?? service.is_priority,
     item_id: itemIds[item.item_index],
     order_id: orderId,
@@ -199,39 +202,42 @@ function buildOrderServiceRows({
     notes: item.notes,
     status: "queued" as const,
   }));
-}
 
 // undefined means "do not narrow further", [] means nothing at all. Mixing them
 // up shows one account every Store's Orders.
-async function resolveOrderScopedStoreIds(user: AuthUser, storeId?: number) {
+const resolveOrderScopedStoreIds = async (user: AuthUser, storeId?: number) => {
   const scope = await resolveStoreScope(user, storeId);
 
   switch (scope.kind) {
-    case "some":
+    case "some": {
       return scope.storeIds;
-    case "none":
+    }
+    case "none": {
       return [];
+    }
     case "all":
-    case "one":
+    case "one": {
       return;
-    default:
+    }
+    default: {
       return unhandledStoreScope(scope);
+    }
   }
-}
+};
 
-export async function getOrderStatusCounts(
+export const getOrderStatusCounts = async (
   query: GetOrdersQuery,
   user: AuthUser
-) {
+) => {
   const normalized = normalizeOrderListQuery(query);
   const scopedStoreIds = await resolveOrderScopedStoreIds(
     user,
     normalized.store_id
   );
   return countOrdersByStatus(normalized, scopedStoreIds);
-}
+};
 
-export async function listOrders(query?: GetOrdersQuery, user?: AuthUser) {
+export const listOrders = async (query?: GetOrdersQuery, user?: AuthUser) => {
   const normalized = normalizeOrderListQuery(query);
   const scopedStoreIds = user
     ? await resolveOrderScopedStoreIds(user, normalized.store_id)
@@ -243,14 +249,14 @@ export async function listOrders(query?: GetOrdersQuery, user?: AuthUser) {
     items,
     meta: buildPaginationMeta(total, normalized),
   };
-}
+};
 
 // Two lines of the same Product are summed before stock is checked, or the last
 // bottle sells twice.
-async function reserveBasketStock(
+const reserveBasketStock = async (
   tx: OrderTx,
   productLines: CatalogLine<OrderProductInput, DbProduct>[]
-) {
+) => {
   const qtyByProductId = new Map<number, number>();
   for (const { item, row: product } of productLines) {
     qtyByProductId.set(
@@ -273,13 +279,13 @@ async function reserveBasketStock(
   if (short) {
     throw new BadRequestException(`Not enough stock for ${short.row.name}`);
   }
-}
+};
 
-export async function createOrder(
+export const createOrder = async (
   userId: number,
   store: Store,
   payload: z.infer<typeof POSTOrderSchema>
-) {
+) => {
   const {
     products = [],
     items = [],
@@ -458,9 +464,9 @@ export async function createOrder(
       total_after_discount: netTotal.toString(),
     };
   });
-}
+};
 
-export async function getOrderDetailById(id: number) {
+export const getOrderDetailById = async (id: number) => {
   const detail = await findOrderDetail(id);
 
   if (!detail) {
@@ -524,4 +530,4 @@ export async function getOrderDetailById(id: number) {
     // Item statuses, not lines: "n of M picked up" counts Items (ADR-0017).
     fulfillment: summarizeOrderFulfillment(items.map((item) => item.status)),
   };
-}
+};

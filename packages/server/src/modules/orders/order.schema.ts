@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { orderPaymentStatusEnum, orderStatusEnum } from "@/db/schema";
 import { dateStringSchema } from "@/schema/common";
 import { normalizePagination } from "@/utils/pagination";
@@ -98,9 +99,9 @@ export type OrderListFilters = Omit<
   "limit" | "offset" | "sort_by" | "sort_order"
 >;
 
-export function normalizeOrderListQuery(
+export const normalizeOrderListQuery = (
   query?: GetOrdersQuery
-): NormalizedOrderListQuery {
+): NormalizedOrderListQuery => {
   const pagination = normalizePagination(query, {
     defaultPageSize: DEFAULT_PAGE_SIZE,
     maxPageSize: MAX_PAGE_SIZE,
@@ -126,4 +127,4 @@ export function normalizeOrderListQuery(
     sort_by: query?.sort_by ?? "id",
     sort_order: query?.sort_order ?? "desc",
   };
-}
+};

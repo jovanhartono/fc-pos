@@ -77,30 +77,30 @@ export interface StackedDiscount<T extends CampaignDiscountInput> {
 
 // The eligibility check and the discount share this, so a Campaign never
 // shows as Usable while it would settle at Rp 0.
-export function bogoFreeCount(
+export const bogoFreeCount = (
   {
     buy_quantity,
     free_quantity,
   }: Pick<CampaignDiscountInput, "buy_quantity" | "free_quantity">,
   eligibleCount: number
-): number {
+): number => {
   const buy = buy_quantity ?? 0;
   const free = free_quantity ?? 0;
   if (buy < 1 || free < 1) {
     return 0;
   }
   return Math.floor(eligibleCount / (buy + free)) * free;
-}
+};
 
-function computeBogoContribution(
+const computeBogoContribution = (
   campaign: CampaignDiscountInput,
   lines: DiscountLine[]
-): number {
-  const eligibleIds = new Set(campaign.eligible_service_ids ?? []);
+): number => {
+  const eligibleIds = new Set(campaign.eligible_service_ids);
   const eligiblePrices = lines
     .filter((line) => eligibleIds.has(line.service_id))
     .map((line) => line.price)
-    .sort((a, b) => a - b);
+    .toSorted((a, b) => a - b);
 
   const freeCount = bogoFreeCount(campaign, eligiblePrices.length);
   if (freeCount === 0) {
@@ -112,14 +112,14 @@ function computeBogoContribution(
     total += eligiblePrices[i] ?? 0;
   }
   return total;
-}
+};
 
-export function computeCampaignContribution(
+export const computeCampaignContribution = (
   campaign: CampaignDiscountInput,
   grossTotal: number,
   remaining: number,
   lines: DiscountLine[] = []
-): number {
+): number => {
   if (remaining <= 0) {
     return 0;
   }
@@ -147,13 +147,13 @@ export function computeCampaignContribution(
   }
   contribution = Math.min(contribution, remaining);
   return Math.max(0, Math.round(contribution));
-}
+};
 
-export function stackCampaignDiscounts<T extends CampaignDiscountInput>(
+export const stackCampaignDiscounts = <T extends CampaignDiscountInput>(
   grossTotal: number,
   campaigns: T[],
   lines: DiscountLine[] = []
-): StackedDiscount<T> {
+): StackedDiscount<T> => {
   const ordered = campaigns
     .map((campaign) => ({
       campaign,
@@ -164,7 +164,7 @@ export function stackCampaignDiscounts<T extends CampaignDiscountInput>(
         lines
       ),
     }))
-    .sort((a, b) => b.priority - a.priority);
+    .toSorted((a, b) => b.priority - a.priority);
 
   let running = 0;
   const breakdown: CampaignContribution<T>[] = [];
@@ -181,4 +181,4 @@ export function stackCampaignDiscounts<T extends CampaignDiscountInput>(
   }
 
   return { total: running, breakdown };
-}
+};

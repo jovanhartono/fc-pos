@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { FormProvider } from "react-hook-form";
+
 import { campaignsQueries } from "@/features/campaigns/api";
 import { categoriesQueries } from "@/features/categories/api";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
@@ -12,44 +13,44 @@ import { useTransactionsPageBootstrap } from "@/features/transactions/hooks/use-
 import { TransactionsPageProvider } from "@/features/transactions/lib/transactions-context";
 import { pickStore, storeScope } from "@/features/users/lib/store-scope";
 
+const TransactionsPage = () => {
+  const { form, isBootstrapping, pageContext } = useTransactionsPageBootstrap();
+
+  if (isBootstrapping) {
+    return <PosSkeleton />;
+  }
+
+  return (
+    <FormProvider {...form}>
+      <TransactionsPageProvider value={pageContext}>
+        <TransactionsWorkspace />
+      </TransactionsPageProvider>
+    </FormProvider>
+  );
+};
+
 export const Route = createFileRoute("/_admin/transactions")({
-	loader: async ({ context }) => {
-		await Promise.all([
-			context.queryClient.ensureQueryData(storesQueries.list()),
-			context.queryClient.ensureQueryData(categoriesQueries.list()),
-			context.queryClient.ensureQueryData(productsQueries.list()),
-			context.queryClient.ensureQueryData(servicesQueries.list()),
-			context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
-		]);
+  loader: async ({ context }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(storesQueries.list()),
+      context.queryClient.ensureQueryData(categoriesQueries.list()),
+      context.queryClient.ensureQueryData(productsQueries.list()),
+      context.queryClient.ensureQueryData(servicesQueries.list()),
+      context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
+    ]);
 
-		const firstStoreId = pickStore(storeScope(context.me));
+    const firstStoreId = pickStore(storeScope(context.me));
 
-		if (firstStoreId) {
-			await context.queryClient.ensureQueryData(
-				campaignsQueries.list({
-					store_id: firstStoreId,
-					is_active: true,
-				}),
-			);
-		}
-	},
-	component: TransactionsPage,
-	// Past a second, the POS's outline instead of the generic placeholder.
-	pendingComponent: PosSkeleton,
+    if (firstStoreId) {
+      await context.queryClient.ensureQueryData(
+        campaignsQueries.list({
+          store_id: firstStoreId,
+          is_active: true,
+        })
+      );
+    }
+  },
+  component: TransactionsPage,
+  // Past a second, the POS's outline instead of the generic placeholder.
+  pendingComponent: PosSkeleton,
 });
-
-function TransactionsPage() {
-	const { form, isBootstrapping, pageContext } = useTransactionsPageBootstrap();
-
-	if (isBootstrapping) {
-		return <PosSkeleton />;
-	}
-
-	return (
-		<FormProvider {...form}>
-			<TransactionsPageProvider value={pageContext}>
-				<TransactionsWorkspace />
-			</TransactionsPageProvider>
-		</FormProvider>
-	);
-}

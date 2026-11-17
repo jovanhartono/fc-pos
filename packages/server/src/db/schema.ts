@@ -1,6 +1,6 @@
-import { type SQL, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import {
-  type AnyPgColumn,
   boolean,
   check,
   decimal,
@@ -16,6 +16,7 @@ import {
   uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 // The shop never charges a fraction of a rupiah — there is no sen at the
 // counter — so every money column below is scale: 0, whole rupiah only.
@@ -643,7 +644,8 @@ export const orderCountersTable = pgTable(
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     store_code: varchar("store_code", { length: 10 }).notNull(),
-    date_str: varchar("date_str", { length: 8 }).notNull(), // e.g. 05102025
+    // e.g. 05102025
+    date_str: varchar("date_str", { length: 8 }).notNull(),
     last_number: integer("last_number").notNull().default(0),
   },
   (table) => [

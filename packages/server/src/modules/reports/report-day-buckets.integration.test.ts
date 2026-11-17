@@ -1,16 +1,18 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { sql } from "drizzle-orm";
+
 import { customersTable, ordersTable } from "@/db/schema";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
-const { jakartaBucketExpr } = await import(
-  "@/modules/reports/report-range.util"
-);
-const { ordersInTrendSeries } = await import(
-  "@/modules/reports/report.repository"
-);
+const { jakartaBucketExpr } =
+  await import("@/modules/reports/report-range.util");
+const { ordersInTrendSeries } =
+  await import("@/modules/reports/report.repository");
 
 // Neon runs its sessions in GMT, and the timestamp columns hold UTC wall time.
 const setSessionZone = (zone: string) =>

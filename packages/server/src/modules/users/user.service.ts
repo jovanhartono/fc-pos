@@ -1,4 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
+
 import type { usersTable } from "@/db/schema";
 import {
   BadRequestException,
@@ -21,7 +22,9 @@ import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 import { acceptPhotoUpload, presignPhotoUpload } from "@/utils/photo-upload";
 import { buildMediaUrl } from "@/utils/s3";
 
-export async function createUser(payload: InferInsertModel<typeof usersTable>) {
+export const createUser = async (
+  payload: InferInsertModel<typeof usersTable>
+) => {
   const passwordHash = await Bun.password.hash(payload.password ?? "");
   const [created] = await insertUser({
     ...payload,
@@ -29,9 +32,9 @@ export async function createUser(payload: InferInsertModel<typeof usersTable>) {
   });
 
   return created;
-}
+};
 
-export async function getUsers(query?: GetUsersQuery) {
+export const getUsers = async (query?: GetUsersQuery) => {
   const pagination = normalizePagination(query, { maxPageSize: 100 });
   const filters = {
     is_active: query?.is_active,
@@ -52,13 +55,11 @@ export async function getUsers(query?: GetUsersQuery) {
     items: users,
     meta: buildPaginationMeta(totalRows, pagination),
   };
-}
+};
 
-export function getCouriers() {
-  return listActiveCouriers();
-}
+export const getCouriers = () => listActiveCouriers();
 
-export async function getUserById(id: number) {
+export const getUserById = async (id: number) => {
   const user = await findUserDetailById(id);
   if (!user) {
     return null;
@@ -66,16 +67,16 @@ export async function getUserById(id: number) {
 
   const { password: _, avatar_path, ...safeUser } = user;
   return { ...safeUser, avatar_url: buildMediaUrl(avatar_path) };
-}
+};
 
-export async function updateOwnName(userId: number, name: string) {
+export const updateOwnName = async (userId: number, name: string) => {
   await updateUserById(userId, { name });
   return getUserById(userId);
-}
+};
 
 // Asks for the current password so a colleague can't take over a phone left
 // signed in at the counter. Other devices stay signed in (ADR-0022).
-export async function changeOwnPassword({
+export const changeOwnPassword = async ({
   userId,
   currentPassword,
   password,
@@ -83,7 +84,7 @@ export async function changeOwnPassword({
   userId: number;
   currentPassword: string;
   password: string;
-}) {
+}) => {
   const user = await findUserDetailById(userId);
   if (!user) {
     throw new NotFoundException("User not found");
@@ -97,31 +98,30 @@ export async function changeOwnPassword({
   }
 
   await updateUserPasswordById(userId, await Bun.password.hash(password));
-}
+};
 
-export function createAvatarPresign(userId: number, contentType: string) {
-  return presignPhotoUpload({ kind: "avatar", userId }, contentType);
-}
+export const createAvatarPresign = (userId: number, contentType: string) =>
+  presignPhotoUpload({ kind: "avatar", userId }, contentType);
 
 // The replaced photo stays in storage, as every replaced photo does.
-export async function saveAvatar(userId: number, imagePath: string) {
+export const saveAvatar = async (userId: number, imagePath: string) => {
   await acceptPhotoUpload({ kind: "avatar", userId }, imagePath);
   await updateUserById(userId, { avatar_path: imagePath });
   return getUserById(userId);
-}
+};
 
-export async function removeAvatar(userId: number) {
+export const removeAvatar = async (userId: number) => {
   await updateUserById(userId, { avatar_path: null });
   return getUserById(userId);
-}
+};
 
-export async function updateUser({
+export const updateUser = async ({
   id,
   payload,
 }: {
   id: number;
   payload: Partial<InferInsertModel<typeof usersTable>>;
-}) {
+}) => {
   const { password: _payloadPassword, ...values } = payload;
   const [user] = await updateUserById(id, values);
 
@@ -131,24 +131,24 @@ export async function updateUser({
 
   const { password: _userPassword, ...safeUser } = user;
   return safeUser;
-}
+};
 
 // Leaves open sessions alone: making the User inactive is what signs them out.
 // See ADR-0022.
-export async function resetUserPassword({
+export const resetUserPassword = async ({
   id,
   password,
 }: {
   id: number;
   password: string;
-}) {
+}) => {
   const passwordHash = await Bun.password.hash(password);
   const [user] = await updateUserPasswordById(id, passwordHash);
 
   return user ?? null;
-}
+};
 
-export async function updateUserStores({
+export const updateUserStores = async ({
   actor,
   id,
   store_ids,
@@ -156,7 +156,7 @@ export async function updateUserStores({
   actor: JWTPayload;
   id: number;
   store_ids: number[];
-}) {
+}) => {
   if (actor.role !== "admin") {
     throw new ForbiddenException("Only admin can update user stores");
   }
@@ -168,4 +168,4 @@ export async function updateUserStores({
 
   const uniqueStoreIds = await replaceUserStores(id, store_ids);
   return { id, store_ids: uniqueStoreIds };
-}
+};

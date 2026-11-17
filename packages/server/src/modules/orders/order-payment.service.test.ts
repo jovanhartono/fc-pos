@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
@@ -88,7 +89,7 @@ mock.module("@/db", () => ({
         }),
       },
     },
-    transaction: (cb: (tx: unknown) => unknown) => cb(TX),
+    transaction: (work: (tx: unknown) => unknown) => work(TX),
   },
 }));
 
@@ -145,9 +146,8 @@ mock.module("@/modules/payment-methods/payment-method.repository", () => ({
   updatePaymentMethodById: unused,
 }));
 
-const { updateOrderPayment } = await import(
-  "@/modules/orders/order-payment.service"
-);
+const { updateOrderPayment } =
+  await import("@/modules/orders/order-payment.service");
 
 afterAll(() => {
   mock.module(

@@ -1,159 +1,162 @@
 import { describe, expect, test } from "bun:test";
+
 import type { FieldErrors } from "react-hook-form";
+
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
+
 import {
-	type CheckoutIssue,
-	collectCheckoutIssues,
-	describeServerFailure,
-	summarizeCheckoutIssues,
+  collectCheckoutIssues,
+  describeServerFailure,
+  summarizeCheckoutIssues,
 } from "./checkout-issues";
+import type { CheckoutIssue } from "./checkout-issues";
 
 const errors = (
-	shape: Record<string, unknown>,
+  shape: Record<string, unknown>
 ): FieldErrors<TransactionDraftValues> =>
-	shape as FieldErrors<TransactionDraftValues>;
+  shape as FieldErrors<TransactionDraftValues>;
 
 describe("collectCheckoutIssues", () => {
-	test("an admin who never picked a store is told about the store, not the steps", () => {
-		const issues = collectCheckoutIssues(
-			errors({ selectedStoreId: { message: "Store is required." } }),
-		);
+  test("an admin who never picked a store is told about the store, not the steps", () => {
+    const issues = collectCheckoutIssues(
+      errors({ selectedStoreId: { message: "Store is required." } })
+    );
 
-		expect(issues).toEqual([
-			{ target: "store", message: "Store is required." },
-		]);
-	});
+    expect(issues).toEqual([
+      { target: "store", message: "Store is required." },
+    ]);
+  });
 
-	test("orders the report the way the cashier walks the sheet", () => {
-		const issues = collectCheckoutIssues(
-			errors({
-				manualDiscount: { message: "Discount cannot be negative" },
-				customerName: { message: "Customer name is required." },
-				selectedStoreId: { message: "Store is required." },
-			}),
-		);
+  test("orders the report the way the cashier walks the sheet", () => {
+    const issues = collectCheckoutIssues(
+      errors({
+        manualDiscount: { message: "Discount cannot be negative" },
+        customerName: { message: "Customer name is required." },
+        selectedStoreId: { message: "Store is required." },
+      })
+    );
 
-		expect(issues.map((issue) => issue.target)).toEqual([
-			"store",
-			"customer",
-			"payment",
-		]);
-	});
+    expect(issues.map((issue) => issue.target)).toEqual([
+      "store",
+      "customer",
+      "payment",
+    ]);
+  });
 
-	test("an empty cart points at the items step", () => {
-		// The empty-Cart rule reports on productCart even when the cashier was
-		// adding Services, so both have to point at the same step.
-		const issues = collectCheckoutIssues(
-			errors({
-				productCart: {
-					message: "Add at least one product or service to the cart.",
-				},
-			}),
-		);
+  test("an empty cart points at the items step", () => {
+    // The empty-Cart rule reports on productCart even when the cashier was
+    // adding Services, so both have to point at the same step.
+    const issues = collectCheckoutIssues(
+      errors({
+        productCart: {
+          message: "Add at least one product or service to the cart.",
+        },
+      })
+    );
 
-		expect(issues).toEqual([
-			{
-				target: "items",
-				message: "Add at least one product or service to the cart.",
-			},
-		]);
-	});
+    expect(issues).toEqual([
+      {
+        target: "items",
+        message: "Add at least one product or service to the cart.",
+      },
+    ]);
+  });
 
-	test("finds a message nested under one object's treatment, not just on the cart", () => {
-		// ADR-0017 put the Item between the Cart and its Services; a message missed
-		// down there would leave the footer saying only "check the cart".
-		const issues = collectCheckoutIssues(
-			errors({
-				itemCart: [undefined, { services: [{ price: { message: "Price?" } }] }],
-			}),
-		);
+  test("finds a message nested under one object's treatment, not just on the cart", () => {
+    // ADR-0017 put the Item between the Cart and its Services; a message missed
+    // down there would leave the footer saying only "check the cart".
+    const issues = collectCheckoutIssues(
+      errors({
+        itemCart: [undefined, { services: [{ price: { message: "Price?" } }] }],
+      })
+    );
 
-		expect(issues).toEqual([{ target: "items", message: "Price?" }]);
-	});
+    expect(issues).toEqual([{ target: "items", message: "Price?" }]);
+  });
 
-	test("a clean form reports nothing", () => {
-		expect(collectCheckoutIssues(errors({}))).toHaveLength(0);
-	});
+  test("a clean form reports nothing", () => {
+    expect(collectCheckoutIssues(errors({}))).toHaveLength(0);
+  });
 });
 
 describe("describeServerFailure", () => {
-	test("a shoe the shop just sold out of names the product and the fix", () => {
-		const issue = describeServerFailure("Not enough stock for Nike Cleaner");
+  test("a shoe the shop just sold out of names the product and the fix", () => {
+    const issue = describeServerFailure("Not enough stock for Nike Cleaner");
 
-		expect(issue.target).toBe("items");
-		expect(issue.message).toBe(
-			"Not enough stock for Nike Cleaner. Lower the quantity or remove the line.",
-		);
-	});
+    expect(issue.target).toBe("items");
+    expect(issue.message).toBe(
+      "Not enough stock for Nike Cleaner. Lower the quantity or remove the line."
+    );
+  });
 
-	test("a code the customer already used sends the cashier to payment", () => {
-		expect(
-			describeServerFailure("Voucher code HEMAT10 has already been redeemed")
-				.target,
-		).toBe("payment");
-	});
+  test("a code the customer already used sends the cashier to payment", () => {
+    expect(
+      describeServerFailure("Voucher code HEMAT10 has already been redeemed")
+        .target
+    ).toBe("payment");
+  });
 
-	test("a courier who left the shop sends the cashier to the customer step", () => {
-		expect(describeServerFailure("This courier isn't Active").target).toBe(
-			"customer",
-		);
-	});
+  test("a courier who left the shop sends the cashier to the customer step", () => {
+    expect(describeServerFailure("This courier isn't Active").target).toBe(
+      "customer"
+    );
+  });
 
-	test("an unknown rejection is passed through as the server worded it", () => {
-		const issue = describeServerFailure("Order already exists");
+  test("an unknown rejection is passed through as the server worded it", () => {
+    const issue = describeServerFailure("Order already exists");
 
-		expect(issue).toEqual({ target: null, message: "Order already exists" });
-	});
+    expect(issue).toEqual({ target: null, message: "Order already exists" });
+  });
 
-	test("a campaign that hit its cap sends the cashier to payment", () => {
-		expect(
-			describeServerFailure("Campaign X has reached its usage limit").target,
-		).toBe("payment");
-	});
+  test("a campaign that hit its cap sends the cashier to payment", () => {
+    expect(
+      describeServerFailure("Campaign X has reached its usage limit").target
+    ).toBe("payment");
+  });
 
-	test("a campaign that doesn't run at this Store sends the cashier to payment", () => {
-		expect(
-			describeServerFailure("Campaign HEMAT10 doesn't run at KMG").target,
-		).toBe("payment");
-	});
+  test("a campaign that doesn't run at this Store sends the cashier to payment", () => {
+    expect(
+      describeServerFailure("Campaign HEMAT10 doesn't run at KMG").target
+    ).toBe("payment");
+  });
 
-	test("a campaign code that does not resolve sends the cashier to payment", () => {
-		expect(describeServerFailure("Campaign not found").target).toBe("payment");
-	});
+  test("a campaign code that does not resolve sends the cashier to payment", () => {
+    expect(describeServerFailure("Campaign not found").target).toBe("payment");
+  });
 
-	test("a cart under a campaign's minimum sends the cashier to payment", () => {
-		expect(
-			describeServerFailure(
-				"Order total does not meet minimum for campaign HEMAT10",
-			).target,
-		).toBe("payment");
-	});
+  test("a cart under a campaign's minimum sends the cashier to payment", () => {
+    expect(
+      describeServerFailure(
+        "Order total does not meet minimum for campaign HEMAT10"
+      ).target
+    ).toBe("payment");
+  });
 
-	test("the server's unpriced-line rejection still matches the existing rule", () => {
-		// Pin against packages/server/src/modules/orders/order.service.ts's exact
-		// wording — ADR-0018's blank-price gate has to keep landing on payment.
-		expect(
-			describeServerFailure(
-				"Order has an unpriced line. Price it before collecting payment.",
-			).target,
-		).toBe("payment");
-		expect(
-			describeServerFailure(
-				"Order has an unpriced line. Add discounts once every line is priced.",
-			).target,
-		).toBe("payment");
-	});
+  test("the server's unpriced-line rejection still matches the existing rule", () => {
+    // Pin against packages/server/src/modules/orders/order.service.ts's exact
+    // wording — ADR-0018's blank-price gate has to keep landing on payment.
+    expect(
+      describeServerFailure(
+        "Order has an unpriced line. Price it before collecting payment."
+      ).target
+    ).toBe("payment");
+    expect(
+      describeServerFailure(
+        "Order has an unpriced line. Add discounts once every line is priced."
+      ).target
+    ).toBe("payment");
+  });
 });
 
 describe("summarizeCheckoutIssues", () => {
-	test("reads as one footer line", () => {
-		const issues: CheckoutIssue[] = [
-			{ target: "store", message: "Store is required." },
-			{ target: "customer", message: "Phone number is required." },
-		];
+  test("reads as one footer line", () => {
+    const issues: CheckoutIssue[] = [
+      { target: "store", message: "Store is required." },
+      { target: "customer", message: "Phone number is required." },
+    ];
 
-		expect(summarizeCheckoutIssues(issues)).toBe(
-			"Store is required. Phone number is required.",
-		);
-	});
+    expect(summarizeCheckoutIssues(issues)).toBe(
+      "Store is required. Phone number is required."
+    );
+  });
 });

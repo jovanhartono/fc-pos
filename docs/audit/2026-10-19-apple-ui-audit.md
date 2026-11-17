@@ -5,7 +5,7 @@ Branch `feat/reports-redesign`, after the Apple tokens and the segmented-control
 ## A. Pieces that can become one component
 
 | # | Group | Copies | Target | Risk |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 1 | Section heading "Title · count" over a bordered list (Counter, Reports, worker sheet); heading size varies 14–16px, semibold vs medium | 10+ | grow `ReportSection` into `components/section.tsx` (title, count, aside, empty) | low |
 | 2 | Loading skeletons: 3 looks, none uses `ui/skeleton`; Workers/Quality tabs flash two different skeletons back to back | 8 | `Skeleton` + one report skeleton | low |
 | 3 | Dashed empty-state box (`data-table-cards:139`, `orders.index:443`, `queue.index:583,623`, `queue-service-detail:464`, `checkout-items-step:87`) | 6 | `components/empty-state.tsx` | low |
@@ -26,7 +26,7 @@ Bug found on the way: `services-multi-autocomplete.tsx:126` uses `w-(--radix-pop
 ## B. Not Apple-like yet (most visible first)
 
 | # | What | Now | Apple target | Effort |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 1 | Selected states | black fills/outlines left from the old theme: POS tiles, checkout steps, report filters, pickup count, date picker, table selected row | solid `bg-primary`; card selection `ring-2 ring-primary bg-primary/8`; counts as a blue capsule | M (~14 sites) |
 | 2 | Progress + sparkline bars | black | `h-1.5 rounded-full`, track `bg-soft-bar-track`, fill `bg-primary` (`bg-success` when done) | S–M |
 | 3 | Chip strips (Queue statuses, POS categories) | 44px outlined squares | capsules, `bg-secondary`, selected `bg-primary` | S |
@@ -48,4 +48,4 @@ Bug found on the way: `services-multi-autocomplete.tsx:126` uses `w-(--radix-pop
 | 19 | Phone list cards | one card per row, 8px gaps | one inset grouped list with hairlines (like Counter) | M–L |
 | 20 | Outline buttons, dark | keep a border | grey filled button, no border | S |
 
-Leave alone: the tokens, PageHeader title, sidebar labels and selected pill, Counter's grouped list, 44px touch inputs, the rounded-square checkbox (that *is* macOS), `/track`'s own colours, the green NOTIFIED label.
+Leave alone: the tokens, PageHeader title, sidebar labels and selected pill, Counter's grouped list, 44px touch inputs, the rounded-square checkbox (that _is_ macOS), `/track`'s own colours, the green NOTIFIED label.

@@ -18,17 +18,16 @@ export const WORKSHOP_SERVICE_STATUSES = [
   "qc_reject",
 ] as const;
 
-export function isInWorkshop(line: { status: string }): boolean {
-  return (WORKSHOP_SERVICE_STATUSES as readonly string[]).includes(line.status);
-}
+export const isInWorkshop = (line: { status: string }): boolean =>
+  (WORKSHOP_SERVICE_STATUSES as readonly string[]).includes(line.status);
 
 // A cleaned shoe whose Repaint hasn't started is still being worked on: the
 // Counter and the Customer's Track page call it Waiting QC only when nothing
 // but the check is left.
-export function isWaitingQcOnly(lines: { status: string }[]): boolean {
+export const isWaitingQcOnly = (lines: { status: string }[]): boolean => {
   const left = lines.filter(isInWorkshop);
   return left.length > 0 && left.every((line) => line.status === "waiting_qc");
-}
+};
 
 export const ORDER_SERVICE_TRANSITIONS: Record<
   OrderServiceStatus,
@@ -64,16 +63,12 @@ export type DerivedItemStatus =
 // An Item leaves only once every live line on it is ready. `refunded` is a pair
 // refunded while it sat queued: still the Customer's to take home, and without it
 // the counter could never record handing it back.
-export function isCollectableItemStatus(status: DerivedItemStatus): boolean {
-  return status === "ready_for_pickup" || status === "refunded";
-}
+export const isCollectableItemStatus = (status: DerivedItemStatus): boolean =>
+  status === "ready_for_pickup" || status === "refunded";
 
 // Lines that leave with the Item at pickup: finished ones, and ones refunded
 // before the Customer came back. Exported so the pickup dialog lists exactly these
 // rows instead of keeping its own copy of the rule (as ADR-0018's `hasUnpricedLine`).
-export function isHandedOverByPickup(line: ItemStatusLine): boolean {
-  return (
-    line.status === "ready_for_pickup" ||
-    (line.status === "refunded" && line.pickup_event_id == null)
-  );
-}
+export const isHandedOverByPickup = (line: ItemStatusLine): boolean =>
+  line.status === "ready_for_pickup" ||
+  (line.status === "refunded" && line.pickup_event_id == null);

@@ -2,17 +2,17 @@
 // need the parser the server stores with, not a second one that could drift
 // and accept a number the API then rejects.
 import {
-  type CountryCode,
   getCountryCallingCode,
   parsePhoneNumberFromString,
 } from "libphonenumber-js";
+import type { CountryCode } from "libphonenumber-js";
 
 export const DEFAULT_PHONE_COUNTRY: CountryCode = "ID";
 
-export function isValidPhoneNumber(
+export const isValidPhoneNumber = (
   value: string,
   defaultCountry: CountryCode = DEFAULT_PHONE_COUNTRY
-) {
+) => {
   const trimmed = value.trim();
   if (!trimmed) {
     return false;
@@ -23,28 +23,28 @@ export function isValidPhoneNumber(
     : parsePhoneNumberFromString(trimmed, defaultCountry);
 
   return parsed?.isValid() ?? false;
-}
+};
 
 // A cashier types the start of a number the way it is said, 0812 or 0812-34,
 // while stored numbers read +62812…. Search boxes match on this instead, so the
 // first few digits are enough to find the customer.
-const PHONE_SEPARATORS = /[\s-]/g;
-const LOCAL_PHONE_DIGITS = /^0\d+$/;
+const PHONE_SEPARATORS = /[\s-]/gu;
+const LOCAL_PHONE_DIGITS = /^0\d+$/u;
 
-export function toStoredPhonePrefix(
+export const toStoredPhonePrefix = (
   value: string,
   defaultCountry: CountryCode = DEFAULT_PHONE_COUNTRY
-) {
-  const digits = value.replace(PHONE_SEPARATORS, "");
+) => {
+  const digits = value.replaceAll(PHONE_SEPARATORS, "");
   return LOCAL_PHONE_DIGITS.test(digits)
     ? `+${getCountryCallingCode(defaultCountry)}${digits.slice(1)}`
     : value;
-}
+};
 
-export function normalizePhoneNumber(
+export const normalizePhoneNumber = (
   value: string,
   defaultCountry: CountryCode = DEFAULT_PHONE_COUNTRY
-) {
+) => {
   const trimmed = value.trim();
   if (!trimmed) {
     return "";
@@ -55,4 +55,4 @@ export function normalizePhoneNumber(
     : parsePhoneNumberFromString(trimmed, defaultCountry);
 
   return parsed?.isValid() ? parsed.number : trimmed;
-}
+};

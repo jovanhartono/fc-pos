@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { orderServiceStatusEnum } from "@/db/schema";
 import {
   DEFAULT_PAGE_SIZE,
@@ -37,9 +38,9 @@ export interface NormalizedComplaintListQuery {
   store_id?: number;
 }
 
-export function normalizeComplaintListQuery(
+export const normalizeComplaintListQuery = (
   query?: GetComplaintsQuery
-): NormalizedComplaintListQuery {
+): NormalizedComplaintListQuery => {
   const pagination = normalizePagination(query, {
     defaultPageSize: DEFAULT_PAGE_SIZE,
     maxPageSize: MAX_PAGE_SIZE,
@@ -51,4 +52,4 @@ export function normalizeComplaintListQuery(
     search: query?.search,
     store_id: query?.store_id,
   };
-}
+};

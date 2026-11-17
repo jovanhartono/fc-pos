@@ -1,12 +1,13 @@
 import { describe, expect, it } from "bun:test";
+
 import {
   allocateRefund,
   lineDiscountShares,
   lineKey,
   lineRefundCap,
   orderLineRefundCaps,
-  type RefundLineRef,
 } from "@/schema/refund-allocation";
+import type { RefundLineRef } from "@/schema/refund-allocation";
 
 const caps = (entries: [string, number][]) => new Map(entries);
 
@@ -55,14 +56,15 @@ describe("lineRefundCap", () => {
   });
 });
 
+const line = (id: number, serviceId: number, gross: number) => ({
+  bogoServiceId: serviceId,
+  gross,
+  key: lineKey("service", id),
+});
+
 describe("lineDiscountShares", () => {
   const DCS = 1;
   const HARD_STAIN = 34;
-  const line = (id: number, serviceId: number, gross: number) => ({
-    bogoServiceId: serviceId,
-    gross,
-    key: lineKey("service", id),
-  });
   // Prod Order 1482: 5 DCS + 6 Hard Stain, Pay 4 Get 1 on DCS only.
   const order1482 = [
     ...[1, 2, 3, 4, 5].map((id) => line(id, DCS, 60_000)),

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "bun:test";
+
 import { BadRequestException } from "@/http-exceptions";
 import {
   assertDiscountRequestAllowed,
   assertLinePrice,
   assertPayable,
-  type SettlementLine,
 } from "@/modules/orders/order-settlement.service";
+import type { SettlementLine } from "@/modules/orders/order-settlement.service";
 
 // The checks every screen runs before a discount settles on an Order (ADR-0018).
 

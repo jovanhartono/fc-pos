@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { drizzle } from "drizzle-orm/pg-proxy";
+
 import { getJakartaDayRange } from "@/modules/reports/report-range.util";
 
 // Turning day-rows into the figures on the reports page is plain arithmetic:
@@ -97,9 +99,8 @@ mock.module("@/db", () => ({
   }),
 }));
 
-const { getFinancialReport, getPaymentMixReport } = await import(
-  "@/modules/reports/report-range.service"
-);
+const { getFinancialReport, getPaymentMixReport } =
+  await import("@/modules/reports/report-range.service");
 
 const financial = () => getFinancialReport({ from: FROM, to: TO });
 
@@ -303,15 +304,15 @@ describe("this stretch against the one before it", () => {
   });
 });
 
-describe("splitting the takings between stores", () => {
-  const store = (
-    id: number,
-    name: string,
-    code: string,
-    collected: number,
-    orders: number
-  ) => [id, name, code, String(collected), orders];
+const store = (
+  id: number,
+  name: string,
+  code: string,
+  collected: number,
+  orders: number
+) => [id, name, code, String(collected), orders];
 
+describe("splitting the takings between stores", () => {
   it("gives each store its share of the takings, biggest first", async () => {
     answers.storeCollected.now = [
       store(2, "Bintaro", "BIN", 300_000, 4),

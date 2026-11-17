@@ -1,7 +1,9 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it, mock } from "bun:test";
+
+import "@/test-support/pglite";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // Who may see the Pickup code, the six digits that release a Customer's Items
@@ -21,21 +23,16 @@ mock.module("@/utils/s3", () => ({
 // Imported after both swaps above: a static import would bind the real
 // database and storage before the swaps run.
 const { db } = await import("@/db");
-const { createOrder, getOrderDetailById } = await import(
-  "@/modules/orders/order.service"
-);
-const { getOrderReceiptById } = await import(
-  "@/modules/orders/order-receipt.service"
-);
-const { getOrderServiceDetail } = await import(
-  "@/modules/orders/order-service-detail.service"
-);
-const { getTrackedOrder } = await import(
-  "@/modules/orders/order-track.service"
-);
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { createOrder, getOrderDetailById } =
+  await import("@/modules/orders/order.service");
+const { getOrderReceiptById } =
+  await import("@/modules/orders/order-receipt.service");
+const { getOrderServiceDetail } =
+  await import("@/modules/orders/order-service-detail.service");
+const { getTrackedOrder } =
+  await import("@/modules/orders/order-track.service");
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 
 const CUSTOMER_PHONE = "+628111222333";
 const OTHER_PHONE = "+628999888777";

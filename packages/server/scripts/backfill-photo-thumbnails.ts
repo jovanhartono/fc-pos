@@ -14,9 +14,8 @@ const CONCURRENCY = 8;
 
 console.log(`bucket ${process.env.S3_BUCKET}, prefix ${ORDER_PHOTO_PREFIX}`);
 
-const keys = new Set(
-  (await listStoredObjects(ORDER_PHOTO_PREFIX)).map(({ key }) => key)
-);
+const stored = await listStoredObjects(ORDER_PHOTO_PREFIX);
+const keys = new Set(stored.map(({ key }) => key));
 const missing = [...keys].filter(
   (key) => photoKeyOf(key) === key && !keys.has(thumbnailKey(key))
 );
@@ -28,11 +27,11 @@ for (let index = 0; index < missing.length; index += CONCURRENCY) {
   const results = await Promise.all(
     batch.map((key) => writePhotoThumbnail(key))
   );
-  batch.forEach((key, position) => {
+  for (const [position, key] of batch.entries()) {
     if (!results[position]) {
       failed.push(key);
     }
-  });
+  }
   console.log(
     `${Math.min(index + CONCURRENCY, missing.length)}/${missing.length}`
   );

@@ -1,12 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { createHash, createHmac } from "node:crypto";
+
 import { dokuGateway } from "./doku";
 import type { GatewayChargeInput } from "./types";
 
 const CLIENT_ID = "BRN-0001-TEST";
 const SECRET = "test-secret";
 const WEBHOOK_PATH = "/api/webhooks/payments/doku";
-const UTC_NO_MILLIS_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const UTC_NO_MILLIS_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u;
+
+const lowercase = (headers: Record<string, string>) =>
+  Object.fromEntries(
+    Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])
+  );
 
 interface Captured {
   init: RequestInit;
@@ -267,7 +273,8 @@ describe("dokuGateway.getStatus", () => {
   it("reads a checkout nobody has paid on yet as pending", async () => {
     stubFetch(new Response("not found", { status: 404 }));
 
-    expect((await dokuGateway.getStatus(ref)).status).toBe("pending");
+    const result = await dokuGateway.getStatus(ref);
+    expect(result.status).toBe("pending");
   });
 });
 
@@ -291,7 +298,7 @@ describe("dokuGateway.cancelCharge", () => {
 
   it("swallows a refusal", async () => {
     const { warn } = console;
-    console.warn = () => undefined;
+    console.warn = () => {};
     stubFetch(new Response("disabled", { status: 403 }));
 
     try {
@@ -324,15 +331,10 @@ describe("dokuGateway.verifyNotification", () => {
     return headers;
   };
 
-  const lowercase = (headers: Record<string, string>) =>
-    Object.fromEntries(
-      Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])
-    );
-
   let errorLog: typeof console.error;
   beforeEach(() => {
     errorLog = console.error;
-    console.error = () => undefined;
+    console.error = () => {};
   });
   afterEach(() => {
     console.error = errorLog;

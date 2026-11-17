@@ -1,4 +1,5 @@
 import { and, eq, ne } from "drizzle-orm";
+
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
@@ -8,7 +9,7 @@ import type { JWTPayload } from "@/types";
 
 // ADR-0029: settled with the Customer after drop-off, e.g. once a GoSend quote
 // comes in. Payment is all-or-nothing, so a paid Order's fee is frozen.
-export async function updateOrderDeliveryFee({
+export const updateOrderDeliveryFee = async ({
   orderId,
   deliveryFee,
   user,
@@ -16,7 +17,7 @@ export async function updateOrderDeliveryFee({
   orderId: number;
   deliveryFee: number;
   user: JWTPayload;
-}) {
+}) => {
   assertCanCreateOrder(user);
 
   const rows = await db
@@ -54,4 +55,4 @@ export async function updateOrderDeliveryFee({
       ? "Order has been paid — its Delivery fee is frozen"
       : "Cannot set a Delivery fee on a cancelled order"
   );
-}
+};

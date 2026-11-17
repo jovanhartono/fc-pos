@@ -1,0 +1,151 @@
+import { orderNetTotal } from "@fresclean/api/rules";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { WhatsappIcon } from "@/components/whatsapp-icon";
+import { createOrderPickupNotice, ordersQueries } from "@/features/orders/api";
+import type { OrderDetail, OrderReceipt } from "@/features/orders/api";
+import {
+  buildPickupNoticeMessage,
+  formatNoticeTime,
+  whatsappUrl,
+} from "@/features/orders/lib/pickup-notice";
+import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
+import {
+  isOnlinePaymentReady,
+  paymentMethodsQueries,
+} from "@/features/payment-methods/api";
+import { onOrderMoved } from "@/lib/cache-events";
+import { useDialog } from "@/stores/dialog-store";
+
+interface NotifyCustomerTarget {
+  customerName: string;
+  phone: string;
+  lastNotice: OrderDetail["last_pickup_notice"];
+}
+
+interface NotifyCustomerFooterProps {
+  label: string;
+  onConfirm: (receipt: OrderReceipt, canPayOnline: boolean) => void;
+  orderId: number;
+}
+
+const NotifyCustomerFooter = ({
+  label,
+  onConfirm,
+  orderId,
+}: NotifyCustomerFooterProps) => {
+  const closeDialog = useDialog((s) => s.closeDialog);
+  // The Pickup code only comes with the receipt read (ADR-0016), and WhatsApp
+  // has to open inside the tap, so the code is fetched while the dialog is up.
+  const receiptQuery = useQuery(ordersQueries.receipt(orderId));
+  // A failed read falls back to the bank-transfer text rather than blocking.
+  const gatewayQuery = useQuery(paymentMethodsQueries.gateway());
+  const isGatewayLoading = gatewayQuery.isPending;
+  const confirmedRef = useRef(false);
+
+  return (
+    <>
+      <Button onClick={closeDialog} type="button" variant="outline">
+        Cancel
+      </Button>
+      {receiptQuery.isError ? (
+        <Button
+          loading={receiptQuery.isFetching}
+          onClick={() => receiptQuery.refetch()}
+          type="button"
+          variant="success"
+        >
+          Try Again
+        </Button>
+      ) : (
+        <Button
+          disabled={!receiptQuery.data || isGatewayLoading}
+          icon={<HugeiconsIcon icon={WhatsappIcon} className="size-4" />}
+          loading={receiptQuery.isPending || isGatewayLoading}
+          onClick={() => {
+            if (confirmedRef.current || !receiptQuery.data) {
+              return;
+            }
+            confirmedRef.current = true;
+            onConfirm(
+              receiptQuery.data,
+              isOnlinePaymentReady(gatewayQuery.data)
+            );
+          }}
+          type="button"
+          variant="success"
+        >
+          {label}
+        </Button>
+      )}
+    </>
+  );
+};
+
+export const useNotifyCustomer = (orderId: number) => {
+  const queryClient = useQueryClient();
+  const openDialog = useDialog((s) => s.openDialog);
+  const closeDialog = useDialog((s) => s.closeDialog);
+
+  const mutation = useMutation({
+    mutationFn: (_customerName: string) => createOrderPickupNotice(orderId),
+    onSuccess: async (_data, customerName) => {
+      toast.success(`${customerName} notified`);
+      await onOrderMoved(queryClient);
+    },
+    // WhatsApp already opened, so retrying only saves the record; tapping
+    // Notify again would send the Customer a second message.
+    onError: (_error, customerName) => {
+      toast.error("Sent on WhatsApp, but couldn't mark it notified.", {
+        action: {
+          label: "Save Again",
+          onClick: () => mutation.mutate(customerName),
+        },
+        duration: Number.POSITIVE_INFINITY,
+      });
+    },
+  });
+
+  const handleConfirm = (receipt: OrderReceipt, canPayOnline: boolean) => {
+    const message = buildPickupNoticeMessage({
+      customerName: receipt.customer.name,
+      orderCode: receipt.code,
+      pickupCode: receipt.pickup_code,
+      // What the Customer owes, matching the Total on their printed Receipt.
+      total: orderNetTotal(receipt),
+      isPaid: receipt.payment_status === "paid",
+      trackingUrl: buildTrackingUrl(
+        receipt.code,
+        receipt.customer.phone_number
+      ),
+      canPayOnline,
+    });
+    // iOS only lets a tap open a new tab before anything is awaited.
+    window.open(whatsappUrl(receipt.customer.phone_number, message), "_blank");
+    closeDialog();
+    mutation.mutate(receipt.customer.name);
+  };
+
+  return ({ customerName, phone, lastNotice }: NotifyCustomerTarget) => {
+    const label = lastNotice ? "Notify Again" : "Notify";
+    openDialog({
+      title: lastNotice
+        ? `Notify ${customerName} again?`
+        : `Notify ${customerName}?`,
+      description: lastNotice
+        ? `Notified ${formatNoticeTime(lastNotice.sent_at)} by ${lastNotice.sent_by_name}. Opens WhatsApp with the same message again.`
+        : `Opens WhatsApp to ${phone} with the pickup message and marks this Order notified.`,
+      footer: () => (
+        <NotifyCustomerFooter
+          label={label}
+          onConfirm={handleConfirm}
+          orderId={orderId}
+        />
+      ),
+    });
+  };
+};

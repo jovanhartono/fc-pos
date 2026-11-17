@@ -7,6 +7,7 @@ import {
   mock,
   setSystemTime,
 } from "bun:test";
+
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
@@ -86,9 +87,8 @@ mock.module("@/modules/shifts/shift.repository", () => ({
   },
 }));
 
-const { clockIn, closeForgottenShifts } = await import(
-  "@/modules/shifts/shift.service"
-);
+const { clockIn, closeForgottenShifts } =
+  await import("@/modules/shifts/shift.service");
 
 afterAll(() => {
   setSystemTime();
@@ -103,27 +103,27 @@ const COURIER = { id: 8, role: "courier" } as unknown as AuthUser;
 // radius: metres outdoors, kilometres from a cell tower.
 const AT_THE_COUNTER = {
   accuracy_m: 12,
-  latitude: -6.261_848,
-  longitude: 106.812_735,
+  latitude: -6.261848,
+  longitude: 106.812735,
 };
 // 6.2 km out, and the phone is sure. Nobody can argue with this one.
 const FROM_HOME = {
   accuracy_m: 18,
-  latitude: -6.317_648,
-  longitude: 106.812_735,
+  latitude: -6.317648,
+  longitude: 106.812735,
 };
 // 4.1 km out on paper, but the circle is 3.2 km wide, so the counter is inside
 // it. This is the worker indoors on a rainy day, not the worker in bed.
 const FIX_TOO_VAGUE_TO_JUDGE = {
   accuracy_m: 3200,
-  latitude: -6.298_658,
-  longitude: 106.812_735,
+  latitude: -6.298658,
+  longitude: 106.812735,
 };
 // 10 km out with the same useless circle: even its near edge is 6.8 km away.
 const FAR_AND_VAGUE = {
   accuracy_m: 3200,
-  latitude: -6.352_018,
-  longitude: 106.812_735,
+  latitude: -6.352018,
+  longitude: 106.812735,
 };
 
 beforeEach(() => {
@@ -239,13 +239,15 @@ describe("clockIn location rule", () => {
 
 describe("clockIn auto-closes yesterday's Shift instead of locking the worker out", () => {
   it("opens today's shift once yesterday's row is closed", async () => {
-    setSystemTime(new Date("2026-09-09T01:00:00.000Z")); // 08:00 Jakarta
+    // 08:00 Jakarta
+    setSystemTime(new Date("2026-09-09T01:00:00.000Z"));
     shiftState.openShift = { id: 5, clock_out_at: null };
     shiftState.staleClosed = [
       {
         auto_closed: true,
-        clock_in_at: new Date("2026-09-08T01:30:00.000Z"), // 08:30 Jakarta
-        clock_out_at: new Date("2026-09-08T11:30:00.000Z"), // 18:30 Jakarta
+        // 08:30 to 18:30 Jakarta
+        clock_in_at: new Date("2026-09-08T01:30:00.000Z"),
+        clock_out_at: new Date("2026-09-08T11:30:00.000Z"),
       },
     ];
 

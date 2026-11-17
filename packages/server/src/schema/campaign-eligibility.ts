@@ -1,4 +1,5 @@
-import { bogoFreeCount, type CampaignDiscountInput } from "@/schema/discount";
+import { bogoFreeCount } from "@/schema/discount";
+import type { CampaignDiscountInput } from "@/schema/discount";
 
 export interface CampaignEligibilityInput {
   buy_quantity?: number | null;
@@ -28,10 +29,10 @@ export interface CampaignEligibilityContext {
 
 // A buy 4 get 1 shown with three Services would promise a free Item the
 // Order can't earn.
-function bogoIneligibilityReason(
+const bogoIneligibilityReason = (
   campaign: CampaignEligibilityInput,
   lines: { service_id: number }[]
-): string | null {
+): string | null => {
   if (campaign.discount_type !== "buy_n_get_m_free") {
     return null;
   }
@@ -46,18 +47,18 @@ function bogoIneligibilityReason(
   }
   const needed = (campaign.buy_quantity ?? 0) + (campaign.free_quantity ?? 0);
   return `Campaign ${campaign.code} needs ${needed} eligible Services`;
-}
+};
 
 // Whether the Campaign runs at this Store right now, before the Cart is
 // looked at. The POS uses it alone to decide whether to offer a code field.
-export function campaignRunReason(
+export const campaignRunReason = (
   campaign: CampaignEligibilityInput,
   {
     now,
     storeId,
     storeCode,
   }: Pick<CampaignEligibilityContext, "now" | "storeId" | "storeCode">
-): string | null {
+): string | null => {
   if (!campaign.is_active) {
     return `Campaign ${campaign.code} is not active`;
   }
@@ -73,14 +74,14 @@ export function campaignRunReason(
     return `Campaign ${campaign.code} doesn't run at ${storeCode ?? storeId}`;
   }
   return null;
-}
+};
 
 // Single source of the Campaign "Usable" rules (see ADR-0015). The server
 // wraps this in assertCampaignUsable (throws); the POS filters on null.
-export function campaignIneligibilityReason(
+export const campaignIneligibilityReason = (
   campaign: CampaignEligibilityInput,
   { now, grossTotal, lines, storeId, storeCode }: CampaignEligibilityContext
-): string | null {
+): string | null => {
   const runReason = campaignRunReason(campaign, { now, storeId, storeCode });
   if (runReason) {
     return runReason;
@@ -100,4 +101,4 @@ export function campaignIneligibilityReason(
   }
 
   return bogoIneligibilityReason(campaign, lines);
-}
+};

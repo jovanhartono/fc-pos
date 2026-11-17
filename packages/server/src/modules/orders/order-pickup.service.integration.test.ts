@@ -1,8 +1,10 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it, mock } from "bun:test";
+
+import "@/test-support/pglite";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // The handover and the move to picked_up are one transaction, so an Item that
@@ -24,12 +26,10 @@ mock.module("@/utils/s3", () => ({
 // database and storage before the swaps run.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
-const { createOrderPickupEvent } = await import(
-  "@/modules/orders/order-pickup.service"
-);
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { createOrderPickupEvent } =
+  await import("@/modules/orders/order-pickup.service");
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 
 let shop: Shop;
 

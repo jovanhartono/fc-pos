@@ -1,16 +1,16 @@
 interface ReworkRoundLabelProps {
-	round: number;
-	serviceName: string;
+  round: number;
+  serviceName: string;
 }
 
 // Drawn under the line it redoes, so the eye takes the Service from the row
 // above; a screen reader, which cannot, hears it spelled out.
 export const ReworkRoundLabel = ({
-	round,
-	serviceName,
+  round,
+  serviceName,
 }: ReworkRoundLabelProps) => (
-	<>
-		Rework {round}
-		<span className="sr-only"> of {serviceName}</span>
-	</>
+  <>
+    Rework {round}
+    <span className="sr-only"> of {serviceName}</span>
+  </>
 );

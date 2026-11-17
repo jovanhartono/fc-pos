@@ -15,10 +15,10 @@ interface OrderLookupResult {
   store_id: number;
 }
 
-export async function resolveOrderLookup(
+export const resolveOrderLookup = async (
   user: AuthUser,
   q: string
-): Promise<OrderLookupResult> {
+): Promise<OrderLookupResult> => {
   const query = q.trim();
 
   if (isNumericSearch(query)) {
@@ -65,4 +65,4 @@ export async function resolveOrderLookup(
     service_id: liveServiceId,
     item_code: item.services.length > 1 ? item.item_code : null,
   };
-}
+};

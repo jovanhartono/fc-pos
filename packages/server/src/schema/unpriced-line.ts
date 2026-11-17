@@ -10,10 +10,8 @@ export interface UnpricedLineState {
 // A cancelled line took the unpaid off-ramp (ADR-0008): nobody owes its
 // number anymore, so its blank price does not hold the rest of the Order's
 // payment hostage.
-export function isUnpricedLine(line: UnpricedLineState): boolean {
-  return line.status !== "cancelled" && line.price === null;
-}
+export const isUnpricedLine = (line: UnpricedLineState): boolean =>
+  line.status !== "cancelled" && line.price === null;
 
-export function hasUnpricedLine(lines: UnpricedLineState[]): boolean {
-  return lines.some(isUnpricedLine);
-}
+export const hasUnpricedLine = (lines: UnpricedLineState[]): boolean =>
+  lines.some(isUnpricedLine);

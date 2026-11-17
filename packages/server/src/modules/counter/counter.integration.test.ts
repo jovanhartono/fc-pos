@@ -1,6 +1,9 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { eq, inArray } from "drizzle-orm";
+
 import {
   categoriesTable,
   complaintsTable,
@@ -13,7 +16,8 @@ import {
   storesTable,
 } from "@/db/schema";
 import { DAY_MS } from "@/modules/reports/report-range.util";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // What the Counter shows at Kemang: the waiting work against how long recent
@@ -21,9 +25,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 
 // Loaded after the swap above, never beside the imports (see the Workers suite).
 const { createOrder } = await import("@/modules/orders/order.service");
-const { getCounter, getPickupShelf } = await import(
-  "@/modules/counter/counter.service"
-);
+const { getCounter, getPickupShelf } =
+  await import("@/modules/counter/counter.service");
 
 const jkt = (local: string) => new Date(`${local}:00+07:00`);
 
@@ -167,14 +170,59 @@ const tenTimes = (days: number) => Array.from({ length: 10 }, () => days);
 const waiting = async (count: number, serviceId = shop.serviceId) =>
   setStatus(await placeLines(shop.store, count, serviceId), "queued");
 
-const counterOf = async (storeId = shop.store.id, now = NOW) =>
+const counterOf = (storeId = shop.store.id, now = NOW) =>
   getCounter(storeId, now);
 
-const shelfOf = async (page: { offset?: number } = {}) =>
+const shelfOf = (page: { offset?: number } = {}) =>
   getPickupShelf({ store_id: shop.store.id, ...page }, NOW);
 
-const categoryRow = async (name: string) =>
-  (await counterOf()).categories.find((row) => row.name === name);
+const categoryRow = async (name: string) => {
+  const counter = await counterOf();
+  return counter.categories.find((row) => row.name === name);
+};
+
+const complain = async (line: Line, reason: string, at: Date) => {
+  const [complaint] = await testDb
+    .insert(complaintsTable)
+    .values({
+      created_at: at,
+      opened_by: shop.admin.id,
+      order_service_id: line.lineId,
+      reason,
+    })
+    .returning();
+  return complaint;
+};
+
+const reworkOf = (complaintId: number, line: Line, status: Status) =>
+  testDb.insert(ordersServicesTable).values({
+    complaint_id: complaintId,
+    item_id: line.itemId,
+    order_id: line.orderId,
+    price: "0",
+    service_id: shop.serviceId,
+    status,
+  });
+
+const putOnShelf = async (store: Store, itemCount: number, readyAt: Date) => {
+  const lines = await placeLines(store, itemCount);
+  await setStatus(lines, "ready_for_pickup");
+  await testDb
+    .update(ordersTable)
+    .set({ ready_at: readyAt, status: "ready_for_pickup" })
+    .where(eq(ordersTable.id, lines[0].orderId));
+  return lines;
+};
+
+const shelfOfTwelve = async () => {
+  for (let day = 1; day <= 12; day++) {
+    await putOnShelf(
+      shop.store,
+      1,
+      jkt(`2026-09-${String(day).padStart(2, "0")}T10:00`)
+    );
+  }
+};
 
 beforeEach(async () => {
   await resetDb();
@@ -212,7 +260,8 @@ beforeEach(async () => {
 
 describe("when there is nothing honest to quote", () => {
   it("lists no Categories for a Store with no Orders", async () => {
-    expect((await counterOf()).categories).toEqual([]);
+    const counter = await counterOf();
+    expect(counter.categories).toEqual([]);
   });
 
   it("needs 10 Items ready in the last 4 weeks", async () => {
@@ -220,17 +269,20 @@ describe("when there is nothing honest to quote", () => {
     await readyAfter([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     // Ready on 1 September, 29 days back: too old to count.
     await readyAfter([3], { droppedOff: jkt("2026-08-29T10:00") });
-    expect((await categoryRow("Footwear"))?.estimate).toBeNull();
+    const tooFew = await categoryRow("Footwear");
+    expect(tooFew?.estimate).toBeNull();
 
     await readyAfter([3]);
-    expect((await categoryRow("Footwear"))?.estimate).not.toBeNull();
+    const enough = await categoryRow("Footwear");
+    expect(enough?.estimate).not.toBeNull();
   });
 
   it("ignores another Store's Items", async () => {
     await waiting(1);
     await readyAfter(tenTimes(2), { store: bintaro });
 
-    expect((await categoryRow("Footwear"))?.estimate).toBeNull();
+    const footwear = await categoryRow("Footwear");
+    expect(footwear?.estimate).toBeNull();
   });
 });
 
@@ -280,7 +332,8 @@ describe("the workshop rows", () => {
     // Cleaned and on the shelf, but its Repaint is still to do.
     await setStatus([cleaned, cleanChecked, repaintChecked], "waiting_qc");
 
-    expect((await counterOf()).workshop).toEqual({
+    const counter = await counterOf();
+    expect(counter.workshop).toEqual({
       in_progress: 2,
       queued: 1,
       waiting_qc: 1,
@@ -300,14 +353,16 @@ describe("the workshop rows", () => {
     await waiting(2);
     await setStatus(await placeLines(bintaro, 10), "queued");
 
-    expect((await categoryRow("Footwear"))?.items_waiting).toBe(2);
+    const footwear = await categoryRow("Footwear");
+    expect(footwear?.items_waiting).toBe(2);
   });
 
   it("puts the Category with the most Items waiting first", async () => {
     await waiting(1);
     await waiting(3, repaintServiceId);
 
-    expect((await counterOf()).categories.map((row) => row.name)).toEqual([
+    const counter = await counterOf();
+    expect(counter.categories.map((row) => row.name)).toEqual([
       "Repaint",
       "Footwear",
     ]);
@@ -322,14 +377,16 @@ describe("the Ready estimate", () => {
       droppedOff: jkt("2026-09-18T10:00"),
     });
 
-    expect((await categoryRow("Footwear"))?.estimate).toEqual({ days: 9 });
+    const footwear = await categoryRow("Footwear");
+    expect(footwear?.estimate).toEqual({ days: 9 });
   });
 
   it("never quotes less than 1 day", async () => {
     await waiting(1);
     await readyAfter(tenTimes(0.1));
 
-    expect((await categoryRow("Footwear"))?.estimate?.days).toBe(1);
+    const footwear = await categoryRow("Footwear");
+    expect(footwear?.estimate?.days).toBe(1);
   });
 
   it("uses the last 14 days once they hold 10 Items", async () => {
@@ -340,7 +397,8 @@ describe("the Ready estimate", () => {
       droppedOff: jkt("2026-08-25T10:00"),
     });
 
-    expect((await categoryRow("Footwear"))?.estimate?.days).toBe(2);
+    const footwear = await categoryRow("Footwear");
+    expect(footwear?.estimate?.days).toBe(2);
   });
 
   it("looks back 28 days when 14 hold fewer than 10", async () => {
@@ -351,7 +409,8 @@ describe("the Ready estimate", () => {
       droppedOff: jkt("2026-08-20T10:00"),
     });
 
-    expect((await categoryRow("Footwear"))?.estimate?.days).toBe(15);
+    const footwear = await categoryRow("Footwear");
+    expect(footwear?.estimate?.days).toBe(15);
   });
 
   it("counts an Item with a clean and a Repaint under both, with nothing added after the clean", async () => {
@@ -361,14 +420,15 @@ describe("the Ready estimate", () => {
       serviceIds: [shop.serviceId, repaintServiceId],
     });
 
-    expect((await categoryRow("Footwear"))?.estimate?.days).toBe(3);
-    expect((await categoryRow("Repaint"))?.estimate?.days).toBe(3);
+    const footwear = await categoryRow("Footwear");
+    expect(footwear?.estimate?.days).toBe(3);
+    const repaint = await categoryRow("Repaint");
+    expect(repaint?.estimate?.days).toBe(3);
   });
 
   it("leaves Rework lines out of an Item's time", async () => {
     await waiting(1);
-    const items = await readyAfter(tenTimes(2));
-    const [first] = items[0];
+    const [[first]] = await readyAfter(tenTimes(2));
     const [complaint] = await testDb
       .insert(complaintsTable)
       .values({
@@ -391,7 +451,8 @@ describe("the Ready estimate", () => {
     // Counted, the Rework would make this Item 9 days and the p90 9.
     await readyLog({ ...first, lineId: rework.id }, jkt("2026-09-29T10:00"));
 
-    expect((await categoryRow("Footwear"))?.estimate?.days).toBe(2);
+    const footwear = await categoryRow("Footwear");
+    expect(footwear?.estimate?.days).toBe(2);
   });
 });
 
@@ -420,7 +481,8 @@ describe("QC rejects waiting", () => {
       to: "qc_reject",
     });
 
-    expect((await counterOf()).qc_rejects).toEqual([
+    const counter = await counterOf();
+    expect(counter.qc_rejects).toEqual([
       {
         category: "Footwear",
         days: 3,
@@ -450,29 +512,6 @@ describe("QC rejects waiting", () => {
 });
 
 describe("Complaints not decided", () => {
-  const complain = async (line: Line, reason: string, at: Date) => {
-    const [complaint] = await testDb
-      .insert(complaintsTable)
-      .values({
-        created_at: at,
-        opened_by: shop.admin.id,
-        order_service_id: line.lineId,
-        reason,
-      })
-      .returning();
-    return complaint;
-  };
-
-  const reworkOf = async (complaintId: number, line: Line, status: Status) =>
-    testDb.insert(ordersServicesTable).values({
-      complaint_id: complaintId,
-      item_id: line.itemId,
-      order_id: line.orderId,
-      price: "0",
-      service_id: shop.serviceId,
-      status,
-    });
-
   it("lists a Complaint with no Rework, and not one that has a Rework round", async () => {
     const [undecided, reworked, cancelledRework, refunded] = await placeLines(
       shop.store,
@@ -500,7 +539,8 @@ describe("Complaints not decided", () => {
     await reworkOf(withRework.id, reworked, "queued");
     await reworkOf(withCancelled.id, cancelledRework, "cancelled");
 
-    expect((await counterOf()).complaints).toEqual([
+    const counter = await counterOf();
+    expect(counter.complaints).toEqual([
       {
         category: "Footwear",
         complaint_id: open.id,
@@ -531,7 +571,8 @@ describe("Complaints not decided", () => {
     await setStatus([line], "ready_for_pickup");
     await complain(line, "Still dirty", jkt("2026-09-27T10:00"));
 
-    expect((await counterOf()).complaints).toEqual([]);
+    const counter = await counterOf();
+    expect(counter.complaints).toEqual([]);
   });
 });
 
@@ -568,23 +609,12 @@ describe("days are Jakarta calendar days", () => {
 
     expect(counter.qc_rejects.map((item) => item.days)).toEqual([1]);
     expect(counter.complaints.map((item) => item.days)).toEqual([1]);
-    expect((await shelfOf()).items.map((order) => order.ready_days)).toEqual([
-      1,
-    ]);
+    const shelf = await shelfOf();
+    expect(shelf.items.map((order) => order.ready_days)).toEqual([1]);
   });
 });
 
 describe("the pickup shelf", () => {
-  const putOnShelf = async (store: Store, itemCount: number, readyAt: Date) => {
-    const lines = await placeLines(store, itemCount);
-    await setStatus(lines, "ready_for_pickup");
-    await testDb
-      .update(ordersTable)
-      .set({ ready_at: readyAt, status: "ready_for_pickup" })
-      .where(eq(ordersTable.id, lines[0].orderId));
-    return lines;
-  };
-
   // placeLines puts every Item on one Order.
   it("counts Orders and Items, leaves out cancelled lines and other Stores", async () => {
     const [, cancelled] = await putOnShelf(
@@ -602,23 +632,14 @@ describe("the pickup shelf", () => {
     expect(pickup_shelf.items).toBe(3);
   });
 
-  const shelfOfTwelve = async () => {
-    for (let day = 1; day <= 12; day++) {
-      await putOnShelf(
-        shop.store,
-        1,
-        jkt(`2026-09-${String(day).padStart(2, "0")}T10:00`)
-      );
-    }
-  };
-
   it("lists the Orders waiting longest first, as whole days", async () => {
     await shelfOfTwelve();
     await putOnShelf(bintaro, 1, jkt("2026-08-20T10:00"));
 
     const shelf = await shelfOf();
 
-    expect((await counterOf()).pickup_shelf.orders).toBe(12);
+    const counter = await counterOf();
+    expect(counter.pickup_shelf.orders).toBe(12);
     expect(shelf.meta).toEqual({ limit: 20, offset: 0, total: 12 });
     expect(shelf.items.map((order) => order.ready_days)).toEqual([
       29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18,
@@ -660,13 +681,15 @@ describe("the pickup shelf", () => {
 
     expect(pickup_shelf.orders).toBe(1);
     expect(pickup_shelf.items).toBe(2);
-    expect((await shelfOf()).items[0].items).toBe(2);
+    const shelf = await shelfOf();
+    expect(shelf.items[0].items).toBe(2);
   });
 
   it("says 0 days for an Order that became ready today", async () => {
     await putOnShelf(shop.store, 2, jkt("2026-09-30T09:00"));
 
-    expect((await shelfOf()).items[0]).toMatchObject({
+    const shelf = await shelfOf();
+    expect(shelf.items[0]).toMatchObject({
       items: 2,
       ready_days: 0,
     });
