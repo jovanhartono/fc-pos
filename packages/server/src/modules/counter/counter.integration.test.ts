@@ -1,6 +1,8 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
 import { eq, inArray } from "drizzle-orm";
+
 import {
   categoriesTable,
   complaintsTable,
@@ -21,9 +23,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 
 // Loaded after the swap above, never beside the imports (see the Workers suite).
 const { createOrder } = await import("@/modules/orders/order.service");
-const { getCounter, getPickupShelf } = await import(
-  "@/modules/counter/counter.service"
-);
+const { getCounter, getPickupShelf } =
+  await import("@/modules/counter/counter.service");
 
 const jkt = (local: string) => new Date(`${local}:00+07:00`);
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+
 import { isNumericSearch } from "@/modules/orders/order-search";
 
 describe("isNumericSearch", () => {

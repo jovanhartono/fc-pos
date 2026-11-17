@@ -1,6 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
 import type { JwtVariables } from "hono/jwt";
+
 import type { usersTable } from "@/db/schema";
 import type { AuthUser } from "@/types/jwt";
 import { errorHandler } from "@/utils/error-handler";

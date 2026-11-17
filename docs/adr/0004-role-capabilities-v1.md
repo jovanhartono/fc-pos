@@ -13,7 +13,7 @@ Three roles with disjoint capabilities. Locked for v1; do not blur the lines.
 ## Capabilities
 
 | Capability | Cashier | Worker | Admin |
-| --- | :---: | :---: | :---: |
+| --- | :-: | :-: | :-: |
 | Create paid Order | ✅ | ✅ | ✅ |
 | Create unpaid Order | ✅ | ✅ | ✅ |
 | Apply existing Campaign | ✅ | ✅ | ✅ |
@@ -97,7 +97,7 @@ Unchanged (the rule's other half):
 
 Why audit survives without the role wall: every status transition records `changed_by` in `order_service_status_logs`; every handler change is appended to `order_service_handler_logs`. The poach guard (cannot self-assign an item whose `handler_id` belongs to someone else) is handler-based, not role-based, and stays.
 
-Lockstep with [ADR-0006](0006-permissions-module-shape.md): capabilities open to all staff have **no** `assertCan*` function — `permissions.ts` lists only restricted capabilities. `adminMiddleware` (JWT + DB auth-state refresh, see [ADR-0006](0006-permissions-module-shape.md)) is the sole gate on open rows. A matrix row of all-✅ therefore corresponds to *absence* of an assert, deliberately.
+Lockstep with [ADR-0006](0006-permissions-module-shape.md): capabilities open to all staff have **no** `assertCan*` function — `permissions.ts` lists only restricted capabilities. `adminMiddleware` (JWT + DB auth-state refresh, see [ADR-0006](0006-permissions-module-shape.md)) is the sole gate on open rows. A matrix row of all-✅ therefore corresponds to _absence_ of an assert, deliberately.
 
 ## Amendment 2026-09-05 — the POS is open to workers
 

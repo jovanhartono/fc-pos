@@ -1,9 +1,11 @@
 import { afterAll, mock } from "bun:test";
 import { join } from "node:path";
+
 import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
+
 import { relations } from "@/db/relations";
 
 // A throwaway Postgres built from the real `./drizzle/` ledger, so a suite runs

@@ -10,6 +10,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+
 import { db } from "@/db";
 import {
   complaintsTable,

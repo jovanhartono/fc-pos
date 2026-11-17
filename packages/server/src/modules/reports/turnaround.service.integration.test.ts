@@ -1,6 +1,8 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
 import { and, eq } from "drizzle-orm";
+
 import {
   categoriesTable,
   complaintsTable,
@@ -20,9 +22,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Loaded after the swap above: a static import would bind the shop's real
 // database before the mock runs.
 const { createOrder } = await import("@/modules/orders/order.service");
-const { getTurnaroundReport, TURNAROUND_MIN_ITEMS } = await import(
-  "@/modules/reports/turnaround.service"
-);
+const { getTurnaroundReport, TURNAROUND_MIN_ITEMS } =
+  await import("@/modules/reports/turnaround.service");
 
 const AUGUST = { from: "2026-08-01", to: "2026-08-05" };
 const HOUR_MS = 3_600_000;

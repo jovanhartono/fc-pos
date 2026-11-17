@@ -1,5 +1,6 @@
 import "@/test-support/pglite";
 import { beforeEach, expect, it } from "bun:test";
+
 import {
   complaintsTable,
   itemImagesTable,
@@ -17,9 +18,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // database before the swap runs.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 
 let shop: Shop;
 

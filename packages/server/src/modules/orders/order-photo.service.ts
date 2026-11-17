@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+
 import { db } from "@/db";
 import { itemImagesTable, ordersTable } from "@/db/schema";
 import {
@@ -6,7 +7,6 @@ import {
   ForbiddenException,
   NotFoundException,
 } from "@/http-exceptions";
-import { getItemOrThrow } from "@/modules/orders/order.repository";
 import type {
   PostItemPhotoInput,
   PostItemPhotoPresignInput,
@@ -18,6 +18,7 @@ import {
   findPhotoById,
   softDeleteItemImageById,
 } from "@/modules/orders/order-photo.repository";
+import { getItemOrThrow } from "@/modules/orders/order.repository";
 import type { AuthUser, JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
 import { acceptPhotoUpload, presignPhotoUpload } from "@/utils/photo-upload";

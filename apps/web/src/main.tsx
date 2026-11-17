@@ -1,16 +1,16 @@
 import "@/index.css";
-
 import interLatinUrl from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import {
-	onlineManager,
-	QueryClient,
-	QueryClientProvider,
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
 } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { Analytics } from "@vercel/analytics/react";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
+
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { RoutePending } from "@/components/route-pending";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -30,151 +30,151 @@ fontPreload.href = interLatinUrl;
 document.head.append(fontPreload);
 
 const ReactQueryDevtools = import.meta.env.DEV
-	? lazy(() =>
-			import("@tanstack/react-query-devtools").then((module) => ({
-				default: module.ReactQueryDevtools,
-			})),
-		)
-	: null;
+  ? lazy(() =>
+      import("@tanstack/react-query-devtools").then((module) => ({
+        default: module.ReactQueryDevtools,
+      }))
+    )
+  : null;
 
 const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: {
-			// The sidebar preloads every page once, when the app opens; at the 5-minute
-			// default opening Shifts later got the skeleton anyway.
-			gcTime: 60 * 60 * 1000,
-		},
-		mutations: {
-			// A payment tapped while offline must fail now, not fire minutes later
-			// when the connection returns and the counter has moved on.
-			networkMode: "always",
-			onSuccess: (response) => {
-				if (
-					typeof response === "object" &&
-					response !== null &&
-					"message" in response &&
-					typeof response.message === "string"
-				) {
-					toast.success(response.message);
-				}
-			},
-			onError: (error) => {
-				// The offline banner already says why; a toast on top repeats it.
-				if (!onlineManager.isOnline()) {
-					return;
-				}
-				toast.error(readServerErrorMessage(error));
-			},
-		},
-	},
+  defaultOptions: {
+    queries: {
+      // The sidebar preloads every page once, when the app opens; at the 5-minute
+      // default opening Shifts later got the skeleton anyway.
+      gcTime: 60 * 60 * 1000,
+    },
+    mutations: {
+      // A payment tapped while offline must fail now, not fire minutes later
+      // when the connection returns and the counter has moved on.
+      networkMode: "always",
+      onSuccess: (response) => {
+        if (
+          typeof response === "object" &&
+          response !== null &&
+          "message" in response &&
+          typeof response.message === "string"
+        ) {
+          toast.success(response.message);
+        }
+      },
+      onError: (error) => {
+        // The offline banner already says why; a toast on top repeats it.
+        if (!onlineManager.isOnline()) {
+          return;
+        }
+        toast.error(readServerErrorMessage(error));
+      },
+    },
+  },
 });
 
 // An iPhone edge swipe back has already slid the page in; our slide on top
 // replayed the Order leaving and read as a reload.
 let isSwipeBack = false;
 window.addEventListener("popstate", (event) => {
-	isSwipeBack = event.hasUAVisualTransition;
+  isSwipeBack = event.hasUAVisualTransition;
 });
 
 const OVERLAY_SELECTOR =
-	'[data-slot="sheet-content"], [data-slot="dialog-content"]';
+  '[data-slot="sheet-content"], [data-slot="dialog-content"]';
 
 const router = createRouter({
-	routeTree,
-	context: {
-		queryClient,
-	},
-	defaultPreload: "intent",
-	// Loaders delegate freshness to React Query's staleTime; without this the
-	// router's own 30s preload window would shadow it.
-	defaultPreloadStaleTime: 0,
-	defaultPendingComponent: RoutePending,
-	// Opening an Order and coming back out used to look identical, so each
-	// navigation carries its direction; the slide itself is in index.css.
-	defaultViewTransition: {
-		types: ({ fromLocation, toLocation, pathChanged }) => {
-			if (isSwipeBack) {
-				isSwipeBack = false;
-				return false;
-			}
-			// Same screen, new search: J in the Order sheet must swap to the next
-			// Order outright, not fade the two through each other.
-			// Leaving from the More sheet or the search palette: the closing panel
-			// is the transition, and a cross-fade on top froze it half-closed.
-			if (!pathChanged || document.querySelector(OVERLAY_SELECTOR)) {
-				return false;
-			}
-			if (!fromLocation) {
-				return [];
-			}
-			const segmentsOf = (pathname: string) =>
-				pathname.split("/").filter(Boolean);
-			const from = segmentsOf(fromLocation.pathname);
-			const to = segmentsOf(toLocation.pathname);
-			// Only a list and its own record slide — the queue and the Item a
-			// worker opens from it. Home is every screen's neighbour, not its
-			// parent, so tapping a tab crosses over instead of sliding.
-			const isChildOf = (child: string[], parent: string[]) =>
-				parent.length > 0 &&
-				child.length > parent.length &&
-				parent.every((segment, index) => child[index] === segment);
-			if (isChildOf(to, from)) {
-				return ["push"];
-			}
-			if (isChildOf(from, to)) {
-				return ["pop"];
-			}
-			return [];
-		},
-	},
-	scrollRestoration: true,
-	// Only the shell's content pane scrolls. Without this, opening an Order from
-	// halfway down the queue would leave the new page parked halfway down.
-	scrollToTopSelectors: [
-		`[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
-	],
+  routeTree,
+  context: {
+    queryClient,
+  },
+  defaultPreload: "intent",
+  // Loaders delegate freshness to React Query's staleTime; without this the
+  // router's own 30s preload window would shadow it.
+  defaultPreloadStaleTime: 0,
+  defaultPendingComponent: RoutePending,
+  // Opening an Order and coming back out used to look identical, so each
+  // navigation carries its direction; the slide itself is in index.css.
+  defaultViewTransition: {
+    types: ({ fromLocation, toLocation, pathChanged }) => {
+      if (isSwipeBack) {
+        isSwipeBack = false;
+        return false;
+      }
+      // Same screen, new search: J in the Order sheet must swap to the next
+      // Order outright, not fade the two through each other.
+      // Leaving from the More sheet or the search palette: the closing panel
+      // is the transition, and a cross-fade on top froze it half-closed.
+      if (!pathChanged || document.querySelector(OVERLAY_SELECTOR)) {
+        return false;
+      }
+      if (!fromLocation) {
+        return [];
+      }
+      const segmentsOf = (pathname: string) =>
+        pathname.split("/").filter(Boolean);
+      const from = segmentsOf(fromLocation.pathname);
+      const to = segmentsOf(toLocation.pathname);
+      // Only a list and its own record slide — the queue and the Item a
+      // worker opens from it. Home is every screen's neighbour, not its
+      // parent, so tapping a tab crosses over instead of sliding.
+      const isChildOf = (child: string[], parent: string[]) =>
+        parent.length > 0 &&
+        child.length > parent.length &&
+        parent.every((segment, index) => child[index] === segment);
+      if (isChildOf(to, from)) {
+        return ["push"];
+      }
+      if (isChildOf(from, to)) {
+        return ["pop"];
+      }
+      return [];
+    },
+  },
+  scrollRestoration: true,
+  // Only the shell's content pane scrolls. Without this, opening an Order from
+  // halfway down the queue would leave the new page parked halfway down.
+  scrollToTopSelectors: [
+    `[data-scroll-restoration-id="${APP_CONTENT_SCROLL_ID}"]`,
+  ],
 });
 trackBackNavigation(router.history);
 
 // Opening an Order from a list row removes the link that had focus; a keyboard
 // or VoiceOver user would start again from the top of the document.
 router.subscribe("onResolved", ({ fromLocation, pathChanged }) => {
-	const isFocusLost = document.activeElement === document.body;
-	if (
-		!(fromLocation && pathChanged && isFocusLost) ||
-		document.querySelector(OVERLAY_SELECTOR)
-	) {
-		return;
-	}
-	document.querySelector("main")?.focus({ preventScroll: true });
+  const isFocusLost = document.activeElement === document.body;
+  if (
+    !(fromLocation && pathChanged && isFocusLost) ||
+    document.querySelector(OVERLAY_SELECTOR)
+  ) {
+    return;
+  }
+  document.querySelector("main")?.focus({ preventScroll: true });
 });
 
 declare module "@tanstack/react-router" {
-	interface Register {
-		router: typeof router;
-	}
+  interface Register {
+    router: typeof router;
+  }
 }
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
-	throw new Error("Root element not found");
+  throw new Error("Root element not found");
 }
 
 createRoot(rootElement).render(
-	<StrictMode>
-		<ThemeProvider>
-			<QueryClientProvider client={queryClient}>
-				<RouterProvider router={router} />
-				{ReactQueryDevtools ? (
-					<Suspense fallback={null}>
-						<ReactQueryDevtools
-							initialIsOpen={false}
-							buttonPosition="bottom-right"
-						/>
-					</Suspense>
-				) : null}
-				<Analytics beforeSend={dropQueryString} />
-			</QueryClientProvider>
-		</ThemeProvider>
-	</StrictMode>,
+  <StrictMode>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        {ReactQueryDevtools ? (
+          <Suspense fallback={null}>
+            <ReactQueryDevtools
+              initialIsOpen={false}
+              buttonPosition="bottom-right"
+            />
+          </Suspense>
+        ) : null}
+        <Analytics beforeSend={dropQueryString} />
+      </QueryClientProvider>
+    </ThemeProvider>
+  </StrictMode>
 );

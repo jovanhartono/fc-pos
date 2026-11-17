@@ -5,61 +5,61 @@ import { formatCampaignLimits } from "@/features/campaigns/lib/campaign-text";
 import { cn } from "@/lib/utils";
 
 interface CampaignDiscountProps {
-	campaign: Pick<
-		Campaign,
-		| "discount_type"
-		| "discount_value"
-		| "max_discount"
-		| "min_order_total"
-		| "buy_quantity"
-		| "free_quantity"
-	>;
-	isActive: boolean;
+  campaign: Pick<
+    Campaign,
+    | "discount_type"
+    | "discount_value"
+    | "max_discount"
+    | "min_order_total"
+    | "buy_quantity"
+    | "free_quantity"
+  >;
+  isActive: boolean;
 }
 
 const DiscountHeadline = ({
-	campaign,
+  campaign,
 }: Pick<CampaignDiscountProps, "campaign">) => {
-	if (campaign.discount_type === "buy_n_get_m_free") {
-		return `Buy ${campaign.buy_quantity ?? "?"} get ${
-			campaign.free_quantity ?? "?"
-		} free`;
-	}
-	if (campaign.discount_type === "percentage") {
-		return `${campaign.discount_value}% off`;
-	}
-	return (
-		<>
-			<MoneyValue value={campaign.discount_value} /> off
-		</>
-	);
+  if (campaign.discount_type === "buy_n_get_m_free") {
+    return `Buy ${campaign.buy_quantity ?? "?"} get ${
+      campaign.free_quantity ?? "?"
+    } free`;
+  }
+  if (campaign.discount_type === "percentage") {
+    return `${campaign.discount_value}% off`;
+  }
+  return (
+    <>
+      <MoneyValue value={campaign.discount_value} /> off
+    </>
+  );
 };
 
 // Green while it takes money off at checkout; an expired or archived Campaign
 // gives nothing, so its value goes grey.
 export const CampaignDiscount = ({
-	campaign,
-	isActive,
+  campaign,
+  isActive,
 }: CampaignDiscountProps) => {
-	const limits = formatCampaignLimits(campaign);
-	return (
-		<span
-			className={cn(
-				"font-medium",
-				isActive ? "text-tone-good-foreground" : "text-muted-foreground",
-			)}
-		>
-			<DiscountHeadline campaign={campaign} />
-			{limits.length > 0 && (
-				<span
-					className={cn(
-						"block font-normal text-footnote",
-						isActive && "text-foreground",
-					)}
-				>
-					<NowrapPhrases phrases={limits} />
-				</span>
-			)}
-		</span>
-	);
+  const limits = formatCampaignLimits(campaign);
+  return (
+    <span
+      className={cn(
+        "font-medium",
+        isActive ? "text-tone-good-foreground" : "text-muted-foreground"
+      )}
+    >
+      <DiscountHeadline campaign={campaign} />
+      {limits.length > 0 && (
+        <span
+          className={cn(
+            "block text-footnote font-normal",
+            isActive && "text-foreground"
+          )}
+        >
+          <NowrapPhrases phrases={limits} />
+        </span>
+      )}
+    </span>
+  );
 };

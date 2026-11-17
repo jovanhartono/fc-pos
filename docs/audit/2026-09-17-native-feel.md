@@ -50,7 +50,7 @@ The safe-area work already in the code (9 places) is **currently inert** — the
 - **At the counter:** cashier taps the customer phone field, the whole screen jumps to ~133% and stays there. Every form, every search box, the login screen.
 - **Evidence:** live computed style on `/auth/login` → `font-size: 12px`. Source: `apps/web/src/components/ui/input.tsx:13` (`text-xs` and `md:text-xs`). Same `text-xs` appears in 53 places across `components/ui/`.
 - **Why:** iOS Safari/WKWebView zooms to fit any focused control whose computed font-size is under 16px. Standalone PWAs are not exempt.
-- **Fix:** raise the *control* font to 16px on coarse pointers only — the component already has the `pointer-coarse:` variant wired for height (`h-10 pointer-coarse:h-11`), so `text-xs pointer-coarse:text-base` is the same pattern. Desktop density is untouched.
+- **Fix:** raise the _control_ font to 16px on coarse pointers only — the component already has the `pointer-coarse:` variant wired for height (`h-10 pointer-coarse:h-11`), so `text-xs pointer-coarse:text-base` is the same pattern. Desktop density is untouched.
 - **Do not** reach for `maximum-scale=1, user-scalable=no` — it kills pinch-zoom for everyone and Safari partly ignores it anyway.
 - **Effort:** small. Touches `input`, `textarea`, `select` trigger, `combobox` trigger.
 
@@ -68,7 +68,7 @@ The safe-area work already in the code (9 places) is **currently inert** — the
 - **Fix:** `viewport-fit=cover` in the meta. Status bar style **stays `default`**.
 - **Correction (2026-09-17, from the simulator).** An earlier draft of this report recommended `apple-mobile-web-app-status-bar-style: black-translucent` alongside it. That is wrong for this app: `black-translucent` renders the clock, wifi and battery in white over your own content, and the mobile header is white in light mode (`bg-background/95`, `--background: oklch(1 0 0)`). The time would disappear for any cashier not in dark mode. There is no way to force dark status-bar glyphs with that setting.
 - **What `viewport-fit=cover` alone buys, in standalone:** `env(safe-area-inset-bottom)` becomes 34px, so the sticky footers can run their background to the physical edge while keeping text clear of the home indicator. The top stays managed by iOS, which is the safe outcome.
-- **Measured on an iPhone 16 Pro simulator:** in Safari all four insets read `0px` *even with* `viewport-fit=cover`, because Safari's own chrome already occupies those regions. The insets only go non-zero in standalone — so this change is invisible in a browser tab by design, and can only be checked from an installed app.
+- **Measured on an iPhone 16 Pro simulator:** in Safari all four insets read `0px` _even with_ `viewport-fit=cover`, because Safari's own chrome already occupies those regions. The insets only go non-zero in standalone — so this change is invisible in a browser tab by design, and can only be checked from an installed app.
 - **Effort:** one meta line + an install check.
 
 ### 3. No bottom navigation — the daily four are behind a hamburger
@@ -77,11 +77,11 @@ The safe-area work already in the code (9 places) is **currently inert** — the
 - **Evidence:** `components/app-shell.tsx:236` — the mobile header is `SidebarTrigger` + logo only. `components/ui/sidebar.tsx:179` — mobile renders the sidebar as an off-canvas `Sheet`.
 - **This is feasible because the role lists are short** (`components/app-navigation.ts`):
 
-  | Role    | Destinations                                                    | Tab bar? |
-  | ------- | --------------------------------------------------------------- | -------- |
-  | worker  | Attendance, Transactions, Queue, Orders, Complaints              | 5 — fits |
-  | cashier | + Customers, Campaigns                                            | 4 + More |
-  | admin   | 14 across four groups                                             | keep sidebar |
+  | Role | Destinations | Tab bar? |
+  | --- | --- | --- |
+  | worker | Attendance, Transactions, Queue, Orders, Complaints | 5 — fits |
+  | cashier | + Customers, Campaigns | 4 + More |
+  | admin | 14 across four groups | keep sidebar |
 
 - **Fix:** a bottom tab bar under `md:` for cashier/worker built from the same `navGroupsForRole` data, capped at 4 + a "More" sheet that reuses the existing sidebar content. Admin on a phone keeps the hamburger.
 - **Effort:** medium. One new component + a branch in `AppShell`. No routing changes.
@@ -90,7 +90,7 @@ The safe-area work already in the code (9 places) is **currently inert** — the
 
 - **At the counter:** a cashier scrolling an order list on Android pulls slightly too far and the app **reloads mid-order**. On iOS the page rubber-bands and shows grey behind the app.
 - **Evidence:** live computed `body` → `overscroll-behavior-y: auto`. No `overscroll-behavior` anywhere in `src`.
-- **Fix:** `overscroll-behavior: none` on `html, body` in `index.css`. Scroll containers that *should* trap their own overscroll already do it locally (`cart-mini-bar.tsx:63`).
+- **Fix:** `overscroll-behavior: none` on `html, body` in `index.css`. Scroll containers that _should_ trap their own overscroll already do it locally (`cart-mini-bar.tsx:63`).
 - **If you want pull-to-refresh back**, add it deliberately on list screens rather than leaving the browser's version.
 - **Effort:** one line, plus a decision on whether to build a real refresh gesture.
 
@@ -99,7 +99,7 @@ The safe-area work already in the code (9 places) is **currently inert** — the
 - **At the counter:** in a browser tab the URL bar slides in and out on every scroll, so the header height changes under the thumb. In standalone it's less visible, but the header still isn't pinned the way an app's is.
 - **Evidence:** `routes/__root.tsx:31` — `<main className="min-h-dvh">` in normal flow; `app-shell.tsx:236` header is `sticky`, `:242` content section is in flow.
 - **Fix:** `h-dvh` shell, `overflow-hidden` on the wrapper, header and (future) tab bar fixed, one `overflow-y-auto overscroll-contain` scroll region in the middle.
-- **Knock-on:** `scrollRestoration: true` in `main.tsx:76` restores *window* scroll. With a scroll container it needs to target that element instead, or restoration silently stops working.
+- **Knock-on:** `scrollRestoration: true` in `main.tsx:76` restores _window_ scroll. With a scroll container it needs to target that element instead, or restoration silently stops working.
 - **Effort:** medium, and it's the change most likely to surface layout bugs on long screens. Worth doing after 1–4.
 
 ### 6. Long-press pops the text-selection magnifier on app chrome
@@ -159,7 +159,7 @@ The safe-area work already in the code (9 places) is **currently inert** — the
 ## Suggested order
 
 | # | Slice | Findings | Risk |
-| - | ----- | -------- | ---- |
+| --- | --- | --- | --- |
 | 1 | Input zoom + meta tags + overscroll + toast position | 1, 2, 4, 10 | Low — needs a notched-device eyeball for the safe-area sites that go live |
 | 2 | Manifest extras + iOS launch screens | 8, 9 | None |
 | 3 | Bottom tab bar for cashier/worker | 3 | Medium — new component, no routing change |

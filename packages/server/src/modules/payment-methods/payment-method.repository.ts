@@ -1,5 +1,6 @@
 import type { InferInsertModel } from "drizzle-orm";
 import { EmptyFilter, eq, sql } from "drizzle-orm";
+
 import { type DbExecutor, db } from "@/db";
 import { paymentMethodsTable } from "@/db/schema";
 import type { PaymentGatewayName } from "@/modules/payments/gateways/types";

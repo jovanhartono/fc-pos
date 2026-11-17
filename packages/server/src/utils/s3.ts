@@ -1,4 +1,5 @@
 import { s3 } from "bun";
+
 import { BadRequestException } from "@/http-exceptions";
 import { PHOTO_TILE_SIZE } from "@/schema/photo-thumbnail";
 import { thumbnailKey } from "@/utils/photo-key";

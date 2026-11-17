@@ -1,16 +1,17 @@
 import {
-	Add01Icon,
-	BluetoothIcon,
-	ShoppingCart01Icon,
+  Add01Icon,
+  BluetoothIcon,
+  ShoppingCart01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useRef } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
+
 import {
-	CHIP_CLASS,
-	CHIP_STRIP_ROW,
-	ChipStripScroller,
+  CHIP_CLASS,
+  CHIP_STRIP_ROW,
+  ChipStripScroller,
 } from "@/components/chip-strip";
 import { EmptyState, NoMatchState } from "@/components/empty-state";
 import { SearchInput } from "@/components/search-input";
@@ -25,8 +26,8 @@ import { StoreDevicesDialog } from "@/features/printing/components/store-devices
 import { productsQueries } from "@/features/products/api";
 import { servicesQueries } from "@/features/services/api";
 import {
-	resolveActiveItemId,
-	type TransactionDraftValues,
+  resolveActiveItemId,
+  type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useCartOps } from "@/features/transactions/cart/useCart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
@@ -37,385 +38,384 @@ import { useDialog } from "@/stores/dialog-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 const useCatalog = () => {
-	const categoryMap = useCategoryMap();
-	const productsQuery = useQuery(productsQueries.list());
-	const servicesQuery = useQuery(servicesQueries.list());
+  const categoryMap = useCategoryMap();
+  const productsQuery = useQuery(productsQueries.list());
+  const servicesQuery = useQuery(servicesQueries.list());
 
-	const products = (productsQuery.data ?? []).filter(
-		(product) => product.is_active,
-	);
-	const services = (servicesQuery.data ?? []).filter(
-		(service) => service.is_active,
-	);
+  const products = (productsQuery.data ?? []).filter(
+    (product) => product.is_active
+  );
+  const services = (servicesQuery.data ?? []).filter(
+    (service) => service.is_active
+  );
 
-	// Services and Products share one grid: the old Services / Add-ons toggle
-	// made search silently skip whichever half was hidden.
-	const catalogEntries = [
-		...services.map((item) => ({ kind: "service" as const, item })),
-		...products.map((item) => ({ kind: "product" as const, item })),
-	];
+  // Services and Products share one grid: the old Services / Add-ons toggle
+  // made search silently skip whichever half was hidden.
+  const catalogEntries = [
+    ...services.map((item) => ({ kind: "service" as const, item })),
+    ...products.map((item) => ({ kind: "product" as const, item })),
+  ];
 
-	// Taken off the whole catalog, never the search-narrowed list: a pill set
-	// that shrinks as you type can drop the pill you are filtering by.
-	const byId = new Map<number, { id: number; name: string }>();
-	for (const { item } of catalogEntries) {
-		if (!byId.has(item.category_id)) {
-			byId.set(item.category_id, {
-				id: item.category_id,
-				name: getEntityCategoryName(item, categoryMap),
-			});
-		}
-	}
-	const categoryOptions = [...byId.values()].sort((a, b) =>
-		a.name.localeCompare(b.name),
-	);
+  // Taken off the whole catalog, never the search-narrowed list: a pill set
+  // that shrinks as you type can drop the pill you are filtering by.
+  const byId = new Map<number, { id: number; name: string }>();
+  for (const { item } of catalogEntries) {
+    if (!byId.has(item.category_id)) {
+      byId.set(item.category_id, {
+        id: item.category_id,
+        name: getEntityCategoryName(item, categoryMap),
+      });
+    }
+  }
+  const categoryOptions = [...byId.values()].sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
 
-	return { catalogEntries, categoryMap, categoryOptions };
+  return { catalogEntries, categoryMap, categoryOptions };
 };
 
 type CatalogEntry = ReturnType<typeof useCatalog>["catalogEntries"][number];
 
 export function TransactionsCatalog() {
-	const { isAdmin, visibleStores, handleStoreChange } =
-		useTransactionsPageContext();
-	const openDialog = useDialog((s) => s.openDialog);
-	const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
-	const setSearchTerm = useTransactionsPageStore(
-		(state) => state.setSearchTerm,
-	);
-	const activeCategory = useTransactionsPageStore(
-		(state) => state.activeCategory,
-	);
-	const setActiveCategory = useTransactionsPageStore(
-		(state) => state.setActiveCategory,
-	);
+  const { isAdmin, visibleStores, handleStoreChange } =
+    useTransactionsPageContext();
+  const openDialog = useDialog((s) => s.openDialog);
+  const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
+  const setSearchTerm = useTransactionsPageStore(
+    (state) => state.setSearchTerm
+  );
+  const activeCategory = useTransactionsPageStore(
+    (state) => state.activeCategory
+  );
+  const setActiveCategory = useTransactionsPageStore(
+    (state) => state.setActiveCategory
+  );
 
-	const { catalogEntries, categoryMap, categoryOptions } = useCatalog();
+  const { catalogEntries, categoryMap, categoryOptions } = useCatalog();
 
-	const { control, formState } = useFormContext<TransactionDraftValues>();
-	const selectedStoreId = useWatch({ control, name: "selectedStoreId" }) ?? "";
-	const storeError = formState.errors.selectedStoreId;
+  const { control, formState } = useFormContext<TransactionDraftValues>();
+  const selectedStoreId = useWatch({ control, name: "selectedStoreId" }) ?? "";
+  const storeError = formState.errors.selectedStoreId;
 
-	const deferredSearchTerm = useDeferredValue(searchTerm);
-	const searchValue = deferredSearchTerm.trim().toLowerCase();
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const searchValue = deferredSearchTerm.trim().toLowerCase();
 
-	const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-	useEffect(() => {
-		const handleKeydown = (event: KeyboardEvent) => {
-			if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) {
-				return;
-			}
-			const target = event.target as HTMLElement | null;
-			const isTyping =
-				target?.tagName === "INPUT" ||
-				target?.tagName === "TEXTAREA" ||
-				target?.isContentEditable;
-			if (isTyping) {
-				return;
-			}
-			event.preventDefault();
-			searchInputRef.current?.focus();
-			searchInputRef.current?.select();
-		};
-		window.addEventListener("keydown", handleKeydown);
-		return () => window.removeEventListener("keydown", handleKeydown);
-	}, []);
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      const isTyping =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+      if (isTyping) {
+        return;
+      }
+      event.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    };
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, []);
 
-	return (
-		<div className="grid gap-5">
-			<StickyControls className="grid gap-3">
-				{/* hideLabel returns the bare Combobox, so the error has to be
+  return (
+    <div className="grid gap-5">
+      <StickyControls className="grid gap-3">
+        {/* hideLabel returns the bare Combobox, so the error has to be
 						    rendered here — this is the only place the Store can be fixed,
 						    and the checkout sheet covers it. */}
-				<Field data-invalid={!!storeError}>
-					<div className="flex gap-2">
-						<StoreSelect
-							hideLabel
-							required
-							value={selectedStoreId}
-							onValueChange={handleStoreChange}
-							allowedStoreIds={visibleStores.map((store) => store.id)}
-							disabled={!isAdmin && visibleStores.length < 2}
-							triggerClassName="min-w-0"
-							// The empty picker is the hint: no floating note, and no
-							// line that appears and pushes the catalog down.
-							placeholder="Select a store to check out"
-						/>
-						<Button
-							type="button"
-							variant="outline"
-							className="shrink-0"
-							disabled={!selectedStoreId}
-							icon={<HugeiconsIcon icon={BluetoothIcon} className="size-4" />}
-							onClick={() =>
-								openDialog({
-									title: "Bluetooth Devices",
-									description:
-										"The POS only prints to devices registered here.",
-									content: () => (
-										<StoreDevicesDialog storeId={Number(selectedStoreId)} />
-									),
-								})
-							}
-						>
-							Devices
-						</Button>
-					</div>
-					<FieldError errors={[storeError]} />
-				</Field>
+        <Field data-invalid={!!storeError}>
+          <div className="flex gap-2">
+            <StoreSelect
+              hideLabel
+              required
+              value={selectedStoreId}
+              onValueChange={handleStoreChange}
+              allowedStoreIds={visibleStores.map((store) => store.id)}
+              disabled={!isAdmin && visibleStores.length < 2}
+              triggerClassName="min-w-0"
+              // The empty picker is the hint: no floating note, and no
+              // line that appears and pushes the catalog down.
+              placeholder="Select a store to check out"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0"
+              disabled={!selectedStoreId}
+              icon={<HugeiconsIcon icon={BluetoothIcon} className="size-4" />}
+              onClick={() =>
+                openDialog({
+                  title: "Bluetooth Devices",
+                  description:
+                    "The POS only prints to devices registered here.",
+                  content: () => (
+                    <StoreDevicesDialog storeId={Number(selectedStoreId)} />
+                  ),
+                })
+              }
+            >
+              Devices
+            </Button>
+          </div>
+          <FieldError errors={[storeError]} />
+        </Field>
 
-				<Field>
-					<FieldLabel className="sr-only" htmlFor="transaction-search">
-						Search
-					</FieldLabel>
-					<SearchInput
-						ref={searchInputRef}
-						id="transaction-search"
-						value={searchTerm}
-						onChange={(event) => setSearchTerm(event.target.value)}
-						placeholder="Search services or products"
-						inputClassName="border-border/70 bg-background"
-					/>
-				</Field>
+        <Field>
+          <FieldLabel className="sr-only" htmlFor="transaction-search">
+            Search
+          </FieldLabel>
+          <SearchInput
+            ref={searchInputRef}
+            id="transaction-search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search services or products"
+            inputClassName="border-border/70 bg-background"
+          />
+        </Field>
 
-				{/* Hidden when the catalog has one category, because then the strip
+        {/* Hidden when the catalog has one category, because then the strip
 						    only ever says "All". */}
-				{categoryOptions.length > 1 ? (
-					<ChipStripScroller>
-						<fieldset className={CHIP_STRIP_ROW}>
-							<legend className="sr-only">Filter by category</legend>
-							<Button
-								aria-pressed={activeCategory === "all"}
-								className={cn(
-									CHIP_CLASS,
-									activeCategory !== "all" && "text-foreground",
-								)}
-								onClick={() => setActiveCategory("all")}
-								type="button"
-								variant={activeCategory === "all" ? "default" : "secondary"}
-							>
-								All
-							</Button>
-							{categoryOptions.map((category) => {
-								const isActive = activeCategory === category.id;
+        {categoryOptions.length > 1 ? (
+          <ChipStripScroller>
+            <fieldset className={CHIP_STRIP_ROW}>
+              <legend className="sr-only">Filter by category</legend>
+              <Button
+                aria-pressed={activeCategory === "all"}
+                className={cn(
+                  CHIP_CLASS,
+                  activeCategory !== "all" && "text-foreground"
+                )}
+                onClick={() => setActiveCategory("all")}
+                type="button"
+                variant={activeCategory === "all" ? "default" : "secondary"}
+              >
+                All
+              </Button>
+              {categoryOptions.map((category) => {
+                const isActive = activeCategory === category.id;
 
-								return (
-									<Button
-										aria-pressed={isActive}
-										className={cn(CHIP_CLASS, !isActive && "text-foreground")}
-										key={category.id}
-										onClick={() => setActiveCategory(category.id)}
-										type="button"
-										variant={isActive ? "default" : "secondary"}
-									>
-										{category.name}
-									</Button>
-								);
-							})}
-						</fieldset>
-					</ChipStripScroller>
-				) : null}
-			</StickyControls>
+                return (
+                  <Button
+                    aria-pressed={isActive}
+                    className={cn(CHIP_CLASS, !isActive && "text-foreground")}
+                    key={category.id}
+                    onClick={() => setActiveCategory(category.id)}
+                    type="button"
+                    variant={isActive ? "default" : "secondary"}
+                  >
+                    {category.name}
+                  </Button>
+                );
+              })}
+            </fieldset>
+          </ChipStripScroller>
+        ) : null}
+      </StickyControls>
 
-			<CatalogGrid
-				catalogEntries={catalogEntries}
-				categoryMap={categoryMap}
-				searchValue={searchValue}
-			/>
-		</div>
-	);
+      <CatalogGrid
+        catalogEntries={catalogEntries}
+        categoryMap={categoryMap}
+        searchValue={searchValue}
+      />
+    </div>
+  );
 }
 
 interface CatalogGridProps {
-	catalogEntries: CatalogEntry[];
-	categoryMap: Map<number, Category>;
-	searchValue: string;
+  catalogEntries: CatalogEntry[];
+  categoryMap: Map<number, Category>;
+  searchValue: string;
 }
 
 const useFilteredEntries = (
-	catalogEntries: CatalogEntry[],
-	categoryMap: Map<number, Category>,
-	searchValue: string,
+  catalogEntries: CatalogEntry[],
+  categoryMap: Map<number, Category>,
+  searchValue: string
 ) => {
-	const activeCategory = useTransactionsPageStore(
-		(state) => state.activeCategory,
-	);
-	return catalogEntries.filter(({ item }) => {
-		if (activeCategory !== "all" && item.category_id !== activeCategory) {
-			return false;
-		}
-		if (searchValue.length === 0) {
-			return true;
-		}
-		return (
-			item.name.toLowerCase().includes(searchValue) ||
-			(item.description ?? "").toLowerCase().includes(searchValue) ||
-			getEntityCategoryName(item, categoryMap)
-				.toLowerCase()
-				.includes(searchValue)
-		);
-	});
+  const activeCategory = useTransactionsPageStore(
+    (state) => state.activeCategory
+  );
+  return catalogEntries.filter(({ item }) => {
+    if (activeCategory !== "all" && item.category_id !== activeCategory) {
+      return false;
+    }
+    if (searchValue.length === 0) {
+      return true;
+    }
+    return (
+      item.name.toLowerCase().includes(searchValue) ||
+      (item.description ?? "").toLowerCase().includes(searchValue) ||
+      getEntityCategoryName(item, categoryMap)
+        .toLowerCase()
+        .includes(searchValue)
+    );
+  });
 };
 
 const CatalogGrid = ({
-	catalogEntries,
-	categoryMap,
-	searchValue,
+  catalogEntries,
+  categoryMap,
+  searchValue,
 }: CatalogGridProps) => {
-	const { addProduct, addService } = useCartOps();
-	const activeItemPointer = useTransactionsPageStore(
-		(state) => state.activeItemId,
-	);
-	const { control } = useFormContext<TransactionDraftValues>();
-	const watchedProductCart = useWatch({ control, name: "productCart" });
-	const itemCart = useWatch({ control, name: "itemCart" });
+  const { addProduct, addService } = useCartOps();
+  const activeItemPointer = useTransactionsPageStore(
+    (state) => state.activeItemId
+  );
+  const { control } = useFormContext<TransactionDraftValues>();
+  const watchedProductCart = useWatch({ control, name: "productCart" });
+  const itemCart = useWatch({ control, name: "itemCart" });
 
-	const filteredEntries = useFilteredEntries(
-		catalogEntries,
-		categoryMap,
-		searchValue,
-	);
+  const filteredEntries = useFilteredEntries(
+    catalogEntries,
+    categoryMap,
+    searchValue
+  );
 
-	const productCartQtyById = new Map(
-		watchedProductCart.map((line) => [line.id, line.qty]),
-	);
+  const productCartQtyById = new Map(
+    watchedProductCart.map((line) => [line.id, line.qty])
+  );
 
-	// How many times each Service is already on the Item a tap would land on,
-	// so the cashier sees a Deep Clean is in without opening the cart.
-	const activeId = resolveActiveItemId(itemCart, activeItemPointer);
-	const activeItemServiceCount = new Map<number, number>();
-	for (const line of itemCart.find((item) => item.line_id === activeId)
-		?.services ?? []) {
-		activeItemServiceCount.set(
-			line.id,
-			(activeItemServiceCount.get(line.id) ?? 0) + 1,
-		);
-	}
+  // How many times each Service is already on the Item a tap would land on,
+  // so the cashier sees a Deep Clean is in without opening the cart.
+  const activeId = resolveActiveItemId(itemCart, activeItemPointer);
+  const activeItemServiceCount = new Map<number, number>();
+  for (const line of itemCart.find((item) => item.line_id === activeId)
+    ?.services ?? []) {
+    activeItemServiceCount.set(
+      line.id,
+      (activeItemServiceCount.get(line.id) ?? 0) + 1
+    );
+  }
 
-	return (
-		<>
-			{/* A phone gets one grouped list, as in iOS Settings: ~50 separate
+  return (
+    <>
+      {/* A phone gets one grouped list, as in iOS Settings: ~50 separate
 			    boxes made the counter scroll twice as far. */}
-			<div className="grid overflow-hidden rounded-lg border bg-card empty:hidden sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:rounded-none sm:border-0 sm:bg-transparent md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-				{filteredEntries.map((entry) => {
-					// Narrow on entry.kind, never destructure first: pulling kind and
-					// item apart severs the discriminated union and forces casts.
-					const { item } = entry;
-					const productCount = productCartQtyById.get(item.id) ?? 0;
-					const isOutOfStock =
-						entry.kind === "product" &&
-						Number(entry.item.stock ?? 0) <= productCount;
-					const categoryName = getEntityCategoryName(item, categoryMap);
-					const inCartCount =
-						entry.kind === "product"
-							? productCount
-							: (activeItemServiceCount.get(item.id) ?? 0);
+      <div className="grid overflow-hidden rounded-lg border bg-card empty:hidden sm:grid-cols-2 sm:gap-3 sm:overflow-visible sm:rounded-none sm:border-0 sm:bg-transparent md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        {filteredEntries.map((entry) => {
+          // Narrow on entry.kind, never destructure first: pulling kind and
+          // item apart severs the discriminated union and forces casts.
+          const { item } = entry;
+          const productCount = productCartQtyById.get(item.id) ?? 0;
+          const isOutOfStock =
+            entry.kind === "product" &&
+            Number(entry.item.stock ?? 0) <= productCount;
+          const categoryName = getEntityCategoryName(item, categoryMap);
+          const inCartCount =
+            entry.kind === "product"
+              ? productCount
+              : (activeItemServiceCount.get(item.id) ?? 0);
 
-					return (
-						<Card
-							key={`${entry.kind}-${item.id}`}
-							className={cn(
-								"overflow-hidden bg-card py-0 transition-colors max-sm:rounded-none max-sm:border-0 max-sm:border-b max-sm:last:border-b-0 sm:border-border/70 sm:hover:border-border",
-								inCartCount > 0 &&
-									"bg-primary/[0.06] sm:ring-2 sm:ring-primary",
-							)}
-						>
-							<CardContent className="h-full p-0">
-								<button
-									type="button"
-									className={cn(
-										// A phone gets one-line rows: the counter scrolls ~50
-										// Services, and the category chip already names the group.
-										"flex h-full min-h-14 w-full items-center gap-3 p-3 text-left outline-none transition active:scale-[0.97] motion-reduce:active:scale-100 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:flex-col sm:items-stretch sm:gap-1.5",
-										"hover:bg-muted/30 active:bg-muted/60",
-										isOutOfStock && "cursor-not-allowed opacity-50",
-									)}
-									onClick={() =>
-										entry.kind === "product"
-											? addProduct(entry.item)
-											: addService(entry.item)
-									}
-									disabled={isOutOfStock}
-									aria-label={`Add ${item.name}`}
-								>
-									{categoryName ? (
-										<span className="hidden text-footnote font-medium text-muted-foreground sm:inline">
-											{categoryName}
-										</span>
-									) : null}
-									<p className="line-clamp-2 min-w-0 flex-1 text-body font-medium leading-snug sm:flex-initial">
-										{item.name}
-									</p>
-									{/* Price and the add square share the last line, so a tile is
+          return (
+            <Card
+              key={`${entry.kind}-${item.id}`}
+              className={cn(
+                "overflow-hidden bg-card py-0 transition-colors max-sm:rounded-none max-sm:border-0 max-sm:border-b max-sm:last:border-b-0 sm:border-border/70 sm:hover:border-border",
+                inCartCount > 0 && "bg-primary/[0.06] sm:ring-2 sm:ring-primary"
+              )}
+            >
+              <CardContent className="h-full p-0">
+                <button
+                  type="button"
+                  className={cn(
+                    // A phone gets one-line rows: the counter scrolls ~50
+                    // Services, and the category chip already names the group.
+                    "flex h-full min-h-14 w-full items-center gap-3 p-3 text-left transition outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 active:scale-[0.97] motion-reduce:active:scale-100 sm:flex-col sm:items-stretch sm:gap-1.5",
+                    "hover:bg-muted/30 active:bg-muted/60",
+                    isOutOfStock && "cursor-not-allowed opacity-50"
+                  )}
+                  onClick={() =>
+                    entry.kind === "product"
+                      ? addProduct(entry.item)
+                      : addService(entry.item)
+                  }
+                  disabled={isOutOfStock}
+                  aria-label={`Add ${item.name}`}
+                >
+                  {categoryName ? (
+                    <span className="hidden text-footnote font-medium text-muted-foreground sm:inline">
+                      {categoryName}
+                    </span>
+                  ) : null}
+                  <p className="line-clamp-2 min-w-0 flex-1 text-body leading-snug font-medium sm:flex-initial">
+                    {item.name}
+                  </p>
+                  {/* Price and the add square share the last line, so a tile is
 									    only as tall as its name needs. */}
-									<span className="flex shrink-0 items-center justify-between gap-2 sm:mt-auto sm:pt-1">
-										<span
-											className={cn(
-												"text-body font-medium tabular-nums",
-												item.price === null && "text-muted-foreground",
-											)}
-										>
-											{/* No list price (ADR-0018): the cashier types the agreed
+                  <span className="flex shrink-0 items-center justify-between gap-2 sm:mt-auto sm:pt-1">
+                    <span
+                      className={cn(
+                        "text-body font-medium tabular-nums",
+                        item.price === null && "text-muted-foreground"
+                      )}
+                    >
+                      {/* No list price (ADR-0018): the cashier types the agreed
 											    price on the Cart line, or leaves it blank until the
 											    workshop inspects the Item. */}
-											{item.price === null
-												? "Priced per item"
-												: formatMoney(String(item.price))}
-										</span>
-										{/* Kept in place on a phone while empty, so the first tap
+                      {item.price === null
+                        ? "Priced per item"
+                        : formatMoney(String(item.price))}
+                    </span>
+                    {/* Kept in place on a phone while empty, so the first tap
 										    doesn't wrap the name and push every row below down. */}
-										<span
-											aria-hidden="true"
-											className={cn(
-												"grid size-7 shrink-0 place-items-center rounded-full text-footnote font-medium tabular-nums max-sm:order-first",
-												inCartCount > 0
-													? "bg-primary text-primary-foreground"
-													: "bg-secondary max-sm:invisible",
-											)}
-										>
-											{inCartCount > 0 ? (
-												inCartCount
-											) : (
-												<HugeiconsIcon
-													icon={Add01Icon}
-													className="size-3.5"
-													strokeWidth={2}
-												/>
-											)}
-										</span>
-									</span>
-								</button>
-							</CardContent>
-						</Card>
-					);
-				})}
-			</div>
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "grid size-7 shrink-0 place-items-center rounded-full text-footnote font-medium tabular-nums max-sm:order-first",
+                        inCartCount > 0
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary max-sm:invisible"
+                      )}
+                    >
+                      {inCartCount > 0 ? (
+                        inCartCount
+                      ) : (
+                        <HugeiconsIcon
+                          icon={Add01Icon}
+                          className="size-3.5"
+                          strokeWidth={2}
+                        />
+                      )}
+                    </span>
+                  </span>
+                </button>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
-			{filteredEntries.length === 0 ? <CatalogEmpty /> : null}
-		</>
-	);
+      {filteredEntries.length === 0 ? <CatalogEmpty /> : null}
+    </>
+  );
 };
 
 const CatalogEmpty = () => {
-	const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
-	const setSearchTerm = useTransactionsPageStore(
-		(state) => state.setSearchTerm,
-	);
+  const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
+  const setSearchTerm = useTransactionsPageStore(
+    (state) => state.setSearchTerm
+  );
 
-	if (searchTerm.trim().length === 0) {
-		return (
-			<EmptyState icon={ShoppingCart01Icon}>
-				No Services or Products.
-			</EmptyState>
-		);
-	}
+  if (searchTerm.trim().length === 0) {
+    return (
+      <EmptyState icon={ShoppingCart01Icon}>
+        No Services or Products.
+      </EmptyState>
+    );
+  }
 
-	return (
-		<NoMatchState
-			noun="Services or Products"
-			search={searchTerm.trim()}
-			onClear={() => setSearchTerm("")}
-		/>
-	);
+  return (
+    <NoMatchState
+      noun="Services or Products"
+      search={searchTerm.trim()}
+      onClear={() => setSearchTerm("")}
+    />
+  );
 };

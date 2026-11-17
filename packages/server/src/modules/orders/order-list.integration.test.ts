@@ -1,6 +1,8 @@
 import "@/test-support/pglite";
 import { beforeEach, expect, it } from "bun:test";
+
 import { eq } from "drizzle-orm";
+
 import { ordersServicesTable, ordersTable } from "@/db/schema";
 import { type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
@@ -8,9 +10,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Imported after the swap above: a static import would bind the shop's real
 // database before the swap runs.
 const { createOrder } = await import("@/modules/orders/order.service");
-const { countOrdersByStatus, findOrders } = await import(
-  "@/modules/orders/order.repository"
-);
+const { countOrdersByStatus, findOrders } =
+  await import("@/modules/orders/order.repository");
 
 let shop: Shop;
 

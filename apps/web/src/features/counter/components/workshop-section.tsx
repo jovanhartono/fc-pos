@@ -1,15 +1,16 @@
 import {
-	ArrowRight01Icon,
-	InformationCircleIcon,
-	TaskDone01Icon,
+  ArrowRight01Icon,
+  InformationCircleIcon,
+  TaskDone01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+
 import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 import type { CounterCategory, CounterWorkshop } from "@/features/counter/api";
 import { pluralize } from "@/shared/utils";
@@ -17,151 +18,151 @@ import { pluralize } from "@/shared/utils";
 const MAX_QUOTED_ROWS = 6;
 
 interface CategoryRowProps {
-	category: CounterCategory;
+  category: CounterCategory;
 }
 
 const QuoteText = ({ category }: CategoryRowProps) => {
-	if (!category.estimate) {
-		return null;
-	}
-	return (
-		<>
-			est.{" "}
-			<strong className="font-medium">
-				{pluralize(category.estimate.days, "day")}
-			</strong>
-		</>
-	);
+  if (!category.estimate) {
+    return null;
+  }
+  return (
+    <>
+      est.{" "}
+      <strong className="font-medium">
+        {pluralize(category.estimate.days, "day")}
+      </strong>
+    </>
+  );
 };
 
 const CategoryRow = ({ category }: CategoryRowProps) => (
-	<li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 border-border border-t px-3 py-2.5 first:border-t-0">
-		<span className="font-medium">{category.name}</span>
-		<span className="row-span-2 text-right whitespace-nowrap tabular-nums">
-			<QuoteText category={category} />
-		</span>
-		<span className="text-muted-foreground text-footnote tabular-nums">
-			{category.queued} queued · {category.in_progress} in progress ·{" "}
-			{category.waiting_qc} waiting QC
-		</span>
-	</li>
+  <li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 border-t border-border px-3 py-2.5 first:border-t-0">
+    <span className="font-medium">{category.name}</span>
+    <span className="row-span-2 text-right whitespace-nowrap tabular-nums">
+      <QuoteText category={category} />
+    </span>
+    <span className="text-footnote text-muted-foreground tabular-nums">
+      {category.queued} queued · {category.in_progress} in progress ·{" "}
+      {category.waiting_qc} waiting QC
+    </span>
+  </li>
 );
 
 interface NotEnoughDataProps {
-	categories: CounterCategory[];
+  categories: CounterCategory[];
 }
 
 // A popover, not a tooltip: a tap on a phone never opens a hover tooltip.
 const NotEnoughData = ({ categories }: NotEnoughDataProps) => (
-	<p className="border-border border-t px-3 py-2.5 text-muted-foreground text-footnote leading-relaxed first:border-t-0">
-		<Popover>
-			<PopoverTrigger
-				className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-4"
-				delay={100}
-				openOnHover
-			>
-				Not enough data
-				<HugeiconsIcon
-					icon={InformationCircleIcon}
-					aria-hidden="true"
-					className="size-3.5"
-				/>
-			</PopoverTrigger>
-			<PopoverContent align="start" className="w-64">
-				No Ready estimate: fewer than 10 Items in these Categories became ready
-				in the last 4 weeks.
-			</PopoverContent>
-		</Popover>
-		{categories.map((category) => (
-			<span key={category.category_id}>
-				{" · "}
-				{category.name}{" "}
-				<strong className="font-medium text-foreground tabular-nums">
-					{category.items_waiting}
-				</strong>
-			</span>
-		))}
-	</p>
+  <p className="border-t border-border px-3 py-2.5 text-footnote leading-relaxed text-muted-foreground first:border-t-0">
+    <Popover>
+      <PopoverTrigger
+        className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-4"
+        delay={100}
+        openOnHover
+      >
+        Not enough data
+        <HugeiconsIcon
+          icon={InformationCircleIcon}
+          aria-hidden="true"
+          className="size-3.5"
+        />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64">
+        No Ready estimate: fewer than 10 Items in these Categories became ready
+        in the last 4 weeks.
+      </PopoverContent>
+    </Popover>
+    {categories.map((category) => (
+      <span key={category.category_id}>
+        {" · "}
+        {category.name}{" "}
+        <strong className="font-medium text-foreground tabular-nums">
+          {category.items_waiting}
+        </strong>
+      </span>
+    ))}
+  </p>
 );
 
 interface CategoryBoxProps {
-	categories: CounterCategory[];
-	heading?: string;
+  categories: CounterCategory[];
+  heading?: string;
 }
 
 const CategoryBox = ({ categories, heading }: CategoryBoxProps) => {
-	if (categories.length === 0) {
-		return null;
-	}
-	const quoted = categories.filter((category) => category.estimate);
-	const unquoted = categories.filter((category) => !category.estimate);
-	const folded = quoted.slice(MAX_QUOTED_ROWS);
+  if (categories.length === 0) {
+    return null;
+  }
+  const quoted = categories.filter((category) => category.estimate);
+  const unquoted = categories.filter((category) => !category.estimate);
+  const folded = quoted.slice(MAX_QUOTED_ROWS);
 
-	return (
-		<div className="overflow-hidden rounded-lg border bg-card">
-			{heading ? (
-				<h3 className="bg-muted px-3 py-1.5 font-medium text-muted-foreground text-footnote">
-					{heading}
-				</h3>
-			) : null}
-			<ul>
-				{quoted.slice(0, MAX_QUOTED_ROWS).map((category) => (
-					<CategoryRow category={category} key={category.category_id} />
-				))}
-			</ul>
-			{folded.length > 0 ? (
-				<details className="group border-border border-t">
-					<summary className="flex cursor-pointer list-none items-center gap-1 px-3 py-2.5 font-medium [&::-webkit-details-marker]:hidden">
-						<HugeiconsIcon
-							icon={ArrowRight01Icon}
-							aria-hidden="true"
-							className="size-3.5 text-muted-foreground transition-transform group-open:rotate-90"
-						/>
-						{folded.length} more{" "}
-						{folded.length === 1 ? "Category" : "Categories"}
-					</summary>
-					<ul className="border-border border-t">
-						{folded.map((category) => (
-							<CategoryRow category={category} key={category.category_id} />
-						))}
-					</ul>
-				</details>
-			) : null}
-			{unquoted.length > 0 ? <NotEnoughData categories={unquoted} /> : null}
-		</div>
-	);
+  return (
+    <div className="overflow-hidden rounded-lg border bg-card">
+      {heading ? (
+        <h3 className="bg-muted px-3 py-1.5 text-footnote font-medium text-muted-foreground">
+          {heading}
+        </h3>
+      ) : null}
+      <ul>
+        {quoted.slice(0, MAX_QUOTED_ROWS).map((category) => (
+          <CategoryRow category={category} key={category.category_id} />
+        ))}
+      </ul>
+      {folded.length > 0 ? (
+        <details className="group border-t border-border">
+          <summary className="flex cursor-pointer list-none items-center gap-1 px-3 py-2.5 font-medium [&::-webkit-details-marker]:hidden">
+            <HugeiconsIcon
+              icon={ArrowRight01Icon}
+              aria-hidden="true"
+              className="size-3.5 text-muted-foreground transition-transform group-open:rotate-90"
+            />
+            {folded.length} more{" "}
+            {folded.length === 1 ? "Category" : "Categories"}
+          </summary>
+          <ul className="border-t border-border">
+            {folded.map((category) => (
+              <CategoryRow category={category} key={category.category_id} />
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      {unquoted.length > 0 ? <NotEnoughData categories={unquoted} /> : null}
+    </div>
+  );
 };
 
 interface WorkshopSectionProps {
-	categories: CounterCategory[];
-	workshop: CounterWorkshop;
+  categories: CounterCategory[];
+  workshop: CounterWorkshop;
 }
 
 export const WorkshopSection = ({
-	categories,
-	workshop,
+  categories,
+  workshop,
 }: WorkshopSectionProps) => {
-	// The server already sends the busiest Category first.
-	const cleaning = categories.filter((category) => !category.after_clean);
-	const afterClean = categories.filter((category) => category.after_clean);
+  // The server already sends the busiest Category first.
+  const cleaning = categories.filter((category) => !category.after_clean);
+  const afterClean = categories.filter((category) => category.after_clean);
 
-	return (
-		<Section
-			count={
-				categories.length > 0
-					? `${pluralize(workshop.queued, "Item")} queued · ${workshop.in_progress} in progress · ${workshop.waiting_qc} waiting QC`
-					: null
-			}
-			title="Ready Estimate"
-		>
-			{categories.length > 0 ? (
-				<>
-					<CategoryBox categories={cleaning} />
-					<CategoryBox categories={afterClean} heading="After the Clean" />
-				</>
-			) : (
-				<EmptyState icon={TaskDone01Icon}>Nothing waiting.</EmptyState>
-			)}
-		</Section>
-	);
+  return (
+    <Section
+      count={
+        categories.length > 0
+          ? `${pluralize(workshop.queued, "Item")} queued · ${workshop.in_progress} in progress · ${workshop.waiting_qc} waiting QC`
+          : null
+      }
+      title="Ready Estimate"
+    >
+      {categories.length > 0 ? (
+        <>
+          <CategoryBox categories={cleaning} />
+          <CategoryBox categories={afterClean} heading="After the Clean" />
+        </>
+      ) : (
+        <EmptyState icon={TaskDone01Icon}>Nothing waiting.</EmptyState>
+      )}
+    </Section>
+  );
 };

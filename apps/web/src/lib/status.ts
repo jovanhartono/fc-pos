@@ -1,161 +1,161 @@
 import type {
-	OrderCancelReason,
-	OrderRefundReason,
+  OrderCancelReason,
+  OrderRefundReason,
 } from "@/features/orders/api";
 
 export type BadgeVariant =
-	| "secondary"
-	| "success"
-	| "danger"
-	| "warning"
-	| "info"
-	| "outline";
+  | "secondary"
+  | "success"
+  | "danger"
+  | "warning"
+  | "info"
+  | "outline";
 
 const cancelReasonLabels: Record<OrderCancelReason, string> = {
-	customer_request: "Customer Request",
-	cannot_process: "Cannot Process",
-	damaged_intake: "Damaged at Intake",
-	duplicate_order: "Duplicate Order",
-	other: "Other",
+  customer_request: "Customer Request",
+  cannot_process: "Cannot Process",
+  damaged_intake: "Damaged at Intake",
+  duplicate_order: "Duplicate Order",
+  other: "Other",
 };
 
 export function formatCancelReason(reason: OrderCancelReason) {
-	return cancelReasonLabels[reason];
+  return cancelReasonLabels[reason];
 }
 
 const refundReasonLabels: Record<OrderRefundReason, string> = {
-	damaged: "Damaged",
-	cannot_process: "Cannot Process",
-	lost: "Lost",
-	other: "Other",
-	customer_cancelled: "Customer Cancelled",
+  damaged: "Damaged",
+  cannot_process: "Cannot Process",
+  lost: "Lost",
+  other: "Other",
+  customer_cancelled: "Customer Cancelled",
 };
 
 export function formatRefundReason(reason: OrderRefundReason) {
-	return refundReasonLabels[reason];
+  return refundReasonLabels[reason];
 }
 
 export const CANCEL_REASONS = [
-	"customer_request",
-	"cannot_process",
-	"damaged_intake",
-	"duplicate_order",
-	"other",
+  "customer_request",
+  "cannot_process",
+  "damaged_intake",
+  "duplicate_order",
+  "other",
 ] as const satisfies readonly OrderCancelReason[];
 
 export const REFUND_REASONS = [
-	"damaged",
-	"cannot_process",
-	"lost",
-	"other",
-	"customer_cancelled",
+  "damaged",
+  "cannot_process",
+  "lost",
+  "other",
+  "customer_cancelled",
 ] as const satisfies readonly OrderRefundReason[];
 
 const paymentStatusLabels = {
-	paid: "Paid",
-	unpaid: "Unpaid",
+  paid: "Paid",
+  unpaid: "Unpaid",
 } as const;
 
 const refundStatusLabels = {
-	full: "Fully Refunded",
-	none: "No Refund",
-	partial: "Partially Refunded",
+  full: "Fully Refunded",
+  none: "No Refund",
+  partial: "Partially Refunded",
 } as const;
 
 const orderStatusLabels = {
-	cancelled: "Cancelled",
-	completed: "Completed",
-	created: "Created",
-	processing: "Processing",
-	ready_for_pickup: "Ready for Pickup",
+  cancelled: "Cancelled",
+  completed: "Completed",
+  created: "Created",
+  processing: "Processing",
+  ready_for_pickup: "Ready for Pickup",
 } as const;
 
 const orderServiceStatusLabels = {
-	cancelled: "Cancelled",
-	picked_up: "Picked Up",
-	processing: "In Progress",
-	qc_reject: "QC Rejected",
-	queued: "Queued",
-	ready_for_pickup: "Ready for Pickup",
-	refunded: "Refunded",
-	waiting_qc: "Waiting QC",
+  cancelled: "Cancelled",
+  picked_up: "Picked Up",
+  processing: "In Progress",
+  qc_reject: "QC Rejected",
+  queued: "Queued",
+  ready_for_pickup: "Ready for Pickup",
+  refunded: "Refunded",
+  waiting_qc: "Waiting QC",
 } as const;
 
 export function getPaymentStatusBadgeVariant(
-	status: keyof typeof paymentStatusLabels,
+  status: keyof typeof paymentStatusLabels
 ): BadgeVariant {
-	return status === "paid" ? "success" : "danger";
+  return status === "paid" ? "success" : "danger";
 }
 
 export function formatPaymentStatus(status: keyof typeof paymentStatusLabels) {
-	return paymentStatusLabels[status];
+  return paymentStatusLabels[status];
 }
 
 export const getRefundStatusBadgeVariant = (
-	status: keyof typeof refundStatusLabels,
+  status: keyof typeof refundStatusLabels
 ): BadgeVariant => {
-	switch (status) {
-		case "full":
-			return "danger";
-		case "partial":
-			return "warning";
-		default:
-			return "outline";
-	}
+  switch (status) {
+    case "full":
+      return "danger";
+    case "partial":
+      return "warning";
+    default:
+      return "outline";
+  }
 };
 
 export const formatRefundStatus = (status: keyof typeof refundStatusLabels) =>
-	refundStatusLabels[status];
+  refundStatusLabels[status];
 
 export function getOrderStatusBadgeVariant(
-	status: keyof typeof orderStatusLabels,
+  status: keyof typeof orderStatusLabels
 ): BadgeVariant {
-	switch (status) {
-		case "completed":
-			return "success";
-		case "ready_for_pickup":
-			return "success";
-		case "processing":
-			return "info";
-		case "cancelled":
-			return "danger";
-		default:
-			return "warning";
-	}
+  switch (status) {
+    case "completed":
+      return "success";
+    case "ready_for_pickup":
+      return "success";
+    case "processing":
+      return "info";
+    case "cancelled":
+      return "danger";
+    default:
+      return "warning";
+  }
 }
 
 export function formatOrderStatus(status: keyof typeof orderStatusLabels) {
-	return orderStatusLabels[status];
+  return orderStatusLabels[status];
 }
 
 export function getOrderServiceStatusBadgeVariant(
-	status: string,
+  status: string
 ): BadgeVariant {
-	switch (status) {
-		case "queued":
-			return "warning";
-		case "processing":
-			return "info";
-		case "waiting_qc":
-			return "warning";
-		case "qc_reject":
-			return "danger";
-		case "ready_for_pickup":
-			return "success";
-		case "picked_up":
-			return "success";
-		case "refunded":
-			return "danger";
-		case "cancelled":
-			return "danger";
-		default:
-			return "outline";
-	}
+  switch (status) {
+    case "queued":
+      return "warning";
+    case "processing":
+      return "info";
+    case "waiting_qc":
+      return "warning";
+    case "qc_reject":
+      return "danger";
+    case "ready_for_pickup":
+      return "success";
+    case "picked_up":
+      return "success";
+    case "refunded":
+      return "danger";
+    case "cancelled":
+      return "danger";
+    default:
+      return "outline";
+  }
 }
 
 export function formatOrderServiceStatus(status: string) {
-	return (
-		orderServiceStatusLabels[status as keyof typeof orderServiceStatusLabels] ??
-		status
-	);
+  return (
+    orderServiceStatusLabels[status as keyof typeof orderServiceStatusLabels] ??
+    status
+  );
 }

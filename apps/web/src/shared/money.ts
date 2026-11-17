@@ -1,35 +1,35 @@
 const IDR = new Intl.NumberFormat("id-ID", {
-	style: "currency",
-	currency: "IDR",
-	minimumFractionDigits: 0,
-	maximumFractionDigits: 0,
+  style: "currency",
+  currency: "IDR",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
 });
 
 // Money reaches the browser as a string because Postgres hands numeric back as
 // one, and the counter only ever charges whole rupiah — never sen.
 export const parseMoney = (value: string | number | null | undefined): number =>
-	Number(value ?? 0);
+  Number(value ?? 0);
 
 // Never format an API money string directly: "45000.00" read as digits alone
 // prints as Rp4.500.000, a hundred times the real price.
 export const formatMoney = (
-	value: string | number | null | undefined,
+  value: string | number | null | undefined
 ): string => IDR.format(parseMoney(value));
 
 // Splits "Rp 60.000" into its symbol and amount, so a list can print the Rp
 // small and let the eye land on the number.
 export const formatMoneyParts = (value: string | number | null | undefined) => {
-	const parts = IDR.formatToParts(parseMoney(value));
-	return {
-		currency: parts.find((part) => part.type === "currency")?.value ?? "",
-		amount: parts
-			.filter((part) => part.type !== "currency" && part.type !== "literal")
-			.map((part) => part.value)
-			.join(""),
-	};
+  const parts = IDR.formatToParts(parseMoney(value));
+  return {
+    currency: parts.find((part) => part.type === "currency")?.value ?? "",
+    amount: parts
+      .filter((part) => part.type !== "currency" && part.type !== "literal")
+      .map((part) => part.value)
+      .join(""),
+  };
 };
 
 // Formats a currency input's raw digit string as the cashier types, so an
 // empty field stays empty instead of showing "Rp0" before anything is keyed.
 export const formatMoneyInput = (digits: string): string =>
-	digits ? IDR.format(Number.parseInt(digits, 10)) : "";
+  digits ? IDR.format(Number.parseInt(digits, 10)) : "";

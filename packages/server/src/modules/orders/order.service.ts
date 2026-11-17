@@ -1,23 +1,10 @@
 import { eq } from "drizzle-orm";
 import type z from "zod";
+
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { resolveOrCreateCustomer } from "@/modules/customers/customer.service";
-import {
-  countOrdersByStatus,
-  findOrders,
-  insertItems,
-  insertOrder,
-  insertOrderProducts,
-  insertOrderServices,
-  type OrderTx,
-  reserveNextOrderNumber,
-} from "@/modules/orders/order.repository";
-import {
-  type GetOrdersQuery,
-  normalizeOrderListQuery,
-} from "@/modules/orders/order.schema";
 import { assertActiveCourier } from "@/modules/orders/order-courier.service";
 import { assertCashierPaymentMethod } from "@/modules/orders/order-payment.service";
 import { hasStartPhoto } from "@/modules/orders/order-photo-gate.repository";
@@ -38,6 +25,20 @@ import {
   deriveItemStatus,
   summarizeOrderFulfillment,
 } from "@/modules/orders/order-status-machine";
+import {
+  countOrdersByStatus,
+  findOrders,
+  insertItems,
+  insertOrder,
+  insertOrderProducts,
+  insertOrderServices,
+  type OrderTx,
+  reserveNextOrderNumber,
+} from "@/modules/orders/order.repository";
+import {
+  type GetOrdersQuery,
+  normalizeOrderListQuery,
+} from "@/modules/orders/order.schema";
 import {
   decrementProductsStock,
   findProducts,

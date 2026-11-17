@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { orderServiceHandlerLogsTable, ordersServicesTable } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import type { PatchOrderServiceStatusInput } from "@/modules/orders/order-admin.schema";
@@ -81,9 +82,8 @@ const authz = {
 mock.module("@/utils/authorization", () => authorizationDouble(authz));
 
 // Restored in afterAll, since order-status-machine.test.ts runs the real one.
-const actualStatusMachine = await import(
-  "@/modules/orders/order-status-machine"
-);
+const actualStatusMachine =
+  await import("@/modules/orders/order-status-machine");
 
 const machine = {
   calls: [] as Array<{ executor: unknown; input: AnyObj }>,

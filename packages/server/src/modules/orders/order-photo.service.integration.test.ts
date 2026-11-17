@@ -1,5 +1,6 @@
 import "@/test-support/pglite";
 import { beforeEach, expect, it, mock } from "bun:test";
+
 import { captureRejection } from "@/test-support/capture-rejection";
 import { type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
@@ -25,9 +26,8 @@ mock.module("@/utils/s3", () => ({
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
 const { saveItemPhoto } = await import("@/modules/orders/order-photo.service");
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 const { BadRequestException } = await import("@/http-exceptions");
 
 let shop: Shop;

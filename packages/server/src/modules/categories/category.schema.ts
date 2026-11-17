@@ -1,5 +1,6 @@
 import { createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
+
 import { categoriesTable } from "@/db/schema";
 import { isActiveSchema, textSchema, varcharSchema } from "@/schema/common";
 

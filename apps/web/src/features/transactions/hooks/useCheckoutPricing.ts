@@ -1,6 +1,7 @@
 import type { DiscountLine } from "@fresclean/api/rules";
 import { useQuery } from "@tanstack/react-query";
 import { useWatch } from "react-hook-form";
+
 import { campaignsQueries } from "@/features/campaigns/api";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
@@ -9,91 +10,91 @@ import { previewDiscounts } from "@/features/transactions/lib/discount-preview";
 import { parseMoney } from "@/shared/money";
 
 export const useAvailableCampaigns = (
-	selectedStoreNumber: number | undefined,
-	subtotal: number,
-	serviceLines: DiscountLine[],
+  selectedStoreNumber: number | undefined,
+  subtotal: number,
+  serviceLines: DiscountLine[]
 ) => {
-	const campaignsQuery = useQuery({
-		...campaignsQueries.list({
-			store_id: selectedStoreNumber,
-			is_active: true,
-		}),
-		enabled: selectedStoreNumber !== undefined,
-	});
+  const campaignsQuery = useQuery({
+    ...campaignsQueries.list({
+      store_id: selectedStoreNumber,
+      is_active: true,
+    }),
+    enabled: selectedStoreNumber !== undefined,
+  });
 
-	// Campaigns are judged against the Cart total (ADR-0018): a discount
-	// settles only once every line is priced, so the total is the base.
-	const availableCampaigns = filterEligibleCampaigns(campaignsQuery.data, {
-		grossTotal: subtotal,
-		lines: serviceLines,
-		storeId: selectedStoreNumber,
-	});
+  // Campaigns are judged against the Cart total (ADR-0018): a discount
+  // settles only once every line is priced, so the total is the base.
+  const availableCampaigns = filterEligibleCampaigns(campaignsQuery.data, {
+    grossTotal: subtotal,
+    lines: serviceLines,
+    storeId: selectedStoreNumber,
+  });
 
-	return { campaignsQuery, availableCampaigns };
+  return { campaignsQuery, availableCampaigns };
 };
 
 // Used by both the payment step and the footer's total; the Campaign fetch is
 // shared, so two callers cost nothing extra.
 export function useCheckoutPricing() {
-	const { subtotal, serviceRows } = useCart();
-	const selectedStoreId = useWatch<TransactionDraftValues, "selectedStoreId">({
-		name: "selectedStoreId",
-	});
-	const selectedCampaignIds = useWatch<
-		TransactionDraftValues,
-		"selectedCampaignIds"
-	>({
-		name: "selectedCampaignIds",
-	});
-	const manualDiscount = useWatch<TransactionDraftValues, "manualDiscount">({
-		name: "manualDiscount",
-	});
-	const appliedVouchers = useWatch<TransactionDraftValues, "appliedVouchers">({
-		name: "appliedVouchers",
-	});
-	const deliveryFeeInput = useWatch<TransactionDraftValues, "deliveryFee">({
-		name: "deliveryFee",
-	});
+  const { subtotal, serviceRows } = useCart();
+  const selectedStoreId = useWatch<TransactionDraftValues, "selectedStoreId">({
+    name: "selectedStoreId",
+  });
+  const selectedCampaignIds = useWatch<
+    TransactionDraftValues,
+    "selectedCampaignIds"
+  >({
+    name: "selectedCampaignIds",
+  });
+  const manualDiscount = useWatch<TransactionDraftValues, "manualDiscount">({
+    name: "manualDiscount",
+  });
+  const appliedVouchers = useWatch<TransactionDraftValues, "appliedVouchers">({
+    name: "appliedVouchers",
+  });
+  const deliveryFeeInput = useWatch<TransactionDraftValues, "deliveryFee">({
+    name: "deliveryFee",
+  });
 
-	const selectedStoreNumber =
-		selectedStoreId && Number.isFinite(Number(selectedStoreId))
-			? Number(selectedStoreId)
-			: undefined;
+  const selectedStoreNumber =
+    selectedStoreId && Number.isFinite(Number(selectedStoreId))
+      ? Number(selectedStoreId)
+      : undefined;
 
-	// As on the server, a Repair can never be the free one in a BOGO (ADR-0018).
-	const serviceLines = serviceRows.flatMap((row) =>
-		row.service.price === null
-			? []
-			: [
-					{
-						price: parseMoney(row.service.price),
-						service_id: row.service.id,
-					},
-				],
-	);
+  // As on the server, a Repair can never be the free one in a BOGO (ADR-0018).
+  const serviceLines = serviceRows.flatMap((row) =>
+    row.service.price === null
+      ? []
+      : [
+          {
+            price: parseMoney(row.service.price),
+            service_id: row.service.id,
+          },
+        ]
+  );
 
-	const { campaignsQuery, availableCampaigns } = useAvailableCampaigns(
-		selectedStoreNumber,
-		subtotal,
-		serviceLines,
-	);
+  const { campaignsQuery, availableCampaigns } = useAvailableCampaigns(
+    selectedStoreNumber,
+    subtotal,
+    serviceLines
+  );
 
-	const preview = previewDiscounts({
-		grossTotal: subtotal,
-		lines: serviceLines,
-		eligible: availableCampaigns,
-		pickedCampaignIds: selectedCampaignIds,
-		vouchers: appliedVouchers,
-		manualDiscount,
-		deliveryFee: Number(deliveryFeeInput || 0),
-	});
+  const preview = previewDiscounts({
+    grossTotal: subtotal,
+    lines: serviceLines,
+    eligible: availableCampaigns,
+    pickedCampaignIds: selectedCampaignIds,
+    vouchers: appliedVouchers,
+    manualDiscount,
+    deliveryFee: Number(deliveryFeeInput || 0),
+  });
 
-	return {
-		subtotal,
-		availableCampaigns,
-		campaignsQuery,
-		serviceLines,
-		rows: preview.rows,
-		amountDue: preview.amountDue,
-	};
+  return {
+    subtotal,
+    availableCampaigns,
+    campaignsQuery,
+    serviceLines,
+    rows: preview.rows,
+    amountDue: preview.amountDue,
+  };
 }

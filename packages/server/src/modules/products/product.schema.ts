@@ -1,5 +1,6 @@
 import { createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
+
 import { productsTable } from "@/db/schema";
 import {
   currencySchema,

@@ -14,9 +14,8 @@ mock.module("@/modules/reports/report-range.service", () => ({
   getOwnWorkerFacts: unused,
 }));
 
-const { performanceWindows } = await import(
-  "@/modules/users/user-performance.service"
-);
+const { performanceWindows } =
+  await import("@/modules/users/user-performance.service");
 const { default: dayjs } = await import("dayjs");
 
 describe("the periods on My Performance", () => {

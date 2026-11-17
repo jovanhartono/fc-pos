@@ -1,151 +1,152 @@
 import { DiscountTag01Icon } from "@hugeicons/core-free-icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+
 import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
-	csvFilename,
-	downloadCsv,
-	escapeCsv,
+  csvFilename,
+  downloadCsv,
+  escapeCsv,
 } from "@/features/reports/utils/csv";
 import {
-	numberFormatter,
-	oneDecimalFormatter,
-	percentFormatter,
+  numberFormatter,
+  oneDecimalFormatter,
+  percentFormatter,
 } from "@/features/reports/utils/format";
 import { staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 
 interface CampaignsPanelProps {
-	from: string;
-	to: string;
-	storeId?: number;
-	granularity?: ReportGranularity;
+  from: string;
+  to: string;
+  storeId?: number;
+  granularity?: ReportGranularity;
 }
 
 export const CampaignsPanel = ({
-	from,
-	to,
-	storeId,
-	granularity,
+  from,
+  to,
+  storeId,
+  granularity,
 }: CampaignsPanelProps) => {
-	const query = useQuery({
-		...reportsQueries.campaignEffectiveness({
-			from,
-			to,
-			store_id: storeId,
-			granularity,
-		}),
-		placeholderData: keepPreviousData,
-	});
-	const data = query.data;
-	const campaigns = data?.campaigns ?? [];
-	const maxOrders = campaigns.reduce((m, c) => Math.max(m, c.orders), 0);
+  const query = useQuery({
+    ...reportsQueries.campaignEffectiveness({
+      from,
+      to,
+      store_id: storeId,
+      granularity,
+    }),
+    placeholderData: keepPreviousData,
+  });
+  const data = query.data;
+  const campaigns = data?.campaigns ?? [];
+  const maxOrders = campaigns.reduce((m, c) => Math.max(m, c.orders), 0);
 
-	const handleExport = () => {
-		if (!data) {
-			return;
-		}
-		const lines: string[] = [
-			"Campaign effectiveness,Code,Name,Orders,Collected,Discount cost,Avg order value",
-		];
-		for (const c of campaigns) {
-			lines.push(
-				`Campaign effectiveness,${escapeCsv(c.campaign_code)},${escapeCsv(c.campaign_name)},${c.orders},${c.collected},${c.discount_cost},${c.avg_order_value}`,
-			);
-		}
-		downloadCsv(
-			csvFilename("campaign-effectiveness", data.from, data.to, data.store_id),
-			lines.join("\n"),
-		);
-	};
+  const handleExport = () => {
+    if (!data) {
+      return;
+    }
+    const lines: string[] = [
+      "Campaign effectiveness,Code,Name,Orders,Collected,Discount cost,Avg order value",
+    ];
+    for (const c of campaigns) {
+      lines.push(
+        `Campaign effectiveness,${escapeCsv(c.campaign_code)},${escapeCsv(c.campaign_name)},${c.orders},${c.collected},${c.discount_cost},${c.avg_order_value}`
+      );
+    }
+    downloadCsv(
+      csvFilename("campaign-effectiveness", data.from, data.to, data.store_id),
+      lines.join("\n")
+    );
+  };
 
-	const totalCollected = data?.summary.collected ?? 0;
-	const totalDiscount = data?.summary.discount_cost ?? 0;
-	const roi = totalDiscount > 0 ? totalCollected / totalDiscount : 0;
+  const totalCollected = data?.summary.collected ?? 0;
+  const totalDiscount = data?.summary.discount_cost ?? 0;
+  const roi = totalDiscount > 0 ? totalCollected / totalDiscount : 0;
 
-	return (
-		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
-			<ExportButton disabled={!data} onClick={handleExport} />
-			<KpiRow isPending={!data}>
-				<KpiCard
-					label="Campaigns used"
-					value={numberFormatter.format(campaigns.length)}
-				/>
-				<KpiCard
-					label="Orders w/ campaign"
-					value={numberFormatter.format(data?.summary.orders ?? 0)}
-				/>
-				<KpiCard
-					label="Collected"
-					value={formatMoney(String(totalCollected))}
-				/>
-				<KpiCard
-					label="Discount cost"
-					value={formatMoney(String(totalDiscount))}
-					helper={`ROI ${oneDecimalFormatter.format(roi)}×`}
-				/>
-			</KpiRow>
+  return (
+    <div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
+      <ExportButton disabled={!data} onClick={handleExport} />
+      <KpiRow isPending={!data}>
+        <KpiCard
+          label="Campaigns used"
+          value={numberFormatter.format(campaigns.length)}
+        />
+        <KpiCard
+          label="Orders w/ campaign"
+          value={numberFormatter.format(data?.summary.orders ?? 0)}
+        />
+        <KpiCard
+          label="Collected"
+          value={formatMoney(String(totalCollected))}
+        />
+        <KpiCard
+          label="Discount cost"
+          value={formatMoney(String(totalDiscount))}
+          helper={`ROI ${oneDecimalFormatter.format(roi)}×`}
+        />
+      </KpiRow>
 
-			<Card className="border-border/70">
-				<CardHeader>
-					<CardTitle>Campaign Leaderboard</CardTitle>
-				</CardHeader>
-				<CardContent className="p-4 pt-0">
-					{campaigns.length === 0 ? (
-						<EmptyState icon={DiscountTag01Icon}>
-							No campaigns redeemed.
-						</EmptyState>
-					) : (
-						<div className="grid grid-cols-1 gap-3">
-							{campaigns.map((c) => {
-								const pct = maxOrders === 0 ? 0 : (c.orders / maxOrders) * 100;
-								const discountRate =
-									c.collected > 0 ? c.discount_cost / c.collected : 0;
-								const campaignRoi =
-									c.discount_cost > 0 ? c.collected / c.discount_cost : 0;
-								return (
-									<div key={c.campaign_id} className="grid grid-cols-1 gap-1">
-										<div className="flex items-center justify-between gap-2">
-											<span className="flex min-w-0 items-center gap-2 text-body font-medium">
-												<span className="shrink-0 font-normal text-subhead tabular-nums">
-													{c.campaign_code}
-												</span>
-												<span className="min-w-0 break-words">
-													{c.campaign_name}
-												</span>
-											</span>
-											<span className="flex shrink-0 items-center gap-3 whitespace-nowrap text-body tabular-nums">
-												<span className="text-muted-foreground">
-													{`${numberFormatter.format(c.orders)} orders`}
-												</span>
-												<span>{`${oneDecimalFormatter.format(campaignRoi)}×`}</span>
-											</span>
-										</div>
-										<div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
-											<div
-												className="h-full rounded-full bg-primary"
-												style={{ width: `${pct}%` }}
-											/>
-										</div>
-										<div className="flex flex-wrap items-center justify-between gap-x-3 text-subhead tabular-nums">
-											<span>{formatMoney(String(c.collected))}</span>
-											<span>
-												{`discount ${formatMoney(String(c.discount_cost))} `}
-												<span className="text-muted-foreground">·</span>
-												{` ${percentFormatter.format(discountRate)}`}
-											</span>
-										</div>
-									</div>
-								);
-							})}
-						</div>
-					)}
-				</CardContent>
-			</Card>
-		</div>
-	);
+      <Card className="border-border/70">
+        <CardHeader>
+          <CardTitle>Campaign Leaderboard</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          {campaigns.length === 0 ? (
+            <EmptyState icon={DiscountTag01Icon}>
+              No campaigns redeemed.
+            </EmptyState>
+          ) : (
+            <div className="grid grid-cols-1 gap-3">
+              {campaigns.map((c) => {
+                const pct = maxOrders === 0 ? 0 : (c.orders / maxOrders) * 100;
+                const discountRate =
+                  c.collected > 0 ? c.discount_cost / c.collected : 0;
+                const campaignRoi =
+                  c.discount_cost > 0 ? c.collected / c.discount_cost : 0;
+                return (
+                  <div key={c.campaign_id} className="grid grid-cols-1 gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2 text-body font-medium">
+                        <span className="shrink-0 text-subhead font-normal tabular-nums">
+                          {c.campaign_code}
+                        </span>
+                        <span className="min-w-0 break-words">
+                          {c.campaign_name}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-3 text-body whitespace-nowrap tabular-nums">
+                        <span className="text-muted-foreground">
+                          {`${numberFormatter.format(c.orders)} orders`}
+                        </span>
+                        <span>{`${oneDecimalFormatter.format(campaignRoi)}×`}</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-soft-bar-track">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 text-subhead tabular-nums">
+                      <span>{formatMoney(String(c.collected))}</span>
+                      <span>
+                        {`discount ${formatMoney(String(c.discount_cost))} `}
+                        <span className="text-muted-foreground">·</span>
+                        {` ${percentFormatter.format(discountRate)}`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 };

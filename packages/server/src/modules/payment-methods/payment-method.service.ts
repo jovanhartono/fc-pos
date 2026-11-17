@@ -1,4 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
+
 import type { paymentMethodsTable } from "@/db/schema";
 import {
   findPaymentMethodById,

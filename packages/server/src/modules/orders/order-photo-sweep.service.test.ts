@@ -2,6 +2,7 @@
 // abandoned batch left behind, never a photo a Complaint might still need.
 
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
+
 import { s3 } from "bun";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -14,9 +15,8 @@ mock.module("@/modules/orders/order-photo.repository", () => ({
   listReferencedPhotoKeys: () => Promise.resolve(referenced),
 }));
 
-const { sweepOrphanedOrderPhotos } = await import(
-  "@/modules/orders/order-photo-sweep.service"
-);
+const { sweepOrphanedOrderPhotos } =
+  await import("@/modules/orders/order-photo-sweep.service");
 const { STORAGE_ENV_PREFIX } = await import("@/utils/photo-key");
 
 const own = (suffix: string) => `${STORAGE_ENV_PREFIX}orders/${suffix}`;

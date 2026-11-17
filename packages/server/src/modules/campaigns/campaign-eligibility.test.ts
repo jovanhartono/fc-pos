@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+
 import { BadRequestException } from "@/http-exceptions";
 import { assertCampaignUsable } from "@/modules/campaigns/campaign.service";
 import { campaignIneligibilityReason } from "@/schema/campaign-eligibility";

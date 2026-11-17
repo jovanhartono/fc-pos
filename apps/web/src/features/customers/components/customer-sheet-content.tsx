@@ -1,138 +1,139 @@
 import {
-	normalizePhoneNumber,
-	POSTCustomerSchema,
+  normalizePhoneNumber,
+  POSTCustomerSchema,
 } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormProvider, type SubmitHandler, useForm } from "react-hook-form";
 import { z } from "zod";
+
 import {
-	type Customer,
-	createCustomer,
-	customersKeys,
-	updateCustomer,
+  type Customer,
+  createCustomer,
+  customersKeys,
+  updateCustomer,
 } from "@/features/customers/api";
 import {
-	CustomerForm,
-	type CustomerFormState,
+  CustomerForm,
+  type CustomerFormState,
 } from "@/features/customers/components/customer-form";
 import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
 import { useSheet } from "@/stores/sheet-store";
 
 const defaultForm: CustomerFormState = {
-	name: "",
-	phone_number: "",
-	email: "",
-	address: "",
-	origin_store_id: undefined,
+  name: "",
+  phone_number: "",
+  email: "",
+  address: "",
+  origin_store_id: undefined,
 };
 
 const customerFormResolverSchema = POSTCustomerSchema.omit({
-	origin_store_id: true,
+  origin_store_id: true,
 }).extend({
-	email: z.union([z.literal(""), z.email("Invalid email address")]),
-	address: z.string(),
-	origin_store_id: z.number().int().optional(),
+  email: z.union([z.literal(""), z.email("Invalid email address")]),
+  address: z.string(),
+  origin_store_id: z.number().int().optional(),
 });
 
 export type CustomerSheetContentProps = {
-	editingCustomer?: Customer;
-	onSuccess?: (customer: { id: number }) => void;
+  editingCustomer?: Customer;
+  onSuccess?: (customer: { id: number }) => void;
 };
 
 export function CustomerSheetContent({
-	editingCustomer,
-	onSuccess,
+  editingCustomer,
+  onSuccess,
 }: CustomerSheetContentProps) {
-	const queryClient = useQueryClient();
-	const { closeSheet } = useSheet();
+  const queryClient = useQueryClient();
+  const { closeSheet } = useSheet();
 
-	const form = useForm<CustomerFormState>({
-		resolver: zodResolver(customerFormResolverSchema),
-		defaultValues: editingCustomer
-			? {
-					name: editingCustomer.name,
-					phone_number: editingCustomer.phone_number,
-					email: editingCustomer.email ?? "",
-					address: editingCustomer.address ?? "",
-					origin_store_id: editingCustomer.origin_store_id,
-				}
-			: defaultForm,
-	});
-	useSheetDirtyGuard(form.formState.isDirty);
+  const form = useForm<CustomerFormState>({
+    resolver: zodResolver(customerFormResolverSchema),
+    defaultValues: editingCustomer
+      ? {
+          name: editingCustomer.name,
+          phone_number: editingCustomer.phone_number,
+          email: editingCustomer.email ?? "",
+          address: editingCustomer.address ?? "",
+          origin_store_id: editingCustomer.origin_store_id,
+        }
+      : defaultForm,
+  });
+  useSheetDirtyGuard(form.formState.isDirty);
 
-	const createMutation = useMutation({
-		mutationKey: ["create-customer"],
-		mutationFn: createCustomer,
-		onSuccess: async (data) => {
-			await queryClient.invalidateQueries({ queryKey: customersKeys.all });
-			if (onSuccess) {
-				onSuccess(data.data);
-			}
-			closeSheet();
-		},
-	});
+  const createMutation = useMutation({
+    mutationKey: ["create-customer"],
+    mutationFn: createCustomer,
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: customersKeys.all });
+      if (onSuccess) {
+        onSuccess(data.data);
+      }
+      closeSheet();
+    },
+  });
 
-	const updateMutation = useMutation({
-		mutationKey: ["update-customer"],
-		mutationFn: ({
-			id,
-			payload,
-		}: {
-			id: number;
-			payload: Parameters<typeof updateCustomer>[1];
-		}) => updateCustomer(id, payload),
-		onSuccess: async (data) => {
-			await queryClient.invalidateQueries({ queryKey: customersKeys.all });
-			if (onSuccess) {
-				onSuccess(data.data);
-			}
-			closeSheet();
-		},
-	});
+  const updateMutation = useMutation({
+    mutationKey: ["update-customer"],
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number;
+      payload: Parameters<typeof updateCustomer>[1];
+    }) => updateCustomer(id, payload),
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: customersKeys.all });
+      if (onSuccess) {
+        onSuccess(data.data);
+      }
+      closeSheet();
+    },
+  });
 
-	const isSubmitting = createMutation.isPending || updateMutation.isPending;
-	const isEditing = !!editingCustomer;
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const isEditing = !!editingCustomer;
 
-	const handleSubmit: SubmitHandler<CustomerFormState> = async (values) => {
-		const normalizedPhoneNumber = normalizePhoneNumber(values.phone_number);
+  const handleSubmit: SubmitHandler<CustomerFormState> = async (values) => {
+    const normalizedPhoneNumber = normalizePhoneNumber(values.phone_number);
 
-		if (isEditing && editingCustomer) {
-			const payload: Parameters<typeof updateCustomer>[1] = {
-				name: values.name,
-				phone_number: normalizedPhoneNumber,
-				email: values.email?.length ? values.email : undefined,
-				address: values.address ?? "",
-			};
+    if (isEditing && editingCustomer) {
+      const payload: Parameters<typeof updateCustomer>[1] = {
+        name: values.name,
+        phone_number: normalizedPhoneNumber,
+        email: values.email?.length ? values.email : undefined,
+        address: values.address ?? "",
+      };
 
-			await updateMutation.mutateAsync({
-				id: editingCustomer.id,
-				payload,
-			});
-			return;
-		}
+      await updateMutation.mutateAsync({
+        id: editingCustomer.id,
+        payload,
+      });
+      return;
+    }
 
-		const payload: Parameters<typeof createCustomer>[0] = {
-			name: values.name,
-			phone_number: normalizedPhoneNumber,
-			email: values.email?.length ? values.email : undefined,
-			address: values.address ?? "",
-			...(values.origin_store_id
-				? { origin_store_id: values.origin_store_id }
-				: {}),
-		};
+    const payload: Parameters<typeof createCustomer>[0] = {
+      name: values.name,
+      phone_number: normalizedPhoneNumber,
+      email: values.email?.length ? values.email : undefined,
+      address: values.address ?? "",
+      ...(values.origin_store_id
+        ? { origin_store_id: values.origin_store_id }
+        : {}),
+    };
 
-		await createMutation.mutateAsync(payload);
-	};
+    await createMutation.mutateAsync(payload);
+  };
 
-	return (
-		<FormProvider {...form}>
-			<CustomerForm
-				onSubmit={handleSubmit}
-				isSubmitting={isSubmitting}
-				isEditing={isEditing}
-				onReset={closeSheet}
-			/>
-		</FormProvider>
-	);
+  return (
+    <FormProvider {...form}>
+      <CustomerForm
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        isEditing={isEditing}
+        onReset={closeSheet}
+      />
+    </FormProvider>
+  );
 }

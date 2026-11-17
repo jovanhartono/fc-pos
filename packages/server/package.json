@@ -1,8 +1,8 @@
 {
   "name": "@fresclean/api",
   "version": "0.0.1",
-  "sideEffects": false,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     "./rpc": {
       "import": {
@@ -41,7 +41,7 @@
     "drift:dev": "bun drizzle-kit push --config=drizzle-dev.config.ts --explain --verbose",
     "drift:prod": "bun drizzle-kit push --config=drizzle-prod.config.ts --explain --verbose",
     "generate": "bun drizzle-kit generate --config=drizzle.config.ts",
-    "lint": "biome check .",
+    "lint": "oxlint && oxfmt --check .",
     "migrate:dev": "bun drizzle-kit migrate --config=drizzle-dev.config.ts",
     "migrate:prod": "bun drizzle-kit migrate --config=drizzle-prod.config.ts",
     "migrations:check": "bun drizzle-kit check --config=drizzle.config.ts",
@@ -65,7 +65,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@biomejs/biome": "catalog:",
     "@electric-sql/pglite": "^0.5.11",
     "@types/bun": "^1.4.4",
     "drizzle-kit": "1.0.0-rc.5",

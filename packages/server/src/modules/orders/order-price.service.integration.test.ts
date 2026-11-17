@@ -1,5 +1,6 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
@@ -11,19 +12,15 @@ import { resetDb, testDb } from "@/test-support/pglite";
 
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
-const { updateOrderPayment } = await import(
-  "@/modules/orders/order-payment.service"
-);
-const { setOrderServicePrice } = await import(
-  "@/modules/orders/order-price.service"
-);
+const { updateOrderPayment } =
+  await import("@/modules/orders/order-payment.service");
+const { setOrderServicePrice } =
+  await import("@/modules/orders/order-price.service");
 const { cancelOrder } = await import("@/modules/orders/order-reversal.service");
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
-const { openComplaint } = await import(
-  "@/modules/complaints/complaint.service"
-);
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
+const { openComplaint } =
+  await import("@/modules/complaints/complaint.service");
 
 let shop: Shop;
 

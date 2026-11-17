@@ -1,14 +1,15 @@
 import { HTTPException } from "hono/http-exception";
 import { StatusCodes } from "http-status-codes";
+
 import { db } from "@/db";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
-import { findSettlementLines } from "@/modules/orders/order.repository";
 import {
   markOrderPaid,
   NetDueChangedError,
   quoteOrderNetDue,
 } from "@/modules/orders/order-payment.service";
 import type { DiscountRequest } from "@/modules/orders/order-settlement.service";
+import { findSettlementLines } from "@/modules/orders/order.repository";
 import { findPaymentMethodByGateway } from "@/modules/payment-methods/payment-method.repository";
 import {
   activePaymentGatewayName,
@@ -21,6 +22,11 @@ import {
   type GatewayStatusResult,
   type PaymentGatewayName,
 } from "@/modules/payments/gateways/types";
+import {
+  cancelAtGateway,
+  cancelOrderPendingCharges,
+  chargeRef,
+} from "@/modules/payments/payment-charge-close";
 import {
   findEndedUncheckedCharges,
   findNewerPaymentCharge,
@@ -38,11 +44,6 @@ import {
   updatePendingChargesCancelled,
   updateUnsettledChargeById,
 } from "@/modules/payments/payment-charge.repository";
-import {
-  cancelAtGateway,
-  cancelOrderPendingCharges,
-  chargeRef,
-} from "@/modules/payments/payment-charge-close";
 import { orderNetDue } from "@/schema/discount";
 import { hasUnpricedLine } from "@/schema/unpriced-line";
 

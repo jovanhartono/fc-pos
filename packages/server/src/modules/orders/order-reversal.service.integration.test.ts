@@ -1,5 +1,6 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
 import { campaignEligibleServicesTable, campaignsTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
@@ -12,9 +13,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Imported after the swap above: a static import would bind the shop's real
 // database, prepared statements included, before the swap runs.
 const { createOrder } = await import("@/modules/orders/order.service");
-const { cancelOrder, createOrderRefund } = await import(
-  "@/modules/orders/order-reversal.service"
-);
+const { cancelOrder, createOrderRefund } =
+  await import("@/modules/orders/order-reversal.service");
 
 let shop: Shop;
 

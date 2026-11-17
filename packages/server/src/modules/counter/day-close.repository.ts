@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, max, sql } from "drizzle-orm";
+
 import { db } from "@/db";
 import {
   categoriesTable,

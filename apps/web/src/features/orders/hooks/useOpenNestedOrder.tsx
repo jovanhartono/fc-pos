@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+
 import { orderSheetPayload } from "@/features/orders/hooks/useOrderSheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
@@ -9,23 +10,23 @@ import { useSheet } from "@/stores/sheet-store";
 // whose back button returns to the list. A desktop opens it over the list,
 // with a link back to that list. Called once per list, not once per row.
 export const useOpenNestedOrder = () => {
-	const isMobile = useIsMobile();
-	const openNestedSheet = useSheet((s) => s.openNestedSheet);
-	const leaveSheet = useLeaveSheetLink();
+  const isMobile = useIsMobile();
+  const openNestedSheet = useSheet((s) => s.openNestedSheet);
+  const leaveSheet = useLeaveSheetLink();
 
-	return (
-		event: MouseEvent<HTMLAnchorElement>,
-		orderId: number,
-		code: string,
-	) => {
-		if (isMobile) {
-			leaveSheet(event);
-			return;
-		}
-		if (!isPlainLeftClick(event)) {
-			return;
-		}
-		event.preventDefault();
-		openNestedSheet(orderSheetPayload(orderId, code));
-	};
+  return (
+    event: MouseEvent<HTMLAnchorElement>,
+    orderId: number,
+    code: string
+  ) => {
+    if (isMobile) {
+      leaveSheet(event);
+      return;
+    }
+    if (!isPlainLeftClick(event)) {
+      return;
+    }
+    event.preventDefault();
+    openNestedSheet(orderSheetPayload(orderId, code));
+  };
 };

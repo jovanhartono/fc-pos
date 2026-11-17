@@ -5,6 +5,7 @@ import { csrf } from "hono/csrf";
 import type { JwtVariables } from "hono/jwt";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
+
 import type { AuthUser } from "@/types/jwt";
 
 // Only local Vite needs these: deployed, vercel.json serves the dashboard and

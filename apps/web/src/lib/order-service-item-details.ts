@@ -1,63 +1,63 @@
 import type { ItemNameFields } from "@fresclean/api/types";
 
 type ServiceItemDetails = {
-	brand?: string | null;
-	color?: string | null;
-	model?: string | null;
-	size?: string | null;
+  brand?: string | null;
+  color?: string | null;
+  model?: string | null;
+  size?: string | null;
 };
 
 // One field order for every surface that names an Item — the cart line, the
 // checkout row, the queue row. Two screens listing the same Item as
 // "Nike · Black · Yeezy" and "Nike · Yeezy · Black" read as two different Items.
 export function getOrderServiceItemDescriptors({
-	brand,
-	model,
-	color,
-	size,
+  brand,
+  model,
+  color,
+  size,
 }: ServiceItemDetails): string[] {
-	return [brand, model, color, size].flatMap((value) => {
-		const trimmed = value?.trim();
-		return trimmed ? [trimmed] : [];
-	});
+  return [brand, model, color, size].flatMap((value) => {
+    const trimmed = value?.trim();
+    return trimmed ? [trimmed] : [];
+  });
 }
 
 export function getOrderServiceItemDetails(
-	details: ServiceItemDetails,
+  details: ServiceItemDetails
 ): string | null {
-	return getOrderServiceItemDescriptors(details).join(" · ") || null;
+  return getOrderServiceItemDescriptors(details).join(" · ") || null;
 }
 
 export const getRowItemDetails = (row: Omit<ItemNameFields, "item_code">) =>
-	getOrderServiceItemDetails({
-		brand: row.item_brand,
-		model: row.item_model,
-		color: row.item_color,
-		size: row.item_size,
-	});
+  getOrderServiceItemDetails({
+    brand: row.item_brand,
+    model: row.item_model,
+    color: row.item_color,
+    size: row.item_size,
+  });
 
 // List rows name the Item, not its tag; an Item taken in with no details has
 // only the tag to go by.
 export const getItemName = (row: ItemNameFields) =>
-	getRowItemDetails(row) ?? row.item_code;
+  getRowItemDetails(row) ?? row.item_code;
 
 interface ShortItemTagFields {
-	order_code: string;
-	item_code: string;
+  order_code: string;
+  item_code: string;
 }
 
 // The Item code without its "<order code>-" prefix, for rows that already
 // show the Order code.
 export const getShortItemTag = ({
-	order_code,
-	item_code,
+  order_code,
+  item_code,
 }: ShortItemTagFields): string => {
-	const orderPrefix = `${order_code}-`;
-	return item_code.startsWith(orderPrefix)
-		? item_code.slice(orderPrefix.length)
-		: item_code;
+  const orderPrefix = `${order_code}-`;
+  return item_code.startsWith(orderPrefix)
+    ? item_code.slice(orderPrefix.length)
+    : item_code;
 };
 
 export function formatOrderServiceItemDetails(details: ServiceItemDetails) {
-	return getOrderServiceItemDetails(details) ?? "No item details";
+  return getOrderServiceItemDetails(details) ?? "No item details";
 }

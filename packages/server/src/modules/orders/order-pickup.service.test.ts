@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
@@ -135,9 +136,8 @@ mock.module("@/utils/s3", () => ({
   },
 }));
 
-const { createOrderPickupEvent, createOrderPickupEventPresign } = await import(
-  "@/modules/orders/order-pickup.service"
-);
+const { createOrderPickupEvent, createOrderPickupEventPresign } =
+  await import("@/modules/orders/order-pickup.service");
 
 const ORDER_ID = 42;
 

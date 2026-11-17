@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect } from "react";
+
 import { counterQueries } from "@/features/counter/api";
 import { CollectedSection } from "@/features/counter/components/day-close/collected-section";
 import { daySheet } from "@/features/counter/components/day-close/day-sheets";
@@ -14,90 +15,90 @@ import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
 
 interface DayCloseTabProps {
-	day: string;
-	storeId: number;
-	today: string;
+  day: string;
+  storeId: number;
+  today: string;
 }
 
 // While another day loads, the last one stays on screen; only the date
 // button's icon spins.
 export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
-	const { data, isError, isPlaceholderData } = useQuery(
-		counterQueries.dayClose(storeId, day),
-	);
-	const { list } = useSearch({ from: "/_admin/counter" });
-	const navigate = useNavigate({ from: "/counter" });
+  const { data, isError, isPlaceholderData } = useQuery(
+    counterQueries.dayClose(storeId, day)
+  );
+  const { list } = useSearch({ from: "/_admin/counter" });
+  const navigate = useNavigate({ from: "/counter" });
 
-	const setList = (next: string | undefined) =>
-		navigate({
-			search: (prev) => ({ ...prev, list: next }),
-			replace: true,
-			resetScroll: false,
-		});
+  const setList = (next: string | undefined) =>
+    navigate({
+      search: (prev) => ({ ...prev, list: next }),
+      replace: true,
+      resetScroll: false,
+    });
 
-	// A phone that went into an Order from a list comes back to the same list;
-	// Back off the list itself closes it rather than leaving it over another tab.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: only a new list or day reopens the sheet
-	useEffect(() => {
-		if (!(list && data) || useSheet.getState().sheetState.open) {
-			return;
-		}
-		const sheet = daySheet(list, data, formatDayLabel(data.date, today));
-		if (!sheet) {
-			void setList(undefined);
-			return;
-		}
-		useSheet.getState().openSheet({
-			...sheet,
-			isRestoredOnBack: true,
-			onClose: () => void setList(undefined),
-		});
-		return () => useSheet.getState().closeSheetInstantly();
-	}, [list, data?.date]);
+  // A phone that went into an Order from a list comes back to the same list;
+  // Back off the list itself closes it rather than leaving it over another tab.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only a new list or day reopens the sheet
+  useEffect(() => {
+    if (!(list && data) || useSheet.getState().sheetState.open) {
+      return;
+    }
+    const sheet = daySheet(list, data, formatDayLabel(data.date, today));
+    if (!sheet) {
+      void setList(undefined);
+      return;
+    }
+    useSheet.getState().openSheet({
+      ...sheet,
+      isRestoredOnBack: true,
+      onClose: () => void setList(undefined),
+    });
+    return () => useSheet.getState().closeSheetInstantly();
+  }, [list, data?.date]);
 
-	if (!data) {
-		return isError ? (
-			<p className="text-destructive">Could not load the day close.</p>
-		) : null;
-	}
+  if (!data) {
+    return isError ? (
+      <p className="text-destructive">Could not load the day close.</p>
+    ) : null;
+  }
 
-	const dayLabel = formatDayLabel(data.date, today);
-	const isToday = data.date === today;
-	const dayWord = isToday ? "today" : "this day";
+  const dayLabel = formatDayLabel(data.date, today);
+  const isToday = data.date === today;
+  const dayWord = isToday ? "today" : "this day";
 
-	// Each day is drawn fresh and fades in over the last one, faded while it
-	// loads, instead of the last day's sections stretching into the new day's.
-	return (
-		<div
-			className={cn(
-				"grid items-start gap-5 text-body lg:grid-cols-2",
-				CONTENT_FADE,
-				staleFade(isPlaceholderData),
-			)}
-			key={data.date}
-		>
-			{isError ? (
-				<p className="text-destructive lg:col-span-2">
-					Could not refresh the day close.
-				</p>
-			) : null}
-			<div className="grid min-w-0 gap-5">
-				<CollectedSection
-					data={data}
-					dayLabel={dayLabel}
-					isToday={isToday}
-					onOpen={setList}
-				/>
-				<MethodsSection data={data} dayWord={dayWord} onOpen={setList} />
-				<RefundsSection data={data} dayWord={dayWord} />
-				<PickedUpSection
-					data={data}
-					dayWord={dayWord}
-					isToday={isToday}
-					onOpen={setList}
-				/>
-			</div>
-			<SalesReportSection data={data} dayWord={dayWord} onOpen={setList} />
-		</div>
-	);
+  // Each day is drawn fresh and fades in over the last one, faded while it
+  // loads, instead of the last day's sections stretching into the new day's.
+  return (
+    <div
+      className={cn(
+        "grid items-start gap-5 text-body lg:grid-cols-2",
+        CONTENT_FADE,
+        staleFade(isPlaceholderData)
+      )}
+      key={data.date}
+    >
+      {isError ? (
+        <p className="text-destructive lg:col-span-2">
+          Could not refresh the day close.
+        </p>
+      ) : null}
+      <div className="grid min-w-0 gap-5">
+        <CollectedSection
+          data={data}
+          dayLabel={dayLabel}
+          isToday={isToday}
+          onOpen={setList}
+        />
+        <MethodsSection data={data} dayWord={dayWord} onOpen={setList} />
+        <RefundsSection data={data} dayWord={dayWord} />
+        <PickedUpSection
+          data={data}
+          dayWord={dayWord}
+          isToday={isToday}
+          onOpen={setList}
+        />
+      </div>
+      <SalesReportSection data={data} dayWord={dayWord} onOpen={setList} />
+    </div>
+  );
 };

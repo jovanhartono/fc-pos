@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { drizzle } from "drizzle-orm/pg-proxy";
+
 import { getJakartaDayRange } from "@/modules/reports/report-range.util";
 
 // Turning day-rows into the figures on the reports page is plain arithmetic:
@@ -97,9 +99,8 @@ mock.module("@/db", () => ({
   }),
 }));
 
-const { getFinancialReport, getPaymentMixReport } = await import(
-  "@/modules/reports/report-range.service"
-);
+const { getFinancialReport, getPaymentMixReport } =
+  await import("@/modules/reports/report-range.service");
 
 const financial = () => getFinancialReport({ from: FROM, to: TO });
 

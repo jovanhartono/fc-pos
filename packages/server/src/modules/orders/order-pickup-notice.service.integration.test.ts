@@ -1,6 +1,8 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
 import { eq } from "drizzle-orm";
+
 import { orderPickupNoticesTable, ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { type Shop, seedShop } from "@/test-support/fixtures";
@@ -9,9 +11,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Imported after the swap above, never beside the imports (see order-list).
 const { createOrder } = await import("@/modules/orders/order.service");
 const { findOrders } = await import("@/modules/orders/order.repository");
-const { createOrderPickupNotice } = await import(
-  "@/modules/orders/order-pickup-notice.service"
-);
+const { createOrderPickupNotice } =
+  await import("@/modules/orders/order-pickup-notice.service");
 
 let shop: Shop;
 

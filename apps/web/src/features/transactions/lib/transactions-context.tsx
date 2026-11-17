@@ -1,34 +1,35 @@
 import { createContext, type ReactNode, use } from "react";
+
 import type { Store } from "@/features/stores/api";
 
 export type TransactionsPageContextValue = {
-	isAdmin: boolean;
-	visibleStores: Store[];
-	submit: () => Promise<void>;
-	handleStoreChange: (value: string) => void;
+  isAdmin: boolean;
+  visibleStores: Store[];
+  submit: () => Promise<void>;
+  handleStoreChange: (value: string) => void;
 };
 
 const TransactionsPageContext =
-	createContext<TransactionsPageContextValue | null>(null);
+  createContext<TransactionsPageContextValue | null>(null);
 
 export function TransactionsPageProvider({
-	value,
-	children,
+  value,
+  children,
 }: {
-	value: TransactionsPageContextValue;
-	children: ReactNode;
+  value: TransactionsPageContextValue;
+  children: ReactNode;
 }) {
-	return (
-		<TransactionsPageContext value={value}>{children}</TransactionsPageContext>
-	);
+  return (
+    <TransactionsPageContext value={value}>{children}</TransactionsPageContext>
+  );
 }
 
 export function useTransactionsPageContext() {
-	const value = use(TransactionsPageContext);
-	if (!value) {
-		throw new Error(
-			"useTransactionsPageContext must be used within TransactionsPageProvider",
-		);
-	}
-	return value;
+  const value = use(TransactionsPageContext);
+  if (!value) {
+    throw new Error(
+      "useTransactionsPageContext must be used within TransactionsPageProvider"
+    );
+  }
+  return value;
 }

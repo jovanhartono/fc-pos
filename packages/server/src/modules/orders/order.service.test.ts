@@ -7,6 +7,7 @@ import {
   mock,
   setSystemTime,
 } from "bun:test";
+
 import { ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
@@ -255,9 +256,8 @@ mock.module("@/modules/services/service.repository", () => ({
     Promise.resolve(catalog.services.filter((s) => ids.includes(s.id))),
 }));
 
-const { createOrder, getOrderDetailById, listOrders } = await import(
-  "@/modules/orders/order.service"
-);
+const { createOrder, getOrderDetailById, listOrders } =
+  await import("@/modules/orders/order.service");
 
 // 00:30 on 2 Aug in Jakarta, still 1 Aug in UTC: a Store open past midnight
 // must use the Jakarta date, or Order codes repeat yesterday's numbers.

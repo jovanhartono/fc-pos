@@ -1,6 +1,8 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { eq, isNull } from "drizzle-orm";
+
 import {
   campaignEligibleServicesTable,
   campaignsTable,
@@ -32,30 +34,22 @@ mock.module("@/utils/s3", () => ({
 // Loaded after the swaps above: a static import would bind the shop's real
 // database and storage before any mock runs.
 const { db } = await import("@/db");
-const { addRework, listComplaints, openComplaint } = await import(
-  "@/modules/complaints/complaint.service"
-);
-const { createOrder, getOrderDetailById } = await import(
-  "@/modules/orders/order.service"
-);
-const { createOrderPickupEvent } = await import(
-  "@/modules/orders/order-pickup.service"
-);
-const { getOrderServiceQueue } = await import(
-  "@/modules/orders/order-queue.service"
-);
-const { getOrderServiceDetail } = await import(
-  "@/modules/orders/order-service-detail.service"
-);
-const { updateOrderPayment } = await import(
-  "@/modules/orders/order-payment.service"
-);
-const { cancelOrder, createOrderRefund } = await import(
-  "@/modules/orders/order-reversal.service"
-);
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { addRework, listComplaints, openComplaint } =
+  await import("@/modules/complaints/complaint.service");
+const { createOrder, getOrderDetailById } =
+  await import("@/modules/orders/order.service");
+const { createOrderPickupEvent } =
+  await import("@/modules/orders/order-pickup.service");
+const { getOrderServiceQueue } =
+  await import("@/modules/orders/order-queue.service");
+const { getOrderServiceDetail } =
+  await import("@/modules/orders/order-service-detail.service");
+const { updateOrderPayment } =
+  await import("@/modules/orders/order-payment.service");
+const { cancelOrder, createOrderRefund } =
+  await import("@/modules/orders/order-reversal.service");
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 
 let shop: Shop;
 

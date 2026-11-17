@@ -10,7 +10,9 @@ import {
   mock,
   spyOn,
 } from "bun:test";
+
 import { s3 } from "bun";
+
 import type { StoredPhoto } from "@/modules/orders/order-photo.repository";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import type { AuthUser } from "@/types";
@@ -27,9 +29,8 @@ mock.module("@/utils/authorization", () =>
   authorizationDouble({ assertCalls, storeIds: [] })
 );
 
-const { createPhotoDownloadUrl } = await import(
-  "@/modules/orders/order-photo.service"
-);
+const { createPhotoDownloadUrl } =
+  await import("@/modules/orders/order-photo.service");
 
 const cashier = { id: 7, role: "cashier" } as AuthUser;
 const ORDER_CODE = "#JKT/20260907/12";

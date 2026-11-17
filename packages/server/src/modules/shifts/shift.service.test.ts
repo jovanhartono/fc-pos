@@ -7,6 +7,7 @@ import {
   mock,
   setSystemTime,
 } from "bun:test";
+
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import { captureRejection } from "@/test-support/capture-rejection";
@@ -86,9 +87,8 @@ mock.module("@/modules/shifts/shift.repository", () => ({
   },
 }));
 
-const { clockIn, closeForgottenShifts } = await import(
-  "@/modules/shifts/shift.service"
-);
+const { clockIn, closeForgottenShifts } =
+  await import("@/modules/shifts/shift.service");
 
 afterAll(() => {
   setSystemTime();

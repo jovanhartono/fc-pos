@@ -5,7 +5,6 @@ import {
   releaseRedemptions,
   voidCampaignsBelowMinimum,
 } from "@/modules/campaigns/campaign-redemption.service";
-import type { OrderTx } from "@/modules/orders/order.repository";
 import {
   type ResolvedDiscount,
   resolveDiscount,
@@ -15,6 +14,7 @@ import {
   getOrderStateOrThrow,
 } from "@/modules/orders/order-read.repository";
 import { recomputeOrderRollup } from "@/modules/orders/order-status-machine";
+import type { OrderTx } from "@/modules/orders/order.repository";
 import { cancelOrderPendingCharges } from "@/modules/payments/payment-charge-close";
 import { type DiscountSource, isBogoSlot } from "@/schema/discount";
 import { hasUnpricedLine } from "@/schema/unpriced-line";

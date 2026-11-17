@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import type { DbExecutor } from "@/db";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
@@ -24,9 +25,8 @@ mock.module("@/modules/campaigns/campaign.repository", () => ({
   listCampaigns: () => Promise.resolve(repo.listed),
 }));
 
-const { resolveVoucherCode, getUsableCampaigns, hasLiveVoucher } = await import(
-  "@/modules/campaigns/campaign.service"
-);
+const { resolveVoucherCode, getUsableCampaigns, hasLiveVoucher } =
+  await import("@/modules/campaigns/campaign.service");
 
 const makeVoucherCampaign = (over: AnyObj = {}) => ({
   id: 7,

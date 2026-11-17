@@ -1,5 +1,6 @@
 import "@/test-support/pglite";
 import { beforeEach, expect, it, mock } from "bun:test";
+
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
@@ -24,12 +25,10 @@ mock.module("@/utils/s3", () => ({
 // database and storage before the swaps run.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
-const { createOrderPickupEvent } = await import(
-  "@/modules/orders/order-pickup.service"
-);
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { createOrderPickupEvent } =
+  await import("@/modules/orders/order-pickup.service");
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 
 let shop: Shop;
 

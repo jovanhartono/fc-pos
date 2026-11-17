@@ -1,4 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
+
 import type { customersTable } from "@/db/schema";
 import {
   type CustomerExecutor,

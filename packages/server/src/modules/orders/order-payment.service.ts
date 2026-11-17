@@ -1,11 +1,8 @@
 import { and, eq } from "drizzle-orm";
+
 import { type DbExecutor, db } from "@/db";
 import { ordersTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
-import {
-  findSettlementLines,
-  type OrderTx,
-} from "@/modules/orders/order.repository";
 import type { PatchOrderPaymentInput } from "@/modules/orders/order-admin.schema";
 import { findOrderState } from "@/modules/orders/order-read.repository";
 import {
@@ -16,6 +13,10 @@ import {
   type SettleDiscountInput,
   settleDiscount,
 } from "@/modules/orders/order-settlement.service";
+import {
+  findSettlementLines,
+  type OrderTx,
+} from "@/modules/orders/order.repository";
 import { findPaymentMethodById } from "@/modules/payment-methods/payment-method.repository";
 import { cancelOrderPendingCharges } from "@/modules/payments/payment-charge-close";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";

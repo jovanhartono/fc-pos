@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { normalizeComplaintListQuery } from "@/modules/complaints/complaint.schema";
 import { authorizationDouble } from "@/test-support/authorization-double";
@@ -33,9 +34,8 @@ mock.module("@/db", () => ({
 
 // Spread the real module; transitionOrderService calls its own recompute, so
 // order-status-machine.test.ts never sees this stub.
-const actualStatusMachine = await import(
-  "@/modules/orders/order-status-machine"
-);
+const actualStatusMachine =
+  await import("@/modules/orders/order-status-machine");
 
 mock.module("@/modules/orders/order-status-machine", () => ({
   ...actualStatusMachine,
@@ -81,9 +81,8 @@ mock.module("@/modules/complaints/complaint.repository", () => ({
   findComplaints: () => Promise.resolve({ items: [], total: 0 }),
 }));
 
-const { addRework, openComplaint } = await import(
-  "@/modules/complaints/complaint.service"
-);
+const { addRework, openComplaint } =
+  await import("@/modules/complaints/complaint.service");
 
 const USER = { id: 42, role: "cashier" } as unknown as AuthUser;
 

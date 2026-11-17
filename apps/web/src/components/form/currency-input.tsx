@@ -1,51 +1,52 @@
 import { Money03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatMoney, formatMoneyInput } from "@/shared/money";
 import { getNumericValue } from "@/shared/utils";
 
 type CurrencyInputProps = {
-	id: string;
-	value: string;
-	onValueChange: (value: string) => void;
-	placeholder?: string;
-	disabled?: boolean;
-	required?: boolean;
-	className?: string;
+  id: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  required?: boolean;
+  className?: string;
 };
 
 export function CurrencyInput({
-	id,
-	value,
-	onValueChange,
-	placeholder = formatMoney(0),
-	disabled,
-	required,
-	className,
+  id,
+  value,
+  onValueChange,
+  placeholder = formatMoney(0),
+  disabled,
+  required,
+  className,
 }: CurrencyInputProps) {
-	const displayValue = formatMoneyInput(value);
+  const displayValue = formatMoneyInput(value);
 
-	return (
-		<div className={cn("relative", className)}>
-			<HugeiconsIcon
-				icon={Money03Icon}
-				className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-			/>
-			<Input
-				id={id}
-				type="text"
-				inputMode="numeric"
-				autoComplete="off"
-				placeholder={placeholder}
-				value={displayValue}
-				onChange={(event) => onValueChange(getNumericValue(event.target.value))}
-				disabled={disabled}
-				// The form's own check shows the error under the field; native
-				// `required` would stop the submit with the browser's bubble first.
-				aria-required={required}
-				className="pl-8"
-			/>
-		</div>
-	);
+  return (
+    <div className={cn("relative", className)}>
+      <HugeiconsIcon
+        icon={Money03Icon}
+        className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+      />
+      <Input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder={placeholder}
+        value={displayValue}
+        onChange={(event) => onValueChange(getNumericValue(event.target.value))}
+        disabled={disabled}
+        // The form's own check shows the error under the field; native
+        // `required` would stop the submit with the browser's bubble first.
+        aria-required={required}
+        className="pl-8"
+      />
+    </div>
+  );
 }

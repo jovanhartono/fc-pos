@@ -1,66 +1,67 @@
 import type { ComplaintOutcome } from "@fresclean/api/rules";
 import {
-	Alert02Icon,
-	TaskDone01Icon,
-	ToolsIcon,
+  Alert02Icon,
+  TaskDone01Icon,
+  ToolsIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-	keepPreviousData,
-	type QueryClient,
-	useMutation,
-	useQuery,
-	useQueryClient,
+  keepPreviousData,
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
 } from "@tanstack/react-query";
+
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-	type FetchQcRejectsQuery,
-	QC_REJECTS_PAGE_SIZE,
-	type QcRejectItem,
-	type QualityReport,
-	reportsQueries,
+  type FetchQcRejectsQuery,
+  QC_REJECTS_PAGE_SIZE,
+  type QcRejectItem,
+  type QualityReport,
+  reportsQueries,
 } from "@/features/reports/api";
 import { useOpenCheckerSheet } from "@/features/reports/components/checker-sheet";
 import { useOpenComplaintsSheet } from "@/features/reports/components/complaints-sheet";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
-	type NeedsALookItem,
-	NeedsALookList,
-	NeedsALookPlaceholder,
+  type NeedsALookItem,
+  NeedsALookList,
+  NeedsALookPlaceholder,
 } from "@/features/reports/components/needs-a-look";
 import { Pace, PersonName } from "@/features/reports/components/person-cells";
 import { QcPerDayChart } from "@/features/reports/components/qc-per-day-chart";
 import { useOpenQcRejectsSheet } from "@/features/reports/components/qc-rejects-sheet";
 import { BadCount } from "@/features/reports/components/tone-chip";
 import {
-	HelpHeader,
-	OpenArrow,
+  HelpHeader,
+  OpenArrow,
 } from "@/features/reports/components/workers-table";
 import {
-	csvFilename,
-	downloadCsv,
-	escapeCsv,
+  csvFilename,
+  downloadCsv,
+  escapeCsv,
 } from "@/features/reports/utils/csv";
 import {
-	numberFormatter,
-	paceText,
-	percentFormatter,
-	pluralCount,
+  numberFormatter,
+  paceText,
+  percentFormatter,
+  pluralCount,
 } from "@/features/reports/utils/format";
 import { QC_COLORS } from "@/features/reports/utils/palette";
 import {
-	type CheckerCounts,
-	outlierFlags,
-	QUALITY_RATES,
-	type QualityRate,
-	rateOf,
-	teamOf,
-	teamPace,
+  type CheckerCounts,
+  outlierFlags,
+  QUALITY_RATES,
+  type QualityRate,
+  rateOf,
+  teamOf,
+  teamPace,
 } from "@/features/reports/utils/quality-report";
 import { longDuration } from "@/features/reports/utils/turnaround";
 import { outOf } from "@/features/reports/utils/workers-report";
@@ -71,9 +72,9 @@ import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
 
 interface QualityPanelProps {
-	from: string;
-	to: string;
-	storeId?: number;
+  from: string;
+  to: string;
+  storeId?: number;
 }
 
 type ServiceRow = QualityReport["by_service"][number];
@@ -92,731 +93,729 @@ const CARD_ONLY = { headerClassName: "hidden", cellClassName: "hidden" };
 const SCROLL_BOX = "flex flex-col lg:max-h-[26rem]";
 
 const OUTCOMES = [
-	"reworked",
-	"refunded",
-	"cancelled",
-	"pending",
+  "reworked",
+  "refunded",
+  "cancelled",
+  "pending",
 ] as const satisfies readonly ComplaintOutcome[];
 
 const formatWhen = (value: string) =>
-	dayjs(value).tz(JAKARTA_TZ).format("D MMM HH:mm");
+  dayjs(value).tz(JAKARTA_TZ).format("D MMM HH:mm");
 
 const serviceColumns: DataTableColumnDef<ServiceRow>[] = [
-	{
-		accessorKey: "service_name",
-		header: "Service",
-		meta: { width: { percent: 40, minRem: 9 }, mobileCard: { slot: "title" } },
-	},
-	{
-		id: "processed",
-		header: "Processed",
-		meta: {
-			align: "right",
-			width: { percent: 15, minRem: 5.5 },
-			mobileCard: { slot: "hidden" },
-		},
-		cell: ({ row }) => numberFormatter.format(row.original.processed),
-	},
-	{
-		id: "first_pass",
-		header: "First-pass",
-		meta: {
-			align: "right",
-			width: { percent: 15, minRem: 5.5 },
-			mobileCard: { slot: "title-end", className: "tabular-nums" },
-		},
-		cell: ({ row }) =>
-			row.original.processed === 0
-				? "—"
-				: percentFormatter.format(row.original.first_pass_rate),
-	},
-	{
-		id: "qc_rejects",
-		header: "QC rejects",
-		meta: {
-			align: "right",
-			width: { percent: 15, minRem: 5.5 },
-			mobileCard: { slot: "hidden" },
-		},
-		cell: ({ row }) => <BadCount bad={row.original.qc_rejects} />,
-	},
-	{
-		id: "complaints",
-		header: "Complaints",
-		meta: {
-			align: "right",
-			width: { percent: 15, minRem: 5.5 },
-			mobileCard: { slot: "hidden" },
-		},
-		cell: ({ row }) => (
-			<BadCount bad={row.original.complaints} total={row.original.processed} />
-		),
-	},
-	{
-		id: "card_summary",
-		header: "Summary",
-		meta: {
-			...CARD_ONLY,
-			mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
-		},
-		cell: ({ row }) =>
-			`${numberFormatter.format(row.original.processed)} done · ${pluralCount(row.original.qc_rejects, "QC reject")} · ${pluralCount(row.original.complaints, "complaint")}`,
-	},
+  {
+    accessorKey: "service_name",
+    header: "Service",
+    meta: { width: { percent: 40, minRem: 9 }, mobileCard: { slot: "title" } },
+  },
+  {
+    id: "processed",
+    header: "Processed",
+    meta: {
+      align: "right",
+      width: { percent: 15, minRem: 5.5 },
+      mobileCard: { slot: "hidden" },
+    },
+    cell: ({ row }) => numberFormatter.format(row.original.processed),
+  },
+  {
+    id: "first_pass",
+    header: "First-pass",
+    meta: {
+      align: "right",
+      width: { percent: 15, minRem: 5.5 },
+      mobileCard: { slot: "title-end", className: "tabular-nums" },
+    },
+    cell: ({ row }) =>
+      row.original.processed === 0
+        ? "—"
+        : percentFormatter.format(row.original.first_pass_rate),
+  },
+  {
+    id: "qc_rejects",
+    header: "QC rejects",
+    meta: {
+      align: "right",
+      width: { percent: 15, minRem: 5.5 },
+      mobileCard: { slot: "hidden" },
+    },
+    cell: ({ row }) => <BadCount bad={row.original.qc_rejects} />,
+  },
+  {
+    id: "complaints",
+    header: "Complaints",
+    meta: {
+      align: "right",
+      width: { percent: 15, minRem: 5.5 },
+      mobileCard: { slot: "hidden" },
+    },
+    cell: ({ row }) => (
+      <BadCount bad={row.original.complaints} total={row.original.processed} />
+    ),
+  },
+  {
+    id: "card_summary",
+    header: "Summary",
+    meta: {
+      ...CARD_ONLY,
+      mobileCard: { slot: "subtitle", className: "text-muted-foreground" },
+    },
+    cell: ({ row }) =>
+      `${numberFormatter.format(row.original.processed)} done · ${pluralCount(row.original.qc_rejects, "QC reject")} · ${pluralCount(row.original.complaints, "complaint")}`,
+  },
 ];
 
 interface OutlierLineProps {
-	flags: string[];
+  flags: string[];
 }
 
 const OutlierLine = ({ flags }: OutlierLineProps) =>
-	flags.length === 0 ? null : (
-		<span className="inline-flex items-center gap-1 text-subhead text-tone-warn-foreground">
-			<HugeiconsIcon
-				icon={Alert02Icon}
-				aria-hidden="true"
-				className="size-3.5 shrink-0"
-			/>
-			{flags.join(" · ")}
-		</span>
-	);
+  flags.length === 0 ? null : (
+    <span className="inline-flex items-center gap-1 text-subhead text-tone-warn-foreground">
+      <HugeiconsIcon
+        icon={Alert02Icon}
+        aria-hidden="true"
+        className="size-3.5 shrink-0"
+      />
+      {flags.join(" · ")}
+    </span>
+  );
 
 interface CheckerNameProps {
-	row: CheckerRow;
-	team: CheckerCounts;
+  row: CheckerRow;
+  team: CheckerCounts;
 }
 
 const CheckerName = ({ row, team }: CheckerNameProps) => (
-	<PersonName
-		name={row.user_name}
-		detail={<OutlierLine flags={outlierFlags(row, team)} />}
-	>
-		{row.user_name}
-	</PersonName>
+  <PersonName
+    name={row.user_name}
+    detail={<OutlierLine flags={outlierFlags(row, team)} />}
+  >
+    {row.user_name}
+  </PersonName>
 );
 
 interface RateProps {
-	rate: QualityRate;
-	counts: CheckerCounts;
-	// The Team row is the yardstick, not a person to flag.
-	isTeam?: boolean;
+  rate: QualityRate;
+  counts: CheckerCounts;
+  // The Team row is the yardstick, not a person to flag.
+  isTeam?: boolean;
 }
 
 // The rate on top and its count under it, like Pace; a zero needs no line.
 const Rate = ({ rate, counts, isTeam = false }: RateProps) => {
-	const value = rateOf(rate, counts);
-	if (value === null) {
-		return <span className="text-muted-foreground">—</span>;
-	}
-	const isZero = rate.hasZeroDetail(counts);
-	return (
-		<span className="grid gap-0.5 tabular-nums">
-			<span
-				className={cn(
-					rate.flag !== null &&
-						!isTeam &&
-						(isZero ? "text-muted-foreground" : "text-tone-bad-foreground"),
-				)}
-			>
-				{percentFormatter.format(value)}
-			</span>
-			{!isZero && (
-				<span className="font-normal text-muted-foreground text-subhead">
-					{rate.detail(counts)}
-				</span>
-			)}
-		</span>
-	);
+  const value = rateOf(rate, counts);
+  if (value === null) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  const isZero = rate.hasZeroDetail(counts);
+  return (
+    <span className="grid gap-0.5 tabular-nums">
+      <span
+        className={cn(
+          rate.flag !== null &&
+            !isTeam &&
+            (isZero ? "text-muted-foreground" : "text-tone-bad-foreground")
+        )}
+      >
+        {percentFormatter.format(value)}
+      </span>
+      {!isZero && (
+        <span className="text-subhead font-normal text-muted-foreground">
+          {rate.detail(counts)}
+        </span>
+      )}
+    </span>
+  );
 };
 
 const checkerColumnsFor = (
-	team: CheckerCounts,
+  team: CheckerCounts
 ): DataTableColumnDef<CheckerRow>[] => [
-	{
-		accessorKey: "user_name",
-		header: "Checked by",
-		meta: { width: { percent: 28, minRem: 11 } },
-		cell: ({ row }) => <CheckerName row={row.original} team={team} />,
-		footer: "Team",
-	},
-	{
-		id: "checks",
-		header: "Checks",
-		meta: { align: "right", width: { percent: 10, minRem: 4.5 } },
-		cell: ({ row }) => (
-			<span className="font-medium">
-				{numberFormatter.format(row.original.checks)}
-			</span>
-		),
-		footer: () => numberFormatter.format(team.checks),
-	},
-	{
-		id: "pace",
-		header: "Pace",
-		meta: { align: "right", width: { percent: 12, minRem: 5.5 } },
-		cell: ({ row }) => (
-			<Pace
-				perDay={row.original.per_day}
-				detail={pluralCount(row.original.days_checked, "day")}
-			/>
-		),
-		footer: () => <Pace perDay={teamPace(team)} detail="per checker" />,
-	},
-	...QUALITY_RATES.map(
-		(rate): DataTableColumnDef<CheckerRow> => ({
-			id: rate.id,
-			header: () => <HelpHeader label={rate.label} help={rate.help} />,
-			meta: { align: "right", width: { percent: 15, minRem: 6 } },
-			cell: ({ row }) => <Rate rate={rate} counts={row.original} />,
-			footer: () => <Rate rate={rate} counts={team} isTeam />,
-		}),
-	),
-	{
-		id: "open",
-		header: () => <span className="sr-only">Open</span>,
-		meta: { width: { percent: 5, minRem: 1.75 } },
-		cell: () => <OpenArrow />,
-	},
+  {
+    accessorKey: "user_name",
+    header: "Checked by",
+    meta: { width: { percent: 28, minRem: 11 } },
+    cell: ({ row }) => <CheckerName row={row.original} team={team} />,
+    footer: "Team",
+  },
+  {
+    id: "checks",
+    header: "Checks",
+    meta: { align: "right", width: { percent: 10, minRem: 4.5 } },
+    cell: ({ row }) => (
+      <span className="font-medium">
+        {numberFormatter.format(row.original.checks)}
+      </span>
+    ),
+    footer: () => numberFormatter.format(team.checks),
+  },
+  {
+    id: "pace",
+    header: "Pace",
+    meta: { align: "right", width: { percent: 12, minRem: 5.5 } },
+    cell: ({ row }) => (
+      <Pace
+        perDay={row.original.per_day}
+        detail={pluralCount(row.original.days_checked, "day")}
+      />
+    ),
+    footer: () => <Pace perDay={teamPace(team)} detail="per checker" />,
+  },
+  ...QUALITY_RATES.map((rate): DataTableColumnDef<CheckerRow> => ({
+    id: rate.id,
+    header: () => <HelpHeader label={rate.label} help={rate.help} />,
+    meta: { align: "right", width: { percent: 15, minRem: 6 } },
+    cell: ({ row }) => <Rate rate={rate} counts={row.original} />,
+    footer: () => <Rate rate={rate} counts={team} isTeam />,
+  })),
+  {
+    id: "open",
+    header: () => <span className="sr-only">Open</span>,
+    meta: { width: { percent: 5, minRem: 1.75 } },
+    cell: () => <OpenArrow />,
+  },
 ];
 
 interface CheckerCardProps {
-	row: CheckerRow;
-	team: CheckerCounts;
-	onOpen: (row: CheckerRow) => void;
+  row: CheckerRow;
+  team: CheckerCounts;
+  onOpen: (row: CheckerRow) => void;
 }
 
 // Same shape as a Workers phone card: the count up top, the rates in tiles.
 const CheckerCard = ({ row, team, onOpen }: CheckerCardProps) => (
-	<button
-		type="button"
-		onClick={() => onOpen(row)}
-		className="grid w-full gap-2 px-4 py-3 text-left text-body tabular-nums active:bg-muted/40"
-	>
-		<span className="flex items-center gap-2">
-			<span className="min-w-0 flex-1">
-				<CheckerName row={row} team={team} />
-			</span>
-			<span>
-				<span className="font-medium">
-					{numberFormatter.format(row.checks)}
-				</span>
-				<span className="ml-1 text-muted-foreground">
-					{row.checks === 1 ? "check" : "checks"}
-				</span>
-			</span>
-			<OpenArrow />
-		</span>
-		<span className="text-muted-foreground text-subhead">
-			{`${paceText(row.per_day)} · ${pluralCount(row.days_checked, "day")}`}
-		</span>
-		<span className="grid grid-cols-3 gap-2">
-			{QUALITY_RATES.map((rate) => (
-				<span
-					key={rate.id}
-					className="grid content-start gap-0.5 rounded-md bg-muted/50 px-2.5 py-2"
-				>
-					<span className="text-muted-foreground text-subhead">
-						{rate.label}
-					</span>
-					<Rate rate={rate} counts={row} />
-				</span>
-			))}
-		</span>
-	</button>
+  <button
+    type="button"
+    onClick={() => onOpen(row)}
+    className="grid w-full gap-2 px-4 py-3 text-left text-body tabular-nums active:bg-muted/40"
+  >
+    <span className="flex items-center gap-2">
+      <span className="min-w-0 flex-1">
+        <CheckerName row={row} team={team} />
+      </span>
+      <span>
+        <span className="font-medium">
+          {numberFormatter.format(row.checks)}
+        </span>
+        <span className="ml-1 text-muted-foreground">
+          {row.checks === 1 ? "check" : "checks"}
+        </span>
+      </span>
+      <OpenArrow />
+    </span>
+    <span className="text-subhead text-muted-foreground">
+      {`${paceText(row.per_day)} · ${pluralCount(row.days_checked, "day")}`}
+    </span>
+    <span className="grid grid-cols-3 gap-2">
+      {QUALITY_RATES.map((rate) => (
+        <span
+          key={rate.id}
+          className="grid content-start gap-0.5 rounded-md bg-muted/50 px-2.5 py-2"
+        >
+          <span className="text-subhead text-muted-foreground">
+            {rate.label}
+          </span>
+          <Rate rate={rate} counts={row} />
+        </span>
+      ))}
+    </span>
+  </button>
 );
 
 interface CheckerTeamLineProps {
-	team: CheckerCounts;
+  team: CheckerCounts;
 }
 
 // The desktop table closes with a Team row; a phone gets the same as one line.
 // Same switch as DataTable's card view, so the two never both show or both hide.
 const CheckerTeamLine = ({ team }: CheckerTeamLineProps) => {
-	const isCardView = useIsMobile(1024);
-	if (!isCardView || team.checks === 0) {
-		return null;
-	}
-	const facts = [
-		`${numberFormatter.format(team.checks)} checks`,
-		paceText(teamPace(team)),
-		...QUALITY_RATES.flatMap((rate) => {
-			const value = rateOf(rate, team);
-			return value === null
-				? []
-				: [`${percentFormatter.format(value)} ${rate.teamWord}`];
-		}),
-	];
-	return (
-		<p className="px-1 pt-2 text-muted-foreground text-subhead tabular-nums lg:hidden">
-			<span className="font-medium text-foreground">Team</span>
-			{facts.map((fact) => ` · ${fact}`).join("")}
-		</p>
-	);
+  const isCardView = useIsMobile(1024);
+  if (!isCardView || team.checks === 0) {
+    return null;
+  }
+  const facts = [
+    `${numberFormatter.format(team.checks)} checks`,
+    paceText(teamPace(team)),
+    ...QUALITY_RATES.flatMap((rate) => {
+      const value = rateOf(rate, team);
+      return value === null
+        ? []
+        : [`${percentFormatter.format(value)} ${rate.teamWord}`];
+    }),
+  ];
+  return (
+    <p className="px-1 pt-2 text-subhead text-muted-foreground tabular-nums lg:hidden">
+      <span className="font-medium text-foreground">Team</span>
+      {facts.map((fact) => ` · ${fact}`).join("")}
+    </p>
+  );
 };
 
 interface QcPerDaySectionProps {
-	data: QualityReport;
+  data: QualityReport;
 }
 
 const QcPerDaySection = ({ data }: QcPerDaySectionProps) => (
-	<Section id="quality-per-day" title="QC per Day">
-		<div className="rounded-lg border bg-card p-4">
-			<QcPerDayChart rows={data.daily.rows} bucket={data.daily.bucket} />
-		</div>
-	</Section>
+  <Section id="quality-per-day" title="QC per Day">
+    <div className="rounded-lg border bg-card p-4">
+      <QcPerDayChart rows={data.daily.rows} bucket={data.daily.bucket} />
+    </div>
+  </Section>
 );
 
 interface QualityPlaceholderProps {
-	checkerColumns: DataTableColumnDef<CheckerRow>[];
+  checkerColumns: DataTableColumnDef<CheckerRow>[];
 }
 
 // Every section the loaded tab draws, so nothing below the fold grows in.
 const QualityPlaceholder = ({ checkerColumns }: QualityPlaceholderProps) => (
-	<>
-		<Section title="QC per Day">
-			<div className="@container rounded-lg border bg-card p-4">
-				{/* ReportChart's own height before it has numbers. */}
-				<Skeleton className="h-[250px] rounded-md @min-[30rem]:h-[280px]" />
-			</div>
-		</Section>
-		<NeedsALookPlaceholder />
-		<Section title="Checkers">
-			<DataTable
-				columns={checkerColumns}
-				data={[]}
-				emptyIcon={TaskDone01Icon}
-				isLoading
-			/>
-		</Section>
-		<Section title="Mistakes">
-			<div className="grid gap-3.5 rounded-lg border bg-card p-4">
-				<span className="text-title-1">
-					<TextSkeleton className="w-40" />
-				</span>
-				<div className="h-1.5 rounded-full bg-soft-bar-track" />
-				<ul className="grid gap-2.5">
-					{["rejects", "complaints"].map((key) => (
-						<li className="grid gap-0.5" key={key}>
-							<span className="text-body">
-								<TextSkeleton className="w-24" />
-							</span>
-							<span className="text-subhead">
-								<TextSkeleton className="w-52" />
-							</span>
-						</li>
-					))}
-				</ul>
-			</div>
-		</Section>
-		<Section title="By Service">
-			<div className={SCROLL_BOX}>
-				<DataTable
-					columns={serviceColumns}
-					data={[]}
-					emptyIcon={ToolsIcon}
-					isLoading
-				/>
-			</div>
-		</Section>
-	</>
+  <>
+    <Section title="QC per Day">
+      <div className="@container rounded-lg border bg-card p-4">
+        {/* ReportChart's own height before it has numbers. */}
+        <Skeleton className="h-[250px] rounded-md @min-[30rem]:h-[280px]" />
+      </div>
+    </Section>
+    <NeedsALookPlaceholder />
+    <Section title="Checkers">
+      <DataTable
+        columns={checkerColumns}
+        data={[]}
+        emptyIcon={TaskDone01Icon}
+        isLoading
+      />
+    </Section>
+    <Section title="Mistakes">
+      <div className="grid gap-3.5 rounded-lg border bg-card p-4">
+        <span className="text-title-1">
+          <TextSkeleton className="w-40" />
+        </span>
+        <div className="h-1.5 rounded-full bg-soft-bar-track" />
+        <ul className="grid gap-2.5">
+          {["rejects", "complaints"].map((key) => (
+            <li className="grid gap-0.5" key={key}>
+              <span className="text-body">
+                <TextSkeleton className="w-24" />
+              </span>
+              <span className="text-subhead">
+                <TextSkeleton className="w-52" />
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Section>
+    <Section title="By Service">
+      <div className={SCROLL_BOX}>
+        <DataTable
+          columns={serviceColumns}
+          data={[]}
+          emptyIcon={ToolsIcon}
+          isLoading
+        />
+      </div>
+    </Section>
+  </>
 );
 
 const hoursSince = (at: string, now: number) =>
-	(now - new Date(at).getTime()) / HOUR_MS;
+  (now - new Date(at).getTime()) / HOUR_MS;
 
 const qualityFlags = (data: QualityReport, now: number): NeedsALookItem[] => {
-	const flags: NeedsALookItem[] = [];
-	const { count, oldest_at: oldestAt } = data.waiting_qc_now;
-	const waitedHours = oldestAt === null ? 0 : hoursSince(oldestAt, now);
-	if (count > 0 && waitedHours > PILE_FLAG_HOURS) {
-		const behind = data.daily.rows.filter(
-			(row) => row.arrived > row.passes + row.qc_rejects,
-		).length;
-		const unit = data.daily.bucket === "day" ? "day" : "week";
-		flags.push({
-			key: "pile",
-			name: "Waiting QC",
-			before: `${pluralCount(count, "Item")} on the shelf, `,
-			problem: `oldest ${longDuration(waitedHours)}`,
-			after: ` · checks fell behind on ${behind}/${pluralCount(data.daily.rows.length, unit)}`,
-		});
-	}
-	// One line for everyone, so a Store full of self-passes doesn't bury the
-	// pile; the Checkers table says who.
-	const selfCheckers = data.by_checker.filter((row) => row.self_checks > 0);
-	if (selfCheckers.length > 0) {
-		flags.push({
-			key: "self-pass",
-			name: "Self-passed",
-			before: `${pluralCount(selfCheckers.length, "checker")} `,
-			problem: `passed ${pluralCount(
-				selfCheckers.reduce((sum, row) => sum + row.self_checks, 0),
-				"Item",
-			)} they cleaned`,
-			after: " · see Checkers below",
-		});
-	}
-	return flags;
+  const flags: NeedsALookItem[] = [];
+  const { count, oldest_at: oldestAt } = data.waiting_qc_now;
+  const waitedHours = oldestAt === null ? 0 : hoursSince(oldestAt, now);
+  if (count > 0 && waitedHours > PILE_FLAG_HOURS) {
+    const behind = data.daily.rows.filter(
+      (row) => row.arrived > row.passes + row.qc_rejects
+    ).length;
+    const unit = data.daily.bucket === "day" ? "day" : "week";
+    flags.push({
+      key: "pile",
+      name: "Waiting QC",
+      before: `${pluralCount(count, "Item")} on the shelf, `,
+      problem: `oldest ${longDuration(waitedHours)}`,
+      after: ` · checks fell behind on ${behind}/${pluralCount(data.daily.rows.length, unit)}`,
+    });
+  }
+  // One line for everyone, so a Store full of self-passes doesn't bury the
+  // pile; the Checkers table says who.
+  const selfCheckers = data.by_checker.filter((row) => row.self_checks > 0);
+  if (selfCheckers.length > 0) {
+    flags.push({
+      key: "self-pass",
+      name: "Self-passed",
+      before: `${pluralCount(selfCheckers.length, "checker")} `,
+      problem: `passed ${pluralCount(
+        selfCheckers.reduce((sum, row) => sum + row.self_checks, 0),
+        "Item"
+      )} they cleaned`,
+      after: " · see Checkers below",
+    });
+  }
+  return flags;
 };
 
 interface QualityNeedsALookProps {
-	data: QualityReport;
+  data: QualityReport;
 }
 
 const QualityNeedsALook = ({ data }: QualityNeedsALookProps) => {
-	const now = useMinuteClock();
-	return (
-		<NeedsALookList id="quality-needs-a-look" items={qualityFlags(data, now)} />
-	);
+  const now = useMinuteClock();
+  return (
+    <NeedsALookList id="quality-needs-a-look" items={qualityFlags(data, now)} />
+  );
 };
 
 interface WaitingSinceProps {
-	oldestAt: string | null;
+  oldestAt: string | null;
 }
 
 // Its own clock, so the minute tick redraws one line instead of the whole tab.
 const WaitingSince = ({ oldestAt }: WaitingSinceProps) => {
-	const now = useMinuteClock();
-	return oldestAt === null
-		? "none waiting"
-		: `oldest ${longDuration(hoursSince(oldestAt, now))}`;
+  const now = useMinuteClock();
+  return oldestAt === null
+    ? "none waiting"
+    : `oldest ${longDuration(hoursSince(oldestAt, now))}`;
 };
 
 interface MistakeRowProps {
-	label: string;
-	count: number;
-	color: string;
-	detail: string;
-	onOpen: () => void;
+  label: string;
+  count: number;
+  color: string;
+  detail: string;
+  onOpen: () => void;
 }
 
 const MistakeRow = ({
-	label,
-	count,
-	color,
-	detail,
-	onOpen,
+  label,
+  count,
+  color,
+  detail,
+  onOpen,
 }: MistakeRowProps) => (
-	<li>
-		<button
-			type="button"
-			onClick={onOpen}
-			className="-m-2 flex w-[calc(100%+1rem)] cursor-pointer items-start justify-between gap-3 rounded-md p-2 text-left transition-colors hover:bg-muted active:bg-muted"
-		>
-			<span className="grid gap-0.5">
-				<span className="flex items-center gap-2 text-body">
-					<span
-						aria-hidden="true"
-						className="size-2 rounded-full"
-						style={{ backgroundColor: color }}
-					/>
-					{label}
-				</span>
-				<span className="pl-4 text-muted-foreground text-subhead">
-					{detail}
-				</span>
-			</span>
-			<span className="flex items-center gap-1 font-medium text-body text-link tabular-nums [&_svg]:text-link">
-				{numberFormatter.format(count)}
-				<OpenArrow />
-			</span>
-		</button>
-	</li>
+  <li>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="-m-2 flex w-[calc(100%+1rem)] cursor-pointer items-start justify-between gap-3 rounded-md p-2 text-left transition-colors hover:bg-muted active:bg-muted"
+    >
+      <span className="grid gap-0.5">
+        <span className="flex items-center gap-2 text-body">
+          <span
+            aria-hidden="true"
+            className="size-2 rounded-full"
+            style={{ backgroundColor: color }}
+          />
+          {label}
+        </span>
+        <span className="pl-4 text-subhead text-muted-foreground">
+          {detail}
+        </span>
+      </span>
+      <span className="flex items-center gap-1 text-body text-link font-medium tabular-nums [&_svg]:text-link">
+        {numberFormatter.format(count)}
+        <OpenArrow />
+      </span>
+    </button>
+  </li>
 );
 
 interface MistakesSectionProps {
-	data: QualityReport;
+  data: QualityReport;
 }
 
 // Every QC reject made in the range, whenever the work was done, beside the
 // Complaints on this range's work.
 const MistakesSection = ({ data }: MistakesSectionProps) => {
-	const openQcRejectsSheet = useOpenQcRejectsSheet();
-	const openComplaintsSheet = useOpenComplaintsSheet();
-	const { mistakes, complaint_outcomes: outcomes } = data;
-	const outcomeLine = OUTCOMES.filter((key) => outcomes[key] > 0)
-		.map((key) => `${key} ${numberFormatter.format(outcomes[key])}`)
-		.join(" · ");
-	return (
-		<Section id="quality-mistakes" title="Mistakes">
-			<div className="grid gap-3.5 rounded-lg border bg-card p-4">
-				<p className="font-medium text-title-1 tabular-nums">
-					{pluralCount(mistakes.total, "mistake")}
-				</p>
-				<div className="flex h-1.5 gap-0.5">
-					{mistakes.total === 0 ? (
-						<span className="flex-1 rounded-full bg-soft-bar-track" />
-					) : (
-						<>
-							<span
-								className="rounded-full"
-								style={{
-									flexGrow: mistakes.qc_rejects,
-									backgroundColor: QC_COLORS.qcRejects,
-								}}
-							/>
-							<span
-								className="rounded-full"
-								style={{
-									flexGrow: mistakes.complaints,
-									backgroundColor: QC_COLORS.complaints,
-								}}
-							/>
-						</>
-					)}
-				</div>
-				<ul className="grid gap-2.5">
-					<MistakeRow
-						label="QC rejects"
-						count={mistakes.qc_rejects}
-						color={QC_COLORS.qcRejects}
-						detail="Fixed before the Customer saw it"
-						onOpen={() =>
-							openQcRejectsSheet({
-								from: data.from,
-								to: data.to,
-								storeId: data.store_id ?? undefined,
-							})
-						}
-					/>
-					<MistakeRow
-						label="Complaints"
-						count={mistakes.complaints}
-						color={QC_COLORS.complaints}
-						detail={
-							outcomeLine
-								? outcomeLine.charAt(0).toUpperCase() + outcomeLine.slice(1)
-								: "None"
-						}
-						onOpen={() => openComplaintsSheet(data)}
-					/>
-				</ul>
-			</div>
-		</Section>
-	);
+  const openQcRejectsSheet = useOpenQcRejectsSheet();
+  const openComplaintsSheet = useOpenComplaintsSheet();
+  const { mistakes, complaint_outcomes: outcomes } = data;
+  const outcomeLine = OUTCOMES.filter((key) => outcomes[key] > 0)
+    .map((key) => `${key} ${numberFormatter.format(outcomes[key])}`)
+    .join(" · ");
+  return (
+    <Section id="quality-mistakes" title="Mistakes">
+      <div className="grid gap-3.5 rounded-lg border bg-card p-4">
+        <p className="text-title-1 font-medium tabular-nums">
+          {pluralCount(mistakes.total, "mistake")}
+        </p>
+        <div className="flex h-1.5 gap-0.5">
+          {mistakes.total === 0 ? (
+            <span className="flex-1 rounded-full bg-soft-bar-track" />
+          ) : (
+            <>
+              <span
+                className="rounded-full"
+                style={{
+                  flexGrow: mistakes.qc_rejects,
+                  backgroundColor: QC_COLORS.qcRejects,
+                }}
+              />
+              <span
+                className="rounded-full"
+                style={{
+                  flexGrow: mistakes.complaints,
+                  backgroundColor: QC_COLORS.complaints,
+                }}
+              />
+            </>
+          )}
+        </div>
+        <ul className="grid gap-2.5">
+          <MistakeRow
+            label="QC rejects"
+            count={mistakes.qc_rejects}
+            color={QC_COLORS.qcRejects}
+            detail="Fixed before the Customer saw it"
+            onOpen={() =>
+              openQcRejectsSheet({
+                from: data.from,
+                to: data.to,
+                storeId: data.store_id ?? undefined,
+              })
+            }
+          />
+          <MistakeRow
+            label="Complaints"
+            count={mistakes.complaints}
+            color={QC_COLORS.complaints}
+            detail={
+              outcomeLine
+                ? outcomeLine.charAt(0).toUpperCase() + outcomeLine.slice(1)
+                : "None"
+            }
+            onOpen={() => openComplaintsSheet(data)}
+          />
+        </ul>
+      </div>
+    </Section>
+  );
 };
 
 const fetchAllQcRejects = async (
-	queryClient: QueryClient,
-	range: RangeQuery,
+  queryClient: QueryClient,
+  range: RangeQuery
 ) => {
-	const fetchPage = (offset: number) =>
-		queryClient.fetchQuery(
-			reportsQueries.qcRejects({
-				...range,
-				limit: QC_REJECTS_PAGE_SIZE,
-				offset,
-			}),
-		);
-	const first = await fetchPage(0);
-	const items = [...first.items];
-	for (
-		let offset = QC_REJECTS_PAGE_SIZE;
-		offset < first.meta.total;
-		offset += QC_REJECTS_PAGE_SIZE
-	) {
-		const page = await fetchPage(offset);
-		items.push(...page.items);
-	}
-	return items;
+  const fetchPage = (offset: number) =>
+    queryClient.fetchQuery(
+      reportsQueries.qcRejects({
+        ...range,
+        limit: QC_REJECTS_PAGE_SIZE,
+        offset,
+      })
+    );
+  const first = await fetchPage(0);
+  const items = [...first.items];
+  for (
+    let offset = QC_REJECTS_PAGE_SIZE;
+    offset < first.meta.total;
+    offset += QC_REJECTS_PAGE_SIZE
+  ) {
+    const page = await fetchPage(offset);
+    items.push(...page.items);
+  }
+  return items;
 };
 
 type QualitySummary = QualityReport["summary"]["current"];
 
 const SUMMARY_ROWS: [keyof QualitySummary, string][] = [
-	["services_processed", "Services processed"],
-	["first_pass", "First-pass"],
-	["first_pass_rate", "First-pass rate"],
-	["complaints", "Complaints"],
-	["complaint_rate", "Complaint rate"],
-	["checks", "QC checks"],
-	["qc_rejects", "QC rejects"],
-	["passes", "QC passes"],
-	["self_checks", "Self-passed"],
-	["self_check_rate", "Self-pass rate"],
+  ["services_processed", "Services processed"],
+  ["first_pass", "First-pass"],
+  ["first_pass_rate", "First-pass rate"],
+  ["complaints", "Complaints"],
+  ["complaint_rate", "Complaint rate"],
+  ["checks", "QC checks"],
+  ["qc_rejects", "QC rejects"],
+  ["passes", "QC passes"],
+  ["self_checks", "Self-passed"],
+  ["self_check_rate", "Self-pass rate"],
 ];
 
 const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
-	const { current, previous } = data.summary;
-	const lines = ["Summary,Metric,Current,Previous"];
-	for (const [key, label] of SUMMARY_ROWS) {
-		lines.push(`Summary,${label},${current[key]},${previous[key]}`);
-	}
-	lines.push(
-		"",
-		"Mistakes,QC rejects,Complaints,Total",
-		`Mistakes,${data.mistakes.qc_rejects},${data.mistakes.complaints},${data.mistakes.total}`,
-	);
-	lines.push("", "Complaint outcomes,Outcome,Complaints");
-	for (const key of OUTCOMES) {
-		lines.push(`Complaint outcomes,${key},${data.complaint_outcomes[key]}`);
-	}
-	lines.push("", "QC per day,Day,Arrived,Passed,QC rejects");
-	for (const row of data.daily.rows) {
-		lines.push(
-			`QC per day,${row.label},${row.arrived},${row.passes},${row.qc_rejects}`,
-		);
-	}
-	lines.push(
-		"",
-		"By Service,Service,Processed,First-pass,First-pass rate,QC rejects,Complaints",
-	);
-	for (const s of data.by_service) {
-		lines.push(
-			`By Service,${escapeCsv(s.service_name)},${s.processed},${s.first_pass},${s.first_pass_rate},${s.qc_rejects},${s.complaints}`,
-		);
-	}
-	lines.push(
-		"",
-		"Checkers,Checked by,Checks,Days checked,Per day,Pass rate,Rejects,Self-pass rate,Self-passed,Complaint rate,Complaints",
-	);
-	const ratio = (part: number, whole: number) =>
-		(whole === 0 ? 0 : part / whole).toFixed(4);
-	const checkerLine = (name: string, c: CheckerCounts, perDay: number | null) =>
-		`Checkers,${escapeCsv(name)},${c.checks},${c.days_checked},${perDay ?? ""},${ratio(c.passes, c.checks)},${c.rejects},${ratio(c.self_checks, c.passes)},${c.self_checks},${ratio(c.complaints_after, c.passes)},${c.complaints_after}`;
-	for (const c of data.by_checker) {
-		lines.push(checkerLine(c.user_name, c, c.per_day));
-	}
-	const team = teamOf(data.by_checker);
-	lines.push(checkerLine("Team", team, teamPace(team)));
-	lines.push(
-		"",
-		"QC rejects,When,Order,Item code,Service,Store,Cleaned by,Rejected by,Reason",
-	);
-	for (const r of rejects) {
-		lines.push(
-			`QC rejects,${escapeCsv(formatWhen(r.rejected_at))},${escapeCsv(r.order_code)},${escapeCsv(r.item_code)},${escapeCsv(r.service_name)},${escapeCsv(r.store_code)},${escapeCsv(r.cleaned_by_name)},${escapeCsv(r.rejected_by_name)},${escapeCsv(r.reason)}`,
-		);
-	}
-	return lines.join("\n");
+  const { current, previous } = data.summary;
+  const lines = ["Summary,Metric,Current,Previous"];
+  for (const [key, label] of SUMMARY_ROWS) {
+    lines.push(`Summary,${label},${current[key]},${previous[key]}`);
+  }
+  lines.push(
+    "",
+    "Mistakes,QC rejects,Complaints,Total",
+    `Mistakes,${data.mistakes.qc_rejects},${data.mistakes.complaints},${data.mistakes.total}`
+  );
+  lines.push("", "Complaint outcomes,Outcome,Complaints");
+  for (const key of OUTCOMES) {
+    lines.push(`Complaint outcomes,${key},${data.complaint_outcomes[key]}`);
+  }
+  lines.push("", "QC per day,Day,Arrived,Passed,QC rejects");
+  for (const row of data.daily.rows) {
+    lines.push(
+      `QC per day,${row.label},${row.arrived},${row.passes},${row.qc_rejects}`
+    );
+  }
+  lines.push(
+    "",
+    "By Service,Service,Processed,First-pass,First-pass rate,QC rejects,Complaints"
+  );
+  for (const s of data.by_service) {
+    lines.push(
+      `By Service,${escapeCsv(s.service_name)},${s.processed},${s.first_pass},${s.first_pass_rate},${s.qc_rejects},${s.complaints}`
+    );
+  }
+  lines.push(
+    "",
+    "Checkers,Checked by,Checks,Days checked,Per day,Pass rate,Rejects,Self-pass rate,Self-passed,Complaint rate,Complaints"
+  );
+  const ratio = (part: number, whole: number) =>
+    (whole === 0 ? 0 : part / whole).toFixed(4);
+  const checkerLine = (name: string, c: CheckerCounts, perDay: number | null) =>
+    `Checkers,${escapeCsv(name)},${c.checks},${c.days_checked},${perDay ?? ""},${ratio(c.passes, c.checks)},${c.rejects},${ratio(c.self_checks, c.passes)},${c.self_checks},${ratio(c.complaints_after, c.passes)},${c.complaints_after}`;
+  for (const c of data.by_checker) {
+    lines.push(checkerLine(c.user_name, c, c.per_day));
+  }
+  const team = teamOf(data.by_checker);
+  lines.push(checkerLine("Team", team, teamPace(team)));
+  lines.push(
+    "",
+    "QC rejects,When,Order,Item code,Service,Store,Cleaned by,Rejected by,Reason"
+  );
+  for (const r of rejects) {
+    lines.push(
+      `QC rejects,${escapeCsv(formatWhen(r.rejected_at))},${escapeCsv(r.order_code)},${escapeCsv(r.item_code)},${escapeCsv(r.service_name)},${escapeCsv(r.store_code)},${escapeCsv(r.cleaned_by_name)},${escapeCsv(r.rejected_by_name)},${escapeCsv(r.reason)}`
+    );
+  }
+  return lines.join("\n");
 };
 
 export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
-	const range = { from, to, store_id: storeId };
-	const queryClient = useQueryClient();
-	const openCheckerSheet = useOpenCheckerSheet();
-	const query = useQuery({
-		...reportsQueries.quality(range),
-		placeholderData: keepPreviousData,
-	});
-	const data = query.data;
-	const exportMutation = useMutation({
-		mutationFn: async (report: QualityReport) => ({
-			report,
-			rejects: await fetchAllQcRejects(queryClient, range),
-		}),
-		onSuccess: ({ report, rejects }) =>
-			downloadCsv(
-				csvFilename("quality", report.from, report.to, report.store_id),
-				buildQualityCsv(report, rejects),
-			),
-	});
+  const range = { from, to, store_id: storeId };
+  const queryClient = useQueryClient();
+  const openCheckerSheet = useOpenCheckerSheet();
+  const query = useQuery({
+    ...reportsQueries.quality(range),
+    placeholderData: keepPreviousData,
+  });
+  const data = query.data;
+  const exportMutation = useMutation({
+    mutationFn: async (report: QualityReport) => ({
+      report,
+      rejects: await fetchAllQcRejects(queryClient, range),
+    }),
+    onSuccess: ({ report, rejects }) =>
+      downloadCsv(
+        csvFilename("quality", report.from, report.to, report.store_id),
+        buildQualityCsv(report, rejects)
+      ),
+  });
 
-	const current = data?.summary.current;
-	const deltas = data?.summary.deltas;
-	const checkers = data?.by_checker;
-	const team = teamOf(checkers ?? []);
-	const checkerColumns = checkerColumnsFor(team);
-	const handleOpenChecker = (row: CheckerRow) =>
-		data &&
-		openCheckerSheet({
-			from: data.from,
-			to: data.to,
-			storeId,
-			bucket: data.daily.bucket,
-			row,
-		});
+  const current = data?.summary.current;
+  const deltas = data?.summary.deltas;
+  const checkers = data?.by_checker;
+  const team = teamOf(checkers ?? []);
+  const checkerColumns = checkerColumnsFor(team);
+  const handleOpenChecker = (row: CheckerRow) =>
+    data &&
+    openCheckerSheet({
+      from: data.from,
+      to: data.to,
+      storeId,
+      bucket: data.daily.bucket,
+      row,
+    });
 
-	return (
-		<div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
-			<ExportButton
-				disabled={!data || exportMutation.isPending}
-				onClick={() => data && exportMutation.mutate(data)}
-			/>
-			<KpiRow isPending={!data}>
-				<KpiCard
-					label="First-pass rate"
-					value={percentFormatter.format(current?.first_pass_rate ?? 0)}
-					delta={deltas?.first_pass_rate ?? null}
-					deltaAs="points"
-					helper={
-						current
-							? `${outOf(current.first_pass, current.services_processed)} Services`
-							: null
-					}
-				/>
-				<KpiCard
-					label="Checks"
-					value={numberFormatter.format(current?.checks ?? 0)}
-					delta={deltas?.checks ?? null}
-					helper={
-						current && current.checks > 0
-							? `${percentFormatter.format(current.passes / current.checks)} passed`
-							: null
-					}
-				/>
-				<KpiCard
-					label="Complaint rate"
-					value={percentFormatter.format(current?.complaint_rate ?? 0)}
-					delta={deltas?.complaint_rate ?? null}
-					deltaAs="points"
-					helper={
-						current
-							? `${outOf(current.complaints, current.services_processed)} so far`
-							: null
-					}
-					isLowerBetter
-				/>
-				<KpiCard
-					label="Waiting QC now"
-					value={numberFormatter.format(data?.waiting_qc_now.count ?? 0)}
-					helper={
-						data ? (
-							<WaitingSince oldestAt={data.waiting_qc_now.oldest_at} />
-						) : null
-					}
-				/>
-			</KpiRow>
+  return (
+    <div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
+      <ExportButton
+        disabled={!data || exportMutation.isPending}
+        onClick={() => data && exportMutation.mutate(data)}
+      />
+      <KpiRow isPending={!data}>
+        <KpiCard
+          label="First-pass rate"
+          value={percentFormatter.format(current?.first_pass_rate ?? 0)}
+          delta={deltas?.first_pass_rate ?? null}
+          deltaAs="points"
+          helper={
+            current
+              ? `${outOf(current.first_pass, current.services_processed)} Services`
+              : null
+          }
+        />
+        <KpiCard
+          label="Checks"
+          value={numberFormatter.format(current?.checks ?? 0)}
+          delta={deltas?.checks ?? null}
+          helper={
+            current && current.checks > 0
+              ? `${percentFormatter.format(current.passes / current.checks)} passed`
+              : null
+          }
+        />
+        <KpiCard
+          label="Complaint rate"
+          value={percentFormatter.format(current?.complaint_rate ?? 0)}
+          delta={deltas?.complaint_rate ?? null}
+          deltaAs="points"
+          helper={
+            current
+              ? `${outOf(current.complaints, current.services_processed)} so far`
+              : null
+          }
+          isLowerBetter
+        />
+        <KpiCard
+          label="Waiting QC now"
+          value={numberFormatter.format(data?.waiting_qc_now.count ?? 0)}
+          helper={
+            data ? (
+              <WaitingSince oldestAt={data.waiting_qc_now.oldest_at} />
+            ) : null
+          }
+        />
+      </KpiRow>
 
-			{data ? (
-				<>
-					<QcPerDaySection data={data} />
+      {data ? (
+        <>
+          <QcPerDaySection data={data} />
 
-					<QualityNeedsALook data={data} />
+          <QualityNeedsALook data={data} />
 
-					<Section
-						id="quality-checkers"
-						title="Checkers"
-						count={numberFormatter.format(data.by_checker.length)}
-					>
-						<DataTable
-							emptyIcon={TaskDone01Icon}
-							columns={checkerColumns}
-							data={data.by_checker}
-							emptyMessage="No quality checks in range."
-							onRowOpen={handleOpenChecker}
-							renderCard={(row) => (
-								<CheckerCard row={row} team={team} onOpen={handleOpenChecker} />
-							)}
-						/>
-						<CheckerTeamLine team={team} />
-					</Section>
+          <Section
+            id="quality-checkers"
+            title="Checkers"
+            count={numberFormatter.format(data.by_checker.length)}
+          >
+            <DataTable
+              emptyIcon={TaskDone01Icon}
+              columns={checkerColumns}
+              data={data.by_checker}
+              emptyMessage="No quality checks in range."
+              onRowOpen={handleOpenChecker}
+              renderCard={(row) => (
+                <CheckerCard row={row} team={team} onOpen={handleOpenChecker} />
+              )}
+            />
+            <CheckerTeamLine team={team} />
+          </Section>
 
-					<MistakesSection data={data} />
+          <MistakesSection data={data} />
 
-					<Section id="quality-by-service" title="By Service">
-						<div className={SCROLL_BOX}>
-							<DataTable
-								emptyIcon={ToolsIcon}
-								columns={serviceColumns}
-								data={data.by_service}
-								emptyMessage="No Services processed in range."
-							/>
-						</div>
-					</Section>
-				</>
-			) : (
-				<QualityPlaceholder checkerColumns={checkerColumns} />
-			)}
-		</div>
-	);
+          <Section id="quality-by-service" title="By Service">
+            <div className={SCROLL_BOX}>
+              <DataTable
+                emptyIcon={ToolsIcon}
+                columns={serviceColumns}
+                data={data.by_service}
+                emptyMessage="No Services processed in range."
+              />
+            </div>
+          </Section>
+        </>
+      ) : (
+        <QualityPlaceholder checkerColumns={checkerColumns} />
+      )}
+    </div>
+  );
 };

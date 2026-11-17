@@ -3,7 +3,9 @@
 // browser-renderable WebP survives the upload path.
 
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
+
 import { s3 } from "bun";
+
 import { BadRequestException } from "@/http-exceptions";
 import { PHOTO_TILE_SIZE } from "@/schema/photo-thumbnail";
 import { buildMediaUrl, optimizeUploadedImage } from "@/utils/s3";

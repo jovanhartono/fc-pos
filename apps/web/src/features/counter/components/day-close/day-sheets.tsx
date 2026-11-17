@@ -3,94 +3,94 @@ import { OrdersSheetContent } from "@/features/counter/components/day-close/orde
 import { PaymentsSheetContent } from "@/features/counter/components/day-close/payments-sheet-content";
 import { PickedUpSheetContent } from "@/features/counter/components/day-close/picked-up-sheet-content";
 import {
-	formatDayLong,
-	groupBySlip,
-	splitMethodName,
-	unpaidOrdersOf,
+  formatDayLong,
+  groupBySlip,
+  splitMethodName,
+  unpaidOrdersOf,
 } from "@/features/counter/lib/day-close";
 import { formatMoney } from "@/shared/money";
 import { pluralize } from "@/shared/utils";
 import type { OpenSheetPayload } from "@/stores/sheet-store";
 
 const sum = (rows: { amount: number }[]) =>
-	rows.reduce((total, row) => total + row.amount, 0);
+  rows.reduce((total, row) => total + row.amount, 0);
 
 const methodSheet = (data: DayClose, title: string) => {
-	const group = groupBySlip(data.methods).find((g) => g.slip === title);
-	const lines =
-		group?.lines ?? data.methods.filter((method) => method.name === title);
-	if (lines.length === 0) {
-		return null;
-	}
-	const ids = new Set(lines.map((line) => line.payment_method_id));
-	const payments = data.payments.filter((payment) =>
-		ids.has(payment.payment_method_id),
-	);
-	return {
-		title,
-		description: `${formatDayLong(data.date)} · ${pluralize(payments.length, "payment")} · ${formatMoney(sum(payments))}`,
-		content: () => (
-			<PaymentsSheetContent
-				date={data.date}
-				lineOf={
-					lines.length > 1
-						? (payment) => splitMethodName(payment.payment_method_name).line
-						: null
-				}
-				payments={payments}
-			/>
-		),
-	} satisfies OpenSheetPayload;
+  const group = groupBySlip(data.methods).find((g) => g.slip === title);
+  const lines =
+    group?.lines ?? data.methods.filter((method) => method.name === title);
+  if (lines.length === 0) {
+    return null;
+  }
+  const ids = new Set(lines.map((line) => line.payment_method_id));
+  const payments = data.payments.filter((payment) =>
+    ids.has(payment.payment_method_id)
+  );
+  return {
+    title,
+    description: `${formatDayLong(data.date)} · ${pluralize(payments.length, "payment")} · ${formatMoney(sum(payments))}`,
+    content: () => (
+      <PaymentsSheetContent
+        date={data.date}
+        lineOf={
+          lines.length > 1
+            ? (payment) => splitMethodName(payment.payment_method_name).line
+            : null
+        }
+        payments={payments}
+      />
+    ),
+  } satisfies OpenSheetPayload;
 };
 
 // The Summary list open in the sheet is kept in the URL as ?list= ("unpaid",
 // "orders", "picked-up", "method:<name>"), so a phone's back button
 // from an Order lands on the same list.
 export const daySheet = (
-	list: string,
-	data: DayClose,
-	dayLabel: string,
+  list: string,
+  data: DayClose,
+  dayLabel: string
 ): OpenSheetPayload | null => {
-	const day = formatDayLong(data.date);
-	const { dropped_off: dropped, picked_up: picked } = data;
+  const day = formatDayLong(data.date);
+  const { dropped_off: dropped, picked_up: picked } = data;
 
-	if (list.startsWith("method:")) {
-		return methodSheet(data, list.slice("method:".length));
-	}
-	switch (list) {
-		case "unpaid": {
-			const orders = unpaidOrdersOf(data);
-			return {
-				title: "Unpaid Orders",
-				description: `${day} · ${pluralize(orders.length, "Order")} · ${formatMoney(sum(orders))}`,
-				content: () => (
-					<OrdersSheetContent
-						emptyText="Nothing unpaid this day."
-						orders={orders}
-					/>
-				),
-			};
-		}
-		case "orders":
-			return {
-				title: `${dayLabel} Orders`,
-				description: `${day} · ${pluralize(dropped.orders, "Order")}`,
-				content: () => (
-					<OrdersSheetContent
-						emptyText="No Orders dropped off this day."
-						orders={dropped.order_list}
-					/>
-				),
-			};
-		case "picked-up":
-			return {
-				title: "Picked Up",
-				description: `${day} · ${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`,
-				content: () => (
-					<PickedUpSheetContent date={data.date} orders={picked.order_list} />
-				),
-			};
-		default:
-			return null;
-	}
+  if (list.startsWith("method:")) {
+    return methodSheet(data, list.slice("method:".length));
+  }
+  switch (list) {
+    case "unpaid": {
+      const orders = unpaidOrdersOf(data);
+      return {
+        title: "Unpaid Orders",
+        description: `${day} · ${pluralize(orders.length, "Order")} · ${formatMoney(sum(orders))}`,
+        content: () => (
+          <OrdersSheetContent
+            emptyText="Nothing unpaid this day."
+            orders={orders}
+          />
+        ),
+      };
+    }
+    case "orders":
+      return {
+        title: `${dayLabel} Orders`,
+        description: `${day} · ${pluralize(dropped.orders, "Order")}`,
+        content: () => (
+          <OrdersSheetContent
+            emptyText="No Orders dropped off this day."
+            orders={dropped.order_list}
+          />
+        ),
+      };
+    case "picked-up":
+      return {
+        title: "Picked Up",
+        description: `${day} · ${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`,
+        content: () => (
+          <PickedUpSheetContent date={data.date} orders={picked.order_list} />
+        ),
+      };
+    default:
+      return null;
+  }
 };

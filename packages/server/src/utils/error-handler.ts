@@ -2,6 +2,7 @@ import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { JwtVariables } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
+
 import type { AuthUser } from "@/types/jwt";
 import { failure } from "@/utils/http";
 import {

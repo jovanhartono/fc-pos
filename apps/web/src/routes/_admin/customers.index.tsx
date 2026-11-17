@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
+
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
@@ -15,226 +16,226 @@ import { type Customer, customersQueries } from "@/features/customers/api";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
 import { useStoreScope } from "@/features/users/hooks/useStoreScope";
 import {
-	DEFAULT_PAGE_SIZE,
-	pageSizeChange,
-	pageSizeSearch,
+  DEFAULT_PAGE_SIZE,
+  pageSizeChange,
+  pageSizeSearch,
 } from "@/lib/page-size";
 import { useSheet } from "@/stores/sheet-store";
 
 const customersSearchSchema = z.object({
-	page: z.coerce.number().int().positive().catch(1),
-	limit: pageSizeSearch,
-	search: z.string().trim().min(1).max(100).optional(),
+  page: z.coerce.number().int().positive().catch(1),
+  limit: pageSizeSearch,
+  search: z.string().trim().min(1).max(100).optional(),
 });
 
 export const Route = createFileRoute("/_admin/customers/")({
-	validateSearch: (search) => customersSearchSchema.parse(search),
-	loaderDeps: ({ search }) => search,
-	loader: async ({ context, deps, cause }) => {
-		// Typing a search or paging keeps the page up, the search box focused,
-		// and swaps the rows in place; only opening the page waits for them.
-		if (cause === "stay") {
-			return;
-		}
-		await context.queryClient.ensureQueryData(
-			customersQueries.list({
-				limit: deps.limit ?? DEFAULT_PAGE_SIZE,
-				offset: (deps.page - 1) * (deps.limit ?? DEFAULT_PAGE_SIZE),
-				...(deps.search ? { search: deps.search } : {}),
-			}),
-		);
-	},
-	component: CustomersPage,
-	// Past a second, the page itself draws with skeleton rows.
-	pendingComponent: CustomersPage,
+  validateSearch: (search) => customersSearchSchema.parse(search),
+  loaderDeps: ({ search }) => search,
+  loader: async ({ context, deps, cause }) => {
+    // Typing a search or paging keeps the page up, the search box focused,
+    // and swaps the rows in place; only opening the page waits for them.
+    if (cause === "stay") {
+      return;
+    }
+    await context.queryClient.ensureQueryData(
+      customersQueries.list({
+        limit: deps.limit ?? DEFAULT_PAGE_SIZE,
+        offset: (deps.page - 1) * (deps.limit ?? DEFAULT_PAGE_SIZE),
+        ...(deps.search ? { search: deps.search } : {}),
+      })
+    );
+  },
+  component: CustomersPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: CustomersPage,
 });
 
 function CustomersPage() {
-	const navigate = useNavigate({ from: Route.fullPath });
-	const search = Route.useSearch();
-	const pageSize = search.limit ?? DEFAULT_PAGE_SIZE;
-	const { openSheet } = useSheet();
-	// Same rule as CustomerLink: the detail page is admin-only (ADR-0021).
-	const { isAdmin } = useStoreScope();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const search = Route.useSearch();
+  const pageSize = search.limit ?? DEFAULT_PAGE_SIZE;
+  const { openSheet } = useSheet();
+  // Same rule as CustomerLink: the detail page is admin-only (ADR-0021).
+  const { isAdmin } = useStoreScope();
 
-	const handleSearchChange = (next: string) => {
-		void navigate({
-			replace: true,
-			search: (prev) => ({
-				...prev,
-				page: 1,
-				search: next || undefined,
-			}),
-		});
-	};
+  const handleSearchChange = (next: string) => {
+    void navigate({
+      replace: true,
+      search: (prev) => ({
+        ...prev,
+        page: 1,
+        search: next || undefined,
+      }),
+    });
+  };
 
-	const customersQuery = useQuery({
-		...customersQueries.list({
-			limit: pageSize,
-			offset: (search.page - 1) * pageSize,
-			...(search.search ? { search: search.search } : {}),
-		}),
-		placeholderData: keepPreviousData,
-	});
-	const customers = customersQuery.data?.items ?? [];
+  const customersQuery = useQuery({
+    ...customersQueries.list({
+      limit: pageSize,
+      offset: (search.page - 1) * pageSize,
+      ...(search.search ? { search: search.search } : {}),
+    }),
+    placeholderData: keepPreviousData,
+  });
+  const customers = customersQuery.data?.items ?? [];
 
-	const handleOpenEditSheet = (customer: Customer) => {
-		openSheet({
-			title: "Edit Customer",
-			content: () => <CustomerSheetContent editingCustomer={customer} />,
-		});
-	};
+  const handleOpenEditSheet = (customer: Customer) => {
+    openSheet({
+      title: "Edit Customer",
+      content: () => <CustomerSheetContent editingCustomer={customer} />,
+    });
+  };
 
-	const handleOpenCreateSheet = () => {
-		openSheet({
-			title: "Add Customer",
-			content: () => <CustomerSheetContent />,
-		});
-	};
+  const handleOpenCreateSheet = () => {
+    openSheet({
+      title: "Add Customer",
+      content: () => <CustomerSheetContent />,
+    });
+  };
 
-	const columns: DataTableColumnDef<Customer>[] = [
-		{
-			accessorKey: "name",
-			header: "Name",
-			meta: { kind: "name", width: { percent: 31, minRem: 9 } },
-			// On a phone, Edit sits right after the name; the table keeps its
-			// Actions column.
-			cell: ({ row }) => (
-				<>
-					{row.original.name}
-					<span className="ml-2 inline-flex align-middle lg:hidden">
-						<EditRowButton
-							label={`Edit ${row.original.name}`}
-							onClick={() => handleOpenEditSheet(row.original)}
-						/>
-					</span>
-				</>
-			),
-		},
-		{
-			accessorKey: "phone_number",
-			header: "Phone",
-			meta: {
-				width: { percent: 15, minRem: 7.5 },
-				mobileCard: {
-					slot: "subtitle",
-					className: "text-foreground text-subhead tabular-nums",
-				},
-			},
-		},
-		{
-			accessorKey: "email",
-			header: "Email",
-			meta: {
-				kind: "text",
-				width: { percent: 28, minRem: 10 },
-				mobileCard: { slot: "hidden" },
-			},
-			cell: ({ row }) => (
-				<span className="text-muted-foreground">
-					{row.original.email ?? "—"}
-				</span>
-			),
-		},
-		{
-			id: "origin_store",
-			header: "Origin store",
-			meta: {
-				width: { percent: 18, minRem: 8.5 },
-				mobileCard: {
-					slot: "subtitle",
-					className: "text-foreground text-subhead",
-				},
-			},
-			cell: ({ row }) => row.original.originStore?.name ?? "—",
-		},
-		{
-			id: "actions",
-			header: "Actions",
-			meta: {
-				width: { percent: 8, minRem: 4.5 },
-				mobileCard: { slot: "hidden" },
-			},
-			cell: ({ row }) => (
-				<EditRowButton
-					label={`Edit ${row.original.name}`}
-					onClick={() => handleOpenEditSheet(row.original)}
-				/>
-			),
-		},
-	];
+  const columns: DataTableColumnDef<Customer>[] = [
+    {
+      accessorKey: "name",
+      header: "Name",
+      meta: { kind: "name", width: { percent: 31, minRem: 9 } },
+      // On a phone, Edit sits right after the name; the table keeps its
+      // Actions column.
+      cell: ({ row }) => (
+        <>
+          {row.original.name}
+          <span className="ml-2 inline-flex align-middle lg:hidden">
+            <EditRowButton
+              label={`Edit ${row.original.name}`}
+              onClick={() => handleOpenEditSheet(row.original)}
+            />
+          </span>
+        </>
+      ),
+    },
+    {
+      accessorKey: "phone_number",
+      header: "Phone",
+      meta: {
+        width: { percent: 15, minRem: 7.5 },
+        mobileCard: {
+          slot: "subtitle",
+          className: "text-foreground text-subhead tabular-nums",
+        },
+      },
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+      meta: {
+        kind: "text",
+        width: { percent: 28, minRem: 10 },
+        mobileCard: { slot: "hidden" },
+      },
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.email ?? "—"}
+        </span>
+      ),
+    },
+    {
+      id: "origin_store",
+      header: "Origin store",
+      meta: {
+        width: { percent: 18, minRem: 8.5 },
+        mobileCard: {
+          slot: "subtitle",
+          className: "text-foreground text-subhead",
+        },
+      },
+      cell: ({ row }) => row.original.originStore?.name ?? "—",
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      meta: {
+        width: { percent: 8, minRem: 4.5 },
+        mobileCard: { slot: "hidden" },
+      },
+      cell: ({ row }) => (
+        <EditRowButton
+          label={`Edit ${row.original.name}`}
+          onClick={() => handleOpenEditSheet(row.original)}
+        />
+      ),
+    },
+  ];
 
-	return (
-		<>
-			<PageHeader
-				title="Customers"
-				count={customersQuery.data?.meta.total}
-				countNoun="customer"
-				actions={
-					<Button
-						onClick={handleOpenCreateSheet}
-						icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
-					>
-						Add Customer
-					</Button>
-				}
-			/>
-			<ListPanel>
-				<DebouncedSearchInput
-					id="customers-search"
-					value={search.search ?? ""}
-					onDebouncedChange={handleSearchChange}
-					placeholder="Search by name or phone"
-					ariaLabel="Search customers"
-					className="w-full sm:w-72"
-				/>
-				<DataTable
-					emptyIcon={UserMultipleIcon}
-					columns={columns}
-					data={customers}
-					getRowLink={
-						isAdmin
-							? (customer) => ({
-									to: "/customers/$customerId",
-									params: { customerId: String(customer.id) },
-									search: { page: 1 },
-								})
-							: undefined
-					}
-					isCardGrouped
-					skeletonCardClassName="h-19"
-					isLoading={customersQuery.isPending}
-					isStale={customersQuery.isPlaceholderData}
-					filterKey={JSON.stringify(search)}
-					noMatch={{
-						noun: "Customers",
-						search: search.search,
-						onClear: () => handleSearchChange(""),
-					}}
-					footer={
-						<TablePagination
-							meta={customersQuery.data?.meta}
-							isLoading={customersQuery.isPending}
-							onPageChange={(page) => {
-								void navigate({
-									replace: true,
-									search: (prev) => ({
-										...prev,
-										page,
-									}),
-								});
-							}}
-							pageSize={pageSize}
-							onPageSizeChange={(limit) => {
-								void navigate({
-									replace: true,
-									search: (prev) => ({ ...prev, ...pageSizeChange(limit) }),
-								});
-							}}
-						/>
-					}
-				/>
-			</ListPanel>
-		</>
-	);
+  return (
+    <>
+      <PageHeader
+        title="Customers"
+        count={customersQuery.data?.meta.total}
+        countNoun="customer"
+        actions={
+          <Button
+            onClick={handleOpenCreateSheet}
+            icon={<HugeiconsIcon icon={Add01Icon} className="size-4" />}
+          >
+            Add Customer
+          </Button>
+        }
+      />
+      <ListPanel>
+        <DebouncedSearchInput
+          id="customers-search"
+          value={search.search ?? ""}
+          onDebouncedChange={handleSearchChange}
+          placeholder="Search by name or phone"
+          ariaLabel="Search customers"
+          className="w-full sm:w-72"
+        />
+        <DataTable
+          emptyIcon={UserMultipleIcon}
+          columns={columns}
+          data={customers}
+          getRowLink={
+            isAdmin
+              ? (customer) => ({
+                  to: "/customers/$customerId",
+                  params: { customerId: String(customer.id) },
+                  search: { page: 1 },
+                })
+              : undefined
+          }
+          isCardGrouped
+          skeletonCardClassName="h-19"
+          isLoading={customersQuery.isPending}
+          isStale={customersQuery.isPlaceholderData}
+          filterKey={JSON.stringify(search)}
+          noMatch={{
+            noun: "Customers",
+            search: search.search,
+            onClear: () => handleSearchChange(""),
+          }}
+          footer={
+            <TablePagination
+              meta={customersQuery.data?.meta}
+              isLoading={customersQuery.isPending}
+              onPageChange={(page) => {
+                void navigate({
+                  replace: true,
+                  search: (prev) => ({
+                    ...prev,
+                    page,
+                  }),
+                });
+              }}
+              pageSize={pageSize}
+              onPageSizeChange={(limit) => {
+                void navigate({
+                  replace: true,
+                  search: (prev) => ({ ...prev, ...pageSizeChange(limit) }),
+                });
+              }}
+            />
+          }
+        />
+      </ListPanel>
+    </>
+  );
 }

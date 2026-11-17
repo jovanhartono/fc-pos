@@ -25,7 +25,7 @@
 ## UI Gotchas
 
 - Base UI `PopoverTrigger render={<div/>}` requires `nativeButton={false}` or it warns at runtime.
-- Biome a11y: `role="button"` on span/div is disallowed (use a real `<button>`); `role="combobox"` requires `aria-expanded`.
+- oxlint a11y: `role="button"` on span/div is disallowed (use a real `<button>`); `role="combobox"` requires `aria-expanded`.
 - Base UI `Select` inside a `Popover`: items register on first Select open, so `SelectValue` shows the raw `value` string until then. Use function-child mapper `<SelectValue>{(v) => label(v)}</SelectValue>` or swap to `Combobox` (which keeps label via `items` prop).
 - iPhone Safari ignores `position: relative` on `<tr>`: a row-wide tap overlay escapes the row and freezes scroll. Anchor it with a transform on the row instead.
 - A height-capped inner list hands scroll to the page at its ends — no `overscroll-contain` on it.

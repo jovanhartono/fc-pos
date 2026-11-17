@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import type { DbExecutor } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
@@ -19,8 +20,10 @@ interface FakeListedCampaign {
   min_order_total: string;
 }
 
-interface FakeVoucherCampaign
-  extends Omit<FakeListedCampaign, "eligible_service_ids"> {
+interface FakeVoucherCampaign extends Omit<
+  FakeListedCampaign,
+  "eligible_service_ids"
+> {
   eligibleServices: { service_id: number }[];
 }
 
@@ -39,9 +42,8 @@ mock.module("@/modules/campaigns/campaign.service", () => ({
     Promise.resolve({ campaign: catalog.vouchers[code], voucherCode: code }),
 }));
 
-const { resolveDiscount } = await import(
-  "@/modules/orders/order-discount.service"
-);
+const { resolveDiscount } =
+  await import("@/modules/orders/order-discount.service");
 
 const makeListed = (id: number, discountValue: string): FakeListedCampaign => ({
   buy_quantity: null,

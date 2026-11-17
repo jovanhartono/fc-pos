@@ -29,8 +29,10 @@ export interface DiscountShareLine {
   key: string;
 }
 
-export interface BogoDiscount
-  extends Pick<CampaignDiscountInput, "buy_quantity" | "free_quantity"> {
+export interface BogoDiscount extends Pick<
+  CampaignDiscountInput,
+  "buy_quantity" | "free_quantity"
+> {
   amount: number;
   eligibleServiceIds: number[];
 }

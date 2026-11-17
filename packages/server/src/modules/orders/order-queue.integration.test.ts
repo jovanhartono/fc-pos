@@ -1,6 +1,8 @@
 import "@/test-support/pglite";
 import { beforeEach, expect, it } from "bun:test";
+
 import { eq } from "drizzle-orm";
+
 import { categoriesTable, servicesTable } from "@/db/schema";
 import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
@@ -12,12 +14,10 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // database before the swap runs.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
-const { getOrderServiceQueue, getOrderServiceQueueCounts } = await import(
-  "@/modules/orders/order-queue.service"
-);
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { getOrderServiceQueue, getOrderServiceQueueCounts } =
+  await import("@/modules/orders/order-queue.service");
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 
 let shop: Shop;
 let repairCategoryId: number;

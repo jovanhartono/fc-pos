@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { MouseEvent } from "react";
+
 import { isPlainLeftClick } from "@/lib/list-keys";
 import { useSheet } from "@/stores/sheet-store";
 
@@ -10,19 +11,19 @@ import { useSheet } from "@/stores/sheet-store";
  * A sheet its page reopens after Back leaves at once, so the picture keeps it.
  */
 export const useLeaveSheetLink = () => {
-	const navigate = useNavigate();
+  const navigate = useNavigate();
 
-	return (event: MouseEvent<HTMLAnchorElement>) => {
-		const { sheetState, closeSheetThen } = useSheet.getState();
-		// The same link on a full page has no sheet to wait for.
-		if (
-			!(isPlainLeftClick(event) && sheetState.open) ||
-			sheetState.isRestoredOnBack
-		) {
-			return;
-		}
-		event.preventDefault();
-		const href = event.currentTarget.getAttribute("href") ?? undefined;
-		closeSheetThen(() => navigate({ href }));
-	};
+  return (event: MouseEvent<HTMLAnchorElement>) => {
+    const { sheetState, closeSheetThen } = useSheet.getState();
+    // The same link on a full page has no sheet to wait for.
+    if (
+      !(isPlainLeftClick(event) && sheetState.open) ||
+      sheetState.isRestoredOnBack
+    ) {
+      return;
+    }
+    event.preventDefault();
+    const href = event.currentTarget.getAttribute("href") ?? undefined;
+    closeSheetThen(() => navigate({ href }));
+  };
 };

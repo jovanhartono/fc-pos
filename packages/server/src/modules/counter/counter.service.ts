@@ -95,16 +95,14 @@ function buildCategories(
   estimates: Map<number, CounterEstimate>
 ) {
   return [...Map.groupBy(lines, (line) => line.category_id).entries()]
-    .map(
-      ([categoryId, categoryLines]): CounterCategory => ({
-        after_clean: categoryLines[0].starts_after_cleaning,
-        category_id: categoryId,
-        estimate: estimates.get(categoryId) ?? null,
-        ...countStages(categoryLines),
-        items_waiting: new Set(categoryLines.map((line) => line.item_id)).size,
-        name: categoryLines[0].category_name,
-      })
-    )
+    .map(([categoryId, categoryLines]): CounterCategory => ({
+      after_clean: categoryLines[0].starts_after_cleaning,
+      category_id: categoryId,
+      estimate: estimates.get(categoryId) ?? null,
+      ...countStages(categoryLines),
+      items_waiting: new Set(categoryLines.map((line) => line.item_id)).size,
+      name: categoryLines[0].category_name,
+    }))
     .sort(
       (a, b) =>
         b.items_waiting - a.items_waiting || a.name.localeCompare(b.name)

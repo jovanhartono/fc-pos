@@ -2,11 +2,12 @@ import type { POSTServiceSchema } from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
 import { type InferResponseType, parseResponse } from "hono/client";
 import type { z } from "zod";
+
 import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
 import { rpc } from "@/lib/rpc";
 
 export type Service = InferResponseType<
-	typeof rpc.api.admin.services.$get
+  typeof rpc.api.admin.services.$get
 >["data"][number];
 
 // Prices travel as the digit string the price field typed and the server turns
@@ -15,33 +16,33 @@ export type CreateServicePayload = z.input<typeof POSTServiceSchema>;
 export type UpdateServicePayload = z.input<typeof POSTServiceSchema>;
 
 export const servicesKeys = {
-	all: ["services"] as const,
-	list: () => [...servicesKeys.all, "list"] as const,
+  all: ["services"] as const,
+  list: () => [...servicesKeys.all, "list"] as const,
 };
 
 async function fetchServices() {
-	const response = await parseResponse(rpc.api.admin.services.$get());
-	return response.data;
+  const response = await parseResponse(rpc.api.admin.services.$get());
+  return response.data;
 }
 
 export const servicesQueries = {
-	list: () =>
-		queryOptions({
-			queryKey: servicesKeys.list(),
-			queryFn: fetchServices,
-			staleTime: REFERENCE_DATA_STALE_TIME,
-		}),
+  list: () =>
+    queryOptions({
+      queryKey: servicesKeys.list(),
+      queryFn: fetchServices,
+      staleTime: REFERENCE_DATA_STALE_TIME,
+    }),
 };
 
 export function createService(payload: CreateServicePayload) {
-	return parseResponse(rpc.api.admin.services.$post({ json: payload }));
+  return parseResponse(rpc.api.admin.services.$post({ json: payload }));
 }
 
 export function updateService(id: number, payload: UpdateServicePayload) {
-	return parseResponse(
-		rpc.api.admin.services[":id"].$put({
-			param: { id: String(id) },
-			json: payload,
-		}),
-	);
+  return parseResponse(
+    rpc.api.admin.services[":id"].$put({
+      param: { id: String(id) },
+      json: payload,
+    })
+  );
 }

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { drizzle } from "drizzle-orm/pg-proxy";
+
 import type { DateRange } from "@/modules/reports/report-range.util";
 
 // A fake row is a positional array in the query's column order, not a named

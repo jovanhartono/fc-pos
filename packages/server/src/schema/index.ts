@@ -1,4 +1,5 @@
 import z from "zod";
+
 import { orderPaymentStatusEnum } from "@/db/schema";
 import {
   CampaignPayloadSchema as _CampaignPayloadSchema,
@@ -18,8 +19,8 @@ import { POSTPaymentMethodSchema as _POSTPaymentMethodSchema } from "@/modules/p
 import { GATEWAY_LABELS as _GATEWAY_LABELS } from "@/modules/payments/gateways/types";
 import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/product.schema";
 import { POSTServiceSchema as _POSTServiceSchema } from "@/modules/services/service.schema";
-import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
 import { POSTStoreDeviceSchema as _POSTStoreDeviceSchema } from "@/modules/stores/store-device.schema";
+import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
 
 // The web's form schemas. The rules both sides run live in ./rules, which
 // stays free of zod and the tables.
@@ -48,7 +49,6 @@ import {
   varcharSchema,
   voucherCodesSchema,
 } from "@/schema/common";
-
 import {
   isValidPhoneNumber as _isValidPhoneNumber,
   normalizePhoneNumber as _normalizePhoneNumber,

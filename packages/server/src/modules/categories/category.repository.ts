@@ -1,5 +1,6 @@
 import type { InferInsertModel } from "drizzle-orm";
 import { EmptyFilter, eq, sql } from "drizzle-orm";
+
 import { db } from "@/db";
 import { categoriesTable } from "@/db/schema";
 

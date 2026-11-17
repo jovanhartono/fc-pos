@@ -1,6 +1,8 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
 import { eq } from "drizzle-orm";
+
 import { campaignsTable, ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { jakartaDayOf } from "@/modules/reports/report-range.util";
@@ -13,26 +15,20 @@ import { resetDb, testDb } from "@/test-support/pglite";
 
 // Imported after the swap above: a static import would bind the shop's real
 // database, prepared statements included, before the swap runs.
-const { createOrder, getOrderDetailById } = await import(
-  "@/modules/orders/order.service"
-);
-const { updateOrderPayment } = await import(
-  "@/modules/orders/order-payment.service"
-);
-const { updateOrderDeliveryFee } = await import(
-  "@/modules/orders/order-delivery-fee.service"
-);
-const { cancelOrder, createOrderRefund } = await import(
-  "@/modules/orders/order-reversal.service"
-);
+const { createOrder, getOrderDetailById } =
+  await import("@/modules/orders/order.service");
+const { updateOrderPayment } =
+  await import("@/modules/orders/order-payment.service");
+const { updateOrderDeliveryFee } =
+  await import("@/modules/orders/order-delivery-fee.service");
+const { cancelOrder, createOrderRefund } =
+  await import("@/modules/orders/order-reversal.service");
 const { findOrders } = await import("@/modules/orders/order.repository");
-const { getTrackedOrder } = await import(
-  "@/modules/orders/order-track.service"
-);
+const { getTrackedOrder } =
+  await import("@/modules/orders/order-track.service");
 const { getDayClose } = await import("@/modules/counter/day-close.service");
-const { findCustomerSummary } = await import(
-  "@/modules/customers/customer.repository"
-);
+const { findCustomerSummary } =
+  await import("@/modules/customers/customer.repository");
 
 let shop: Shop;
 

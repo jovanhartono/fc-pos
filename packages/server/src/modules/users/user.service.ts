@@ -1,4 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
+
 import type { usersTable } from "@/db/schema";
 import {
   BadRequestException,

@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+
 import { db } from "@/db";
 import { ForbiddenException, NotFoundException } from "@/http-exceptions";
 import type { AuthUser } from "@/types";

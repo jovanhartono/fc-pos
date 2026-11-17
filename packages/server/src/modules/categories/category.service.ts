@@ -1,4 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
+
 import type { categoriesTable } from "@/db/schema";
 import {
   findCategoryById,

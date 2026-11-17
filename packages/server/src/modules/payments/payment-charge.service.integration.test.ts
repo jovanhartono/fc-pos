@@ -1,6 +1,8 @@
 import "@/test-support/pglite";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { eq } from "drizzle-orm";
+
 import {
   campaignCodesTable,
   campaignsTable,
@@ -74,19 +76,15 @@ mock.module("@/modules/payments/gateways", () => ({
 }));
 
 const { createOrder } = await import("@/modules/orders/order.service");
-const { updateOrderPayment } = await import(
-  "@/modules/orders/order-payment.service"
-);
+const { updateOrderPayment } =
+  await import("@/modules/orders/order-payment.service");
 const { cancelOrder } = await import("@/modules/orders/order-reversal.service");
-const { getTrackedOrder, payTrackedOrder } = await import(
-  "@/modules/orders/order-track.service"
-);
-const { setOrderServicePrice } = await import(
-  "@/modules/orders/order-price.service"
-);
-const { updateOrderDeliveryFee } = await import(
-  "@/modules/orders/order-delivery-fee.service"
-);
+const { getTrackedOrder, payTrackedOrder } =
+  await import("@/modules/orders/order-track.service");
+const { setOrderServicePrice } =
+  await import("@/modules/orders/order-price.service");
+const { updateOrderDeliveryFee } =
+  await import("@/modules/orders/order-delivery-fee.service");
 const {
   cancelPaymentCharge,
   createPaymentCharge,

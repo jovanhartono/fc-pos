@@ -1,6 +1,8 @@
 import "@/test-support/pglite";
 import { beforeEach, expect, it } from "bun:test";
+
 import { sql } from "drizzle-orm";
+
 import { seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 

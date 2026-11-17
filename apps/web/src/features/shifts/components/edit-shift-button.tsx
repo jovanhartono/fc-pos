@@ -4,15 +4,15 @@ import { useEditShift } from "@/features/shifts/hooks/useEditShift";
 import { shiftSummary } from "@/features/shifts/lib/shift-times";
 
 interface EditShiftButtonProps {
-	shift: Shift;
+  shift: Shift;
 }
 
 export const EditShiftButton = ({ shift }: EditShiftButtonProps) => {
-	const editShift = useEditShift();
-	return (
-		<EditRowButton
-			label={`Edit Shift, ${shiftSummary(shift)}`}
-			onClick={() => editShift(shift)}
-		/>
-	);
+  const editShift = useEditShift();
+  return (
+    <EditRowButton
+      label={`Edit Shift, ${shiftSummary(shift)}`}
+      onClick={() => editShift(shift)}
+    />
+  );
 };

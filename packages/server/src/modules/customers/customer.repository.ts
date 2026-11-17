@@ -1,5 +1,6 @@
 import type { InferInsertModel } from "drizzle-orm";
 import { EmptyFilter, eq, ilike, or, sql } from "drizzle-orm";
+
 import { db } from "@/db";
 import { customersTable } from "@/db/schema";
 import { toStoredPhonePrefix } from "@/schema/phone";

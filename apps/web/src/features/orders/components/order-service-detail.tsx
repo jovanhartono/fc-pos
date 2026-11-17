@@ -1,6 +1,7 @@
 import { isUnpricedLine } from "@fresclean/api/rules";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ordersQueries } from "@/features/orders/api";
@@ -15,215 +16,215 @@ import { orderServiceActions } from "@/features/orders/lib/order-service-actions
 import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
-	formatCancelReason,
-	formatOrderServiceStatus,
-	formatRefundReason,
-	getOrderServiceStatusBadgeVariant,
+  formatCancelReason,
+  formatOrderServiceStatus,
+  formatRefundReason,
+  getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 
 interface OrderServiceDetailProps {
-	orderId: number;
-	serviceId: number;
+  orderId: number;
+  serviceId: number;
 }
 
 export const OrderServiceDetail = ({
-	orderId,
-	serviceId,
+  orderId,
+  serviceId,
 }: OrderServiceDetailProps) => {
-	const leaveSheet = useLeaveSheetLink();
+  const leaveSheet = useLeaveSheetLink();
 
-	// Read the service live from the cached order so status changes made in this
-	// sheet reflect immediately instead of pinning a frozen prop from open time.
-	const detailQuery = useQuery(ordersQueries.detail(orderId));
-	const service = findOrderLine(detailQuery.data, serviceId);
+  // Read the service live from the cached order so status changes made in this
+  // sheet reflect immediately instead of pinning a frozen prop from open time.
+  const detailQuery = useQuery(ordersQueries.detail(orderId));
+  const service = findOrderLine(detailQuery.data, serviceId);
 
-	if (!service) {
-		return (
-			<p className="text-muted-foreground text-body">
-				This item is no longer part of the order.
-			</p>
-		);
-	}
+  if (!service) {
+    return (
+      <p className="text-body text-muted-foreground">
+        This item is no longer part of the order.
+      </p>
+    );
+  }
 
-	const actions = orderServiceActions(service);
+  const actions = orderServiceActions(service);
 
-	const isOrderPaid = detailQuery.data?.payment_status === "paid";
-	// ADR-0018: while true, this line holds the whole Order's payment — the
-	// same predicate the server's paid transition runs.
-	const isUnpriced = isUnpricedLine(service);
+  const isOrderPaid = detailQuery.data?.payment_status === "paid";
+  // ADR-0018: while true, this line holds the whole Order's payment — the
+  // same predicate the server's paid transition runs.
+  const isUnpriced = isUnpricedLine(service);
 
-	return (
-		<div className="grid gap-5 text-body">
-			<div className="flex flex-wrap items-center gap-2">
-				{isUnpriced ? <Badge variant="warning">Unpriced</Badge> : null}
-				{service.is_priority ? (
-					<Badge variant="priority">Priority</Badge>
-				) : null}
-				<Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
-					{formatOrderServiceStatus(service.status)}
-				</Badge>
-				{service.reworkOf !== null && <Badge variant="info">Rework</Badge>}
-			</div>
+  return (
+    <div className="grid gap-5 text-body">
+      <div className="flex flex-wrap items-center gap-2">
+        {isUnpriced ? <Badge variant="warning">Unpriced</Badge> : null}
+        {service.is_priority ? (
+          <Badge variant="priority">Priority</Badge>
+        ) : null}
+        <Badge variant={getOrderServiceStatusBadgeVariant(service.status)}>
+          {formatOrderServiceStatus(service.status)}
+        </Badge>
+        {service.reworkOf !== null && <Badge variant="info">Rework</Badge>}
+      </div>
 
-			{service.reworkOf !== null && (
-				<ReworkOriginCallout
-					firstPickupAt={getFirstPickupAt(
-						service.reworkOf,
-						service.rework_opened_at,
-					)}
-					onNavigate={leaveSheet}
-					reworkOf={service.reworkOf}
-				/>
-			)}
+      {service.reworkOf !== null && (
+        <ReworkOriginCallout
+          firstPickupAt={getFirstPickupAt(
+            service.reworkOf,
+            service.rework_opened_at
+          )}
+          onNavigate={leaveSheet}
+          reworkOf={service.reworkOf}
+        />
+      )}
 
-			{actions.start || actions.moves.length > 0 ? (
-				<div className="grid gap-2">
-					<div className="flex flex-wrap gap-2">
-						{[
-							...(actions.start ? ["processing" as const] : []),
-							...actions.moves,
-						].map((nextStatus) => (
-							<ServiceStatusUpdateButton
-								disabled={
-									nextStatus === "processing" &&
-									actions.start?.blocker !== undefined
-								}
-								key={nextStatus}
-								nextStatus={nextStatus}
-								orderId={orderId}
-								serviceId={service.id}
-							/>
-						))}
-					</div>
-					{actions.photoBlocker ? (
-						<p className="text-muted-foreground text-footnote">
-							{actions.photoBlocker}
-						</p>
-					) : null}
-				</div>
-			) : null}
+      {actions.start || actions.moves.length > 0 ? (
+        <div className="grid gap-2">
+          <div className="flex flex-wrap gap-2">
+            {[
+              ...(actions.start ? ["processing" as const] : []),
+              ...actions.moves,
+            ].map((nextStatus) => (
+              <ServiceStatusUpdateButton
+                disabled={
+                  nextStatus === "processing" &&
+                  actions.start?.blocker !== undefined
+                }
+                key={nextStatus}
+                nextStatus={nextStatus}
+                orderId={orderId}
+                serviceId={service.id}
+              />
+            ))}
+          </div>
+          {actions.photoBlocker ? (
+            <p className="text-footnote text-muted-foreground">
+              {actions.photoBlocker}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
-			<dl className="grid gap-3 sm:grid-cols-2">
-				<div>
-					<dt className="text-muted-foreground text-footnote">Item</dt>
-					<dd className="mt-0.5 font-medium">
-						{formatOrderServiceItemDetails(service.item)}
-					</dd>
-				</div>
-				<div>
-					<dt className="text-muted-foreground text-footnote">Handler</dt>
-					<dd className="mt-0.5 font-medium">
-						{service.handler?.name ?? "Unassigned"}
-					</dd>
-				</div>
-			</dl>
+      <dl className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <dt className="text-footnote text-muted-foreground">Item</dt>
+          <dd className="mt-0.5 font-medium">
+            {formatOrderServiceItemDetails(service.item)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-footnote text-muted-foreground">Handler</dt>
+          <dd className="mt-0.5 font-medium">
+            {service.handler?.name ?? "Unassigned"}
+          </dd>
+        </div>
+      </dl>
 
-			<ServicePriceSection
-				isOrderPaid={isOrderPaid}
-				isRework={service.reworkOf !== null}
-				orderId={orderId}
-				price={service.price}
-				serviceId={service.id}
-				status={service.status}
-			/>
+      <ServicePriceSection
+        isOrderPaid={isOrderPaid}
+        isRework={service.reworkOf !== null}
+        orderId={orderId}
+        price={service.price}
+        serviceId={service.id}
+        status={service.status}
+      />
 
-			{service.status === "cancelled" && service.cancel_reason ? (
-				<OrderReasonCallout
-					label="Cancel reason"
-					note={service.cancel_note}
-					reason={formatCancelReason(service.cancel_reason)}
-				/>
-			) : null}
+      {service.status === "cancelled" && service.cancel_reason ? (
+        <OrderReasonCallout
+          label="Cancel reason"
+          note={service.cancel_note}
+          reason={formatCancelReason(service.cancel_reason)}
+        />
+      ) : null}
 
-			{service.status === "refunded" && service.refundItems.length > 0 ? (
-				<OrderReasonCallout label="Refund reason">
-					<ul className="mt-1 grid gap-1 text-body">
-						{service.refundItems.map((item) => (
-							<li key={item.id}>
-								<span className="font-medium">
-									{formatRefundReason(item.reason)}
-								</span>
-								{item.note ? (
-									<span className="text-muted-foreground"> — {item.note}</span>
-								) : null}
-							</li>
-						))}
-					</ul>
-				</OrderReasonCallout>
-			) : null}
+      {service.status === "refunded" && service.refundItems.length > 0 ? (
+        <OrderReasonCallout label="Refund reason">
+          <ul className="mt-1 grid gap-1 text-body">
+            {service.refundItems.map((item) => (
+              <li key={item.id}>
+                <span className="font-medium">
+                  {formatRefundReason(item.reason)}
+                </span>
+                {item.note ? (
+                  <span className="text-muted-foreground"> — {item.note}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </OrderReasonCallout>
+      ) : null}
 
-			<StatusTimeline defaultOpen line={service} />
-		</div>
-	);
+      <StatusTimeline defaultOpen line={service} />
+    </div>
+  );
 };
 
 interface ServicePriceSectionProps {
-	orderId: number;
-	serviceId: number;
-	price: string | null;
-	status: string;
-	isOrderPaid: boolean;
-	isRework: boolean;
+  orderId: number;
+  serviceId: number;
+  price: string | null;
+  status: string;
+  isOrderPaid: boolean;
+  isRework: boolean;
 }
 
 // ADR-0018: blank until agreed with the Customer, open to any staff while the
 // Order is unpaid, frozen once paid, and 0 on a Rework.
 const ServicePriceSection = ({
-	orderId,
-	serviceId,
-	price,
-	status,
-	isOrderPaid,
-	isRework,
+  orderId,
+  serviceId,
+  price,
+  status,
+  isOrderPaid,
+  isRework,
 }: ServicePriceSectionProps) => {
-	const [isCorrecting, setIsCorrecting] = useState(false);
+  const [isCorrecting, setIsCorrecting] = useState(false);
 
-	if (status === "cancelled") {
-		return null;
-	}
+  if (status === "cancelled") {
+    return null;
+  }
 
-	return (
-		<div className="grid gap-3 rounded-md border border-border/70 p-3">
-			<div className="flex items-center justify-between gap-3">
-				<div>
-					<p className="text-muted-foreground text-footnote">Price</p>
-					<p className="mt-0.5 font-medium tabular-nums">
-						{price === null ? "Not set" : formatMoney(price)}
-					</p>
-				</div>
-				{price !== null && !(isOrderPaid || isRework || isCorrecting) && (
-					<Button
-						onClick={() => setIsCorrecting(true)}
-						size="sm"
-						type="button"
-						variant="outline"
-					>
-						Correct Price
-					</Button>
-				)}
-			</div>
-			{price === null ? (
-				<>
-					<p className="text-muted-foreground text-footnote">
-						Agree the price with the customer, then set it here — the order
-						can't be paid until every line is priced.
-					</p>
-					<OrderServicePriceForm
-						currentPrice={null}
-						orderId={orderId}
-						serviceId={serviceId}
-					/>
-				</>
-			) : null}
-			{price !== null && isCorrecting && !isOrderPaid ? (
-				<OrderServicePriceForm
-					currentPrice={price}
-					onSuccess={() => setIsCorrecting(false)}
-					orderId={orderId}
-					serviceId={serviceId}
-				/>
-			) : null}
-		</div>
-	);
+  return (
+    <div className="grid gap-3 rounded-md border border-border/70 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-footnote text-muted-foreground">Price</p>
+          <p className="mt-0.5 font-medium tabular-nums">
+            {price === null ? "Not set" : formatMoney(price)}
+          </p>
+        </div>
+        {price !== null && !(isOrderPaid || isRework || isCorrecting) && (
+          <Button
+            onClick={() => setIsCorrecting(true)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            Correct Price
+          </Button>
+        )}
+      </div>
+      {price === null ? (
+        <>
+          <p className="text-footnote text-muted-foreground">
+            Agree the price with the customer, then set it here — the order
+            can't be paid until every line is priced.
+          </p>
+          <OrderServicePriceForm
+            currentPrice={null}
+            orderId={orderId}
+            serviceId={serviceId}
+          />
+        </>
+      ) : null}
+      {price !== null && isCorrecting && !isOrderPaid ? (
+        <OrderServicePriceForm
+          currentPrice={price}
+          onSuccess={() => setIsCorrecting(false)}
+          orderId={orderId}
+          serviceId={serviceId}
+        />
+      ) : null}
+    </div>
+  );
 };

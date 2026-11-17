@@ -1,10 +1,12 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+
 import { NotFoundException } from "@/http-exceptions";
 import {
   assertCanCreateOrder,
   assertCanManageUsers,
 } from "@/modules/permissions/permissions";
+import { getOwnPerformance } from "@/modules/users/user-performance.service";
 import {
   GETPerformanceQuerySchema,
   GETUsersQuerySchema,
@@ -26,7 +28,6 @@ import {
   updateUser,
   updateUserStores,
 } from "@/modules/users/user.service";
-import { getOwnPerformance } from "@/modules/users/user-performance.service";
 import {
   PATCHOwnProfileSchema,
   POSTUserSchema,

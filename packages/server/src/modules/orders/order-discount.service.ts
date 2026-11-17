@@ -1,10 +1,10 @@
 import type { DbExecutor } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
+import type { ResolvedCampaignRow } from "@/modules/campaigns/campaign-redemption.service";
 import {
   getUsableCampaigns,
   resolveVoucherCode,
 } from "@/modules/campaigns/campaign.service";
-import type { ResolvedCampaignRow } from "@/modules/campaigns/campaign-redemption.service";
 import { applyManualDiscount, stackCampaignDiscounts } from "@/schema/discount";
 
 // No repository calls here, so the discount maths is testable without a database.

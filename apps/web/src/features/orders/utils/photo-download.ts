@@ -1,6 +1,6 @@
 import {
-	createPhotoDownloadUrl,
-	type PhotoDownloadRef,
+  createPhotoDownloadUrl,
+  type PhotoDownloadRef,
 } from "@/features/orders/api";
 import { triggerDownload } from "@/lib/download";
 
@@ -9,14 +9,14 @@ import { triggerDownload } from "@/lib/download";
  * (the Drop-off photo at checkout) saves its own blob.
  */
 export async function savePhoto(
-	download: PhotoDownloadRef | undefined,
-	imageUrl: string,
+  download: PhotoDownloadRef | undefined,
+  imageUrl: string
 ) {
-	if (!download) {
-		triggerDownload(imageUrl, "photo.webp");
-		return;
-	}
+  if (!download) {
+    triggerDownload(imageUrl, "photo.webp");
+    return;
+  }
 
-	const { url } = await createPhotoDownloadUrl(download);
-	triggerDownload(url);
+  const { url } = await createPhotoDownloadUrl(download);
+  triggerDownload(url);
 }

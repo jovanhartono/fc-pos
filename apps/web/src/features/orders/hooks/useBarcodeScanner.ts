@@ -1,165 +1,165 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 interface BarcodeDetectorLike {
-	detect: (input: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
+  detect: (input: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
 }
 
 type WindowWithBarcodeDetector = typeof window & {
-	BarcodeDetector?: new (...args: unknown[]) => BarcodeDetectorLike;
+  BarcodeDetector?: new (...args: unknown[]) => BarcodeDetectorLike;
 };
 
 const getBarcodeDetector = () =>
-	(window as WindowWithBarcodeDetector).BarcodeDetector;
+  (window as WindowWithBarcodeDetector).BarcodeDetector;
 
 interface UseBarcodeScannerResult {
-	videoRef: React.RefObject<HTMLVideoElement | null>;
-	isScanning: boolean;
-	error: string | null;
-	start: () => Promise<void>;
-	stop: () => void;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  isScanning: boolean;
+  error: string | null;
+  start: () => Promise<void>;
+  stop: () => void;
 }
 
 export const useBarcodeScanner = (
-	onDetect: (rawValue: string) => void,
+  onDetect: (rawValue: string) => void
 ): UseBarcodeScannerResult => {
-	const videoRef = useRef<HTMLVideoElement | null>(null);
-	const cancelRef = useRef(false);
-	const openingRef = useRef(false);
-	// Mirrors `stream` so teardown never depends on React running a state
-	// updater: a tablet that keeps the camera lit sits on the counter all day.
-	const streamRef = useRef<MediaStream | null>(null);
-	const [stream, setStream] = useState<MediaStream | null>(null);
-	const [error, setError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cancelRef = useRef(false);
+  const openingRef = useRef(false);
+  // Mirrors `stream` so teardown never depends on React running a state
+  // updater: a tablet that keeps the camera lit sits on the counter all day.
+  const streamRef = useRef<MediaStream | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-	const onDetectFromEffect = useEffectEvent(onDetect);
+  const onDetectFromEffect = useEffectEvent(onDetect);
 
-	const stop = () => {
-		cancelRef.current = true;
+  const stop = () => {
+    cancelRef.current = true;
 
-		if (streamRef.current) {
-			for (const track of streamRef.current.getTracks()) {
-				track.stop();
-			}
-			streamRef.current = null;
-		}
+    if (streamRef.current) {
+      for (const track of streamRef.current.getTracks()) {
+        track.stop();
+      }
+      streamRef.current = null;
+    }
 
-		setStream(null);
-	};
+    setStream(null);
+  };
 
-	const stopFromEffect = useEffectEvent(stop);
+  const stopFromEffect = useEffectEvent(stop);
 
-	const start = async () => {
-		if (openingRef.current || streamRef.current) {
-			return;
-		}
+  const start = async () => {
+    if (openingRef.current || streamRef.current) {
+      return;
+    }
 
-		setError(null);
+    setError(null);
 
-		if (!getBarcodeDetector()) {
-			setError("This browser can't scan. Type the code.");
-			return;
-		}
+    if (!getBarcodeDetector()) {
+      setError("This browser can't scan. Type the code.");
+      return;
+    }
 
-		openingRef.current = true;
-		cancelRef.current = false;
+    openingRef.current = true;
+    cancelRef.current = false;
 
-		try {
-			const nextStream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: { ideal: "environment" } },
-			});
-			openingRef.current = false;
+    try {
+      const nextStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+      });
+      openingRef.current = false;
 
-			if (cancelRef.current) {
-				for (const track of nextStream.getTracks()) {
-					track.stop();
-				}
-				return;
-			}
+      if (cancelRef.current) {
+        for (const track of nextStream.getTracks()) {
+          track.stop();
+        }
+        return;
+      }
 
-			streamRef.current = nextStream;
-			setStream(nextStream);
-		} catch {
-			openingRef.current = false;
-			setError("Couldn't open the camera. Type the code.");
-			stop();
-		}
-	};
+      streamRef.current = nextStream;
+      setStream(nextStream);
+    } catch {
+      openingRef.current = false;
+      setError("Couldn't open the camera. Type the code.");
+      stop();
+    }
+  };
 
-	useEffect(() => {
-		const video = videoRef.current;
-		const detectorConstructor = getBarcodeDetector();
+  useEffect(() => {
+    const video = videoRef.current;
+    const detectorConstructor = getBarcodeDetector();
 
-		if (!(stream && video && detectorConstructor)) {
-			return;
-		}
+    if (!(stream && video && detectorConstructor)) {
+      return;
+    }
 
-		video.srcObject = stream;
-		void video.play().catch(() => {
-			setError("Couldn't open the camera. Type the code.");
-		});
+    video.srcObject = stream;
+    void video.play().catch(() => {
+      setError("Couldn't open the camera. Type the code.");
+    });
 
-		const detector = new detectorConstructor();
-		let frameId: number | null = null;
-		// A worker retapping Scan Tag mid-decode would otherwise leave two detectors
-		// reading every frame for the rest of the shift.
-		let alive = true;
+    const detector = new detectorConstructor();
+    let frameId: number | null = null;
+    // A worker retapping Scan Tag mid-decode would otherwise leave two detectors
+    // reading every frame for the rest of the shift.
+    let alive = true;
 
-		const detect = async () => {
-			if (!alive || cancelRef.current) {
-				return;
-			}
+    const detect = async () => {
+      if (!alive || cancelRef.current) {
+        return;
+      }
 
-			try {
-				const codes = await detector.detect(video);
-				const rawValue = codes.find((item) => !!item.rawValue)?.rawValue;
+      try {
+        const codes = await detector.detect(video);
+        const rawValue = codes.find((item) => !!item.rawValue)?.rawValue;
 
-				if (rawValue) {
-					// A stop landing during the decode must not still yank the worker off
-					// the queue on a scan they cancelled.
-					if (!alive || cancelRef.current) {
-						return;
-					}
+        if (rawValue) {
+          // A stop landing during the decode must not still yank the worker off
+          // the queue on a scan they cancelled.
+          if (!alive || cancelRef.current) {
+            return;
+          }
 
-					stopFromEffect();
-					onDetectFromEffect(rawValue);
-					return;
-				}
-			} catch {
-				// ignore frame-level errors
-			}
+          stopFromEffect();
+          onDetectFromEffect(rawValue);
+          return;
+        }
+      } catch {
+        // ignore frame-level errors
+      }
 
-			if (!alive) {
-				return;
-			}
+      if (!alive) {
+        return;
+      }
 
-			frameId = requestAnimationFrame(() => {
-				void detect();
-			});
-		};
+      frameId = requestAnimationFrame(() => {
+        void detect();
+      });
+    };
 
-		frameId = requestAnimationFrame(() => {
-			void detect();
-		});
+    frameId = requestAnimationFrame(() => {
+      void detect();
+    });
 
-		return () => {
-			alive = false;
-			if (frameId !== null) {
-				cancelAnimationFrame(frameId);
-			}
-			if (video.srcObject === stream) {
-				video.srcObject = null;
-			}
-		};
-	}, [stream]);
+    return () => {
+      alive = false;
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+      if (video.srcObject === stream) {
+        video.srcObject = null;
+      }
+    };
+  }, [stream]);
 
-	// The Find button and every queue row navigate away without stopping the scanner.
-	useEffect(() => () => stopFromEffect(), []);
+  // The Find button and every queue row navigate away without stopping the scanner.
+  useEffect(() => () => stopFromEffect(), []);
 
-	return {
-		videoRef,
-		isScanning: stream !== null,
-		error,
-		start,
-		stop,
-	};
+  return {
+    videoRef,
+    isScanning: stream !== null,
+    error,
+    start,
+    stop,
+  };
 };

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { NotFoundException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 
@@ -24,9 +25,8 @@ mock.module("@/modules/payments/payment-charge.service", () => ({
   toTrackChargeView: (charge: unknown) => charge,
 }));
 
-const { getTrackedOrder, payTrackedOrder } = await import(
-  "@/modules/orders/order-track.service"
-);
+const { getTrackedOrder, payTrackedOrder } =
+  await import("@/modules/orders/order-track.service");
 
 const CUSTOMER = {
   id: 4,

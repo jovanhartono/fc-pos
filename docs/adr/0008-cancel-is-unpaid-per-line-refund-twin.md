@@ -1,6 +1,6 @@
 # Cancel is the unpaid, per-line twin of refund
 
-Cancel and refund are the Order's two disjoint off-ramps (unpaid → cancel, paid → refund; [ADR-0004](0004-role-capabilities-v1.md)). v1 shipped them asymmetric: refund was per-line and covered both OrderServices and OrderProducts, while cancel was whole-Order and services-only — so a products-only unpaid Order could not be cancelled at all ([ADR-0007](0007-product-refunds-whole-line-money-only.md) flagged this as a known gap), and a mixed unpaid cancel silently left product stock decremented. We decided to make **cancel the exact unpaid mirror of refund**: per-line selection over services *and* products, gated by `payment_status = unpaid`, with no money movement — and, unlike refund, **cancel restores product stock**.
+Cancel and refund are the Order's two disjoint off-ramps (unpaid → cancel, paid → refund; [ADR-0004](0004-role-capabilities-v1.md)). v1 shipped them asymmetric: refund was per-line and covered both OrderServices and OrderProducts, while cancel was whole-Order and services-only — so a products-only unpaid Order could not be cancelled at all ([ADR-0007](0007-product-refunds-whole-line-money-only.md) flagged this as a known gap), and a mixed unpaid cancel silently left product stock decremented. We decided to make **cancel the exact unpaid mirror of refund**: per-line selection over services _and_ products, gated by `payment_status = unpaid`, with no money movement — and, unlike refund, **cancel restores product stock**.
 
 ## Considered options
 

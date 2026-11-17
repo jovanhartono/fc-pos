@@ -1,5 +1,6 @@
 import { createUpdateSchema } from "drizzle-orm/zod";
 import { z } from "zod";
+
 import { paymentMethodsTable } from "@/db/schema";
 import { PAYMENT_GATEWAYS } from "@/modules/payments/gateways/types";
 import { isActiveSchema, varcharSchema } from "@/schema/common";

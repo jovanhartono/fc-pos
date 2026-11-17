@@ -10,6 +10,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+
 import { db } from "@/db";
 import {
   complaintsTable,
@@ -23,7 +24,6 @@ import {
   usersTable,
 } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/http-exceptions";
-import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   GetMyOrderServicesQuery,
   GetOrderServiceQueueCountsQuery,
@@ -37,6 +37,7 @@ import {
   isTerminalOrderServiceStatus,
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
+import type { OrderTx } from "@/modules/orders/order.repository";
 import { assertCanReassignHandler } from "@/modules/permissions/permissions";
 import {
   ORDER_TERMINAL_SERVICE_STATUSES,

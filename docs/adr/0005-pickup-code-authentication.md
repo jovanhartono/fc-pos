@@ -5,8 +5,8 @@ The picked-up transition on an OrderService is gated by a 6-digit `orders.pickup
 ## Flow
 
 1. Order is inserted. A PostgreSQL DB-side default expression on `orders.pickup_code` generates 6 digits at insert time: `lpad(floor(random() * 1000000)::text, 6, '0')`. The server does not explicitly generate the code.
-2. While the Order is not yet `ready_for_pickup`, the code is **not** exposed on the public `/track` page. *Amended 2026-10-05 — see below.*
-3. When the Order rolls up to `ready_for_pickup`, `/track` reveals the code to the Customer (after their `code + phone_number` match). *Amended 2026-10-05 — see below.*
+2. While the Order is not yet `ready_for_pickup`, the code is **not** exposed on the public `/track` page. _Amended 2026-10-05 — see below._
+3. When the Order rolls up to `ready_for_pickup`, `/track` reveals the code to the Customer (after their `code + phone_number` match). _Amended 2026-10-05 — see below._
 4. Customer reads the code to the cashier in person.
 5. Cashier opens the specific Order in the pickup dialog and enters the code. Server validates `pickup_code` matches **this Order** before recording the OrderPickupEvent and transitioning the relevant OrderServices to `picked_up`.
 
@@ -26,9 +26,9 @@ The schema has one CHECK on `orders_services` (`schema.ts:574-577`):
 CHECK (pickup_event_id IS NULL OR status IN ('picked_up', 'refunded'))
 ```
 
-Read: *if `pickup_event_id` is set, status must be `picked_up` or `refunded`*. One direction.
+Read: _if `pickup_event_id` is set, status must be `picked_up` or `refunded`_. One direction.
 
-The reverse direction — *if status is `picked_up`, `pickup_event_id` must be set* — is **NOT enforced by the schema**. Today only the service-layer code path (`order-admin.service.ts` pickup handler) guarantees the invariant.
+The reverse direction — _if status is `picked_up`, `pickup_event_id` must be set_ — is **NOT enforced by the schema**. Today only the service-layer code path (`order-admin.service.ts` pickup handler) guarantees the invariant.
 
 ## Considered and declined
 
@@ -40,7 +40,7 @@ Original proposal: move generation from DB-level `random()` into `order.service.
 
 Declined because the CSPRNG-vs-PRNG distinction does not matter for this attack model:
 
-- The "attack" is *random walk-in guesses 6 digits and walks out with someone's shoes* — probability 1/10⁶ regardless of generator quality.
+- The "attack" is _random walk-in guesses 6 digits and walks out with someone's shoes_ — probability 1/10⁶ regardless of generator quality.
 - An attacker would need to observe a long sequence of consecutive codes to exploit `random()`'s predictability. No such sequence is exposed — `/track` is gated by `code + phone_number` match, and the customer only ever sees their own code.
 - Testability gain is trivial — the only assertion worth writing is `/^\d{6}$/` shape, which needs no injection.
 
@@ -68,7 +68,7 @@ The one real gap from the original drafting (independent of the two declined ite
 
 ### Missing CHECK implication — fixed
 
-The schema previously enforced *if `pickup_event_id` is set, status must be `picked_up`/`refunded`*, but **not** the reverse. A row claiming pickup without the dialog flow was therefore allowed by the database; only application code prevented it.
+The schema previously enforced _if `pickup_event_id` is set, status must be `picked_up`/`refunded`_, but **not** the reverse. A row claiming pickup without the dialog flow was therefore allowed by the database; only application code prevented it.
 
 Two named CHECK constraints on `orders_services` now enforce both directions:
 
@@ -84,8 +84,8 @@ A data-integrity invariant, not an authentication concern — it belongs in the 
 ## Consequences
 
 - The picked-up transition must never be settable via a generic status dropdown — only through the pickup dialog. The application layer enforces the dialog path; the CHECK above (`status != 'picked_up' OR pickup_event_id IS NOT NULL`) now backstops it — a dropdown write that sets `picked_up` without a pickup event is rejected by the database.
-- `pickup_code` must never leak to admin/cashier UI for Orders not yet `ready_for_pickup` (would let an internal actor bypass the customer-presence check). *Amended 2026-07-06 — see below.*
-- The public `/track` page is the only surface that exposes the code, and only after the status check. *Amended 2026-07-06 — see below.*
+- `pickup_code` must never leak to admin/cashier UI for Orders not yet `ready_for_pickup` (would let an internal actor bypass the customer-presence check). _Amended 2026-07-06 — see below._
+- The public `/track` page is the only surface that exposes the code, and only after the status check. _Amended 2026-07-06 — see below._
 - Replacing the scheme later (e.g. with QR) means deprecating the dialog input path and migrating the generation column, not editing application code alone.
 
 ## Amendment (2026-07-06)

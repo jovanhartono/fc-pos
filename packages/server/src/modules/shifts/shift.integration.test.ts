@@ -8,7 +8,9 @@ import {
   it,
   setSystemTime,
 } from "bun:test";
+
 import { eq, sql } from "drizzle-orm";
+
 import {
   shiftsTable,
   storesTable,
@@ -337,9 +339,8 @@ describe("updateShift", () => {
   });
 
   it("does not reopen a Shift the worker clocked out of mid-edit", async () => {
-    const { updateShiftById } = await import(
-      "@/modules/shifts/shift.repository"
-    );
+    const { updateShiftById } =
+      await import("@/modules/shifts/shift.repository");
     const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"), {
       auto_closed: false,
       clock_out_at: jkt("2026-10-12T14:00"),

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { reportError } from "@/utils/report-error";
 
 const DSN = "https://public@o0.ingest.sentry.io/123";
