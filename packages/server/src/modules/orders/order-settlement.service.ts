@@ -1,4 +1,4 @@
-import type { DbExecutor } from "@/db";
+import { type DbExecutor, db } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
 import {
   claimRedemptions,
@@ -10,8 +10,12 @@ import {
   type ResolvedDiscount,
   resolveDiscount,
 } from "@/modules/orders/order-discount.service";
-import { findOrderState } from "@/modules/orders/order-read.repository";
+import {
+  findOrderState,
+  getOrderStateOrThrow,
+} from "@/modules/orders/order-read.repository";
 import { recomputeOrderRollup } from "@/modules/orders/order-status-machine";
+import { cancelOrderPendingCharges } from "@/modules/payments/payment-charge-close";
 import { type DiscountSource, isBogoSlot } from "@/schema/discount";
 import { hasUnpricedLine } from "@/schema/unpriced-line";
 
@@ -149,10 +153,44 @@ export async function settleDiscount(
   return { discountAmount, discountSource };
 }
 
+type OrderState = Awaited<ReturnType<typeof getOrderStateOrThrow>>;
+
+// A Repair price or a cancelled line moves an unpaid Order's total: its promo
+// is rechecked, and a QR still on the counter for the old amount is closed.
+export async function changeUnpaidOrder<T>(
+  orderId: number,
+  by: number,
+  change: (tx: OrderTx, order: OrderState) => Promise<T>
+): Promise<T> {
+  const changed = await db.transaction(async (tx) => {
+    const order = await getOrderStateOrThrow(tx, orderId);
+
+    const result = await change(tx, order);
+
+    // Callers refuse a paid Order with their own wording first; this stops a
+    // new one that forgets from stripping a promo the Customer already paid on.
+    if (order.payment_status === "paid") {
+      throw new BadRequestException("Order has been paid");
+    }
+
+    // An Order already cancelled gave its redemptions back, and doing it again
+    // would hand the Customer a second free Voucher use (ADR-0015).
+    if (order.status !== "cancelled") {
+      await revalidateSettledPromo(tx, orderId, by);
+    }
+
+    return result;
+  });
+
+  await cancelOrderPendingCharges(orderId);
+
+  return changed;
+}
+
 // After a cancel or a lowered price on an unpaid Order. A fully cancelled Order
 // gives its redemptions back (ADR-0015); one under its promo's minimum loses it,
 // or "100k off, min 250k" would stay on a 160k Order.
-export async function revalidateSettledPromo(
+async function revalidateSettledPromo(
   tx: OrderTx,
   orderId: number,
   by: number

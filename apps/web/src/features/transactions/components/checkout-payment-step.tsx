@@ -9,7 +9,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { CurrencyInput } from "@/components/form/currency-input";
-import type { ComboboxOption } from "@/components/ui/combobox";
 import {
 	Field,
 	FieldError,
@@ -17,13 +16,17 @@ import {
 	FieldLegend,
 	FieldSet,
 } from "@/components/ui/field";
-import { paymentMethodsQueries } from "@/features/payment-methods/api";
+import {
+	paymentMethodsQueries,
+	toCounterPaymentMethodOptions,
+} from "@/features/payment-methods/api";
 import {
 	countUnpricedServiceLines,
 	type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { CampaignTileGroup } from "@/features/transactions/components/campaign-tile-group";
+import { DiscountPreviewRows } from "@/features/transactions/components/discount-preview-rows";
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
 import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPricing";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
@@ -39,8 +42,7 @@ export const CheckoutPaymentStep = () => {
 		availableCampaigns: eligibleCampaigns,
 		campaignsQuery,
 		serviceLines,
-		pricing,
-		deliveryFee,
+		rows,
 		amountDue,
 	} = useCheckoutPricing();
 	const { serviceRows } = useCart();
@@ -51,15 +53,9 @@ export const CheckoutPaymentStep = () => {
 		useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
 	const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
 
-	// Gateway money arrives through a QRIS on the Order, never a tap here.
-	const paymentMethodOptions: ComboboxOption[] = (
-		paymentMethodsQuery.data ?? []
-	)
-		.filter((paymentMethod) => !paymentMethod.gateway)
-		.map((paymentMethod) => ({
-			value: String(paymentMethod.id),
-			label: paymentMethod.name,
-		}));
+	const paymentMethodOptions = toCounterPaymentMethodOptions(
+		paymentMethodsQuery.data ?? [],
+	);
 
 	const selectedStoreNumber =
 		selectedStoreId && Number.isFinite(Number(selectedStoreId))
@@ -210,13 +206,7 @@ export const CheckoutPaymentStep = () => {
 									eligibleCampaigns={eligibleCampaigns}
 									hasStore={selectedStoreNumber !== undefined}
 									isLoading={campaignsQuery.isLoading}
-									onToggle={(campaignId) =>
-										field.onChange(
-											field.value.includes(campaignId)
-												? field.value.filter((value) => value !== campaignId)
-												: [...field.value, campaignId],
-										)
-									}
+									onChange={field.onChange}
 									selectedIds={field.value}
 								/>
 								<VoucherCodeEntry
@@ -284,34 +274,10 @@ export const CheckoutPaymentStep = () => {
 						{formatMoney(String(subtotal))}
 					</span>
 				</div>
-				{pricing.campaignBreakdown.map(({ campaign, amount }) => (
-					<div
-						className="flex items-center justify-between gap-3 text-body"
-						key={campaign.id}
-					>
-						<span className="text-muted-foreground">
-							{campaign.code} ({campaign.name})
-						</span>
-						<span className="font-medium text-destructive tabular-nums">
-							-{formatMoney(String(amount))}
-						</span>
-					</div>
-				))}
-				{pricing.manualDiscount > 0 && (
-					<div className="flex items-center justify-between gap-3 text-body">
-						<span className="text-muted-foreground">Manual discount</span>
-						<span className="font-medium text-destructive tabular-nums">
-							-{formatMoney(String(pricing.manualDiscount))}
-						</span>
-					</div>
-				)}
-				{deliveryFee > 0 && (
-					<div className="flex items-center justify-between gap-3 text-body">
-						<span className="text-muted-foreground">Delivery fee</span>
-						<span className="font-medium tabular-nums">
-							{formatMoney(String(deliveryFee))}
-						</span>
-					</div>
+				{rows.length > 0 && (
+					<dl className="grid gap-3">
+						<DiscountPreviewRows rows={rows} />
+					</dl>
 				)}
 				<div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3 text-headline font-medium">
 					<span>Total Payment</span>

@@ -2,12 +2,10 @@ import type { DiscountLine } from "@fresclean/api/rules";
 import { useQuery } from "@tanstack/react-query";
 import { useWatch } from "react-hook-form";
 import { campaignsQueries } from "@/features/campaigns/api";
-import {
-	getCartPricing,
-	type TransactionDraftValues,
-} from "@/features/transactions/cart/cart";
+import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import { useCart } from "@/features/transactions/cart/useCart";
 import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
+import { previewDiscounts } from "@/features/transactions/lib/discount-preview";
 import { parseMoney } from "@/shared/money";
 
 export const useAvailableCampaigns = (
@@ -80,37 +78,22 @@ export function useCheckoutPricing() {
 		serviceLines,
 	);
 
-	const selectedIdSet = new Set(selectedCampaignIds);
-	const selectedCampaigns = availableCampaigns.filter((campaign) =>
-		selectedIdSet.has(String(campaign.id)),
-	);
-
-	// Vouchers never appear in the Campaign tiles, so they join the price
-	// preview here.
-	const pricingCampaigns = [
-		...selectedCampaigns,
-		...appliedVouchers.map((entry) => entry.campaign),
-	];
-
-	const pricing = getCartPricing({
-		subtotal,
-		campaigns: pricingCampaigns,
-		serviceLines,
+	const preview = previewDiscounts({
+		grossTotal: subtotal,
+		lines: serviceLines,
+		eligible: availableCampaigns,
+		pickedCampaignIds: selectedCampaignIds,
+		vouchers: appliedVouchers,
 		manualDiscount,
+		deliveryFee: Number(deliveryFeeInput || 0),
 	});
-	const discountedTotal = Math.round(pricing.total);
-
-	// Added after the discounts, which never reach it (ADR-0029).
-	const deliveryFee = Number(deliveryFeeInput || 0);
 
 	return {
 		subtotal,
 		availableCampaigns,
 		campaignsQuery,
-		selectedCampaigns,
 		serviceLines,
-		pricing,
-		deliveryFee,
-		amountDue: discountedTotal + deliveryFee,
+		rows: preview.rows,
+		amountDue: preview.amountDue,
 	};
 }

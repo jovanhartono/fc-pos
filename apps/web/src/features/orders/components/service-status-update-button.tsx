@@ -1,27 +1,23 @@
 import { Button } from "@/components/ui/button";
+import type { NonTerminalServiceStatus } from "@/features/orders/lib/order-service-actions";
 import { useDialog } from "@/stores/dialog-store";
-import {
-	type NonTerminalServiceStatus,
-	STATUS_ACTION_LABELS,
-	type UpdateStatusMutation,
-} from "./order-service-dialog.types";
+import { STATUS_ACTION_LABELS } from "./order-service-dialog.types";
 import { ServiceStatusConfirmForm } from "./service-status-confirm-form";
 
 interface ServiceStatusUpdateButtonProps {
+	orderId: number;
 	serviceId: number;
 	nextStatus: NonTerminalServiceStatus;
-	updateStatusMutation: UpdateStatusMutation;
 	disabled?: boolean;
 }
 
 export const ServiceStatusUpdateButton = ({
+	orderId,
 	serviceId,
 	nextStatus,
-	updateStatusMutation,
 	disabled,
 }: ServiceStatusUpdateButtonProps) => {
 	const openDialog = useDialog((s) => s.openDialog);
-	const closeDialog = useDialog((s) => s.closeDialog);
 
 	const handleClick = () => {
 		if (disabled) {
@@ -32,10 +28,9 @@ export const ServiceStatusUpdateButton = ({
 			description: `Set status to ${STATUS_ACTION_LABELS[nextStatus]}?`,
 			content: () => (
 				<ServiceStatusConfirmForm
-					serviceId={serviceId}
 					nextStatus={nextStatus}
-					updateStatusMutation={updateStatusMutation}
-					closeDialog={closeDialog}
+					orderId={orderId}
+					serviceId={serviceId}
 				/>
 			),
 		});

@@ -14,13 +14,8 @@ const repo = {
   // The Item's other Services and earlier Rework lines.
   otherItemLines: [] as AnyObj[],
   insertedComplaint: undefined as AnyObj | undefined,
-  insertedRework: undefined as AnyObj | undefined,
-  insertedStatusLogs: [] as Array<{ executor: unknown; values: AnyObj }>,
+  queuedReworks: [] as Array<{ executor: unknown; values: AnyObj }>,
   lineReads: [] as [string, unknown, AnyObj?][],
-};
-
-const rollup = {
-  calls: [] as Array<{ executor: unknown; orderId: number; userId: number }>,
 };
 
 const authz = {
@@ -44,17 +39,9 @@ const actualStatusMachine = await import(
 
 mock.module("@/modules/orders/order-status-machine", () => ({
   ...actualStatusMachine,
-  logReworkQueued: (executor: unknown, values: AnyObj) => {
-    repo.insertedStatusLogs.push({ executor, values });
-    return Promise.resolve();
-  },
-  recomputeOrderRollup: (
-    executor: unknown,
-    orderId: number,
-    userId: number
-  ) => {
-    rollup.calls.push({ executor, orderId, userId });
-    return Promise.resolve();
+  queueReworkLine: (executor: unknown, values: AnyObj) => {
+    repo.queuedReworks.push({ executor, values });
+    return Promise.resolve({ id: 500, ...values });
   },
 }));
 
@@ -90,10 +77,6 @@ mock.module("@/modules/complaints/complaint.repository", () => ({
     repo.insertedComplaint = values;
     return Promise.resolve({ id: 99, ...values });
   },
-  insertReworkLine: (_executor: unknown, values: AnyObj) => {
-    repo.insertedRework = values;
-    return Promise.resolve({ id: 500, ...values });
-  },
   findComplaintDetailById: () => Promise.resolve(undefined),
   findComplaints: () => Promise.resolve({ items: [], total: 0 }),
 }));
@@ -122,10 +105,8 @@ beforeEach(() => {
   repo.complaintById = undefined;
   repo.otherItemLines = [];
   repo.insertedComplaint = undefined;
-  repo.insertedRework = undefined;
-  repo.insertedStatusLogs = [];
+  repo.queuedReworks = [];
   repo.lineReads = [];
-  rollup.calls = [];
   authz.assertCalls = [];
   authz.storeIds = [];
 });
@@ -175,9 +156,9 @@ describe("openComplaint", () => {
     const result = await open({ start_rework: true });
 
     expect(result.complaint.id).toBe(99);
-    expect(repo.insertedRework).toMatchObject({
-      complaint_id: 99,
-      item_id: 21,
+    expect(repo.queuedReworks[0]?.values).toMatchObject({
+      complaintId: 99,
+      itemId: 21,
     });
   });
 
@@ -233,8 +214,7 @@ describe("openComplaint", () => {
 
     expect(result.complaint.id).toBe(99);
     expect(result.rework).toBeNull();
-    expect(repo.insertedRework).toBeUndefined();
-    expect(rollup.calls).toHaveLength(0);
+    expect(repo.queuedReworks).toEqual([]);
     expect(repo.insertedComplaint).toEqual({
       order_service_id: 10,
       reason: "Still dirty",
@@ -248,62 +228,18 @@ describe("openComplaint", () => {
     expect(result.rework).not.toBeNull();
     // Same Order (ADR-0013) and same Item (ADR-0017): the same shoes are back
     // on the shelf, not a new drop-off.
-    expect(repo.insertedRework).toMatchObject({
-      order_id: 7,
-      item_id: 21,
-      service_id: 3,
-      price: "0",
-      cogs_snapshot: "0",
-      is_priority: true,
-      status: "queued",
-      complaint_id: 99,
-    });
-  });
-
-  it("leaves the rework line's note empty for the worker", async () => {
-    // The Rework box already links its Complaint; a machine-written note would
-    // show on every Rework where the worker reads the cashier's notes.
-    await open({ start_rework: true });
-    expect(repo.insertedRework?.notes).toBeUndefined();
-  });
-
-  it("logs who put the rework on the rack, in the same transaction", async () => {
-    // A line has no created_at: without this row a second round added days
-    // later would have no time or name on its timeline.
-    await open({ start_rework: true });
-
-    expect(repo.insertedStatusLogs).toEqual([
+    // The Order Status Machine queues it, in the Complaint's own transaction.
+    expect(repo.queuedReworks).toEqual([
       {
         executor: TX,
         values: {
           by: 42,
-          note: "Rework for complaint #99",
-          serviceId: 500,
+          complaintId: 99,
+          itemId: 21,
+          orderId: 7,
+          serviceId: 3,
         },
       },
-    ]);
-  });
-
-  it("writes no status log when the complaint opens without a rework", async () => {
-    await open({ start_rework: false });
-    expect(repo.insertedStatusLogs).toEqual([]);
-  });
-
-  it("recomputes the order rollup inside the transaction after a rework", async () => {
-    await open({ start_rework: true });
-    expect(rollup.calls).toEqual([{ executor: TX, orderId: 7, userId: 42 }]);
-  });
-
-  it("reuses the complained item's tag instead of minting a rework code", async () => {
-    await open({ start_rework: true });
-    // One object, one tag (ADR-0017): the returning shoes keep the Item code
-    // already stuck to them.
-    expect(repo.insertedRework).not.toContainAnyKeys([
-      "item_code",
-      "brand",
-      "color",
-      "model",
-      "size",
     ]);
   });
 });
@@ -351,7 +287,7 @@ describe("addRework", () => {
     expect((error as Error).message).toBe(
       "Finish the current rework before starting another"
     );
-    expect(repo.insertedRework).toBeUndefined();
+    expect(repo.queuedReworks).toEqual([]);
   });
 
   it("takes another round while the last one waits ready on the shelf", async () => {
@@ -366,7 +302,7 @@ describe("addRework", () => {
     const line = await add();
 
     expect(line.id).toBe(500);
-    expect(repo.insertedRework).toMatchObject({ complaint_id: 99 });
+    expect(repo.queuedReworks[0]?.values).toMatchObject({ complaintId: 99 });
   });
 
   it("takes a round on a ready original while other work on the pair is in the workshop", async () => {
@@ -376,7 +312,7 @@ describe("addRework", () => {
 
     const line = await add();
 
-    expect(repo.insertedRework).toMatchObject({ complaint_id: 99 });
+    expect(repo.queuedReworks[0]?.values).toMatchObject({ complaintId: 99 });
     expect(line.id).toBe(500);
   });
 
@@ -388,14 +324,11 @@ describe("addRework", () => {
     // "Still bad after the first rework" stays inside the one Complaint
     // (ADR-0013): another free round on the same Item.
     expect(line.id).toBe(500);
-    expect(repo.insertedRework).toMatchObject({
-      complaint_id: 99,
-      item_id: 21,
-      price: "0",
-      is_priority: true,
-      status: "queued",
+    expect(repo.queuedReworks[0]?.values).toMatchObject({
+      complaintId: 99,
+      itemId: 21,
+      orderId: 7,
     });
-    expect(rollup.calls).toEqual([{ executor: TX, orderId: 7, userId: 42 }]);
   });
 });
 

@@ -1,6 +1,5 @@
-import { allocateRefund, lineKey } from "@fresclean/api/rules";
+import { lineKey } from "@fresclean/api/rules";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { UseMutationResult } from "@tanstack/react-query";
 import { Fragment } from "react";
 import {
 	Controller,
@@ -18,14 +17,25 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-	CancelOrderPayload,
-	CreateOrderRefundPayload,
-} from "@/features/orders/api";
+import type { OrderDetail } from "@/features/orders/api";
 import {
+	useCancelOrderMutation,
+	useRefundOrderMutation,
+} from "@/features/orders/hooks/useOrderMutations";
+import type { OrderLine } from "@/features/orders/lib/order-lines";
+import {
+	buildRefundCaps,
+	previewRefund,
+} from "@/features/orders/lib/refund-preview";
+import {
+	findWorkshopRework,
 	reworkChoiceCaption,
 	type WorkshopRework,
 } from "@/features/orders/lib/refund-rework";
+import {
+	getOrderServiceItemDetails,
+	getShortItemTag,
+} from "@/lib/order-service-item-details";
 import {
 	CANCEL_REASONS,
 	formatCancelReason,
@@ -34,6 +44,7 @@ import {
 } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
 import { pluralize } from "@/shared/utils";
+import { useDialog } from "@/stores/dialog-store";
 
 // Cancellation is the unpaid twin of Refund (ADR-0008), so both share this
 // form; Refund also previews the exact amounts the server will book.
@@ -55,6 +66,26 @@ interface ReversalProductOption {
 	name: string;
 	qty: number;
 }
+
+type OrderProduct = OrderDetail["products"][number];
+
+// The pickers name the Item ("Nike · AF1 · White") and the short tag, so the
+// cashier needn't flip back to the order to match codes.
+const toServiceOption = (orderCode: string, line: OrderLine) => ({
+	id: line.id,
+	item_details: getOrderServiceItemDetails(line.item),
+	item_tag: getShortItemTag({
+		order_code: orderCode,
+		item_code: line.item.item_code,
+	}),
+	service_name: line.service?.name ?? "Service",
+});
+
+const toProductOption = (product: OrderProduct): ReversalProductOption => ({
+	id: product.id,
+	name: product.product?.name ?? `Product #${product.product_id}`,
+	qty: product.qty,
+});
 
 type ReversalSubmitItem<R extends string> = (
 	| { order_service_id: number }
@@ -135,11 +166,9 @@ interface ReversalCopy {
 }
 
 interface OrderLineReversalFormProps<R extends string> {
-	closeDialog: () => void;
 	copy: ReversalCopy;
 	defaultReason: R;
 	formatReason: (reason: R) => string;
-	isPending: boolean;
 	products: ReversalProductOption[];
 	reversal: Reversal<R>;
 	services: ReversalServiceOption[];
@@ -149,17 +178,16 @@ interface OrderLineReversalFormProps<R extends string> {
 }
 
 const OrderLineReversalForm = <R extends string>({
-	closeDialog,
 	copy,
 	defaultReason,
 	formatReason,
-	isPending,
 	products,
 	reversal,
 	services,
 	submitItems,
 	capsByLineKey,
 }: OrderLineReversalFormProps<R>) => {
+	const closeDialog = useDialog((s) => s.closeDialog);
 	const lines = [
 		...services.map((service) => ({
 			kind: "service" as const,
@@ -199,52 +227,16 @@ const OrderLineReversalForm = <R extends string>({
 		},
 	});
 	const { fields } = useFieldArray({ control: form.control, name: "items" });
-	// isPending is frozen when the dialog opens, so the form's own isSubmitting
-	// is what stops a cashier's double tap from submitting twice.
-	const pending = isPending || form.formState.isSubmitting;
-	const watchedItems = useWatch({ control: form.control, name: "items" });
-	const selectedCount = (watchedItems ?? []).filter(
-		(item) => item.selected,
-	).length;
-	// Amounts come from the same allocateRefund the server runs at submit.
-	// Selected lines are allocated together (leftover rupiah shift with the
-	// set); unselected lines preview what they'd refund alone.
-	const previewAmounts = new Map<string, number>();
-	if (capsByLineKey) {
-		const items = watchedItems ?? [];
-		const selected = items.filter(
-			(item) =>
-				item.selected &&
-				(capsByLineKey.get(lineKey(item.kind, item.id)) ?? 0) > 0,
-		);
-		if (selected.length > 0) {
-			for (const line of allocateRefund({ capsByLineKey, lines: selected })) {
-				previewAmounts.set(lineKey(line.kind, line.id), line.amount);
-			}
-		}
-		for (const item of items) {
-			const key = lineKey(item.kind, item.id);
-			if (!previewAmounts.has(key)) {
-				const cap = capsByLineKey.get(key) ?? 0;
-				previewAmounts.set(
-					key,
-					cap > 0
-						? allocateRefund({
-								capsByLineKey,
-								lines: [{ id: item.id, kind: item.kind }],
-							})[0].amount
-						: 0,
-				);
-			}
-		}
-	}
-	const totalRefund = (watchedItems ?? []).reduce(
-		(sum, item) =>
-			item.selected
-				? sum + (previewAmounts.get(lineKey(item.kind, item.id)) ?? 0)
-				: sum,
-		0,
-	);
+	// isSubmitting turns on at the tap, before the request starts, so it is what
+	// stops a cashier's double tap from submitting twice.
+	const pending = form.formState.isSubmitting;
+	const watchedItems = useWatch({ control: form.control, name: "items" }) ?? [];
+	const pickedItems = watchedItems.filter((item) => item.selected);
+	const selectedCount = pickedItems.length;
+	const preview = capsByLineKey
+		? previewRefund(capsByLineKey, watchedItems, pickedItems)
+		: undefined;
+	const totalRefund = preview?.total ?? 0;
 	const itemsError = form.formState.errors.items;
 	const itemsRootMessage =
 		itemsError && !Array.isArray(itemsError)
@@ -348,8 +340,8 @@ const OrderLineReversalForm = <R extends string>({
 								) : null}
 								<ReversalItemRow
 									amount={
-										capsByLineKey && line
-											? (previewAmounts.get(lineKey(line.kind, line.id)) ?? 0)
+										preview && line
+											? (preview.byLine.get(lineKey(line.kind, line.id)) ?? 0)
 											: undefined
 									}
 									disabled={pending}
@@ -546,80 +538,68 @@ const ReworkChoice = ({
 	);
 };
 
-type CancelOrderMutation = UseMutationResult<
-	unknown,
-	Error,
-	CancelOrderPayload,
-	unknown
->;
-
 interface CancelOrderFormProps {
-	closeDialog: () => void;
-	cancellableProducts: ReversalProductOption[];
-	cancellableServices: ReversalServiceOption[];
-	cancelOrderMutation: CancelOrderMutation;
+	detail: OrderDetail;
+	lines: OrderLine[];
+	products: OrderProduct[];
 }
 
 export const CancelOrderForm = ({
-	closeDialog,
-	cancellableProducts,
-	cancellableServices,
-	cancelOrderMutation,
-}: CancelOrderFormProps) => (
-	<OrderLineReversalForm
-		closeDialog={closeDialog}
-		copy={{
-			confirm: "Cancel Order",
-			pending: "Cancelling…",
-			keep: "Keep Order",
-			confirmSome: (count) => `Cancel ${pluralize(count, "Line")}`,
-		}}
-		defaultReason="customer_request"
-		formatReason={formatCancelReason}
-		isPending={cancelOrderMutation.isPending}
-		products={cancellableProducts}
-		reversal={REVERSALS.cancel}
-		services={cancellableServices}
-		submitItems={(items) => cancelOrderMutation.mutateAsync({ items })}
-	/>
-);
+	detail,
+	lines,
+	products,
+}: CancelOrderFormProps) => {
+	const cancelOrderMutation = useCancelOrderMutation(detail.id);
 
-type RefundOrderMutation = UseMutationResult<
-	unknown,
-	Error,
-	{ orderId: number; payload: CreateOrderRefundPayload },
-	unknown
->;
+	return (
+		<OrderLineReversalForm
+			copy={{
+				confirm: "Cancel Order",
+				pending: "Cancelling…",
+				keep: "Keep Order",
+				confirmSome: (count) => `Cancel ${pluralize(count, "Line")}`,
+			}}
+			defaultReason="customer_request"
+			formatReason={formatCancelReason}
+			products={products.map(toProductOption)}
+			reversal={REVERSALS.cancel}
+			services={lines.map((line) => ({
+				...toServiceOption(detail.code, line),
+				is_rework: Boolean(line.reworkOf),
+			}))}
+			submitItems={(items) => cancelOrderMutation.mutateAsync({ items })}
+		/>
+	);
+};
 
 interface RefundOrderFormProps {
-	capsByLineKey: Map<string, number>;
-	closeDialog: () => void;
-	orderId: number;
-	refundableProducts: ReversalProductOption[];
-	refundableServices: ReversalServiceOption[];
-	refundMutation: RefundOrderMutation;
+	detail: OrderDetail;
+	lines: OrderLine[];
+	products: OrderProduct[];
 }
 
 export const RefundOrderForm = ({
-	capsByLineKey,
-	closeDialog,
-	orderId,
-	refundableProducts,
-	refundableServices,
-	refundMutation,
-}: RefundOrderFormProps) => (
-	<OrderLineReversalForm
-		capsByLineKey={capsByLineKey}
-		closeDialog={closeDialog}
-		copy={{ confirm: "Confirm Refund", pending: "Refunding…" }}
-		defaultReason="damaged"
-		formatReason={formatRefundReason}
-		isPending={refundMutation.isPending}
-		products={refundableProducts}
-		reversal={REVERSALS.refund}
-		services={refundableServices}
-		submitItems={(items) =>
-			refundMutation.mutateAsync({ orderId, payload: { items } })
-		}
-	/>
-);
+	detail,
+	lines,
+	products,
+}: RefundOrderFormProps) => {
+	const refundMutation = useRefundOrderMutation();
+
+	return (
+		<OrderLineReversalForm
+			capsByLineKey={buildRefundCaps(detail)}
+			copy={{ confirm: "Confirm Refund", pending: "Refunding…" }}
+			defaultReason="damaged"
+			formatReason={formatRefundReason}
+			products={products.map(toProductOption)}
+			reversal={REVERSALS.refund}
+			services={lines.map((line) => ({
+				...toServiceOption(detail.code, line),
+				workshopRework: findWorkshopRework(line),
+			}))}
+			submitItems={(items) =>
+				refundMutation.mutateAsync({ orderId: detail.id, payload: { items } })
+			}
+		/>
+	);
+};

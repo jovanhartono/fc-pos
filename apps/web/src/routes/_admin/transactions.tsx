@@ -10,6 +10,7 @@ import { PosSkeleton } from "@/features/transactions/components/pos-skeleton";
 import { TransactionsWorkspace } from "@/features/transactions/components/transactions-workspace";
 import { useTransactionsPageBootstrap } from "@/features/transactions/hooks/use-transactions-page";
 import { TransactionsPageProvider } from "@/features/transactions/lib/transactions-context";
+import { pickStore, storeScope } from "@/features/users/lib/store-scope";
 
 export const Route = createFileRoute("/_admin/transactions")({
 	loader: async ({ context }) => {
@@ -21,19 +22,15 @@ export const Route = createFileRoute("/_admin/transactions")({
 			context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
 		]);
 
-		const { me } = context;
+		const firstStoreId = pickStore(storeScope(context.me));
 
-		if (me.role !== "admin") {
-			const firstStoreId = me.userStores[0]?.store_id;
-
-			if (firstStoreId) {
-				await context.queryClient.ensureQueryData(
-					campaignsQueries.list({
-						store_id: firstStoreId,
-						is_active: true,
-					}),
-				);
-			}
+		if (firstStoreId) {
+			await context.queryClient.ensureQueryData(
+				campaignsQueries.list({
+					store_id: firstStoreId,
+					is_active: true,
+				}),
+			);
 		}
 	},
 	component: TransactionsPage,

@@ -8,7 +8,6 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // at the counter (ADR-0005/0016).
 
 mock.module("@/utils/s3", () => ({
-  STORAGE_ENV_PREFIX: "dev/",
   buildMediaUrl: (path: string | null) =>
     path ? `https://cdn.test/${path}` : null,
   createPresignedUploadUrl: ({ key }: { key: string }) => ({

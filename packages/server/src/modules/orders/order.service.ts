@@ -44,6 +44,7 @@ import {
 } from "@/modules/products/product.repository";
 import { findServices } from "@/modules/services/service.repository";
 import type { POSTOrderSchema } from "@/schema";
+import { orderNetDue } from "@/schema/discount";
 import { isCollectableItemStatus } from "@/schema/order-status";
 import type { AuthUser } from "@/types";
 import type { Store } from "@/types/entity";
@@ -437,7 +438,12 @@ export async function createOrder(
         discount: discountAmount.toString(),
         discount_source: discountSource,
         paid_amount: isPaidAtDropoff
-          ? (netTotal + orderPayload.delivery_fee).toString()
+          ? orderNetDue({
+              grossTotal,
+              discount: discountAmount,
+              refunded: 0,
+              deliveryFee: orderPayload.delivery_fee,
+            }).toString()
           : "0",
         paid_at: isPaidAtDropoff ? new Date() : null,
         paid_by: isPaidAtDropoff ? userId : null,

@@ -214,7 +214,6 @@ describe("getCartPricing", () => {
 		expect(pricing.campaignDiscount).toBe(0);
 		expect(pricing.manualDiscount).toBe(15_000);
 		expect(pricing.totalDiscount).toBe(15_000);
-		expect(pricing.total).toBe(85_000);
 	});
 
 	test("empty manual discount reads as zero", () => {
@@ -225,7 +224,6 @@ describe("getCartPricing", () => {
 			manualDiscount: "",
 		});
 		expect(pricing.manualDiscount).toBe(0);
-		expect(pricing.total).toBe(100_000);
 	});
 
 	test("stacks campaign and manual discount", () => {
@@ -239,7 +237,6 @@ describe("getCartPricing", () => {
 		expect(pricing.campaignBreakdown).toHaveLength(1);
 		expect(pricing.campaignBreakdown[0].amount).toBe(10_000);
 		expect(pricing.totalDiscount).toBe(15_000);
-		expect(pricing.total).toBe(85_000);
 	});
 
 	test("campaigns run on the full order total — repair spend counts (ADR-0018)", () => {
@@ -252,10 +249,9 @@ describe("getCartPricing", () => {
 			manualDiscount: "",
 		});
 		expect(pricing.campaignDiscount).toBe(70_000);
-		expect(pricing.total).toBe(280_000);
 	});
 
-	test("clamps total discount at the subtotal so total never goes negative", () => {
+	test("clamps total discount at the subtotal", () => {
 		const pricing = getCartPricing({
 			subtotal: 20_000,
 			campaigns: [percentCampaign("50")],
@@ -263,7 +259,6 @@ describe("getCartPricing", () => {
 			manualDiscount: "50000",
 		});
 		expect(pricing.totalDiscount).toBe(20_000);
-		expect(pricing.total).toBe(0);
 	});
 
 	test("reports the manual discount that was actually applied, not the keyed one", () => {

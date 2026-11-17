@@ -18,13 +18,8 @@ import {
 import type { GetUsersQuery } from "@/modules/users/user.schema";
 import type { JWTPayload } from "@/types";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
-import {
-  assertPhotoKeyUnder,
-  buildMediaUrl,
-  createPresignedUploadUrl,
-  newPhotoKey,
-  optimizeUploadedImage,
-} from "@/utils/s3";
+import { acceptPhotoUpload, presignPhotoUpload } from "@/utils/photo-upload";
+import { buildMediaUrl } from "@/utils/s3";
 
 export async function createUser(payload: InferInsertModel<typeof usersTable>) {
   const passwordHash = await Bun.password.hash(payload.password ?? "");
@@ -105,16 +100,12 @@ export async function changeOwnPassword({
 }
 
 export function createAvatarPresign(userId: number, contentType: string) {
-  return createPresignedUploadUrl({
-    contentType,
-    key: newPhotoKey({ kind: "avatar", userId }),
-  });
+  return presignPhotoUpload({ kind: "avatar", userId }, contentType);
 }
 
 // The replaced photo stays in storage, as every replaced photo does.
 export async function saveAvatar(userId: number, imagePath: string) {
-  assertPhotoKeyUnder(imagePath, { kind: "avatar", userId });
-  await optimizeUploadedImage(imagePath);
+  await acceptPhotoUpload({ kind: "avatar", userId }, imagePath);
   await updateUserById(userId, { avatar_path: imagePath });
   return getUserById(userId);
 }

@@ -1,7 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { usersQueries } from "@/features/users/api";
 import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
 import { cn } from "@/lib/utils";
-import { getCurrentUser } from "@/stores/auth-store";
 
 interface CustomerLinkProps {
 	className?: string;
@@ -17,7 +18,10 @@ export const CustomerLink = ({
 	name,
 }: CustomerLinkProps) => {
 	const leaveSheet = useLeaveSheetLink();
-	if (getCurrentUser()?.role !== "admin") {
+	// The order sheet sits outside the `_admin` layout, so `me` may not be
+	// loaded yet: show the plain name until it is.
+	const { data: me } = useQuery(usersQueries.me());
+	if (me?.role !== "admin") {
 		return <span className={cn("font-medium", className)}>{name}</span>;
 	}
 

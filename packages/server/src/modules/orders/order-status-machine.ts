@@ -377,19 +377,50 @@ export async function transitionOrderService(
   return moved;
 }
 
-// A line has no created_at, so this row is the only record of who put a
-// Rework round on the rack, and when (ADR-0013).
-export async function logReworkQueued(
+// A free round on the rack for a Complaint (ADR-0013), ahead of the queue.
+export async function queueReworkLine(
   executor: DbExecutor,
-  { by, note, serviceId }: { by: number; note: string; serviceId: number }
+  {
+    by,
+    complaintId,
+    itemId,
+    orderId,
+    serviceId,
+  }: {
+    by: number;
+    complaintId: number;
+    itemId: number;
+    orderId: number;
+    serviceId: number | null;
+  }
 ) {
+  const [line] = await executor
+    .insert(ordersServicesTable)
+    .values({
+      order_id: orderId,
+      item_id: itemId,
+      service_id: serviceId,
+      price: "0",
+      cogs_snapshot: "0",
+      is_priority: true,
+      status: "queued",
+      complaint_id: complaintId,
+    })
+    .returning();
+
+  // A line has no created_at, so this row is the only record of who put a
+  // Rework round on the rack, and when (ADR-0013).
   await executor.insert(orderServiceStatusLogsTable).values({
-    order_service_id: serviceId,
+    order_service_id: line.id,
     from_status: null,
     to_status: "queued",
     changed_by: by,
-    note,
+    note: `Rework for complaint #${complaintId}`,
   });
+
+  await recomputeOrderRollup(executor, orderId, by);
+
+  return line;
 }
 
 // The pair's original was cancelled or refunded, so its free re-clean stops

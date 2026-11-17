@@ -16,13 +16,15 @@ import {
 } from "@/features/complaints/api";
 import {
 	formatComplaintItem,
-	getComplaintItemTag,
 	getComplaintOutcome,
 } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
 import { formatListDate } from "@/lib/dayjs";
-import { getRowItemDetails } from "@/lib/order-service-item-details";
+import {
+	getRowItemDetails,
+	getShortItemTag,
+} from "@/lib/order-service-item-details";
 import {
 	DEFAULT_PAGE_SIZE,
 	pageSizeChange,
@@ -174,7 +176,7 @@ const ComplaintsPage = () => {
 						<OrderListRow
 							className="items-start rounded-none"
 							hasCaret={false}
-							details={[complaint.order_code, getComplaintItemTag(complaint)]}
+							details={[complaint.order_code, getShortItemTag(complaint)]}
 							note={getRowItemDetails(complaint)}
 							end={
 								<div className="grid justify-items-end gap-1">

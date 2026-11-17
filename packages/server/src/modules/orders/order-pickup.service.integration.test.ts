@@ -10,19 +10,13 @@ import { resetDb, testDb } from "@/test-support/pglite";
 
 const STORAGE_ENV_PREFIX = "dev/";
 
-// Taken before the mock replaces the module, so the real key checks run here.
-const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
-
 mock.module("@/utils/s3", () => ({
-  STORAGE_ENV_PREFIX,
-  assertPhotoKeyUnder,
   buildMediaUrl: (path: string) => `https://cdn.test/${path}`,
   createPresignedUploadUrl: ({ key }: { key: string }) => ({
     expires_in_seconds: 300,
     key,
     upload_url: `https://s3.test/${key}`,
   }),
-  newPhotoKey,
   optimizeUploadedImage: () => Promise.resolve(),
 }));
 

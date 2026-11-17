@@ -45,6 +45,7 @@ import {
   allocateRefund as _allocateRefund,
   lineKey as _lineKey,
   orderLineRefundCaps as _orderLineRefundCaps,
+  type RefundLineRef as _RefundLineRef,
 } from "@/schema/refund-allocation";
 import { TURNAROUND_PROMISE_HOURS as _TURNAROUND_PROMISE_HOURS } from "@/schema/turnaround";
 import {
@@ -95,6 +96,7 @@ export const hasUnpricedLine = _hasUnpricedLine;
 export const isUnpricedLine = _isUnpricedLine;
 
 export const allocateRefund = _allocateRefund;
+export type RefundLineRef = _RefundLineRef;
 export const lineKey = _lineKey;
 export const orderLineRefundCaps = _orderLineRefundCaps;
 

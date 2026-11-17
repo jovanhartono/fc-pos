@@ -11,15 +11,15 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { WorkerRow } from "@/features/reports/api";
-import {
-	Pace,
-	PersonName,
-	paceText,
-} from "@/features/reports/components/person-cells";
+import { Pace, PersonName } from "@/features/reports/components/person-cells";
 import { StoreGroup } from "@/features/reports/components/store-group";
 import { BadCount } from "@/features/reports/components/tone-chip";
 import { useStoreCodes } from "@/features/reports/hooks/useStoreCodes";
-import { numberFormatter, pluralCount } from "@/features/reports/utils/format";
+import {
+	numberFormatter,
+	paceText,
+	pluralCount,
+} from "@/features/reports/utils/format";
 import {
 	groupByStore,
 	isMissingClockIn,

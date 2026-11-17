@@ -18,11 +18,7 @@ import { resetDb, testDb } from "@/test-support/pglite";
 
 const STORAGE_ENV_PREFIX = "dev/";
 
-const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
-
 mock.module("@/utils/s3", () => ({
-  STORAGE_ENV_PREFIX,
-  assertPhotoKeyUnder,
   buildMediaUrl: (path: string | null) =>
     path ? `https://cdn.test/${path}` : null,
   createPresignedUploadUrl: ({ key }: { key: string }) => ({
@@ -30,7 +26,6 @@ mock.module("@/utils/s3", () => ({
     key,
     upload_url: `https://s3.test/${key}`,
   }),
-  newPhotoKey,
   optimizeUploadedImage: () => Promise.resolve(),
 }));
 
@@ -197,6 +192,24 @@ describe("a pair turned down at the counter", () => {
       [rework.id, "picked_up"],
     ]);
     expect(lines.every((line) => line.pickup_event_id === event.id)).toBe(true);
+  });
+
+  it("queues the rework free, ahead of the queue, on the same Item", async () => {
+    const pair = await pairOnTheShelf("paid");
+
+    const { complaint, rework } = await turnDown(pair.lineId, true);
+
+    // One object, one tag (ADR-0017): the returning shoes keep their Item.
+    expect(rework).toMatchObject({
+      complaint_id: complaint.id,
+      cogs_snapshot: "0",
+      is_priority: true,
+      item_id: pair.itemId,
+      notes: null,
+      order_id: pair.orderId,
+      price: "0",
+      status: "queued",
+    });
   });
 
   it("records who put the rework on the rack, and when", async () => {

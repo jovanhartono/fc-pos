@@ -33,6 +33,7 @@ const state = {
   serviceRows: [] as AnyObj[],
   productRows: [] as AnyObj[],
   refundedRows: [] as AnyObj[],
+  orderReads: 0,
   postCancelStatus: undefined as string | undefined,
   postCancelPaymentStatus: "unpaid" as string,
   postCancelTotal: "0" as string | null,
@@ -89,9 +90,11 @@ const fakeTx = {
   select: selectBuilder,
   query: {
     ordersTable: {
+      // The first read is the Order as the cancel found it; later ones see it
+      // after the lines went.
       findFirst: () =>
         Promise.resolve(
-          state.postCancelStatus == null
+          state.orderReads++ === 0 || state.postCancelStatus == null
             ? state.order
             : {
                 payment_status: state.postCancelPaymentStatus,
@@ -200,6 +203,11 @@ mock.module("@/modules/campaigns/campaign-redemption.service", () => ({
   },
 }));
 
+// Closing a QRIS reaches the gateway; payment-charge.service's own suite covers it.
+mock.module("@/modules/payments/payment-charge-close", () => ({
+  cancelOrderPendingCharges: () => Promise.resolve(),
+}));
+
 const stock = {
   calls: [] as { executor: unknown; productId: number; qty: number }[],
 };
@@ -280,6 +288,7 @@ beforeEach(() => {
   state.serviceRows = [];
   state.productRows = [];
   state.refundedRows = [];
+  state.orderReads = 0;
   state.postCancelStatus = undefined;
   state.postCancelPaymentStatus = "unpaid";
   state.postCancelTotal = "0";
@@ -661,7 +670,7 @@ describe("cancelOrder", () => {
     expect((error as Error).message).toBe(
       "Product line 32 is refunded and cannot be cancelled"
     );
-    expect(writes.transactionCount).toBe(0);
+    expect(writes.updates).toHaveLength(0);
   });
 
   it("refuses a line that does not belong to this order", async () => {
@@ -676,6 +685,6 @@ describe("cancelOrder", () => {
     expect((error as Error).message).toBe(
       "Product line 33 not found on this order"
     );
-    expect(writes.transactionCount).toBe(0);
+    expect(writes.updates).toHaveLength(0);
   });
 });

@@ -23,7 +23,6 @@ import {
 import { ordersQueries } from "@/features/orders/api";
 import { CONTENT_FADE } from "@/lib/content-fade";
 import { ensureOrNotFound } from "@/lib/server-error";
-import { getCurrentUser } from "@/stores/auth-store";
 
 const customerDetailSearchSchema = z.object({
 	page: z.coerce.number().int().positive().catch(1),
@@ -94,8 +93,8 @@ export const Route = createFileRoute("/_admin/customers/$customerId")({
 	// The page is admin-only server-side (ADR-0021). A cashier who reaches it —
 	// the browse list is theirs too — would otherwise watch both reads 403 into
 	// the layout's crash screen, so send them back to the list instead.
-	beforeLoad: () => {
-		if (getCurrentUser()?.role !== "admin") {
+	beforeLoad: ({ context }) => {
+		if (context.me.role !== "admin") {
 			throw redirect({ to: "/customers", search: { page: 1 } });
 		}
 	},

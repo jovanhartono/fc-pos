@@ -3,25 +3,20 @@ import { beforeEach, expect, it, mock } from "bun:test";
 import { captureRejection } from "@/test-support/capture-rejection";
 import { type Shop, seedShop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
+import { newPhotoKey } from "@/utils/photo-key";
 
 // Saving an Item photo against a real Postgres: the row lands, and the
 // queued -> processing gate (ADR-0012) reads it back and unlocks.
 
-const STORAGE_ENV_PREFIX = "dev/";
-
-// Taken before the mock replaces the module, so the real key checks run here.
-const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
-
 mock.module("@/utils/s3", () => ({
-  STORAGE_ENV_PREFIX,
-  assertPhotoKeyUnder,
   buildMediaUrl: (path: string) => `https://cdn.test/${path}`,
+  createPresignedDownloadUrl: () => "",
   createPresignedUploadUrl: ({ key }: { key: string }) => ({
     expires_in_seconds: 300,
     key,
     upload_url: `https://s3.test/${key}`,
   }),
-  newPhotoKey,
+  isStoredObjectReadable: () => Promise.resolve(true),
   optimizeUploadedImage: () => Promise.resolve(),
 }));
 

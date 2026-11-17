@@ -17,7 +17,7 @@ mock.module("@/modules/orders/order-photo.repository", () => ({
 const { sweepOrphanedOrderPhotos } = await import(
   "@/modules/orders/order-photo-sweep.service"
 );
-const { STORAGE_ENV_PREFIX } = await import("@/utils/s3");
+const { STORAGE_ENV_PREFIX } = await import("@/utils/photo-key");
 
 const own = (suffix: string) => `${STORAGE_ENV_PREFIX}orders/${suffix}`;
 
@@ -26,8 +26,8 @@ interface StoredRow {
   lastModified?: string;
 }
 
-// Honours the prefix the way S3 does, which is what keeps the other
-// environment's photos out of the sweep's reach in the shared bucket.
+// Honours the prefix the way R2 does, so the sweep only ever sees keys its own
+// environment wrote.
 const stubBucket = (objects: StoredRow[], pageSize = 1000) => {
   const calls = {
     deleted: [] as string[],

@@ -69,7 +69,6 @@ import {
   paymentChargeParamSchema,
 } from "@/modules/payments/payment-charge.schema";
 import {
-  cancelOrderPendingCharges,
   cancelPaymentCharge,
   createPaymentCharge,
   getOpenQrisCharge,
@@ -239,8 +238,6 @@ const app = new Hono<OrderAccessEnv>()
         throw new NotFoundException("Order not found");
       }
 
-      await cancelOrderPendingCharges(id);
-
       return c.json(success(payment, "Marked as paid"));
     }
   )
@@ -339,7 +336,6 @@ const app = new Hono<OrderAccessEnv>()
       if (!updated) {
         throw new NotFoundException("Order not found");
       }
-      await cancelOrderPendingCharges(id);
 
       return c.json(success(updated, "Delivery fee updated"));
     }
@@ -454,7 +450,6 @@ const app = new Hono<OrderAccessEnv>()
         body,
         user,
       });
-      await cancelOrderPendingCharges(id);
 
       return c.json(success(result, "Price updated"));
     }
@@ -597,7 +592,6 @@ const app = new Hono<OrderAccessEnv>()
         body,
         user,
       });
-      await cancelOrderPendingCharges(id);
 
       return c.json(success(result, "Order cancelled"));
     }

@@ -81,8 +81,13 @@ const { cancelOrder } = await import("@/modules/orders/order-reversal.service");
 const { getTrackedOrder, payTrackedOrder } = await import(
   "@/modules/orders/order-track.service"
 );
+const { setOrderServicePrice } = await import(
+  "@/modules/orders/order-price.service"
+);
+const { updateOrderDeliveryFee } = await import(
+  "@/modules/orders/order-delivery-fee.service"
+);
 const {
-  cancelOrderPendingCharges,
   cancelPaymentCharge,
   createPaymentCharge,
   getOpenQrisCharge,
@@ -566,10 +571,58 @@ describe("Mark as paid at the counter", () => {
     const order = await dropOff();
     const charge = await showQris(order.id);
 
-    await cancelOrderPendingCharges(order.id);
+    await updateOrderPayment({
+      body: { ...NO_DISCOUNT, payment_method_id: shop.paymentMethodId },
+      orderId: order.id,
+      user: shop.cashier,
+    });
 
     expect((await readCharge(charge.id))?.status).toBe("cancelled");
     expect(gateway.cancelled).toHaveLength(1);
+  });
+});
+
+describe("the bill changes while a QRIS is on screen", () => {
+  it("closes the QRIS when the workshop prices a Repair", async () => {
+    const order = await dropOff(1, true);
+    const repair = await testDb.query.ordersServicesTable.findFirst({
+      where: { order_id: order.id, service_id: shop.repairServiceId },
+    });
+    await setOrderServicePrice({
+      body: { price: 150_000 },
+      orderId: order.id,
+      serviceId: repair?.id ?? 0,
+      user: shop.cashier,
+    });
+    const charge = await showQris(order.id);
+
+    await setOrderServicePrice({
+      body: { price: 180_000 },
+      orderId: order.id,
+      serviceId: repair?.id ?? 0,
+      user: shop.cashier,
+    });
+
+    expect((await readCharge(charge.id))?.status).toBe("cancelled");
+    expect(gateway.cancelled).toEqual([
+      expect.objectContaining({ reference: charge.reference }),
+    ]);
+  });
+
+  it("closes the QRIS when the Delivery fee is set", async () => {
+    const order = await dropOff();
+    const charge = await showQris(order.id);
+
+    await updateOrderDeliveryFee({
+      deliveryFee: 25_000,
+      orderId: order.id,
+      user: shop.cashier,
+    });
+
+    expect((await readCharge(charge.id))?.status).toBe("cancelled");
+    expect(gateway.cancelled).toEqual([
+      expect.objectContaining({ reference: charge.reference }),
+    ]);
   });
 });
 
@@ -581,7 +634,6 @@ describe("a line cancelled while a QRIS is on screen", () => {
       where: { order_id: order.id },
     });
 
-    // What the cancel route does: the line goes, then the old-amount QR.
     await cancelOrder({
       body: {
         items: [{ order_service_id: line.id, reason: "customer_request" }],
@@ -589,7 +641,6 @@ describe("a line cancelled while a QRIS is on screen", () => {
       orderId: order.id,
       user: shop.cashier,
     });
-    await cancelOrderPendingCharges(order.id);
 
     expect((await readCharge(charge.id))?.status).toBe("cancelled");
     expect(gateway.cancelled).toEqual([
@@ -705,7 +756,6 @@ describe("asking the gateway about QRIS that ended unseen", () => {
       orderId: order.id,
       user: shop.cashier,
     });
-    await cancelOrderPendingCharges(order.id);
     await endCharge(charge.id);
     gateway.paidAmount = 100_000;
 
@@ -827,7 +877,6 @@ describe("why a QRIS on screen closed", () => {
       orderId: order.id,
       user: shop.cashier,
     });
-    await cancelOrderPendingCharges(order.id);
 
     expect(await getPaymentCharge(order.id, charge.id)).toMatchObject({
       closed_reason: "order_changed",
@@ -852,7 +901,6 @@ describe("why a QRIS on screen closed", () => {
       orderId: order.id,
       user: shop.cashier,
     });
-    await cancelOrderPendingCharges(order.id);
 
     expect(await getPaymentCharge(order.id, charge.id)).toMatchObject({
       closed_reason: "order_changed",
@@ -884,7 +932,6 @@ describe("why a QRIS on screen closed", () => {
       orderId: order.id,
       user: shop.cashier,
     });
-    await cancelOrderPendingCharges(order.id);
 
     expect(await getPaymentCharge(order.id, charge.id)).toMatchObject({
       closed_reason: "order_paid",

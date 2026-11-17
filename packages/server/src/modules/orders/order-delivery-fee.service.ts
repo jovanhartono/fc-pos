@@ -2,6 +2,7 @@ import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
+import { cancelOrderPendingCharges } from "@/modules/payments/payment-charge-close";
 import { assertCanCreateOrder } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
 
@@ -34,6 +35,8 @@ export async function updateOrderDeliveryFee({
     });
 
   if (rows[0]) {
+    // The Customer's open QR still asks for the old amount.
+    await cancelOrderPendingCharges(orderId);
     return rows[0];
   }
 

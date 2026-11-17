@@ -17,6 +17,9 @@ export const oneDecimalFormatter = new Intl.NumberFormat("en-ID", {
 	maximumFractionDigits: 1,
 });
 
+export const paceText = (perDay: number | null) =>
+	perDay === null ? "—" : `${oneDecimalFormatter.format(perDay)}/day`;
+
 export const percentFormatter = new Intl.NumberFormat("en-ID", {
 	style: "percent",
 	maximumFractionDigits: 1,

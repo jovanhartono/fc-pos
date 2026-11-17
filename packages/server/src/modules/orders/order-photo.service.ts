@@ -20,14 +20,11 @@ import {
 } from "@/modules/orders/order-photo.repository";
 import type { AuthUser, JWTPayload } from "@/types";
 import { assertStoreAccess } from "@/utils/authorization";
+import { acceptPhotoUpload, presignPhotoUpload } from "@/utils/photo-upload";
 import {
-  assertPhotoKeyUnder,
   buildMediaUrl,
   createPresignedDownloadUrl,
-  createPresignedUploadUrl,
   isStoredObjectReadable,
-  newPhotoKey,
-  optimizeUploadedImage,
 } from "@/utils/s3";
 
 // Keyed by Item (ADR-0019). Older photos keep their `services/{serviceId}/` keys;
@@ -43,11 +40,10 @@ export async function createItemPhotoPresign({
 }) {
   await getItemOrThrow(orderId, itemId);
 
-  const key = newPhotoKey({ itemId, kind: "item", orderId });
-  return createPresignedUploadUrl({
-    contentType: body.content_type,
-    key,
-  });
+  return presignPhotoUpload(
+    { itemId, kind: "item", orderId },
+    body.content_type
+  );
 }
 
 export async function createOrderDropoffPhotoPresign({
@@ -66,11 +62,7 @@ export async function createOrderDropoffPhotoPresign({
     throw new BadRequestException("Order not found");
   }
 
-  const key = newPhotoKey({ kind: "dropoff", orderId });
-  return createPresignedUploadUrl({
-    contentType: body.content_type,
-    key,
-  });
+  return presignPhotoUpload({ kind: "dropoff", orderId }, body.content_type);
 }
 
 export async function saveItemPhoto({
@@ -86,9 +78,7 @@ export async function saveItemPhoto({
 }) {
   await getItemOrThrow(orderId, itemId);
 
-  assertPhotoKeyUnder(body.image_path, { itemId, kind: "item", orderId });
-
-  await optimizeUploadedImage(body.image_path);
+  await acceptPhotoUpload({ itemId, kind: "item", orderId }, body.image_path);
 
   const [photo] = await db
     .insert(itemImagesTable)
@@ -155,9 +145,7 @@ export async function saveOrderDropoffPhoto({
   body: PutOrderDropoffPhotoInput;
   user: JWTPayload;
 }) {
-  assertPhotoKeyUnder(body.image_path, { kind: "dropoff", orderId });
-
-  await optimizeUploadedImage(body.image_path);
+  await acceptPhotoUpload({ kind: "dropoff", orderId }, body.image_path);
 
   const [order] = await db
     .update(ordersTable)

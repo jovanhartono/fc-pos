@@ -258,7 +258,6 @@ export interface CartPricing<C extends CartCampaign> {
 	campaignDiscount: number;
 	manualDiscount: number;
 	totalDiscount: number;
-	total: number;
 }
 
 export const getCartPricing = <C extends CartCampaign>({
@@ -286,7 +285,6 @@ export const getCartPricing = <C extends CartCampaign>({
 		stacked.total,
 		manualDiscountValue,
 	);
-	const totalDiscount = stacked.total + appliedManual;
 
 	return {
 		campaignBreakdown: stacked.breakdown,
@@ -294,8 +292,7 @@ export const getCartPricing = <C extends CartCampaign>({
 		// What actually comes off, not what was typed — the summary column must
 		// add up to the total beside it.
 		manualDiscount: appliedManual,
-		totalDiscount,
-		total: Math.max(0, subtotal - totalDiscount),
+		totalDiscount: stacked.total + appliedManual,
 	};
 };
 
