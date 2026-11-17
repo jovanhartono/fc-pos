@@ -4,7 +4,7 @@ import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
+import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/use-order-mutations";
 import type { NonTerminalServiceStatus } from "@/features/orders/lib/order-service-actions";
 import { useDialog } from "@/stores/dialog-store";
 
@@ -23,9 +23,13 @@ export const ServiceStatusConfirmForm = ({
   const updateStatusMutation = useUpdateServiceStatusMutation(orderId);
   const noteId = useId();
   const [note, setNote] = useState("");
-  const isPending = updateStatusMutation.isPending;
+  const { isPending } = updateStatusMutation;
   const isReject = nextStatus === "qc_reject";
   const trimmed = note.trim();
+  let confirmLabel = isReject ? "Reject" : "Confirm Update";
+  if (isPending) {
+    confirmLabel = "Saving…";
+  }
 
   const handleConfirm = async () => {
     await updateStatusMutation.mutateAsync({
@@ -63,7 +67,7 @@ export const ServiceStatusConfirmForm = ({
             disabled={isPending || (isReject && !trimmed)}
             onClick={handleConfirm}
           >
-            {isPending ? "Saving…" : isReject ? "Reject" : "Confirm Update"}
+            {confirmLabel}
           </Button>
         }
         onCancel={closeDialog}

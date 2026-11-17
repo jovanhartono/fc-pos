@@ -1,9 +1,7 @@
 import { isValidPhoneNumber } from "@fresclean/api/schema";
 
-import {
-  CHECKOUT_STEPS,
-  type CheckoutStep,
-} from "@/features/transactions/lib/checkout-steps";
+import { CHECKOUT_STEPS } from "@/features/transactions/lib/checkout-steps";
+import type { CheckoutStep } from "@/features/transactions/lib/checkout-steps";
 
 export interface CheckoutGateInput {
   customerName: string;

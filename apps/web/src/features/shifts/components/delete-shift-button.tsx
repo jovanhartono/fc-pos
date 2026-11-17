@@ -3,36 +3,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import { deleteShift, type Shift, shiftsKeys } from "@/features/shifts/api";
+import { deleteShift, shiftsKeys } from "@/features/shifts/api";
+import type { Shift } from "@/features/shifts/api";
 import { shiftSummary } from "@/features/shifts/lib/shift-times";
 import { useDialog } from "@/stores/dialog-store";
-
-interface DeleteShiftButtonProps {
-  shift: Shift;
-}
-
-export const DeleteShiftButton = ({ shift }: DeleteShiftButtonProps) => {
-  const openDialog = useDialog((s) => s.openDialog);
-  const summary = shiftSummary(shift);
-
-  const handleClick = () =>
-    openDialog({
-      title: "Delete Shift?",
-      description: `${summary}. Its hours leave payroll for good.`,
-      footer: () => <DeleteShiftActions shiftId={shift.id} />,
-    });
-
-  return (
-    <Button
-      variant="outline"
-      size="icon-sm"
-      aria-label={`Delete Shift, ${summary}`}
-      title="Delete"
-      onClick={handleClick}
-      icon={<HugeiconsIcon icon={Delete02Icon} className="size-4" />}
-    />
-  );
-};
 
 interface DeleteShiftActionsProps {
   shiftId: number;
@@ -69,5 +43,32 @@ const DeleteShiftActions = ({ shiftId }: DeleteShiftActionsProps) => {
         Delete
       </Button>
     </>
+  );
+};
+
+interface DeleteShiftButtonProps {
+  shift: Shift;
+}
+
+export const DeleteShiftButton = ({ shift }: DeleteShiftButtonProps) => {
+  const openDialog = useDialog((s) => s.openDialog);
+  const summary = shiftSummary(shift);
+
+  const handleClick = () =>
+    openDialog({
+      title: "Delete Shift?",
+      description: `${summary}. Its hours leave payroll for good.`,
+      footer: () => <DeleteShiftActions shiftId={shift.id} />,
+    });
+
+  return (
+    <Button
+      variant="outline"
+      size="icon-sm"
+      aria-label={`Delete Shift, ${summary}`}
+      title="Delete"
+      onClick={handleClick}
+      icon={<HugeiconsIcon icon={Delete02Icon} className="size-4" />}
+    />
   );
 };

@@ -1,17 +1,14 @@
-import type { KpiDelta, ReportGranularity } from "@fresclean/api/types";
+import type { ReportGranularity } from "@fresclean/api/types";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 
-import {
-  type PaginatedData,
-  parseSuccessData,
-  toPaginated,
-  toSearchParams,
-} from "@/lib/http";
+import { parseSuccessData, toPaginated, toSearchParams } from "@/lib/http";
+import type { PaginatedData } from "@/lib/http";
 import { REPORT_STALE_TIME } from "@/lib/query-defaults";
 import { rpc } from "@/lib/rpc";
 
-export type { KpiDelta, ReportGranularity };
+export type { KpiDelta, ReportGranularity } from "@fresclean/api/types";
 
 export type ReportOverview = InferResponseType<
   typeof rpc.api.admin.reports.overview.$get
@@ -76,18 +73,18 @@ export type AgingQueueItem = InferResponseType<
   (typeof rpc.api.admin.reports)["aging-queue"]["$get"]
 >["data"][number];
 
-export type FetchReportOverviewQuery = {
+export interface FetchReportOverviewQuery {
   date: string;
   store_id?: number;
   trend_days?: number;
-};
+}
 
-export type FetchReportRangeQuery = {
+export interface FetchReportRangeQuery {
   from: string;
   to: string;
   store_id?: number;
   granularity?: ReportGranularity;
-};
+}
 
 export interface FetchWorkerDetailQuery {
   from: string;
@@ -149,36 +146,31 @@ export const reportsKeys = {
     [...reportsKeys.all, "aging-queue", query ?? {}] as const,
 };
 
-function toRangeQuery(query: FetchReportRangeQuery) {
-  return {
-    from: query.from,
-    to: query.to,
-    ...(query.store_id !== undefined
-      ? { store_id: String(query.store_id) }
-      : {}),
-    ...(query.granularity ? { granularity: query.granularity } : {}),
-  };
-}
+const toRangeQuery = (query: FetchReportRangeQuery) => ({
+  from: query.from,
+  to: query.to,
+  ...(query.store_id === undefined ? {} : { store_id: String(query.store_id) }),
+  ...(query.granularity ? { granularity: query.granularity } : {}),
+});
 
-function fetchReportOverview(query: FetchReportOverviewQuery) {
-  return parseSuccessData<ReportOverview>(
+const fetchReportOverview = (query: FetchReportOverviewQuery) =>
+  parseSuccessData<ReportOverview>(
     rpc.api.admin.reports.overview.$get({
       query: {
         date: query.date,
-        ...(query.store_id !== undefined
-          ? { store_id: String(query.store_id) }
-          : {}),
-        ...(query.trend_days !== undefined
-          ? { trend_days: String(query.trend_days) }
-          : {}),
+        ...(query.store_id === undefined
+          ? {}
+          : { store_id: String(query.store_id) }),
+        ...(query.trend_days === undefined
+          ? {}
+          : { trend_days: String(query.trend_days) }),
       },
     })
   );
-}
 
-async function fetchAgingQueueReport(
+const fetchAgingQueueReport = async (
   query?: FetchAgingQueueQuery
-): Promise<PaginatedData<AgingQueueItem>> {
+): Promise<PaginatedData<AgingQueueItem>> => {
   const response = await parseResponse(
     rpc.api.admin.reports["aging-queue"].$get({
       query: toSearchParams({
@@ -189,11 +181,11 @@ async function fetchAgingQueueReport(
     })
   );
   return toPaginated(response);
-}
+};
 
-async function fetchQcRejectsReport(
+const fetchQcRejectsReport = async (
   query: FetchQcRejectsQuery
-): Promise<PaginatedData<QcRejectItem>> {
+): Promise<PaginatedData<QcRejectItem>> => {
   const response = await parseResponse(
     rpc.api.admin.reports["qc-rejects"].$get({
       query: {
@@ -207,7 +199,7 @@ async function fetchQcRejectsReport(
     })
   );
   return toPaginated(response);
-}
+};
 
 export const reportsQueries = {
   overview: (query: FetchReportOverviewQuery) =>

@@ -34,11 +34,11 @@ mock.module("@/modules/payment-methods/payment-method.service", () => ({
   updatePaymentMethod: () => Promise.resolve({ id: 1, name: "Cash" }),
 }));
 
-const servicesRoutes = (await import("@/routes/admin/services")).default;
-const productsRoutes = (await import("@/routes/admin/products")).default;
-const categoriesRoutes = (await import("@/routes/admin/categories")).default;
-const paymentMethodsRoutes = (await import("@/routes/admin/payment-methods"))
-  .default;
+const { default: servicesRoutes } = await import("@/routes/admin/services");
+const { default: productsRoutes } = await import("@/routes/admin/products");
+const { default: categoriesRoutes } = await import("@/routes/admin/categories");
+const { default: paymentMethodsRoutes } =
+  await import("@/routes/admin/payment-methods");
 
 const cashier: AuthUser = {
   id: 1,

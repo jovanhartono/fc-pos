@@ -17,15 +17,12 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { CategoryAutocomplete } from "@/features/orders/components/category-autocomplete";
-import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
+import { useSheetDirtyGuard } from "@/hooks/use-sheet-dirty-guard";
 
 const productFormResolverSchema = z.object({
   ...POSTProductSchema.shape,
-  stock: z.preprocess((value) => Number(value), POSTProductSchema.shape.stock),
-  category_id: z.preprocess(
-    (value) => Number(value),
-    POSTProductSchema.shape.category_id
-  ),
+  stock: z.preprocess(Number, POSTProductSchema.shape.stock),
+  category_id: z.preprocess(Number, POSTProductSchema.shape.category_id),
   // The server parses money into a number for itself, but the API still takes
   // the digit string the currency field types out — keep the form in that shape.
   cogs: POSTProductSchema.shape.cogs.transform(String),
@@ -46,25 +43,25 @@ const defaultForm: ProductFormState = {
   price: "",
 };
 
-type ProductFormProps = {
+interface ProductFormProps {
   defaultValues?: ProductFormState;
   handleOnSubmit: (values: ProductFormState) => Promise<void> | void;
   isEditing: boolean;
   onReset: () => void;
-};
+}
 
-export function ProductForm({
+export const ProductForm = ({
   defaultValues,
   handleOnSubmit,
   isEditing,
   onReset,
-}: ProductFormProps) {
+}: ProductFormProps) => {
   const form = useForm({
     resolver: zodResolver(productFormResolverSchema),
     defaultValues: defaultValues ?? defaultForm,
   });
   useSheetDirtyGuard(form.formState.isDirty);
-  const isSubmitting = form.formState.isSubmitting;
+  const { isSubmitting } = form.formState;
 
   return (
     <form onSubmit={form.handleSubmit(handleOnSubmit)}>
@@ -198,7 +195,7 @@ export function ProductForm({
                 id="product-cogs"
                 placeholder="Rp0"
                 value={field.value}
-                onValueChange={field.onChange}
+                onValueChange={(value) => field.onChange(value)}
                 disabled={isSubmitting}
                 required
               />
@@ -219,7 +216,7 @@ export function ProductForm({
                 id="product-price"
                 placeholder="Rp0"
                 value={field.value}
-                onValueChange={field.onChange}
+                onValueChange={(value) => field.onChange(value)}
                 disabled={isSubmitting}
                 required
               />
@@ -237,7 +234,7 @@ export function ProductForm({
                 checked={field.value}
                 disabled={isSubmitting}
                 id="product-active"
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => field.onChange(checked)}
                 title="Active"
               />
             )}
@@ -253,4 +250,4 @@ export function ProductForm({
       </FieldGroup>
     </form>
   );
-}
+};

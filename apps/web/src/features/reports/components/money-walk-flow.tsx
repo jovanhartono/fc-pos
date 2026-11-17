@@ -10,7 +10,7 @@ import {
   compactMoney,
   percentFormatter,
 } from "@/features/reports/utils/format";
-import { useElementWidth } from "@/hooks/useElementWidth";
+import { useElementWidth } from "@/hooks/use-element-width";
 import { cn } from "@/lib/utils";
 
 type Summary = FinancialReport["summary"]["current"];
@@ -20,34 +20,6 @@ interface SummaryProps {
 }
 
 type MoneyViewId = "walk" | "flow";
-
-export const MoneyWalkFlowCard = ({ summary }: SummaryProps) => {
-  const [view, setView] = useState<MoneyViewId>("walk");
-  const MoneyChart = view === "walk" ? MoneyWalk : MoneyFlow;
-  return (
-    <Card className="border-border/70 py-0">
-      <CardContent className="grid gap-4 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <SectionTitle title="Gross Sales to Gross Profit" />
-          <Tabs
-            onValueChange={(value) => setView(value as MoneyViewId)}
-            value={view}
-          >
-            <TabsList aria-label="How to draw the money">
-              <TabsTrigger value="walk">Walk</TabsTrigger>
-              <TabsTrigger value="flow">Flow</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-        {summary.gross_sales <= 0 && summary.collected <= 0 ? (
-          <EmptyState icon={Analytics01Icon}>No data in range.</EmptyState>
-        ) : (
-          <MoneyChart summary={summary} />
-        )}
-      </CardContent>
-    </Card>
-  );
-};
 
 interface WalkRow {
   label: string;
@@ -200,12 +172,12 @@ const MoneyFlow = ({ summary: s }: SummaryProps) => {
   // Each column stacks top down, what was kept above what left.
   const top: number[] = [];
   const cursor = [0, 0, 0, 0];
-  nodes.forEach((node, index) => {
+  for (const [index, node] of nodes.entries()) {
     top[index] = cursor[node.column];
     if (node.value > 0) {
       cursor[node.column] += px(node.value) + FLOW_GAP;
     }
-  });
+  }
   const outAt = [...top];
   const inAt = [...top];
   const ribbons = links.map((link) => {
@@ -273,5 +245,33 @@ const MoneyFlow = ({ summary: s }: SummaryProps) => {
         )}
       </svg>
     </div>
+  );
+};
+
+export const MoneyWalkFlowCard = ({ summary }: SummaryProps) => {
+  const [view, setView] = useState<MoneyViewId>("walk");
+  const MoneyChart = view === "walk" ? MoneyWalk : MoneyFlow;
+  return (
+    <Card className="border-border/70 py-0">
+      <CardContent className="grid gap-4 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <SectionTitle title="Gross Sales to Gross Profit" />
+          <Tabs
+            onValueChange={(value) => setView(value as MoneyViewId)}
+            value={view}
+          >
+            <TabsList aria-label="How to draw the money">
+              <TabsTrigger value="walk">Walk</TabsTrigger>
+              <TabsTrigger value="flow">Flow</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        {summary.gross_sales <= 0 && summary.collected <= 0 ? (
+          <EmptyState icon={Analytics01Icon}>No data in range.</EmptyState>
+        ) : (
+          <MoneyChart summary={summary} />
+        )}
+      </CardContent>
+    </Card>
   );
 };

@@ -10,35 +10,26 @@ const findStoreByIdPrepared = db.query.storesTable
   })
   .prepare("find_store_by_id");
 
-export function findStoreById(id: number) {
-  return findStoreByIdPrepared.execute({ id });
-}
+export const findStoreById = (id: number) =>
+  findStoreByIdPrepared.execute({ id });
 
-export function listStores() {
-  return db.query.storesTable.findMany({
+export const listStores = () =>
+  db.query.storesTable.findMany({
     orderBy: { id: "asc" },
   });
-}
 
-export function insertStore(values: InferInsertModel<typeof storesTable>) {
-  return db.insert(storesTable).values(values).returning();
-}
+export const insertStore = (values: InferInsertModel<typeof storesTable>) =>
+  db.insert(storesTable).values(values).returning();
 
-export function updateStoreById(
+export const updateStoreById = (
   id: number,
   values: Partial<InferInsertModel<typeof storesTable>>
-) {
-  return db
-    .update(storesTable)
-    .set(values)
-    .where(eq(storesTable.id, id))
-    .returning();
-}
+) =>
+  db.update(storesTable).set(values).where(eq(storesTable.id, id)).returning();
 
-export function updateStoreIsActive(id: number, is_active: boolean) {
-  return db
+export const updateStoreIsActive = (id: number, is_active: boolean) =>
+  db
     .update(storesTable)
     .set({ is_active })
     .where(eq(storesTable.id, id))
     .returning();
-}

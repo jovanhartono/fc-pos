@@ -7,7 +7,7 @@ const SLIP_SEPARATOR = " - ";
 // separator is its own slip.
 export const splitMethodName = (name: string) => {
   const at = name.lastIndexOf(SLIP_SEPARATOR);
-  if (at < 0) {
+  if (at === -1) {
     return { slip: name, line: name };
   }
   return {

@@ -10,7 +10,7 @@ import {
   shortDay,
   shortDuration,
 } from "@/features/reports/utils/turnaround";
-import { useElementWidth } from "@/hooks/useElementWidth";
+import { useElementWidth } from "@/hooks/use-element-width";
 
 type TurnaroundItem = TurnaroundReport["items"][number];
 
@@ -90,13 +90,13 @@ export const TurnaroundDotChart = ({ dots, row }: TurnaroundDotChartProps) => {
     const py = event.clientY - box.top;
     let best = -1;
     let bestDistance = HIT_RADIUS;
-    points.forEach((p, i) => {
+    for (const [i, p] of points.entries()) {
       const distance = Math.hypot(p.x - px, p.y - py);
       if (distance < bestDistance) {
         best = i;
         bestDistance = distance;
       }
-    });
+    }
     if (best === -1) {
       setHover(null);
       return;

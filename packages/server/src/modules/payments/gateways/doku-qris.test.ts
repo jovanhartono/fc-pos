@@ -13,8 +13,8 @@ import type { GatewayChargeInput, GatewayChargeRef } from "./types";
 const CLIENT_ID = "BRN-0001-TEST";
 const SECRET = "test-secret";
 const TOKEN = "token-abc";
-const JAKARTA_TIMESTAMP_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+07:00$/;
-const DIGITS_REGEX = /^\d+$/;
+const JAKARTA_TIMESTAMP_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+07:00$/u;
+const DIGITS_REGEX = /^\d+$/u;
 
 const { privateKey, publicKey } = generateKeyPairSync("rsa", {
   modulusLength: 2048,
@@ -228,8 +228,10 @@ describe("DOKU QRIS status", () => {
       json({ responseCode: "4045101", responseMessage: "Not Found" }, 404)
     );
 
-    expect((await dokuGateway.getStatus(ref)).status).toBe("pending");
-    expect((await dokuGateway.getStatus(ref)).status).toBe("pending");
+    const first = await dokuGateway.getStatus(ref);
+    expect(first.status).toBe("pending");
+    const second = await dokuGateway.getStatus(ref);
+    expect(second.status).toBe("pending");
   });
 });
 

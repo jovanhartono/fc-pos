@@ -71,12 +71,10 @@ const stubBucket = (objects: StoredRow[], pageSize = 1000) => {
 };
 
 describe("sweepOrphanedOrderPhotos", () => {
-  let restore = () => {
-    // replaced per test
-  };
+  let restore: (() => void) | undefined;
 
   afterEach(() => {
-    restore();
+    restore?.();
     referenced = new Set();
   });
 

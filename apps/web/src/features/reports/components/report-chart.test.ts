@@ -2,13 +2,14 @@ import { describe, expect, it } from "bun:test";
 
 import { axisTicks } from "@/features/reports/components/report-chart";
 
+const shown = (labels: string[], slot: number) =>
+  axisTicks(labels, slot).map(({ label }) => label);
+
 describe("x axis labels", () => {
   const days = Array.from(
     { length: 30 },
     (_, i) => `2026-10-${String(i + 2).padStart(2, "0")}`
   );
-  const shown = (labels: string[], slot: number) =>
-    axisTicks(labels, slot).map(({ label }) => label);
 
   it("labels every day when there's room", () => {
     const week = days.slice(0, 7);

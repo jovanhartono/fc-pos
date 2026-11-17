@@ -8,10 +8,10 @@ import {
 import {
   cancelDokuQris,
   createDokuQris,
-  type DokuApi,
   dokuQrisConfig,
   getDokuQrisStatus,
 } from "./doku-qris";
+import type { DokuApi } from "./doku-qris";
 import type {
   GatewayChargeStatus,
   GatewayNotification,
@@ -28,8 +28,9 @@ const STATUS_PATH = "/orders/v1/status/";
 // (ADR-0028), so a VA paid here would land on the Day close's QRIS line.
 const PAYMENT_METHODS = ["QRIS"];
 
-const EXPIRED_DATE_REGEX = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/;
-const MILLIS_REGEX = /\.\d{3}Z$/;
+const EXPIRED_DATE_REGEX =
+  /^(?<y>\d{4})(?<mo>\d{2})(?<d>\d{2})(?<h>\d{2})(?<mi>\d{2})(?<s>\d{2})$/u;
+const MILLIS_REGEX = /\.\d{3}Z$/u;
 
 // UTC to the second, as DOKU signs it.
 export const dokuTimestamp = () =>
@@ -97,6 +98,7 @@ const dokuFetch = (
         body,
       }),
     },
+    // oxlint-disable-next-line unicorn/no-invalid-fetch-options -- the status check, the only GET, passes no payload, so its body is undefined
     body,
     signal: AbortSignal.timeout(10_000),
   });
@@ -117,7 +119,7 @@ const parseExpiredDate = (value: unknown) => {
   if (!match) {
     return null;
   }
-  const [, y, mo, d, h, mi, s] = match;
+  const { y, mo, d, h, mi, s } = match.groups ?? {};
   return new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}+07:00`);
 };
 

@@ -7,4 +7,5 @@ await Bun.build({
   bytecode: true,
 });
 
+// oxlint-disable-next-line unicorn/require-module-specifiers -- top-level await needs a module
 export {};

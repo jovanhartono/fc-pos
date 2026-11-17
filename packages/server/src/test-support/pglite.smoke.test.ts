@@ -1,5 +1,6 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
 
 import { sql } from "drizzle-orm";
 

@@ -10,10 +10,10 @@ import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
-import {
-  type ComplaintListItem,
-  complaintsQueries,
-  type FetchComplaintsQuery,
+import { complaintsQueries } from "@/features/complaints/api";
+import type {
+  ComplaintListItem,
+  FetchComplaintsQuery,
 } from "@/features/complaints/api";
 import {
   formatComplaintItem,
@@ -40,16 +40,16 @@ const complaintsSearchSchema = z.object({
 
 type ComplaintsSearch = z.infer<typeof complaintsSearchSchema>;
 
-function buildComplaintsListParams(
+const buildComplaintsListParams = (
   search: ComplaintsSearch
-): FetchComplaintsQuery {
+): FetchComplaintsQuery => {
   const pageSize = search.limit ?? DEFAULT_PAGE_SIZE;
   return {
     limit: pageSize,
     offset: (search.page - 1) * pageSize,
     ...(search.search ? { search: search.search } : {}),
   };
-}
+};
 
 interface ComplaintOutcomeBadgeProps {
   complaint: ComplaintListItem;
@@ -62,6 +62,61 @@ const ComplaintOutcomeBadge = ({ complaint }: ComplaintOutcomeBadgeProps) => {
   });
   return <Badge variant={outcome.variant}>{outcome.label}</Badge>;
 };
+
+const columns: DataTableColumnDef<ComplaintListItem>[] = [
+  {
+    id: "complaint",
+    header: "Complaint",
+    meta: { width: { percent: 34, minRem: 10 } },
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-0.5">
+        <Link
+          to="/complaints/$complaintId"
+          params={{ complaintId: String(row.original.id) }}
+          className="font-medium tabular-nums"
+        >
+          {row.original.order_code}
+        </Link>
+        <span className="text-subhead">
+          {formatComplaintItem(row.original)}
+        </span>
+        <span className="text-subhead">{row.original.service_name ?? "—"}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "customer_name",
+    header: "Customer",
+    meta: { kind: "name", width: { percent: 22, minRem: 8.5 } },
+    cell: ({ row }) => (
+      <CustomerLink
+        customerId={row.original.customer_id}
+        name={row.original.customer_name}
+      />
+    ),
+  },
+  {
+    accessorKey: "store_name",
+    header: "Store",
+    meta: { width: { percent: 18, minRem: 8 } },
+  },
+  {
+    id: "outcome",
+    header: "Outcome",
+    meta: { width: { percent: 13, minRem: 6 } },
+    cell: ({ row }) => <ComplaintOutcomeBadge complaint={row.original} />,
+  },
+  {
+    id: "opened",
+    header: () => <div className="text-right">Opened</div>,
+    meta: { width: { percent: 13, minRem: 7 } },
+    cell: ({ row }) => (
+      <div className="text-right whitespace-nowrap text-muted-foreground tabular-nums">
+        {formatListDate(row.original.created_at)}
+      </div>
+    ),
+  },
+];
 
 const ComplaintsPage = () => {
   const navigate = useNavigate({ from: Route.fullPath });
@@ -83,63 +138,6 @@ const ComplaintsPage = () => {
       }),
     });
   };
-
-  const columns: DataTableColumnDef<ComplaintListItem>[] = [
-    {
-      id: "complaint",
-      header: "Complaint",
-      meta: { width: { percent: 34, minRem: 10 } },
-      cell: ({ row }) => (
-        <div className="flex flex-col gap-0.5">
-          <Link
-            to="/complaints/$complaintId"
-            params={{ complaintId: String(row.original.id) }}
-            className="font-medium tabular-nums"
-          >
-            {row.original.order_code}
-          </Link>
-          <span className="text-subhead">
-            {formatComplaintItem(row.original)}
-          </span>
-          <span className="text-subhead">
-            {row.original.service_name ?? "—"}
-          </span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "customer_name",
-      header: "Customer",
-      meta: { kind: "name", width: { percent: 22, minRem: 8.5 } },
-      cell: ({ row }) => (
-        <CustomerLink
-          customerId={row.original.customer_id}
-          name={row.original.customer_name}
-        />
-      ),
-    },
-    {
-      accessorKey: "store_name",
-      header: "Store",
-      meta: { width: { percent: 18, minRem: 8 } },
-    },
-    {
-      id: "outcome",
-      header: "Outcome",
-      meta: { width: { percent: 13, minRem: 6 } },
-      cell: ({ row }) => <ComplaintOutcomeBadge complaint={row.original} />,
-    },
-    {
-      id: "opened",
-      header: () => <div className="text-right">Opened</div>,
-      meta: { width: { percent: 13, minRem: 7 } },
-      cell: ({ row }) => (
-        <div className="text-right whitespace-nowrap text-muted-foreground tabular-nums">
-          {formatListDate(row.original.created_at)}
-        </div>
-      ),
-    },
-  ];
 
   return (
     <>

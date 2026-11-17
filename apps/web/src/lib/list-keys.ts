@@ -13,7 +13,7 @@ export const isListKeyBlocked = (
   ) {
     return true;
   }
-  const target = event.target;
+  const { target } = event;
   if (
     target instanceof HTMLElement &&
     (target.isContentEditable ||

@@ -27,7 +27,7 @@ export const PhotoCaptureNoteToggle = () => {
           : "bg-white/10 text-white hover:bg-white/20"
       )}
       disabled={state.isBusy}
-      onClick={actions.toggleNote}
+      onClick={() => actions.toggleNote()}
       type="button"
     >
       <HugeiconsIcon

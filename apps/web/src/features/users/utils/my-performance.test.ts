@@ -74,15 +74,15 @@ describe("a change against the period before", () => {
   });
 });
 
-describe("a worker's QC rejects", () => {
-  const figure = (now: object, before: object) =>
-    figuresOf({
-      role: "worker",
-      ...window,
-      current: { ...workerFacts, ...now },
-      previous: { ...workerFacts, ...before },
-    }).find((item) => item.label === "QC rejects");
+const figure = (now: object, before: object) =>
+  figuresOf({
+    role: "worker",
+    ...window,
+    current: { ...workerFacts, ...now },
+    previous: { ...workerFacts, ...before },
+  }).find((item) => item.label === "QC rejects");
 
+describe("a worker's QC rejects", () => {
   it("compares the rate in points once both periods have 20 checks", () => {
     expect(
       figure(

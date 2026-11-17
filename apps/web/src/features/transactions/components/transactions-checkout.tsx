@@ -10,7 +10,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
-import { useCart } from "@/features/transactions/cart/useCart";
+import { useCart } from "@/features/transactions/cart/use-cart";
 import { CheckoutCustomerStep } from "@/features/transactions/components/checkout-customer-step";
 import { CheckoutFooter } from "@/features/transactions/components/checkout-footer";
 import { CheckoutItemsStep } from "@/features/transactions/components/checkout-items-step";
@@ -21,15 +21,27 @@ import {
   lockedStepHint as getLockedStepHint,
   isStepReachable,
 } from "@/features/transactions/lib/checkout-gates";
-import {
-  CHECKOUT_STEPS,
-  type CheckoutStep,
-} from "@/features/transactions/lib/checkout-steps";
+import { CHECKOUT_STEPS } from "@/features/transactions/lib/checkout-steps";
+import type { CheckoutStep } from "@/features/transactions/lib/checkout-steps";
 import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
 const LOCKED_STEP_HINT_ID = "checkout-locked-step-hint";
+
+interface CheckoutStepBodyProps {
+  step: CheckoutStep;
+}
+
+const CheckoutStepBody = ({ step }: CheckoutStepBodyProps) => {
+  if (step === "customer") {
+    return <CheckoutCustomerStep />;
+  }
+  if (step === "items") {
+    return <CheckoutItemsStep />;
+  }
+  return <CheckoutPaymentStep />;
+};
 
 // The total and main button sit in a pinned footer so they stay reachable in
 // the sheet on the iPad.
@@ -178,18 +190,4 @@ export const TransactionsCheckout = () => {
       <CheckoutFooter onBack={goBack} onContinue={goNext} step={step} />
     </div>
   );
-};
-
-interface CheckoutStepBodyProps {
-  step: CheckoutStep;
-}
-
-const CheckoutStepBody = ({ step }: CheckoutStepBodyProps) => {
-  if (step === "customer") {
-    return <CheckoutCustomerStep />;
-  }
-  if (step === "items") {
-    return <CheckoutItemsStep />;
-  }
-  return <CheckoutPaymentStep />;
 };

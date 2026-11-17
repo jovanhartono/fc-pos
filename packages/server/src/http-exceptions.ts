@@ -1,3 +1,4 @@
+// oxlint-disable-next-line max-classes-per-file -- every service imports these errors from this one module
 import { HTTPException } from "hono/http-exception";
 import { StatusCodes } from "http-status-codes";
 

@@ -17,7 +17,7 @@ export const ensureOrNotFound = async <T>(load: Promise<T>) => {
   }
 };
 
-const FETCH_FAILED = /^(Failed to fetch|Load failed|NetworkError)/;
+const FETCH_FAILED = /^(?:Failed to fetch|Load failed|NetworkError)/u;
 
 // hono's error message is only the status line ("400 Bad Request"); the server's
 // reason sits in detail.data. Without this the cashier reads the status, not why.

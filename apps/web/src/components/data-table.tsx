@@ -1,19 +1,15 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import type { LinkProps } from "@tanstack/react-router";
-import {
-  type CellContext,
-  flexRender,
-  type RowData,
-  type SortingState,
-  useTable,
-} from "@tanstack/react-table";
-import { type ReactNode, useState } from "react";
+import { flexRender, useTable } from "@tanstack/react-table";
+import type { CellContext, RowData, SortingState } from "@tanstack/react-table";
+import { useState } from "react";
+import type { ReactNode } from "react";
 
 import { DataTableCards } from "@/components/data-table-cards";
-import {
-  type DataTableColumnDef,
-  type DataTableFeatures,
-  dataTableFeatures,
+import { dataTableFeatures } from "@/components/data-table-features";
+import type {
+  DataTableColumnDef,
+  DataTableFeatures,
 } from "@/components/data-table-features";
 import { DataTableGrid } from "@/components/data-table-grid";
 import { NoMatchState } from "@/components/empty-state";
@@ -153,7 +149,7 @@ export const DataTable = <TData extends RowData>({
     <NoMatchState
       noun={noMatch.noun}
       search={noMatch.search}
-      onClear={noMatch.onClear}
+      onClear={() => noMatch.onClear()}
       isInset={!isCardView || isInsideCard}
     />
   ) : undefined;

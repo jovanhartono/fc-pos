@@ -56,25 +56,27 @@ const distinct = (values: (string | null)[]) => [
 ];
 
 // Nearest rank, so every figure shown is a turnaround an Item really had.
-function nearestRank(sorted: number[], p: number) {
-  return sorted[Math.ceil((p / 100) * sorted.length) - 1];
-}
+const nearestRank = (sorted: number[], p: number) =>
+  sorted[Math.ceil((p / 100) * sorted.length) - 1];
 
-export function percentiles(hours: number[]) {
+export const percentiles = (hours: number[]) => {
   if (hours.length < TURNAROUND_MIN_ITEMS) {
     return { p75: null, p90: null, p99: null };
   }
-  const sorted = [...hours].sort((a, b) => a - b);
+  const sorted = hours.toSorted((a, b) => a - b);
   return {
     p75: nearestRank(sorted, 75),
     p90: nearestRank(sorted, 90),
     p99: nearestRank(sorted, 99),
   };
-}
+};
 
 // An Item still has a line in the workshop until every first-round line has
 // been ready once; such an Item is left out rather than counted as slow.
-export function groupItems(lines: Line[], range: { start: Date; end: Date }) {
+export const groupItems = (
+  lines: Line[],
+  range: { start: Date; end: Date }
+) => {
   const byItem = new Map<number, Line[]>();
   for (const line of lines) {
     const itemLines = byItem.get(line.item_id);
@@ -111,11 +113,11 @@ export function groupItems(lines: Line[], range: { start: Date; end: Date }) {
     });
   }
   return groups;
-}
+};
 
 // Only lines of the counted Items, so the split describes the same Items as
 // the percentiles beside it.
-function summariseBreakdown(lines: Line[]): Breakdown {
+const summariseBreakdown = (lines: Line[]): Breakdown => {
   const queued: number[] = [];
   const inProgress: number[] = [];
   const waitingQc: number[] = [];
@@ -140,22 +142,20 @@ function summariseBreakdown(lines: Line[]): Breakdown {
     in_progress_p75: percentiles(inProgress).p75,
     waiting_qc_p75: percentiles(waitingQc).p75,
   };
-}
+};
 
-function buildRow(
+const buildRow = (
   name: string,
   groups: ItemGroup[],
   lines: Line[]
-): TurnaroundRow {
-  return {
-    name,
-    items: groups.length,
-    ...percentiles(groups.map((group) => group.hours)),
-    breakdown: summariseBreakdown(lines),
-  };
-}
+): TurnaroundRow => ({
+  name,
+  items: groups.length,
+  ...percentiles(groups.map((group) => group.hours)),
+  breakdown: summariseBreakdown(lines),
+});
 
-export async function getTurnaroundReport(query: GetReportRangeQuery) {
+export const getTurnaroundReport = async (query: GetReportRangeQuery) => {
   const range = getJakartaRange(query.from, query.to);
   const lines = await listTurnaroundLines({
     range,
@@ -176,12 +176,9 @@ export async function getTurnaroundReport(query: GetReportRangeQuery) {
       }
     }
   }
-  const categoryRows = [...byCategory].map(([name, entry]) =>
-    buildRow(name, entry.groups, entry.lines)
-  );
-  categoryRows.sort(
-    (a, b) => b.items - a.items || a.name.localeCompare(b.name)
-  );
+  const categoryRows = [...byCategory]
+    .map(([name, entry]) => buildRow(name, entry.groups, entry.lines))
+    .toSorted((a, b) => b.items - a.items || a.name.localeCompare(b.name));
 
   const items: TurnaroundItem[] = groups.map((group) => ({
     hours: group.hours,
@@ -207,4 +204,4 @@ export async function getTurnaroundReport(query: GetReportRangeQuery) {
       ...categoryRows,
     ],
   };
-}
+};

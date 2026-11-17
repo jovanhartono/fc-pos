@@ -14,7 +14,7 @@ export const QrisWaiting = ({ expiresAt, mockPageUrl }: QrisWaitingProps) => (
       <a
         className="justify-self-center text-body text-link"
         href={mockPageUrl}
-        rel="noopener"
+        rel="noopener noreferrer"
         target="_blank"
       >
         Open Mock Payment Page

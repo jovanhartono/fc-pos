@@ -4,47 +4,34 @@ import { DeleteShiftButton } from "@/features/shifts/components/delete-shift-but
 import { EditShiftButton } from "@/features/shifts/components/edit-shift-button";
 import { NoShifts } from "@/features/shifts/components/no-shifts";
 import { clockRange, shiftMinutes } from "@/features/shifts/lib/shift-times";
-import {
-  type PersonRow,
-  type StoreGroup,
-  sortByStatus,
+import { sortByStatus } from "@/features/shifts/lib/shifts-overview";
+import type {
+  PersonRow,
+  StoreGroup,
 } from "@/features/shifts/lib/shifts-overview";
 import { formatShiftLength } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
 
-interface ShiftsDayViewProps {
-  groups: StoreGroup[];
+interface DayRowTimesProps {
   shifts: Shift[];
 }
 
-// One day: who was in at each Store, and on today who is still on shift.
-export const ShiftsDayView = ({ groups, shifts }: ShiftsDayViewProps) => {
-  return (
-    <div className="grid items-start gap-5 lg:grid-cols-2 2xl:grid-cols-3">
-      {groups.map((group) => (
-        <Section key={group.store.id} title={group.store.name}>
-          <div className="overflow-hidden rounded-lg border bg-card">
-            {group.rows.length === 0 ? (
-              <NoShifts />
-            ) : (
-              sortByStatus(group.rows).map((row) => (
-                <DayRow
-                  key={row.person.id}
-                  row={row}
-                  shifts={shifts.filter(
-                    (shift) =>
-                      shift.user_id === row.person.id &&
-                      shift.store_id === group.store.id
-                  )}
-                />
-              ))
-            )}
-          </div>
-        </Section>
-      ))}
-    </div>
-  );
-};
+const DayRowTimes = ({ shifts }: DayRowTimesProps) => (
+  <div className="grid gap-2">
+    {shifts.map((shift) => (
+      <div key={shift.id} className="flex items-center justify-end gap-3">
+        <span className="text-right text-subhead whitespace-nowrap tabular-nums">
+          <span className="block text-body font-medium">
+            {formatShiftLength(shiftMinutes(shift))}
+          </span>
+          {clockRange(shift)}
+        </span>
+        <EditShiftButton shift={shift} />
+        <DeleteShiftButton shift={shift} />
+      </div>
+    ))}
+  </div>
+);
 
 interface DayRowProps {
   row: PersonRow;
@@ -74,25 +61,34 @@ const DayRow = ({ row, shifts }: DayRowProps) => (
   </div>
 );
 
-interface DayRowTimesProps {
+interface ShiftsDayViewProps {
+  groups: StoreGroup[];
   shifts: Shift[];
 }
 
-const DayRowTimes = ({ shifts }: DayRowTimesProps) => {
-  return (
-    <div className="grid gap-2">
-      {shifts.map((shift) => (
-        <div key={shift.id} className="flex items-center justify-end gap-3">
-          <span className="text-right text-subhead whitespace-nowrap tabular-nums">
-            <span className="block text-body font-medium">
-              {formatShiftLength(shiftMinutes(shift))}
-            </span>
-            {clockRange(shift)}
-          </span>
-          <EditShiftButton shift={shift} />
-          <DeleteShiftButton shift={shift} />
+// One day: who was in at each Store, and on today who is still on shift.
+export const ShiftsDayView = ({ groups, shifts }: ShiftsDayViewProps) => (
+  <div className="grid items-start gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+    {groups.map((group) => (
+      <Section key={group.store.id} title={group.store.name}>
+        <div className="overflow-hidden rounded-lg border bg-card">
+          {group.rows.length === 0 ? (
+            <NoShifts />
+          ) : (
+            sortByStatus(group.rows).map((row) => (
+              <DayRow
+                key={row.person.id}
+                row={row}
+                shifts={shifts.filter(
+                  (shift) =>
+                    shift.user_id === row.person.id &&
+                    shift.store_id === group.store.id
+                )}
+              />
+            ))
+          )}
         </div>
-      ))}
-    </div>
-  );
-};
+      </Section>
+    ))}
+  </div>
+);

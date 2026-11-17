@@ -4,7 +4,7 @@ import { useState } from "react";
 import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { SelectField } from "@/components/form/select-field";
 import { Button } from "@/components/ui/button";
-import { useUpdateOrderCourierMutation } from "@/features/orders/hooks/useOrderMutations";
+import { useUpdateOrderCourierMutation } from "@/features/orders/hooks/use-order-mutations";
 import { usersQueries } from "@/features/users/api";
 
 interface OrderCourierFormProps {

@@ -7,7 +7,7 @@ import { z } from "zod";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { useSetServicePriceMutation } from "@/features/orders/hooks/useOrderMutations";
+import { useSetServicePriceMutation } from "@/features/orders/hooks/use-order-mutations";
 
 const servicePriceSchema = z.object({
   // Zero is deliberately free (a Rework), never a keyed price.
@@ -67,7 +67,7 @@ export const OrderServicePriceForm = ({
             </FieldLabel>
             <CurrencyInput
               id={`service-price-${serviceId}`}
-              onValueChange={field.onChange}
+              onValueChange={(value) => field.onChange(value)}
               required
               value={field.value}
             />

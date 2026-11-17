@@ -28,7 +28,7 @@ mock.module("@/db", () => ({
 
 process.env.JWT_SECRET ??= "test-secret";
 
-const authRoutes = (await import("@/routes/auth")).default;
+const { default: authRoutes } = await import("@/routes/auth");
 
 const app = new Hono<{ Variables: JwtVariables<AuthUser> }>().route(
   "/auth",

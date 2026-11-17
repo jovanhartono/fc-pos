@@ -23,7 +23,7 @@ mock.module("@/modules/shifts/shift.service", () => ({
   updateShift: () => Promise.resolve(null),
 }));
 
-const shiftRoutes = (await import("@/routes/admin/shifts")).default;
+const { default: shiftRoutes } = await import("@/routes/admin/shifts");
 
 const buAdmin: AuthUser = {
   can_process_pickup: false,

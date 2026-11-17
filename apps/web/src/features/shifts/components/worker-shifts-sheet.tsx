@@ -3,11 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  type FetchShiftsOverviewQuery,
-  type Shift,
-  shiftsQueries,
-} from "@/features/shifts/api";
+import { shiftsQueries } from "@/features/shifts/api";
+import type { FetchShiftsOverviewQuery, Shift } from "@/features/shifts/api";
 import { DeleteShiftButton } from "@/features/shifts/components/delete-shift-button";
 import { EditShiftButton } from "@/features/shifts/components/edit-shift-button";
 import { clockRange, shiftMinutes } from "@/features/shifts/lib/shift-times";
@@ -30,18 +27,22 @@ export interface WorkerShiftsTarget {
   rangeLabel: string;
 }
 
-export const useOpenWorkerShifts = () => {
-  const openSheet = useSheet((s) => s.openSheet);
-  return (target: WorkerShiftsTarget) =>
-    openSheet({
-      title: target.name,
-      description: `${target.role} · ${target.storeName} · ${target.rangeLabel}`,
-      content: () => <WorkerShiftsContent target={target} />,
-    });
-};
-
 const jakartaDay = (value: Date | string) =>
   dayjs(value).tz(JAKARTA_TZ).format(WIRE_FORMAT);
+
+const groupByDay = (shifts: Shift[]) => {
+  const byDay = new Map<string, Shift[]>();
+  for (const shift of shifts) {
+    const day = jakartaDay(shift.clock_in_at);
+    const dayShifts = byDay.get(day);
+    if (dayShifts) {
+      dayShifts.push(shift);
+    } else {
+      byDay.set(day, [shift]);
+    }
+  }
+  return byDay;
+};
 
 interface ShiftLineProps {
   shift: Shift;
@@ -94,88 +95,6 @@ const Stat = ({ value, label }: StatProps) => (
   </div>
 );
 
-interface WorkerShiftsContentProps {
-  target: WorkerShiftsTarget;
-}
-
-const WorkerShiftsContent = ({ target }: WorkerShiftsContentProps) => {
-  const overviewQuery = useQuery(shiftsQueries.overview(target.query));
-  const storesQuery = useQuery(storesQueries.list());
-  const shiftsQuery = useQuery(
-    shiftsQueries.ofWorker({
-      user_id: target.userId,
-      store_id: target.storeId,
-      from: target.query.from,
-      to: target.query.to,
-    })
-  );
-
-  const person = overviewQuery.data?.people.find(
-    (candidate) => candidate.id === target.userId
-  );
-  const row =
-    overviewQuery.data && person
-      ? buildRow(
-          person,
-          target.storeId,
-          overviewQuery.data.days.filter(
-            (day) => day.user_id === target.userId
-          ),
-          storesQuery.data ?? []
-        )
-      : undefined;
-  const days = row?.days ?? 0;
-  const otherDays = row?.elsewhere ?? [];
-
-  const byDay = new Map<string, Shift[]>();
-  for (const shift of shiftsQuery.data ?? []) {
-    const day = jakartaDay(shift.clock_in_at);
-    const dayShifts = byDay.get(day);
-    if (dayShifts) {
-      dayShifts.push(shift);
-    } else {
-      byDay.set(day, [shift]);
-    }
-  }
-
-  return (
-    <div className="grid gap-4">
-      <div className="grid auto-cols-fr grid-flow-col gap-2">
-        <Stat
-          value={days}
-          label={`${days === 1 ? "day" : "days"} at ${target.storeName}`}
-        />
-        {otherDays.length > 0 ? (
-          <Stat value={row?.daysAllStores ?? 0} label="days, all Stores" />
-        ) : null}
-        <Stat value={formatHours(row?.minutes ?? 0)} label="worked" />
-      </div>
-      {otherDays.length > 0 ? (
-        <p className="text-subhead">
-          Also{" "}
-          {otherDays
-            .map(
-              (other) => `${pluralize(other.days, "day")} at ${other.storeName}`
-            )
-            .join(", ")}
-          . The meal fee goes by{" "}
-          <strong className="font-medium">
-            {pluralize(row?.daysAllStores ?? 0, "day")}
-          </strong>
-          .
-        </p>
-      ) : null}
-      <div className="overflow-hidden rounded-lg border bg-card">
-        {shiftsQuery.isPending ? (
-          <ShiftDaysSkeleton count={Math.max(1, Math.min(days, 6))} />
-        ) : (
-          <ShiftDays byDay={byDay} />
-        )}
-      </div>
-    </div>
-  );
-};
-
 interface ShiftDaysProps {
   byDay: Map<string, Shift[]>;
 }
@@ -220,3 +139,86 @@ const ShiftDaysSkeleton = ({ count }: ShiftDaysSkeletonProps) => (
     ))}
   </ul>
 );
+
+interface WorkerShiftsContentProps {
+  target: WorkerShiftsTarget;
+}
+
+const WorkerShiftsContent = ({ target }: WorkerShiftsContentProps) => {
+  const overviewQuery = useQuery(shiftsQueries.overview(target.query));
+  const storesQuery = useQuery(storesQueries.list());
+  const shiftsQuery = useQuery(
+    shiftsQueries.ofWorker({
+      user_id: target.userId,
+      store_id: target.storeId,
+      from: target.query.from,
+      to: target.query.to,
+    })
+  );
+
+  const person = overviewQuery.data?.people.find(
+    (candidate) => candidate.id === target.userId
+  );
+  const row =
+    overviewQuery.data && person
+      ? buildRow(
+          person,
+          target.storeId,
+          overviewQuery.data.days.filter(
+            (day) => day.user_id === target.userId
+          ),
+          storesQuery.data ?? []
+        )
+      : undefined;
+  const days = row?.days ?? 0;
+  const otherDays = row?.elsewhere ?? [];
+
+  const byDay = groupByDay(shiftsQuery.data ?? []);
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid auto-cols-fr grid-flow-col gap-2">
+        <Stat
+          value={days}
+          label={`${days === 1 ? "day" : "days"} at ${target.storeName}`}
+        />
+        {otherDays.length > 0 ? (
+          <Stat value={row?.daysAllStores ?? 0} label="days, all Stores" />
+        ) : null}
+        <Stat value={formatHours(row?.minutes ?? 0)} label="worked" />
+      </div>
+      {otherDays.length > 0 ? (
+        <p className="text-subhead">
+          Also{" "}
+          {otherDays
+            .map(
+              (other) => `${pluralize(other.days, "day")} at ${other.storeName}`
+            )
+            .join(", ")}
+          . The meal fee goes by{" "}
+          <strong className="font-medium">
+            {pluralize(row?.daysAllStores ?? 0, "day")}
+          </strong>
+          .
+        </p>
+      ) : null}
+      <div className="overflow-hidden rounded-lg border bg-card">
+        {shiftsQuery.isPending ? (
+          <ShiftDaysSkeleton count={Math.max(1, Math.min(days, 6))} />
+        ) : (
+          <ShiftDays byDay={byDay} />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export const useOpenWorkerShifts = () => {
+  const openSheet = useSheet((s) => s.openSheet);
+  return (target: WorkerShiftsTarget) =>
+    openSheet({
+      title: target.name,
+      description: `${target.role} · ${target.storeName} · ${target.rangeLabel}`,
+      content: () => <WorkerShiftsContent target={target} />,
+    });
+};

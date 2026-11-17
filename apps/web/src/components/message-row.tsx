@@ -1,6 +1,7 @@
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Fragment, type ReactNode } from "react";
+import { Fragment } from "react";
+import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -44,13 +45,15 @@ interface MessageRowContentProps {
   text: string | null;
 }
 
+const NO_DETAILS: ReactNode[] = [];
+
 // One Complaint or QC reject. The badge takes the top right like a line's
 // status, so a red "Complaint #N" never shares a line with a red Refunded.
 export const MessageRowContent = ({
   item,
   date,
   lead,
-  details = [],
+  details = NO_DETAILS,
   badge,
   text,
 }: MessageRowContentProps) => {

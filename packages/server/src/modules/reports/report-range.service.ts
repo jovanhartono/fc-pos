@@ -36,13 +36,11 @@ import {
   UNPAID_AGE_KEYS,
 } from "@/modules/reports/report-range.repository";
 import {
-  type DateRange,
   daysBetween,
   deltaPct,
   derivePreviousRange,
   enumerateBuckets,
   enumerateDays,
-  type Granularity,
   getJakartaRange,
   indexBy,
   jakartaDayOf,
@@ -50,6 +48,10 @@ import {
   pickGranularity,
   rate,
   weekStartOf,
+} from "@/modules/reports/report-range.util";
+import type {
+  DateRange,
+  Granularity,
 } from "@/modules/reports/report-range.util";
 import type {
   ComparableSummary,
@@ -79,7 +81,7 @@ interface ReportContext {
   to: string;
 }
 
-export function buildContext(query: GetReportRangeQuery): ReportContext {
+export const buildContext = (query: GetReportRangeQuery): ReportContext => {
   const granularity =
     query.granularity ?? pickGranularity(query.from, query.to);
   const buckets = enumerateBuckets(query.from, query.to, granularity);
@@ -98,20 +100,18 @@ export function buildContext(query: GetReportRangeQuery): ReportContext {
     buckets,
     previous,
   };
-}
+};
 
-function kpi<T extends number>(current: T, previous: T): KpiDelta<T> {
-  return {
-    current,
-    previous,
-    delta_pct: deltaPct(current, previous),
-  };
-}
+const kpi = <T extends number>(current: T, previous: T): KpiDelta<T> => ({
+  current,
+  previous,
+  delta_pct: deltaPct(current, previous),
+});
 
-export function buildDeltas<T extends object>(
+export const buildDeltas = <T extends object>(
   current: T,
   previous: T
-): ComparableSummary<T>["deltas"] {
+): ComparableSummary<T>["deltas"] => {
   const deltas: Record<string, KpiDelta> = {};
   for (const key of Object.keys(current) as (keyof T)[]) {
     const c = current[key];
@@ -121,7 +121,7 @@ export function buildDeltas<T extends object>(
     }
   }
   return deltas as ComparableSummary<T>["deltas"];
-}
+};
 
 interface FinancialSummary {
   cogs: number;
@@ -139,7 +139,7 @@ interface FinancialSummary {
   services_gross_sales: number;
 }
 
-async function financialSummaryFor({
+const financialSummaryFor = async ({
   range,
   storeId,
   granularity,
@@ -147,7 +147,7 @@ async function financialSummaryFor({
   range: ReturnType<typeof getJakartaRange>;
   storeId?: number;
   granularity: Granularity;
-}) {
+}) => {
   const [services, products, discount, collected, refunds] = await Promise.all([
     listServicesSeries({ range, storeId, granularity }),
     listProductsSeries({ range, storeId, granularity }),
@@ -156,14 +156,14 @@ async function financialSummaryFor({
     listRefundAmountSeries({ range, storeId, granularity }),
   ]);
   return { services, products, discount, collected, refunds };
-}
+};
 
 // A store that took nothing this stretch but handed money back still needs a
 // line of its own, or the store rows stop adding up to the range's Revenue.
-function mergeStoreRows(
+const mergeStoreRows = (
   collectedRows: Awaited<ReturnType<typeof listStoreCollectedRows>>,
   refundRows: Awaited<ReturnType<typeof listStoreRefundRows>>
-) {
+) => {
   const byStore = new Map(
     collectedRows.map((row) => [row.store_id, { ...row, refunds: 0 }])
   );
@@ -175,13 +175,55 @@ function mergeStoreRows(
       byStore.set(row.store_id, { ...row, collected: 0, orders: 0 });
     }
   }
-  return Array.from(byStore.values()).map((row) => ({
+  return [...byStore.values()].map((row) => ({
     ...row,
     revenue: revenue(row.collected, row.refunds),
   }));
-}
+};
 
-export async function getFinancialReport(query: GetReportRangeQuery) {
+const summariseFinancial = (raw: {
+  services: { gross_sales: number; cogs: number }[];
+  products: { gross_sales: number; cogs: number }[];
+  discount: { discount: number }[];
+  collected: { collected: number; delivery_fees: number }[];
+  refunds: { amount: number }[];
+}): FinancialSummary => {
+  const servicesGrossSales = raw.services.reduce(
+    (s, r) => s + r.gross_sales,
+    0
+  );
+  const productsGrossSales = raw.products.reduce(
+    (s, r) => s + r.gross_sales,
+    0
+  );
+  const cogs =
+    raw.services.reduce((s, r) => s + r.cogs, 0) +
+    raw.products.reduce((s, r) => s + r.cogs, 0);
+  const discount = raw.discount.reduce((s, r) => s + r.discount, 0);
+  const collected = raw.collected.reduce((s, r) => s + r.collected, 0);
+  const deliveryFees = raw.collected.reduce((s, r) => s + r.delivery_fees, 0);
+  const refunds = raw.refunds.reduce((s, r) => s + r.amount, 0);
+  const kept = revenue(collected, refunds);
+  const grossProfit = kept - cogs;
+  const grossSalesTotal = servicesGrossSales + productsGrossSales;
+  return {
+    gross_sales: grossSalesTotal,
+    services_gross_sales: servicesGrossSales,
+    products_gross_sales: productsGrossSales,
+    discount,
+    discount_rate: grossSalesTotal > 0 ? discount / grossSalesTotal : 0,
+    collected,
+    delivery_fees: deliveryFees,
+    refunds,
+    refund_rate: collected > 0 ? refunds / collected : 0,
+    revenue: kept,
+    cogs,
+    gross_profit: grossProfit,
+    margin: kept > 0 ? grossProfit / kept : 0,
+  };
+};
+
+export const getFinancialReport = async (query: GetReportRangeQuery) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
@@ -274,8 +316,8 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
       });
     }
   }
-  const topCategories = Array.from(categoryTotals.values())
-    .sort((a, b) => b.gross_sales - a.gross_sales)
+  const topCategories = [...categoryTotals.values()]
+    .toSorted((a, b) => b.gross_sales - a.gross_sales)
     .slice(0, 5);
   const topCategoryIds = new Set(topCategories.map((c) => c.category_id));
 
@@ -305,7 +347,7 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     return filled;
   });
 
-  const categoryTreemap = Array.from(categoryTotals.values()).sort(
+  const categoryTreemap = [...categoryTotals.values()].toSorted(
     (a, b) => b.gross_sales - a.gross_sales
   );
 
@@ -316,7 +358,7 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
       ...row,
       share: grandStoreRevenue > 0 ? row.revenue / grandStoreRevenue : 0,
     }))
-    .sort((a, b) => b.revenue - a.revenue);
+    .toSorted((a, b) => b.revenue - a.revenue);
 
   // One top-N Category list across all Stores, so every Store row has the same
   // columns.
@@ -335,13 +377,13 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     });
   }
 
-  const globalSorted = Array.from(globalCategoryTotals.entries())
+  const globalSorted = [...globalCategoryTotals.entries()]
     .map(([id, c]) => ({
       category_id: id,
       label: c.label,
       gross_sales: c.gross_sales,
     }))
-    .sort(
+    .toSorted(
       (a, b) => b.gross_sales - a.gross_sales || a.category_id - b.category_id
     );
 
@@ -399,7 +441,7 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     storeBuckets.set(row.store_id, bucket);
   }
 
-  const sortedStoreBuckets = Array.from(storeBuckets.values()).sort(
+  const sortedStoreBuckets = [...storeBuckets.values()].toSorted(
     (a, b) => b.total - a.total
   );
   const omittedStoreCount = Math.max(
@@ -454,49 +496,7 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
       deltas: buildDeltas(summary, prevSummary),
     } satisfies ComparableSummary<FinancialSummary>,
   };
-}
-
-function summariseFinancial(raw: {
-  services: { gross_sales: number; cogs: number }[];
-  products: { gross_sales: number; cogs: number }[];
-  discount: { discount: number }[];
-  collected: { collected: number; delivery_fees: number }[];
-  refunds: { amount: number }[];
-}): FinancialSummary {
-  const servicesGrossSales = raw.services.reduce(
-    (s, r) => s + r.gross_sales,
-    0
-  );
-  const productsGrossSales = raw.products.reduce(
-    (s, r) => s + r.gross_sales,
-    0
-  );
-  const cogs =
-    raw.services.reduce((s, r) => s + r.cogs, 0) +
-    raw.products.reduce((s, r) => s + r.cogs, 0);
-  const discount = raw.discount.reduce((s, r) => s + r.discount, 0);
-  const collected = raw.collected.reduce((s, r) => s + r.collected, 0);
-  const deliveryFees = raw.collected.reduce((s, r) => s + r.delivery_fees, 0);
-  const refunds = raw.refunds.reduce((s, r) => s + r.amount, 0);
-  const kept = revenue(collected, refunds);
-  const grossProfit = kept - cogs;
-  const grossSalesTotal = servicesGrossSales + productsGrossSales;
-  return {
-    gross_sales: grossSalesTotal,
-    services_gross_sales: servicesGrossSales,
-    products_gross_sales: productsGrossSales,
-    discount,
-    discount_rate: grossSalesTotal > 0 ? discount / grossSalesTotal : 0,
-    collected,
-    delivery_fees: deliveryFees,
-    refunds,
-    refund_rate: collected > 0 ? refunds / collected : 0,
-    revenue: kept,
-    cogs,
-    gross_profit: grossProfit,
-    margin: kept > 0 ? grossProfit / kept : 0,
-  };
-}
+};
 
 interface OrdersFlowSummary {
   net_flow: number;
@@ -504,7 +504,20 @@ interface OrdersFlowSummary {
   orders_out_total: number;
 }
 
-export async function getOrdersFlowReport(query: GetReportRangeQuery) {
+const ordersFlowSummaryFrom = (
+  ordersIn: { orders_in: number }[],
+  ordersOut: { orders_out: number }[]
+): OrdersFlowSummary => {
+  const inTotal = ordersIn.reduce((s, r) => s + r.orders_in, 0);
+  const outTotal = ordersOut.reduce((s, r) => s + r.orders_out, 0);
+  return {
+    orders_in_total: inTotal,
+    orders_out_total: outTotal,
+    net_flow: inTotal - outTotal,
+  };
+};
+
+export const getOrdersFlowReport = async (query: GetReportRangeQuery) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
@@ -548,22 +561,9 @@ export async function getOrdersFlowReport(query: GetReportRangeQuery) {
       deltas: buildDeltas(summary, prevSummary),
     } satisfies ComparableSummary<OrdersFlowSummary>,
   };
-}
+};
 
-function ordersFlowSummaryFrom(
-  ordersIn: { orders_in: number }[],
-  ordersOut: { orders_out: number }[]
-): OrdersFlowSummary {
-  const inTotal = ordersIn.reduce((s, r) => s + r.orders_in, 0);
-  const outTotal = ordersOut.reduce((s, r) => s + r.orders_out, 0);
-  return {
-    orders_in_total: inTotal,
-    orders_out_total: outTotal,
-    net_flow: inTotal - outTotal,
-  };
-}
-
-export async function getPaymentMixReport(query: GetReportRangeQuery) {
+export const getPaymentMixReport = async (query: GetReportRangeQuery) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
@@ -600,7 +600,7 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
     }
   }
 
-  const methods = Array.from(methodTotals.values()).sort(
+  const methods = [...methodTotals.values()].toSorted(
     (a, b) => b.collected - a.collected
   );
   const methodKeys = methods.map((m) => ({
@@ -645,7 +645,7 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
     method_keys: methodKeys,
     summary,
   };
-}
+};
 
 interface CustomerSummary {
   active_customers_in_range: number;
@@ -656,7 +656,29 @@ interface CustomerSummary {
   repeat_rate: number;
 }
 
-export async function getCustomerAcquisitionReport(query: GetReportRangeQuery) {
+const customerSummary = (
+  series: { new_customers: number; cumulative: number }[],
+  priorTotal: number,
+  repeat: { total_customers: number; repeat_customers: number }
+): CustomerSummary => {
+  const addedInRange = series.reduce((s, r) => s + r.new_customers, 0);
+  const cumulativeEnd = series.at(-1)?.cumulative ?? priorTotal;
+  return {
+    new_customers: addedInRange,
+    cumulative_end: cumulativeEnd,
+    cumulative_start: priorTotal,
+    active_customers_in_range: repeat.total_customers,
+    repeat_customers_in_range: repeat.repeat_customers,
+    repeat_rate:
+      repeat.total_customers > 0
+        ? repeat.repeat_customers / repeat.total_customers
+        : 0,
+  };
+};
+
+export const getCustomerAcquisitionReport = async (
+  query: GetReportRangeQuery
+) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
@@ -751,27 +773,7 @@ export async function getCustomerAcquisitionReport(query: GetReportRangeQuery) {
       deltas: buildDeltas(current, previous),
     } satisfies ComparableSummary<CustomerSummary>,
   };
-}
-
-function customerSummary(
-  series: { new_customers: number; cumulative: number }[],
-  priorTotal: number,
-  repeat: { total_customers: number; repeat_customers: number }
-): CustomerSummary {
-  const addedInRange = series.reduce((s, r) => s + r.new_customers, 0);
-  const cumulativeEnd = series.at(-1)?.cumulative ?? priorTotal;
-  return {
-    new_customers: addedInRange,
-    cumulative_end: cumulativeEnd,
-    cumulative_start: priorTotal,
-    active_customers_in_range: repeat.total_customers,
-    repeat_customers_in_range: repeat.repeat_customers,
-    repeat_rate:
-      repeat.total_customers > 0
-        ? repeat.repeat_customers / repeat.total_customers
-        : 0,
-  };
-}
+};
 
 interface WorkerSummary {
   complaint_cohort: number;
@@ -827,9 +829,8 @@ const round = (value: number, places: number) => Number(value.toFixed(places));
 
 const workerKey = (userId: number, storeId: number) => `${userId}:${storeId}`;
 
-function sumBy<T>(rows: T[], pick: (row: T) => number) {
-  return rows.reduce((sum, row) => sum + pick(row), 0);
-}
+const sumBy = <T>(rows: T[], pick: (row: T) => number) =>
+  rows.reduce((sum, row) => sum + pick(row), 0);
 
 const noteLatestShift = (tally: WorkerTally, shift: ShiftTimes) => {
   if (
@@ -885,11 +886,11 @@ const benchWorkCheck = (
 
 // `inHand` is passed only for Today: an Item in hand then counts as a day at
 // the bench, while an older stretch's figures never move with what happens now.
-function tallyWorkers(
+const tallyWorkers = (
   { lines, shifts, moveDays, qcChecks }: WorkerSummaryActivity,
   roleOf: (userId: number) => string | undefined,
   inHand: WorkerLiveActivity["inHand"] = []
-) {
+) => {
   const tallies = new Map<string, WorkerTally>();
   const tallyFor = tallyLookup(tallies);
 
@@ -933,15 +934,15 @@ function tallyWorkers(
     tallyFor(move.user_id, move.store_id).days_worked.add(move.day);
   }
   return [...tallies.values()];
-}
+};
 
 // What each person is doing right now, whatever stretch the rest of the tab
 // covers: the owner looking at last week still sees who is on the floor.
-function tallyLiveActivity(
+const tallyLiveActivity = (
   live: WorkerLiveActivity,
   processedToday: Pick<ActivityLine, "started_by" | "store_id">[],
   roleOf: (userId: number) => string | undefined
-) {
+) => {
   const tallies = new Map<string, WorkerTally>();
   const tallyFor = tallyLookup(tallies);
   for (const row of live.inHand) {
@@ -971,14 +972,14 @@ function tallyLiveActivity(
     tallyFor(row.user_id, row.store_id).last_move_at = row.last_move_at;
   }
   return [...tallies.values()];
-}
+};
 
 // Only onto rows that already exist: an Item Bayu cleaned and Citra passed on
 // 1 Sep must not give Bayu an August row with nothing else on it.
-function tallyComplaints(
+const tallyComplaints = (
   tallies: WorkerTally[],
   lines: WorkerActivity["lines"]
-) {
+) => {
   const byKey = new Map(
     tallies.map((tally) => [workerKey(tally.user_id, tally.store_id), tally])
   );
@@ -992,7 +993,7 @@ function tallyComplaints(
       tally.complaints += line.has_complaint ? 1 : 0;
     }
   }
-}
+};
 
 // The same days the bars show: every day worked or with a Service finished.
 // 0 is a day worked where nothing they started reached QC.
@@ -1001,7 +1002,7 @@ const dailyCounts = (tally: WorkerTally) =>
     (day) => tally.processed_by_day.get(day) ?? 0
   );
 
-function dailySpread(counts: number[]) {
+const dailySpread = (counts: number[]) => {
   if (counts.length < MIN_SPREAD_DAYS) {
     return null;
   }
@@ -1009,29 +1010,29 @@ function dailySpread(counts: number[]) {
     p25: round(percentile(counts, 0.25), 2),
     p75: round(percentile(counts, 0.75), 2),
   };
-}
+};
 
-export function dailyBuckets(from: string, to: string) {
+export const dailyBuckets = (from: string, to: string) => {
   const bucket: "day" | "week" =
     daysBetween(from, to) <= MAX_DAILY_BAR_DAYS ? "day" : "week";
   const bucketOf = (day: string) => (bucket === "day" ? day : weekStartOf(day));
   const labels = [...new Set(enumerateDays(from, to).map(bucketOf))];
   return { bucket, bucketOf, labels };
-}
+};
 
 // Only Services started by someone with a day worked count towards the rate:
 // a cashier who started one Item with no day at the bench has nothing to divide by.
-function perDayWorked(tallies: WorkerTally[]) {
+const perDayWorked = (tallies: WorkerTally[]) => {
   const staffed = tallies.filter((tally) => tally.days_worked.size > 0);
   const daysWorked = sumBy(staffed, (tally) => tally.days_worked.size);
   const services = sumBy(staffed, (tally) => tally.services_processed);
   return daysWorked > 0 ? round(services / daysWorked, 2) : null;
-}
+};
 
-function summariseWorkers(
+const summariseWorkers = (
   activity: WorkerSummaryActivity,
   tallies: WorkerTally[]
-): WorkerSummary {
+): WorkerSummary => {
   const spread = dailySpread(tallies.flatMap(dailyCounts));
   const qcChecks = sumBy(activity.qcChecks, (row) => row.checks);
   const qcRejects = sumBy(activity.qcChecks, (row) => row.rejects);
@@ -1055,9 +1056,9 @@ function summariseWorkers(
     qc_rejects: qcRejects,
     qc_reject_rate: rate(qcRejects, qcChecks),
   };
-}
+};
 
-function groupByService(lines: ActivityLine[]) {
+const groupByService = (lines: ActivityLine[]) => {
   const byService = new Map<
     number,
     {
@@ -1079,11 +1080,11 @@ function groupByService(lines: ActivityLine[]) {
     byService.set(serviceId, group);
   }
   return [...byService.values()];
-}
+};
 
 type ServiceGroup = ReturnType<typeof groupByService>[number];
 
-function buildServicesMatrix(byService: ServiceGroup[]) {
+const buildServicesMatrix = (byService: ServiceGroup[]) => {
   const services: {
     service_id: number;
     service_name: string;
@@ -1119,15 +1120,17 @@ function buildServicesMatrix(byService: ServiceGroup[]) {
     }
   }
   return {
-    services: services.sort(
+    services: services.toSorted(
       (a, b) =>
         b.total - a.total || a.service_name.localeCompare(b.service_name)
     ),
     cells,
   };
-}
+};
 
-export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
+export const getWorkerProductivityReport = async (
+  query: GetReportRangeQuery
+) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
@@ -1172,7 +1175,7 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
         complaint_cohort: tally.complaint_cohort,
       };
     })
-    .sort(
+    .toSorted(
       (a, b) =>
         a.store_name.localeCompare(b.store_name) ||
         b.services_processed - a.services_processed ||
@@ -1195,11 +1198,11 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
     workers,
     services_matrix: buildServicesMatrix(byService),
   };
-}
+};
 
 // A worker's own Workers tab figures for their Profile page: the same tallies,
 // added up across every Store they worked at, with a day at two Stores counted once.
-export async function getOwnWorkerFacts(userId: number, range: DateRange) {
+export const getOwnWorkerFacts = async (userId: number, range: DateRange) => {
   const activity = await listWorkerActivity({ range, userId });
   const tallies = tallyWorkers(activity, (id) =>
     id === userId ? "worker" : undefined
@@ -1220,11 +1223,11 @@ export async function getOwnWorkerFacts(userId: number, range: DateRange) {
     complaints: sumBy(mine, (tally) => tally.complaints),
     complaint_cohort: sumBy(mine, (tally) => tally.complaint_cohort),
   };
-}
+};
 
 // Who is on the floor right now, apart from the range report so the Workers tab
 // can ask every minute on Last 30 days without rescanning the month each time.
-export async function getWorkerLiveReport({ store_id }: GetWorkerLiveQuery) {
+export const getWorkerLiveReport = async ({ store_id }: GetWorkerLiveQuery) => {
   const today = jakartaNow().format("YYYY-MM-DD");
   const todayRange = getJakartaRange(today, today);
   const [live, linesToday, users, stores] = await Promise.all([
@@ -1255,7 +1258,7 @@ export async function getWorkerLiveReport({ store_id }: GetWorkerLiveQuery) {
       },
     };
   });
-}
+};
 
 interface ServiceCount {
   count: number;
@@ -1267,21 +1270,20 @@ interface ServiceCount {
 const byCountThenName = (a: ServiceCount, b: ServiceCount) =>
   b.count - a.count || a.service_name.localeCompare(b.service_name);
 
-function countByService(lines: ActivityLine[]): ServiceCount[] {
-  return groupByService(lines)
+const countByService = (lines: ActivityLine[]): ServiceCount[] =>
+  groupByService(lines)
     .map(({ service_id, service_name, service_code, lines: group }) => ({
       service_id,
       service_name,
       service_code,
       count: group.length,
     }))
-    .sort(byCountThenName);
-}
+    .toSorted(byCountThenName);
 
-function groupChecksByService(
+const groupChecksByService = (
   checks: Awaited<ReturnType<typeof listQcChecksOfCleaner>>,
   nameOf: (userId: number) => string
-) {
+) => {
   const byService = new Map<
     number,
     {
@@ -1324,16 +1326,16 @@ function groupChecksByService(
   }
   return [...byService.values()]
     .filter((group) => group.rejects > 0)
-    .sort(
+    .toSorted(
       (a, b) =>
         b.rejects - a.rejects || a.service_name.localeCompare(b.service_name)
     );
-}
+};
 
-function groupComplaintsByService(
+const groupComplaintsByService = (
   cohort: ActivityLine[],
   complaintItems: Awaited<ReturnType<typeof listComplaintItems>>
-) {
+) => {
   const itemByLine = new Map(
     complaintItems.map((item) => [item.order_service_id, item])
   );
@@ -1345,7 +1347,7 @@ function groupComplaintsByService(
       finished: lines.length,
       items: lines
         .flatMap((line) => itemByLine.get(line.order_service_id) ?? [])
-        .sort(
+        .toSorted(
           (a, b) =>
             b.created_at.getTime() - a.created_at.getTime() ||
             b.complaint_id - a.complaint_id
@@ -1361,16 +1363,17 @@ function groupComplaintsByService(
         })),
     }))
     .filter((group) => group.complaints > 0)
-    .sort(
+    .toSorted(
       (a, b) =>
         b.complaints - a.complaints ||
         a.service_name.localeCompare(b.service_name)
     );
-}
+};
 
 // One Store, one person: the page behind a row of the Workers tab. Everything
 // is built from the same tallies as that row, so the two never disagree.
-export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
+// oxlint-disable-next-line eslint/complexity -- one page's worth of figures built in one pass; splitting it would only move the branches
+export const getWorkerDetailReport = async (query: GetWorkerDetailQuery) => {
   const { from, to, store_id: storeId, user_id: userId } = query;
   const range = getJakartaRange(from, to);
   // Same Today rule as the row: an Item in hand counts as a day at the bench.
@@ -1484,26 +1487,22 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
     qc_rejects: qcRejects,
     complaints: groupComplaintsByService(cohort, complaintItems),
   };
-}
+};
 
-export async function getCampaignEffectivenessReport(
+export const getCampaignEffectivenessReport = async (
   query: GetReportRangeQuery
-) {
+) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
 
   const rows = await listCampaignEffectivenessRows({ range, storeId });
 
-  const totals = rows.reduce(
-    (acc, row) => {
-      acc.orders += row.orders;
-      acc.collected += row.collected;
-      acc.discount_cost += row.discount_cost;
-      return acc;
-    },
-    { orders: 0, collected: 0, discount_cost: 0 }
-  );
+  const totals = {
+    orders: sumBy(rows, (row) => row.orders),
+    collected: sumBy(rows, (row) => row.collected),
+    discount_cost: sumBy(rows, (row) => row.discount_cost),
+  };
 
   return {
     from: ctx.from,
@@ -1513,4 +1512,4 @@ export async function getCampaignEffectivenessReport(
     campaigns: rows,
     summary: totals,
   };
-}
+};

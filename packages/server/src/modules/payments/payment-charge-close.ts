@@ -1,19 +1,15 @@
 import { getPaymentGateway } from "@/modules/payments/gateways";
 import type { GatewayChargeRef } from "@/modules/payments/gateways/types";
-import {
-  type PaymentCharge,
-  updatePendingChargesCancelled,
-} from "@/modules/payments/payment-charge.repository";
+import { updatePendingChargesCancelled } from "@/modules/payments/payment-charge.repository";
+import type { PaymentCharge } from "@/modules/payments/payment-charge.repository";
 
-export function chargeRef(charge: PaymentCharge): GatewayChargeRef {
-  return {
-    hasQr: charge.qr_content !== null,
-    providerRef: charge.provider_ref,
-    reference: charge.reference,
-  };
-}
+export const chargeRef = (charge: PaymentCharge): GatewayChargeRef => ({
+  hasQr: charge.qr_content !== null,
+  providerRef: charge.provider_ref,
+  reference: charge.reference,
+});
 
-export async function cancelAtGateway(charges: PaymentCharge[]) {
+export const cancelAtGateway = async (charges: PaymentCharge[]) => {
   await Promise.allSettled(
     charges.map((charge) =>
       getPaymentGateway(charge.gateway)
@@ -23,14 +19,14 @@ export async function cancelAtGateway(charges: PaymentCharge[]) {
         })
     )
   );
-}
+};
 
 // After a payment, a line cancel or a Repair price: a QR still on screen would
 // take the old amount. Never fails the change that already went through.
-export async function cancelOrderPendingCharges(
+export const cancelOrderPendingCharges = async (
   orderId: number,
   { except }: { except?: number } = {}
-) {
+) => {
   try {
     await cancelAtGateway(
       await updatePendingChargesCancelled(orderId, { except })
@@ -38,4 +34,4 @@ export async function cancelOrderPendingCharges(
   } catch (error) {
     console.error("cancelling pending charges failed", orderId, error);
   }
-}
+};

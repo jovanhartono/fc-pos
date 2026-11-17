@@ -19,18 +19,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  type Campaign,
   campaignsKeys,
   campaignsQueries,
   createCampaign,
-  type UpdateCampaignPayload,
   updateCampaign,
 } from "@/features/campaigns/api";
+import type { Campaign, UpdateCampaignPayload } from "@/features/campaigns/api";
 import { CampaignDiscount } from "@/features/campaigns/components/campaign-discount";
-import {
-  CampaignForm,
-  type CampaignFormInput,
-} from "@/features/campaigns/components/campaign-form";
+import { CampaignForm } from "@/features/campaigns/components/campaign-form";
+import type { CampaignFormInput } from "@/features/campaigns/components/campaign-form";
 import { VoucherCodesSheet } from "@/features/campaigns/components/voucher-codes-sheet";
 import { formatCampaignRedemption } from "@/features/campaigns/lib/campaign-text";
 import { storesQueries } from "@/features/stores/api";
@@ -58,9 +55,9 @@ const STATUS_TABS: { value: CampaignStatus; label: string }[] = [
   { value: "archived", label: "Archived" },
 ];
 
-function deriveCampaignState(
+const deriveCampaignState = (
   campaign: Campaign
-): Exclude<CampaignStatus, "all"> {
+): Exclude<CampaignStatus, "all"> => {
   if (!campaign.is_active) {
     return "archived";
   }
@@ -68,19 +65,7 @@ function deriveCampaignState(
     return "expired";
   }
   return "active";
-}
-
-export const Route = createFileRoute("/_admin/campaigns")({
-  validateSearch: (search) => campaignsSearchSchema.parse(search),
-  loader: ({ context }) =>
-    Promise.all([
-      context.queryClient.ensureQueryData(campaignsQueries.list()),
-      context.queryClient.ensureQueryData(storesQueries.list()),
-    ]),
-  component: CampaignsPage,
-  // Past a second, the page itself draws with skeleton rows.
-  pendingComponent: CampaignsPage,
-});
+};
 
 const defaultCampaignForm: CampaignFormInput = {
   code: "",
@@ -101,7 +86,7 @@ const defaultCampaignForm: CampaignFormInput = {
   eligible_service_ids: [],
 };
 
-function toDateTimeLocal(value: Date | string | null | undefined) {
+const toDateTimeLocal = (value: Date | string | null | undefined) => {
   if (!value) {
     return null;
   }
@@ -109,29 +94,27 @@ function toDateTimeLocal(value: Date | string | null | undefined) {
   const date = new Date(value);
   const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return adjusted.toISOString().slice(0, 16);
-}
+};
 
-function toCampaignFormInput(campaign: Campaign): CampaignFormInput {
-  return {
-    code: campaign.code,
-    name: campaign.name,
-    redemption_mode: campaign.redemption_mode,
-    discount_type: campaign.discount_type,
-    discount_value: String(campaign.discount_value),
-    min_order_total: String(campaign.min_order_total),
-    max_discount: campaign.max_discount ? String(campaign.max_discount) : null,
-    usage_limit: campaign.usage_limit,
-    code_count: null,
-    buy_quantity: campaign.buy_quantity,
-    free_quantity: campaign.free_quantity,
-    starts_at: toDateTimeLocal(campaign.starts_at),
-    ends_at: toDateTimeLocal(campaign.ends_at),
-    is_active: campaign.is_active,
-    store_ids: campaign.stores.map((item) => item.store_id),
-    eligible_service_ids:
-      campaign.eligibleServices?.map((item) => item.service_id) ?? [],
-  };
-}
+const toCampaignFormInput = (campaign: Campaign): CampaignFormInput => ({
+  code: campaign.code,
+  name: campaign.name,
+  redemption_mode: campaign.redemption_mode,
+  discount_type: campaign.discount_type,
+  discount_value: String(campaign.discount_value),
+  min_order_total: String(campaign.min_order_total),
+  max_discount: campaign.max_discount ? String(campaign.max_discount) : null,
+  usage_limit: campaign.usage_limit,
+  code_count: null,
+  buy_quantity: campaign.buy_quantity,
+  free_quantity: campaign.free_quantity,
+  starts_at: toDateTimeLocal(campaign.starts_at),
+  ends_at: toDateTimeLocal(campaign.ends_at),
+  is_active: campaign.is_active,
+  store_ids: campaign.stores.map((item) => item.store_id),
+  eligible_service_ids:
+    campaign.eligibleServices?.map((item) => item.service_id) ?? [],
+});
 
 interface ArchiveCampaignButtonProps {
   campaign: Campaign;
@@ -194,7 +177,140 @@ const ArchiveCampaignButton = ({
   );
 };
 
-function CampaignsPage() {
+interface CampaignRowActions {
+  isAdmin: boolean;
+  isArchiving: boolean;
+  onEdit: (campaign: Campaign) => void;
+  onArchive: ArchiveCampaignButtonProps["onConfirm"];
+  onOpenCodes: (campaign: Campaign) => void;
+}
+
+const columnsFor = ({
+  isAdmin,
+  isArchiving,
+  onEdit,
+  onArchive,
+  onOpenCodes,
+}: CampaignRowActions): DataTableColumnDef<Campaign>[] => [
+  {
+    accessorKey: "code",
+    header: "Code",
+    meta: {
+      kind: "code",
+      width: { percent: 14, minRem: 8.25 },
+      mobileCard: { slot: "subtitle" },
+    },
+  },
+  {
+    accessorKey: "name",
+    header: "Name",
+    meta: { kind: "name", width: { percent: 24, minRem: 9 } },
+    cell: ({ row }) => (
+      <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+        {row.original.name}
+        {row.original.redemption_mode === "code" && (
+          <span className="text-footnote text-muted-foreground">Voucher</span>
+        )}
+      </span>
+    ),
+  },
+  {
+    id: "discount",
+    header: "Discount",
+    meta: {
+      align: "right",
+      width: { percent: 18, minRem: 6 },
+      mobileCard: { slot: "badges" },
+    },
+    cell: ({ row }) => (
+      <CampaignDiscount
+        campaign={row.original}
+        isActive={deriveCampaignState(row.original) === "active"}
+      />
+    ),
+  },
+  {
+    id: "stores",
+    header: "Stores",
+    meta: {
+      width: { percent: 12, minRem: 7 },
+      mobileCard: { slot: "subtitle" },
+    },
+    cell: ({ row }) => {
+      if (row.original.stores.length === 0) {
+        return "All stores";
+      }
+
+      return row.original.stores
+        .map((item) => item.store?.code ?? String(item.store_id))
+        .join(", ");
+    },
+  },
+  {
+    id: "redemption",
+    header: "Redemption",
+    meta: {
+      width: { percent: 10, minRem: 5.75 },
+      mobileCard: { slot: "subtitle" },
+    },
+    cell: ({ row }) => formatCampaignRedemption(row.original),
+  },
+  {
+    id: "status",
+    header: "Status",
+    meta: {
+      width: { percent: 9, minRem: 5.25 },
+      mobileCard: { slot: "status" },
+    },
+    cell: ({ row }) => {
+      const state = deriveCampaignState(row.original);
+      if (state === "expired") {
+        return <Badge variant="warning">Expired</Badge>;
+      }
+      if (state === "archived") {
+        return <Badge variant="secondary">Archived</Badge>;
+      }
+      return <Badge variant="success">Active</Badge>;
+    },
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    meta: {
+      width: { percent: 13, minRem: 7.5 },
+      mobileCard: { slot: "title-end" },
+    },
+    cell: ({ row }) => (
+      <div className="flex gap-2">
+        <EditRowButton
+          label={`Edit ${row.original.name}`}
+          disabled={!isAdmin}
+          onClick={() => onEdit(row.original)}
+        />
+        <ArchiveCampaignButton
+          campaign={row.original}
+          disabled={!isAdmin}
+          isPending={isArchiving}
+          onConfirm={onArchive}
+        />
+        {/* Codes comes last so Archive sits in the same spot on every
+				row, and a quick click never archives by mistake. */}
+        {row.original.redemption_mode === "code" && (
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label={`${row.original.name} codes`}
+            title="Codes"
+            onClick={() => onOpenCodes(row.original)}
+            icon={<HugeiconsIcon icon={Coupon01Icon} className="size-4" />}
+          />
+        )}
+      </div>
+    ),
+  },
+];
+
+const CampaignsPage = () => {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
   // DB-fresh role — JWT claim goes stale on mid-session role changes.
@@ -292,129 +408,18 @@ function CampaignsPage() {
     });
   };
 
-  const columns: DataTableColumnDef<Campaign>[] = [
-    {
-      accessorKey: "code",
-      header: "Code",
-      meta: {
-        kind: "code",
-        width: { percent: 14, minRem: 8.25 },
-        mobileCard: { slot: "subtitle" },
-      },
+  const columns = columnsFor({
+    isAdmin,
+    isArchiving: archiveMutation.isPending,
+    onEdit: handleOpenEditSheet,
+    onArchive: async ({ campaignId, nextIsActive }) => {
+      await archiveMutation.mutateAsync({
+        id: campaignId,
+        is_active: nextIsActive,
+      });
     },
-    {
-      accessorKey: "name",
-      header: "Name",
-      meta: { kind: "name", width: { percent: 24, minRem: 9 } },
-      cell: ({ row }) => (
-        <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-          {row.original.name}
-          {row.original.redemption_mode === "code" && (
-            <span className="text-footnote text-muted-foreground">Voucher</span>
-          )}
-        </span>
-      ),
-    },
-    {
-      id: "discount",
-      header: "Discount",
-      meta: {
-        align: "right",
-        width: { percent: 18, minRem: 6 },
-        mobileCard: { slot: "badges" },
-      },
-      cell: ({ row }) => (
-        <CampaignDiscount
-          campaign={row.original}
-          isActive={deriveCampaignState(row.original) === "active"}
-        />
-      ),
-    },
-    {
-      id: "stores",
-      header: "Stores",
-      meta: {
-        width: { percent: 12, minRem: 7 },
-        mobileCard: { slot: "subtitle" },
-      },
-      cell: ({ row }) => {
-        if (row.original.stores.length === 0) {
-          return "All stores";
-        }
-
-        return row.original.stores
-          .map((item) => item.store?.code ?? String(item.store_id))
-          .join(", ");
-      },
-    },
-    {
-      id: "redemption",
-      header: "Redemption",
-      meta: {
-        width: { percent: 10, minRem: 5.75 },
-        mobileCard: { slot: "subtitle" },
-      },
-      cell: ({ row }) => formatCampaignRedemption(row.original),
-    },
-    {
-      id: "status",
-      header: "Status",
-      meta: {
-        width: { percent: 9, minRem: 5.25 },
-        mobileCard: { slot: "status" },
-      },
-      cell: ({ row }) => {
-        const state = deriveCampaignState(row.original);
-        if (state === "expired") {
-          return <Badge variant="warning">Expired</Badge>;
-        }
-        if (state === "archived") {
-          return <Badge variant="secondary">Archived</Badge>;
-        }
-        return <Badge variant="success">Active</Badge>;
-      },
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      meta: {
-        width: { percent: 13, minRem: 7.5 },
-        mobileCard: { slot: "title-end" },
-      },
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <EditRowButton
-            label={`Edit ${row.original.name}`}
-            disabled={!isAdmin}
-            onClick={() => handleOpenEditSheet(row.original)}
-          />
-          <ArchiveCampaignButton
-            campaign={row.original}
-            disabled={!isAdmin}
-            isPending={archiveMutation.isPending}
-            onConfirm={async ({ campaignId, nextIsActive }) => {
-              await archiveMutation.mutateAsync({
-                id: campaignId,
-                is_active: nextIsActive,
-              });
-            }}
-          />
-          {/* Codes comes last so Archive sits in the same spot on every
-					row, and a quick click never archives by mistake. */}
-          {row.original.redemption_mode === "code" && (
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label={`${row.original.name} codes`}
-              title="Codes"
-              onClick={() => handleOpenVoucherDetail(row.original)}
-              icon={<HugeiconsIcon icon={Coupon01Icon} className="size-4" />}
-            />
-          )}
-        </div>
-      ),
-    },
-  ];
+    onOpenCodes: handleOpenVoucherDetail,
+  });
 
   return (
     <>
@@ -466,4 +471,16 @@ function CampaignsPage() {
       </ListPanel>
     </>
   );
-}
+};
+
+export const Route = createFileRoute("/_admin/campaigns")({
+  validateSearch: (search) => campaignsSearchSchema.parse(search),
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(campaignsQueries.list()),
+      context.queryClient.ensureQueryData(storesQueries.list()),
+    ]),
+  component: CampaignsPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: CampaignsPage,
+});

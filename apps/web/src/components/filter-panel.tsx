@@ -1,6 +1,7 @@
 import { FilterIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type ReactElement, type ReactNode, useState } from "react";
+import { useState } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { FilterCountBadge } from "@/components/filter-count-badge";
 import { Button } from "@/components/ui/button";

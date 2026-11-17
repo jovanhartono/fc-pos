@@ -110,7 +110,7 @@ const relationalQuery = (first: () => unknown) => ({
 
 mock.module("@/db", () => ({
   db: {
-    transaction: (cb: (tx: unknown) => unknown) => cb(TX),
+    transaction: (work: (tx: unknown) => unknown) => work(TX),
     query: new Proxy(
       {},
       {
@@ -180,7 +180,7 @@ mock.module("@/modules/orders/order.repository", () => ({
           id: ITEM_ID_BASE + index,
           item_code: row.item_code as string,
         }))
-        .reverse()
+        .toReversed()
     );
   },
   insertOrderServices: (_tx: unknown, rows: AnyObj[]) => {
@@ -453,7 +453,7 @@ describe("createOrder", () => {
       storeCode: "JKT",
     });
 
-    const { set } = finalize.writes[0];
+    const [{ set }] = finalize.writes;
     expect(set.total).toBe("50000");
     expect(set.discount).toBe("5000");
     expect(set.paid_amount).toBe("45000");

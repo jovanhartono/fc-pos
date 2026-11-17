@@ -8,7 +8,7 @@ const queries: string[] = [];
 
 mock.module("@/db", () => ({
   db: drizzle((sql) => {
-    queries.push(sql.replace(/\s+/g, " "));
+    queries.push(sql.replaceAll(/\s+/gu, " "));
     return Promise.resolve({ rows: [] });
   }),
 }));

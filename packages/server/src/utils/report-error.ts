@@ -2,16 +2,16 @@
 // format by hand instead of pulling in the SDK. Best-effort only: a Sentry
 // outage must never turn one broken request into two.
 
-const LEADING_SLASH_REGEX = /^\//;
+const LEADING_SLASH_REGEX = /^\//u;
 
-function parseDsn(dsn: string) {
+const parseDsn = (dsn: string) => {
   const url = new URL(dsn);
   return {
     publicKey: url.username,
     host: url.host,
     projectId: url.pathname.replace(LEADING_SLASH_REGEX, ""),
   };
-}
+};
 
 const hasStringCode = (value: unknown): value is { code: string } =>
   typeof value === "object" &&
@@ -21,7 +21,7 @@ const hasStringCode = (value: unknown): value is { code: string } =>
 // A Postgres error's detail can quote the row that broke the save, and a
 // Drizzle wrapper's message repeats every bound parameter — a customer's
 // phone number or a new user's password hash. Neither is safe to forward.
-function describeError(err: unknown): { type: string; value: string } {
+const describeError = (err: unknown): { type: string; value: string } => {
   const name = err instanceof Error ? err.name : "Error";
 
   if (hasStringCode(err)) {
@@ -34,12 +34,12 @@ function describeError(err: unknown): { type: string; value: string } {
   }
 
   return { type: name, value: message };
-}
+};
 
-export async function reportError(
+export const reportError = async (
   err: unknown,
   request?: Request
-): Promise<void> {
+): Promise<void> => {
   const dsn = process.env.SENTRY_DSN;
   if (!dsn) {
     return;
@@ -79,4 +79,4 @@ ${JSON.stringify({
   } catch {
     // Swallowed: reporting the error must never throw a second one.
   }
-}
+};

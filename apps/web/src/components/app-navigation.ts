@@ -23,7 +23,7 @@ import type { LinkProps } from "@tanstack/react-router";
 
 export type Role = JWTPayload["role"];
 
-export type NavItem = {
+export interface NavItem {
   to: LinkProps["to"];
   label: string;
   // Page heading when it differs from the sidebar label.
@@ -31,7 +31,7 @@ export type NavItem = {
   description: string;
   icon: IconSvgElement;
   roles: Role[];
-};
+}
 
 const operationsNavigation: NavItem[] = [
   {

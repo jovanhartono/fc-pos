@@ -7,6 +7,7 @@ import { SectionTitle } from "@/components/section";
 import { Card, CardContent } from "@/components/ui/card";
 import type { FinancialReport } from "@/features/reports/api";
 import { compactMoney } from "@/features/reports/utils/format";
+import { maxBy } from "@/features/reports/utils/max-by";
 import { cn } from "@/lib/utils";
 
 export const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -39,28 +40,6 @@ interface Slot {
 // An hour with under this share of the range's money doesn't widen the grid:
 // one QRIS paid from the Track page at 01:00 would add eight empty columns.
 const MIN_HOUR_SHARE = 0.01;
-
-// Which hours of which weekdays the counter takes money: darker is more.
-// An owner uses it to decide who works the Saturday evening shift.
-export const BusyHoursCard = ({ rows, from, to }: BusyHoursCardProps) => {
-  const counts = weekdayCounts(from, to);
-  // Per day, so five Mondays in the range don't look busier than four Saturdays.
-  const cells = rows
-    .filter((row) => row.collected > 0 && counts[row.weekday] > 0)
-    .map((row) => ({ ...row, average: row.collected / counts[row.weekday] }));
-  return (
-    <Card className="border-border/70 py-0">
-      <CardContent className="grid content-start gap-4 p-4">
-        <SectionTitle title="Busy Hours" />
-        {cells.length === 0 ? (
-          <EmptyState icon={Analytics01Icon}>No data in range.</EmptyState>
-        ) : (
-          <BusyGrid cells={cells} />
-        )}
-      </CardContent>
-    </Card>
-  );
-};
 
 interface BusyCell extends Slot {
   collected: number;
@@ -107,7 +86,7 @@ const BusyGrid = ({ cells }: BusyGridProps) => {
     shownCells.find(
       (cell) => cell.weekday === slot.weekday && cell.hour === slot.hour
     )?.average ?? 0;
-  const busiest = shownCells.reduce((a, b) => (b.average > a.average ? b : a));
+  const busiest = maxBy(shownCells, (cell) => cell.average);
   const shown = picked ?? busiest;
   return (
     <>
@@ -186,5 +165,27 @@ const BusyGrid = ({ cells }: BusyGridProps) => {
         </tbody>
       </table>
     </>
+  );
+};
+
+// Which hours of which weekdays the counter takes money: darker is more.
+// An owner uses it to decide who works the Saturday evening shift.
+export const BusyHoursCard = ({ rows, from, to }: BusyHoursCardProps) => {
+  const counts = weekdayCounts(from, to);
+  // Per day, so five Mondays in the range don't look busier than four Saturdays.
+  const cells = rows
+    .filter((row) => row.collected > 0 && counts[row.weekday] > 0)
+    .map((row) => ({ ...row, average: row.collected / counts[row.weekday] }));
+  return (
+    <Card className="border-border/70 py-0">
+      <CardContent className="grid content-start gap-4 p-4">
+        <SectionTitle title="Busy Hours" />
+        {cells.length === 0 ? (
+          <EmptyState icon={Analytics01Icon}>No data in range.</EmptyState>
+        ) : (
+          <BusyGrid cells={cells} />
+        )}
+      </CardContent>
+    </Card>
   );
 };

@@ -4,7 +4,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { categoriesQueries } from "@/features/categories/api";
 
-type CategoryAutocompleteProps = {
+interface CategoryAutocompleteProps {
   value: string;
   onValueChange: (value: string) => void;
   disabled?: boolean;
@@ -12,9 +12,9 @@ type CategoryAutocompleteProps = {
   error?: { message?: string };
   id?: string;
   allOptionLabel?: string;
-};
+}
 
-export function CategoryAutocomplete({
+export const CategoryAutocomplete = ({
   value,
   onValueChange,
   disabled,
@@ -22,7 +22,7 @@ export function CategoryAutocomplete({
   error,
   id = "entity-category",
   allOptionLabel,
-}: CategoryAutocompleteProps) {
+}: CategoryAutocompleteProps) => {
   const { data: categories = [], isPending } = useQuery(
     categoriesQueries.list()
   );
@@ -56,4 +56,4 @@ export function CategoryAutocomplete({
       <FieldError errors={[error]} />
     </Field>
   );
-}
+};

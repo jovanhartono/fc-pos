@@ -4,10 +4,8 @@ import { renderSVG } from "uqr";
 import { z } from "zod";
 
 import { NotFoundException } from "@/http-exceptions";
-import {
-  buildMockNotification,
-  type MockNotification,
-} from "@/modules/payments/gateways/mock";
+import { buildMockNotification } from "@/modules/payments/gateways/mock";
+import type { MockNotification } from "@/modules/payments/gateways/mock";
 import { GATEWAY_LABELS } from "@/modules/payments/gateways/types";
 import {
   findOrderForCharge,
@@ -32,7 +30,7 @@ const notifyForm = z.object({
   finish: z.string().optional(),
 });
 
-const HTTP_URL_REGEX = /^https?:\/\//;
+const HTTP_URL_REGEX = /^https?:\/\//u;
 
 const safeFinish = (finish: string | undefined) =>
   finish && HTTP_URL_REGEX.test(finish) ? finish : null;
@@ -51,6 +49,22 @@ const loadCharge = async (reference: string) => {
   const order = await findOrderForCharge(charge.order_id);
   return { charge, order };
 };
+
+const webhookSection = ({ notification, status, response }: WebhookLog) =>
+  html` <section aria-label="Webhook">
+    <strong>Sent to our webhook</strong>
+    <pre>
+POST ${notification.path}
+${Object.entries(notification.headers)
+  .map(([name, value]) => `${name}: ${value}`)
+  .join("\n")}
+
+${JSON.stringify(JSON.parse(notification.body), null, 2)}</pre>
+    <strong class="${status < 300 ? "ok" : "bad"}"
+      >Webhook answered ${status}</strong
+    >
+    <pre>${response}</pre>
+  </section>`;
 
 const page = ({
   charge,
@@ -219,22 +233,6 @@ const page = ({
         </main>
       </body>
     </html>`;
-
-const webhookSection = ({ notification, status, response }: WebhookLog) =>
-  html` <section aria-label="Webhook">
-    <strong>Sent to our webhook</strong>
-    <pre>
-POST ${notification.path}
-${Object.entries(notification.headers)
-  .map(([name, value]) => `${name}: ${value}`)
-  .join("\n")}
-
-${JSON.stringify(JSON.parse(notification.body), null, 2)}</pre>
-    <strong class="${status < 300 ? "ok" : "bad"}"
-      >Webhook answered ${status}</strong
-    >
-    <pre>${response}</pre>
-  </section>`;
 
 const app = new Hono()
   .get("/:reference", zodValidator("param", referenceParam), async (c) => {

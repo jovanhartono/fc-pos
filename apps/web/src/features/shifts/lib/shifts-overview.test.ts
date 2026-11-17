@@ -134,7 +134,7 @@ describe("buildStoreGroups", () => {
 
   it("knows which other Store each day was at", () => {
     const [kemang] = buildStoreGroups(overview, [KEMANG, BSD], 1);
-    const rizky = kemang.rows[1];
+    const [, rizky] = kemang.rows;
 
     expect(rizky.elsewhereByDay.get("2026-10-14")).toBe("Fresclean BSD");
     expect(rizky.elsewhereByDay.get("2026-10-13")).toBe("Fresclean BSD");

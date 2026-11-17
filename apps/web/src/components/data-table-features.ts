@@ -1,12 +1,10 @@
 import {
-  type ColumnDef,
   createSortedRowModel,
-  type Row,
-  type RowData,
   rowSortingFeature,
   sortFns,
   tableFeatures,
 } from "@tanstack/react-table";
+import type { ColumnDef, Row, RowData } from "@tanstack/react-table";
 
 // Every admin list shares one feature set. v9 threads it through each table,
 // column and row type, so routes type their columns with the aliases below

@@ -61,6 +61,7 @@ export const useGeolocation = (enabled: boolean) => {
 
   useEffect(() => {
     if (enabled) {
+      // oxlint-disable-next-line react/set-state-in-effect -- asking the phone for a fix is the outside system this effect syncs with
       onEnabled();
     }
   }, [enabled]);

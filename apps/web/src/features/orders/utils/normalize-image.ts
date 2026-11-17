@@ -14,9 +14,9 @@ const JPEG_QUALITY = 0.88;
 // a live photo still passes through untouched.
 const MAX_PASSTHROUGH_BYTES = 4_000_000;
 
-const PASSTHROUGH_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const PASSTHROUGH_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-const FILE_EXTENSION = /\.[^.]*$/;
+const FILE_EXTENSION = /\.[^.]*$/u;
 
 export interface EncodedUpload {
   blob: Blob;
@@ -25,6 +25,7 @@ export interface EncodedUpload {
 }
 
 const toBlob = (canvas: HTMLCanvasElement, type: string, quality: number) =>
+  // oxlint-disable-next-line promise/avoid-new -- canvas.toBlob only takes a callback
   new Promise<Blob | null>((resolve) => {
     canvas.toBlob(resolve, type, quality);
   });
@@ -81,7 +82,7 @@ export const normalizeImageFile = async (file: File): Promise<File> => {
     const isInBudget =
       longEdge <= MAX_UPLOAD_DIMENSION &&
       file.size <= MAX_PASSTHROUGH_BYTES &&
-      PASSTHROUGH_TYPES.includes(file.type);
+      PASSTHROUGH_TYPES.has(file.type);
 
     // Asked once: a five-photo gallery pick was otherwise testing the device ten times.
     const supportsWebp = await canEncodeWebp();

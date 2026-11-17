@@ -7,10 +7,10 @@ import {
 import { countItemsReady } from "@/modules/orders/order-status-machine";
 import { buildMediaUrl } from "@/utils/s3";
 
-export async function getOrderServiceDetail(
+export const getOrderServiceDetail = async (
   orderId: number,
   serviceId: number
-) {
+) => {
   const line = await findOrderServiceDetail(orderId, serviceId);
 
   if (!line) {
@@ -41,4 +41,4 @@ export async function getOrderServiceDetail(
       item: { ...itemCard, images },
     },
   };
-}
+};

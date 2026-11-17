@@ -5,7 +5,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type MouseEvent, useEffect } from "react";
+import { useEffect } from "react";
+import type { MouseEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { isListKeyBlocked, isPlainLeftClick } from "@/lib/list-keys";
@@ -38,7 +39,7 @@ export const OrderWalk = ({ openId, onClose, onSelect }: OrderWalkProps) => {
   const orders = useOrderWalkStore((s) => s.orders);
   const openIndex = orders.findIndex((order) => order.id === openId);
   const previous = orders[openIndex - 1];
-  const next = openIndex >= 0 ? orders[openIndex + 1] : undefined;
+  const next = openIndex === -1 ? undefined : orders[openIndex + 1];
 
   useEffect(() => {
     // Ahead of the table's own J and K, which would move its ring instead.
@@ -56,7 +57,7 @@ export const OrderWalk = ({ openId, onClose, onSelect }: OrderWalkProps) => {
       event.preventDefault();
       event.stopImmediatePropagation();
       // One Order per press: a held key would load every Order it passed.
-      if (event.repeat || openIndex < 0) {
+      if (event.repeat || openIndex === -1) {
         return;
       }
       const target = orders[openIndex + step];
@@ -102,9 +103,9 @@ export const OrderWalk = ({ openId, onClose, onSelect }: OrderWalkProps) => {
         onClick={() => next && onSelect(next.id)}
       />
       <span className="ml-1 tabular-nums">
-        {openIndex >= 0
-          ? `Order ${openIndex + 1} of ${orders.length}`
-          : "Not on this page"}
+        {openIndex === -1
+          ? "Not on this page"
+          : `Order ${openIndex + 1} of ${orders.length}`}
       </span>
       <Button
         variant="ghost"

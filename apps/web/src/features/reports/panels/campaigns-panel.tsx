@@ -3,7 +3,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
+import { reportsQueries } from "@/features/reports/api";
+import type { ReportGranularity } from "@/features/reports/api";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
@@ -42,9 +43,9 @@ export const CampaignsPanel = ({
     }),
     placeholderData: keepPreviousData,
   });
-  const data = query.data;
+  const { data } = query;
   const campaigns = data?.campaigns ?? [];
-  const maxOrders = campaigns.reduce((m, c) => Math.max(m, c.orders), 0);
+  const maxOrders = Math.max(0, ...campaigns.map((c) => c.orders));
 
   const handleExport = () => {
     if (!data) {

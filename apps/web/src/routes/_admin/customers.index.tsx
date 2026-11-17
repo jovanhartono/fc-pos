@@ -12,9 +12,10 @@ import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Button } from "@/components/ui/button";
-import { type Customer, customersQueries } from "@/features/customers/api";
+import { customersQueries } from "@/features/customers/api";
+import type { Customer } from "@/features/customers/api";
 import { CustomerSheetContent } from "@/features/customers/components/customer-sheet-content";
-import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { useStoreScope } from "@/features/users/hooks/use-store-scope";
 import {
   DEFAULT_PAGE_SIZE,
   pageSizeChange,
@@ -28,29 +29,79 @@ const customersSearchSchema = z.object({
   search: z.string().trim().min(1).max(100).optional(),
 });
 
-export const Route = createFileRoute("/_admin/customers/")({
-  validateSearch: (search) => customersSearchSchema.parse(search),
-  loaderDeps: ({ search }) => search,
-  loader: async ({ context, deps, cause }) => {
-    // Typing a search or paging keeps the page up, the search box focused,
-    // and swaps the rows in place; only opening the page waits for them.
-    if (cause === "stay") {
-      return;
-    }
-    await context.queryClient.ensureQueryData(
-      customersQueries.list({
-        limit: deps.limit ?? DEFAULT_PAGE_SIZE,
-        offset: (deps.page - 1) * (deps.limit ?? DEFAULT_PAGE_SIZE),
-        ...(deps.search ? { search: deps.search } : {}),
-      })
-    );
+const columnsFor = (
+  onEdit: (customer: Customer) => void
+): DataTableColumnDef<Customer>[] => [
+  {
+    accessorKey: "name",
+    header: "Name",
+    meta: { kind: "name", width: { percent: 31, minRem: 9 } },
+    // On a phone, Edit sits right after the name; the table keeps its
+    // Actions column.
+    cell: ({ row }) => (
+      <>
+        {row.original.name}
+        <span className="ml-2 inline-flex align-middle lg:hidden">
+          <EditRowButton
+            label={`Edit ${row.original.name}`}
+            onClick={() => onEdit(row.original)}
+          />
+        </span>
+      </>
+    ),
   },
-  component: CustomersPage,
-  // Past a second, the page itself draws with skeleton rows.
-  pendingComponent: CustomersPage,
-});
+  {
+    accessorKey: "phone_number",
+    header: "Phone",
+    meta: {
+      width: { percent: 15, minRem: 7.5 },
+      mobileCard: {
+        slot: "subtitle",
+        className: "text-foreground text-subhead tabular-nums",
+      },
+    },
+  },
+  {
+    accessorKey: "email",
+    header: "Email",
+    meta: {
+      kind: "text",
+      width: { percent: 28, minRem: 10 },
+      mobileCard: { slot: "hidden" },
+    },
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{row.original.email ?? "—"}</span>
+    ),
+  },
+  {
+    id: "origin_store",
+    header: "Origin store",
+    meta: {
+      width: { percent: 18, minRem: 8.5 },
+      mobileCard: {
+        slot: "subtitle",
+        className: "text-foreground text-subhead",
+      },
+    },
+    cell: ({ row }) => row.original.originStore?.name ?? "—",
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    meta: {
+      width: { percent: 8, minRem: 4.5 },
+      mobileCard: { slot: "hidden" },
+    },
+    cell: ({ row }) => (
+      <EditRowButton
+        label={`Edit ${row.original.name}`}
+        onClick={() => onEdit(row.original)}
+      />
+    ),
+  },
+];
 
-function CustomersPage() {
+const CustomersPage = () => {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
   const pageSize = search.limit ?? DEFAULT_PAGE_SIZE;
@@ -93,77 +144,7 @@ function CustomersPage() {
     });
   };
 
-  const columns: DataTableColumnDef<Customer>[] = [
-    {
-      accessorKey: "name",
-      header: "Name",
-      meta: { kind: "name", width: { percent: 31, minRem: 9 } },
-      // On a phone, Edit sits right after the name; the table keeps its
-      // Actions column.
-      cell: ({ row }) => (
-        <>
-          {row.original.name}
-          <span className="ml-2 inline-flex align-middle lg:hidden">
-            <EditRowButton
-              label={`Edit ${row.original.name}`}
-              onClick={() => handleOpenEditSheet(row.original)}
-            />
-          </span>
-        </>
-      ),
-    },
-    {
-      accessorKey: "phone_number",
-      header: "Phone",
-      meta: {
-        width: { percent: 15, minRem: 7.5 },
-        mobileCard: {
-          slot: "subtitle",
-          className: "text-foreground text-subhead tabular-nums",
-        },
-      },
-    },
-    {
-      accessorKey: "email",
-      header: "Email",
-      meta: {
-        kind: "text",
-        width: { percent: 28, minRem: 10 },
-        mobileCard: { slot: "hidden" },
-      },
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.email ?? "—"}
-        </span>
-      ),
-    },
-    {
-      id: "origin_store",
-      header: "Origin store",
-      meta: {
-        width: { percent: 18, minRem: 8.5 },
-        mobileCard: {
-          slot: "subtitle",
-          className: "text-foreground text-subhead",
-        },
-      },
-      cell: ({ row }) => row.original.originStore?.name ?? "—",
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      meta: {
-        width: { percent: 8, minRem: 4.5 },
-        mobileCard: { slot: "hidden" },
-      },
-      cell: ({ row }) => (
-        <EditRowButton
-          label={`Edit ${row.original.name}`}
-          onClick={() => handleOpenEditSheet(row.original)}
-        />
-      ),
-    },
-  ];
+  const columns = columnsFor(handleOpenEditSheet);
 
   return (
     <>
@@ -238,4 +219,26 @@ function CustomersPage() {
       </ListPanel>
     </>
   );
-}
+};
+
+export const Route = createFileRoute("/_admin/customers/")({
+  validateSearch: (search) => customersSearchSchema.parse(search),
+  loaderDeps: ({ search }) => search,
+  loader: async ({ context, deps, cause }) => {
+    // Typing a search or paging keeps the page up, the search box focused,
+    // and swaps the rows in place; only opening the page waits for them.
+    if (cause === "stay") {
+      return;
+    }
+    await context.queryClient.ensureQueryData(
+      customersQueries.list({
+        limit: deps.limit ?? DEFAULT_PAGE_SIZE,
+        offset: (deps.page - 1) * (deps.limit ?? DEFAULT_PAGE_SIZE),
+        ...(deps.search ? { search: deps.search } : {}),
+      })
+    );
+  },
+  component: CustomersPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: CustomersPage,
+});

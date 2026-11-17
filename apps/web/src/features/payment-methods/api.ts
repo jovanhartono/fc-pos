@@ -1,6 +1,7 @@
 import type { POSTPaymentMethodSchema } from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 import type { z } from "zod";
 
 import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
@@ -29,15 +30,15 @@ export const paymentMethodsKeys = {
   gateway: () => [...paymentMethodsKeys.all, "gateway"] as const,
 };
 
-async function fetchPaymentMethods() {
+const fetchPaymentMethods = async () => {
   const response = await parseResponse(rpc.api.admin["payment-methods"].$get());
   return response.data;
-}
+};
 
-async function fetchPaymentGateway() {
+const fetchPaymentGateway = async () => {
   const response = await parseResponse(rpc.api.admin["payment-gateway"].$get());
   return response.data;
-}
+};
 
 export const paymentMethodsQueries = {
   list: () =>
@@ -66,20 +67,16 @@ export const toCounterPaymentMethodOptions = (methods: PaymentMethod[]) =>
     .filter((method) => !method.gateway)
     .map((method) => ({ value: String(method.id), label: method.name }));
 
-export function createPaymentMethod(payload: CreatePaymentMethodPayload) {
-  return parseResponse(
-    rpc.api.admin["payment-methods"].$post({ json: payload })
-  );
-}
+export const createPaymentMethod = (payload: CreatePaymentMethodPayload) =>
+  parseResponse(rpc.api.admin["payment-methods"].$post({ json: payload }));
 
-export function updatePaymentMethod(
+export const updatePaymentMethod = (
   id: number,
   payload: UpdatePaymentMethodPayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin["payment-methods"][":id"].$put({
       param: { id: String(id) },
       json: payload,
     })
   );
-}

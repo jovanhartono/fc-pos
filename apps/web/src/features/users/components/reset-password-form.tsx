@@ -11,10 +11,8 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import {
-  type ResetUserPasswordPayload,
-  resetUserPassword,
-} from "@/features/users/api";
+import { resetUserPassword } from "@/features/users/api";
+import type { ResetUserPasswordPayload } from "@/features/users/api";
 import { PasswordInput } from "@/features/users/components/password-input";
 
 interface ResetPasswordFormProps {
@@ -38,7 +36,7 @@ export const ResetPasswordForm = ({
       resetUserPassword(userId, payload),
   });
 
-  const isSubmitting = formState.isSubmitting;
+  const { isSubmitting } = formState;
 
   const onSubmit = async (values: ResetUserPasswordPayload) => {
     await resetMutation.mutateAsync(values);

@@ -3,7 +3,8 @@ import type {
   CampaignUpdatePayloadSchema,
 } from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 import type { z } from "zod";
 
 import { parseSuccessData, toSearchParams } from "@/lib/http";
@@ -23,22 +24,22 @@ type VoucherCodesResponse = InferResponseType<
 
 export type VoucherCode = VoucherCodesResponse["codes"][number];
 
-export type FetchCampaignsQuery = {
+export interface FetchCampaignsQuery {
   store_id?: number;
   is_active?: boolean;
-};
+}
 
 export type CampaignPayload = z.output<typeof CampaignPayloadSchema>;
 export type UpdateCampaignPayload = z.output<
   typeof CampaignUpdatePayloadSchema
 >;
 
-export type ResolveVoucherCodePayload = {
+export interface ResolveVoucherCodePayload {
   code: string;
   store_id: number;
   gross_total: number;
   service_ids: number[];
-};
+}
 
 export const campaignsKeys = {
   all: ["campaigns"] as const,
@@ -51,7 +52,7 @@ export const campaignsKeys = {
     [...campaignsKeys.all, "live-voucher", storeId] as const,
 };
 
-async function fetchCampaigns(query?: FetchCampaignsQuery) {
+const fetchCampaigns = async (query?: FetchCampaignsQuery) => {
   const response = await parseResponse(
     rpc.api.admin.campaigns.$get({
       query:
@@ -61,15 +62,14 @@ async function fetchCampaigns(query?: FetchCampaignsQuery) {
     })
   );
   return response.data;
-}
+};
 
-function fetchCampaignVoucherCodes(campaignId: number) {
-  return parseSuccessData<VoucherCodesResponse>(
+const fetchCampaignVoucherCodes = (campaignId: number) =>
+  parseSuccessData<VoucherCodesResponse>(
     rpc.api.admin.campaigns[":id"].codes.$get({
       param: { id: String(campaignId) },
     })
   );
-}
 
 export const campaignsQueries = {
   list: (query?: FetchCampaignsQuery) =>
@@ -94,21 +94,18 @@ export const campaignsQueries = {
     }),
 };
 
-export function createCampaign(payload: CampaignPayload) {
-  return parseResponse(rpc.api.admin.campaigns.$post({ json: payload }));
-}
+export const createCampaign = (payload: CampaignPayload) =>
+  parseResponse(rpc.api.admin.campaigns.$post({ json: payload }));
 
-export function updateCampaign(id: number, payload: UpdateCampaignPayload) {
-  return parseResponse(
+export const updateCampaign = (id: number, payload: UpdateCampaignPayload) =>
+  parseResponse(
     rpc.api.admin.campaigns[":id"].$put({
       param: { id: String(id) },
       json: payload,
     })
   );
-}
 
-export function resolveVoucherCode(payload: ResolveVoucherCodePayload) {
-  return parseSuccessData<ResolvedVoucher>(
+export const resolveVoucherCode = (payload: ResolveVoucherCodePayload) =>
+  parseSuccessData<ResolvedVoucher>(
     rpc.api.admin.campaigns["resolve-code"].$post({ json: payload })
   );
-}

@@ -17,7 +17,7 @@ export interface DebouncedSearchInputProps {
   delay?: number;
 }
 
-export function DebouncedSearchInput({
+export const DebouncedSearchInput = ({
   id,
   value,
   onDebouncedChange,
@@ -26,11 +26,12 @@ export function DebouncedSearchInput({
   className,
   inputClassName,
   delay = 300,
-}: DebouncedSearchInputProps) {
+}: DebouncedSearchInputProps) => {
   const [internalValue, setInternalValue] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect, react/no-deriving-state-in-effects -- the box follows a value cleared or set from outside, after first render
     setInternalValue(value);
   }, [value]);
 
@@ -87,4 +88,4 @@ export function DebouncedSearchInput({
       }
     />
   );
-}
+};

@@ -7,13 +7,12 @@ import {
   fittedSize,
   MAX_SCALE,
   MIN_SCALE,
-  type Point,
   panBy,
   pinchZoom,
   resetTransform,
   toCssTransform,
-  type ZoomTransform,
 } from "./photo-zoom";
+import type { Point, ZoomTransform } from "./photo-zoom";
 
 // Counter phone held upright, and a photo that letterboxes into it exactly: slack on
 // both axes, so a clamp never hides a broken anchor.

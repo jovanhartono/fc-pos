@@ -1,10 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import {
-  type PhotoUploader,
-  resolveUploadedKey,
-  type UploadPhotoInput,
-} from "./photo-upload";
+import { resolveUploadedKey } from "./photo-upload";
+import type { PhotoUploader, UploadPhotoInput } from "./photo-upload";
 
 /** Counts pushes, because a photo pushed twice is a second copy of the evidence in the bucket. */
 const stubUploader = (keys: (string | Error)[]) => {
@@ -60,7 +57,7 @@ describe("resolveUploadedKey", () => {
   it("retries a push that died while the operator was still reviewing, rather than losing the batch", async () => {
     const { pushed, uploader } = stubUploader(["orders/812/dropoff/retried"]);
     const staged = Promise.reject(new Error("network changed"));
-    staged.catch(() => undefined);
+    staged.catch(() => {});
 
     expect(await resolveUploadedKey(uploader, input, staged)).toBe(
       "orders/812/dropoff/retried"
@@ -71,7 +68,7 @@ describe("resolveUploadedKey", () => {
   it("surfaces a retry that fails too, so the operator is told the evidence did not save", async () => {
     const { uploader } = stubUploader([new Error("still offline")]);
     const staged = Promise.reject(new Error("network changed"));
-    staged.catch(() => undefined);
+    staged.catch(() => {});
 
     const failure = await failureOf(() =>
       resolveUploadedKey(uploader, input, staged)

@@ -16,10 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { COMPLAINT_OUTCOMES } from "@/features/complaints/lib/format";
 import { OrderServiceDetail } from "@/features/orders/components/order-service-detail";
-import {
-  reportsQueries,
-  type WorkerDetailReport,
-} from "@/features/reports/api";
+import { reportsQueries } from "@/features/reports/api";
+import type { WorkerDetailReport } from "@/features/reports/api";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import { HEAD_CLASS } from "@/features/reports/components/services-by-worker";
 import {
@@ -42,7 +40,7 @@ import {
   splitTopServices,
 } from "@/features/reports/utils/workers-report";
 import { UserAvatar } from "@/features/users/components/user-avatar";
-import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
+import { useLeaveSheetLink } from "@/hooks/use-leave-sheet-link";
 import { CONTENT_FADE } from "@/lib/content-fade";
 import { formatDay } from "@/lib/dayjs";
 import { getItemName } from "@/lib/order-service-item-details";
@@ -75,6 +73,7 @@ export const useOpenWorkerSheet = () => {
         </span>
       ),
       description: `${target.storeName} · ${rangeLabel(target.from, target.to)}`,
+      // oxlint-disable-next-line no-use-before-define -- the sheet and its opener call each other, so one has to come first
       content: () => <WorkerSheetContent target={target} />,
     });
 };
@@ -337,7 +336,7 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
       user_id: target.userId,
     })
   );
-  const data = query.data;
+  const { data } = query;
 
   // The real tiles, headings and chart frame with bars for the numbers, so
   // nothing in the sheet moves when the worker's numbers land.
@@ -361,7 +360,7 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
   if (!data) {
     return (
       <div className="flex items-center gap-3 text-body text-muted-foreground">
-        Couldn't load this worker.
+        Couldn&apos;t load this worker.
         <Button variant="outline" size="sm" onClick={() => query.refetch()}>
           Retry
         </Button>

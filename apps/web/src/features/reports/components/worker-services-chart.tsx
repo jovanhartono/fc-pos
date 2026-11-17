@@ -1,11 +1,11 @@
 import type { WorkerDetailReport } from "@/features/reports/api";
 import {
-  type ChartSeries,
   dateAxis,
   headParts,
   ReportChart,
   valueAt,
 } from "@/features/reports/components/report-chart";
+import type { ChartSeries } from "@/features/reports/components/report-chart";
 import {
   numberFormatter,
   oneDecimalFormatter,

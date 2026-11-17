@@ -22,13 +22,13 @@ const withFakeDocument = async (
   const clicks: { href: string; download: string }[] = [];
   const previous = globals.document;
   globals.document = {
-    body: { appendChild: () => undefined },
+    body: { append: () => {} },
     createElement: () => {
       const link = {
         download: "",
         href: "",
         click: () => clicks.push({ href: link.href, download: link.download }),
-        remove: () => undefined,
+        remove: () => {},
       };
       return link;
     },

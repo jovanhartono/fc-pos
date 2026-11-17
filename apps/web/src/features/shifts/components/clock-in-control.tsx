@@ -1,8 +1,5 @@
-import {
-  type ClockInCoordinates,
-  clockInRequiresLocation,
-  distanceKm,
-} from "@fresclean/api/rules";
+import { clockInRequiresLocation, distanceKm } from "@fresclean/api/rules";
+import type { ClockInCoordinates } from "@fresclean/api/rules";
 import { Alert02Icon, Login03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,10 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StoreSelect } from "@/features/orders/components/store-select";
 import { clockInShift } from "@/features/shifts/api";
-import { useGeolocation } from "@/features/shifts/hooks/useGeolocation";
+import { useGeolocation } from "@/features/shifts/hooks/use-geolocation";
 import { formatDistanceKm } from "@/features/shifts/lib/distance";
-import { type Store, storesQueries } from "@/features/stores/api";
-import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { storesQueries } from "@/features/stores/api";
+import type { Store } from "@/features/stores/api";
+import { useStoreScope } from "@/features/users/hooks/use-store-scope";
 import { canOpenStore } from "@/features/users/lib/store-scope";
 import { onShiftClocked } from "@/lib/cache-events";
 import { readServerErrorMessage } from "@/lib/server-error";
@@ -64,7 +62,7 @@ const useClockInStores = (coordinates: ClockInCoordinates | undefined) => {
             longitude: Number(store.longitude),
           }),
         }))
-        .sort((a, b) => a.km - b.km)
+        .toSorted((a, b) => a.km - b.km)
     : open.map((store) => ({ store }));
 
   return { allowedStoreIds, ranked };
@@ -87,7 +85,7 @@ export const ClockInControl = () => {
     onSettled: () => onShiftClocked(queryClient),
     // A worker turned away for being too far needs the reason to stay on screen
     // while they walk to the Store, not a toast that is gone when they look up.
-    onError: () => undefined,
+    onError: () => null,
   });
 
   // Keyed per state, so the Clock in button is never reused as another state's
@@ -96,9 +94,9 @@ export const ClockInControl = () => {
     return (
       <div className="flex flex-col gap-3" key="locating">
         <div className={CLOCK_STATUS_SLOT}>
-          <p className="text-subhead text-muted-foreground" role="status">
+          <output className="text-subhead text-muted-foreground">
             Finding you…
-          </p>
+          </output>
         </div>
         <Button className={PRIMARY_BUTTON} disabled loading size="lg">
           Clock In

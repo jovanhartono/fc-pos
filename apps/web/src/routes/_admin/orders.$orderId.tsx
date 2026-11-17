@@ -9,6 +9,24 @@ import {
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { ensureOrNotFound } from "@/lib/server-error";
 
+const OrderDetailPage = () => {
+  const { orderId } = Route.useParams();
+  const parsedOrderId = Number(orderId);
+  const isValidOrderId = Number.isInteger(parsedOrderId) && parsedOrderId > 0;
+
+  if (!isValidOrderId) {
+    return (
+      <OrderDetailMessage
+        tone="error"
+        title="Invalid order ID"
+        description="The URL does not point to a valid order."
+      />
+    );
+  }
+
+  return <OrderDetailView orderId={parsedOrderId} />;
+};
+
 export const Route = createFileRoute("/_admin/orders/$orderId")({
   loader: async ({ context, params }) => {
     const id = Number(params.orderId);
@@ -30,21 +48,3 @@ export const Route = createFileRoute("/_admin/orders/$orderId")({
   pendingComponent: OrderDetailPage,
   notFoundComponent: OrderNotFound,
 });
-
-function OrderDetailPage() {
-  const { orderId } = Route.useParams();
-  const parsedOrderId = Number(orderId);
-  const isValidOrderId = Number.isInteger(parsedOrderId) && parsedOrderId > 0;
-
-  if (!isValidOrderId) {
-    return (
-      <OrderDetailMessage
-        tone="error"
-        title="Invalid order ID"
-        description="The URL does not point to a valid order."
-      />
-    );
-  }
-
-  return <OrderDetailView orderId={parsedOrderId} />;
-}

@@ -1,20 +1,22 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
-  type CreatePaymentChargePayload,
   cancelOrder,
   cancelPaymentCharge,
   createOrderRefund,
   createPaymentCharge,
   ordersKeys,
-  type SetOrderServicePricePayload,
   setOrderServicePrice,
-  type UpdateOrderPaymentPayload,
-  type UpdateOrderServiceStatusPayload,
   updateOrderCourier,
   updateOrderDeliveryFee,
   updateOrderPayment,
   updateOrderServiceStatus,
+} from "@/features/orders/api";
+import type {
+  CreatePaymentChargePayload,
+  SetOrderServicePricePayload,
+  UpdateOrderPaymentPayload,
+  UpdateOrderServiceStatusPayload,
 } from "@/features/orders/api";
 import { onOrderMoved, onRedemptionSpent } from "@/lib/cache-events";
 
@@ -93,7 +95,7 @@ export const useCreatePaymentChargeMutation = (orderId: number) => {
       queryClient.setQueryData(ordersKeys.openPaymentCharge(orderId), charge);
     },
     // The QRIS dialog says why, with Try Again.
-    onError: () => undefined,
+    onError: () => null,
   });
 };
 

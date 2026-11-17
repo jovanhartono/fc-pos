@@ -21,7 +21,8 @@ import type {
   GetQcRejectsQuery,
   GetReportRangeQuery,
 } from "@/modules/reports/report.schema";
-import { type ComplaintOutcome, complaintOutcome } from "@/schema/complaint";
+import { complaintOutcome } from "@/schema/complaint";
+import type { ComplaintOutcome } from "@/schema/complaint";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
 interface QualitySummary {
@@ -39,18 +40,18 @@ interface QualitySummary {
 
 type CohortLine = Awaited<ReturnType<typeof listQualityCohort>>[number];
 
-async function qualityFor(args: RangeArgs) {
+const qualityFor = async (args: RangeArgs) => {
   const [cohort, checkers] = await Promise.all([
     listQualityCohort(args),
     listQualityChecksByChecker(args),
   ]);
   return { cohort, checkers };
-}
+};
 
-function summariseQuality({
+const summariseQuality = ({
   cohort,
   checkers,
-}: Awaited<ReturnType<typeof qualityFor>>): QualitySummary {
+}: Awaited<ReturnType<typeof qualityFor>>): QualitySummary => {
   const processed = cohort.length;
   const sentBack = cohort.filter((line) => line.sent_back).length;
   const complaints = cohort.filter((line) => line.complaint_id !== null).length;
@@ -71,7 +72,7 @@ function summariseQuality({
     self_checks: selfChecks,
     self_check_rate: rate(selfChecks, passes),
   };
-}
+};
 
 // The Complaints the Mistakes count is made of, newest first.
 const listComplaints = (cohort: CohortLine[]) =>
@@ -90,9 +91,11 @@ const listComplaints = (cohort: CohortLine[]) =>
             },
           ]
     )
-    .sort((a, b) => b.complained_at.getTime() - a.complained_at.getTime());
+    .toSorted((a, b) => b.complained_at.getTime() - a.complained_at.getTime());
 
-function countComplaintOutcomes(complaints: ReturnType<typeof listComplaints>) {
+const countComplaintOutcomes = (
+  complaints: ReturnType<typeof listComplaints>
+) => {
   const outcomes: Record<ComplaintOutcome, number> = {
     reworked: 0,
     refunded: 0,
@@ -103,7 +106,7 @@ function countComplaintOutcomes(complaints: ReturnType<typeof listComplaints>) {
     outcomes[complaint.outcome] += 1;
   }
   return outcomes;
-}
+};
 
 const blankService = (serviceId: number, serviceName: string | null) => ({
   service_id: serviceId,
@@ -117,10 +120,10 @@ const blankService = (serviceId: number, serviceName: string | null) => ({
 
 // QC rejects are every reject made in the range, like everywhere else on the
 // report, so a Service only rejected this week still gets a row.
-function groupByService(
+const groupByService = (
   cohort: CohortLine[],
   rejects: Awaited<ReturnType<typeof countQcRejectsByService>>
-) {
+) => {
   const byService = new Map<number, ReturnType<typeof blankService>>();
   for (const row of rejects) {
     const serviceId = row.service_id ?? 0;
@@ -138,14 +141,14 @@ function groupByService(
     entry.first_pass_rate = rate(entry.first_pass, entry.processed);
     byService.set(serviceId, entry);
   }
-  return Array.from(byService.values()).sort(
+  return [...byService.values()].toSorted(
     (a, b) =>
       Number(a.processed === 0) - Number(b.processed === 0) ||
       a.first_pass_rate - b.first_pass_rate ||
       b.processed - a.processed ||
       a.service_name.localeCompare(b.service_name)
   );
-}
+};
 
 interface CheckCount {
   passes: number;
@@ -157,12 +160,12 @@ type CheckerDay = Awaited<
 >[number];
 
 // Arrivals on the QC shelf beside the checks made, so a growing pile shows.
-function buildDaily(
+const buildDaily = (
   from: string,
   to: string,
   arrivals: Awaited<ReturnType<typeof listQcArrivalsByDay>>,
   checkerDays: CheckerDay[]
-) {
+) => {
   const { bucket, bucketOf, labels } = dailyBuckets(from, to);
   const arrived = new Map<string, number>();
   for (const row of arrivals) {
@@ -199,9 +202,9 @@ function buildDaily(
         qc_rejects: byChecker.get(userId)?.get(label)?.rejects ?? 0,
       })),
   };
-}
+};
 
-export async function getQualityReport(query: GetReportRangeQuery) {
+export const getQualityReport = async (query: GetReportRangeQuery) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
@@ -260,9 +263,9 @@ export async function getQualityReport(query: GetReportRangeQuery) {
       days: daily.checkerDays(row.user_id),
     })),
   };
-}
+};
 
-export async function getQcRejectsReport(query: GetQcRejectsQuery) {
+export const getQcRejectsReport = async (query: GetQcRejectsQuery) => {
   const pagination = normalizePagination(query, {
     defaultPageSize: 50,
     maxPageSize: 200,
@@ -282,4 +285,4 @@ export async function getQcRejectsReport(query: GetQcRejectsQuery) {
     items,
     meta: buildPaginationMeta(total, pagination),
   };
-}
+};

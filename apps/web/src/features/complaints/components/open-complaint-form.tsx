@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import { useOpenComplaintMutation } from "@/features/complaints/hooks/useComplaintMutations";
+import { useOpenComplaintMutation } from "@/features/complaints/hooks/use-complaint-mutations";
 import type { OrderLine } from "@/features/orders/lib/order-lines";
 import {
   formatOrderServiceItemDetails,
@@ -36,126 +36,6 @@ export interface ComplaintLineOption {
   serviceName: string;
   details: string;
 }
-
-interface OpenComplaintFormProps {
-  lines: OrderLine[];
-  orderCode: string;
-}
-
-export const OpenComplaintForm = ({
-  lines: orderLines,
-  orderCode,
-}: OpenComplaintFormProps) => {
-  const closeDialog = useDialog((s) => s.closeDialog);
-  const mutation = useOpenComplaintMutation();
-  const lines: ComplaintLineOption[] = orderLines.map((line) => ({
-    id: line.id,
-    itemCode: getShortItemTag({
-      order_code: orderCode,
-      item_code: line.item.item_code,
-    }),
-    serviceName: line.service?.name ?? "Service",
-    details: formatOrderServiceItemDetails(line.item),
-  }));
-  const form = useForm<OpenComplaintValues>({
-    resolver: zodResolver(openComplaintSchema),
-    defaultValues: {
-      order_service_id: lines[0]?.id ?? 0,
-      reason: "",
-      start_rework: true,
-    },
-  });
-
-  const isPending = mutation.isPending;
-
-  const onSubmit = async (values: OpenComplaintValues) => {
-    await mutation.mutateAsync(values);
-    closeDialog();
-  };
-
-  return (
-    <FormProvider {...form}>
-      <form
-        className="flex flex-col gap-5"
-        onSubmit={form.handleSubmit(onSubmit)}
-      >
-        <Controller
-          control={form.control}
-          name="order_service_id"
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <p className="text-body font-medium">Service</p>
-              <div
-                aria-label="Item with complaint"
-                className="grid gap-2"
-                role="radiogroup"
-              >
-                {lines.map((line) => (
-                  <ComplaintLineCard
-                    disabled={isPending}
-                    isSelected={field.value === line.id}
-                    key={line.id}
-                    line={line}
-                    onSelect={() => field.onChange(line.id)}
-                  />
-                ))}
-              </div>
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
-        />
-
-        <Controller
-          control={form.control}
-          name="reason"
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="complaint-reason">Reason</FieldLabel>
-              <Textarea
-                aria-invalid={fieldState.invalid}
-                disabled={isPending}
-                id="complaint-reason"
-                onChange={field.onChange}
-                placeholder="e.g. stain still on toe box"
-                rows={4}
-                value={field.value}
-              />
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
-        />
-
-        <Controller
-          control={form.control}
-          name="start_rework"
-          render={({ field }) => (
-            <Field orientation="horizontal">
-              <Checkbox
-                checked={field.value}
-                disabled={isPending}
-                id="complaint-start-rework"
-                onCheckedChange={(value) => field.onChange(Boolean(value))}
-              />
-              <FieldLabel htmlFor="complaint-start-rework">
-                Start rework now (free re-clean on this order)
-              </FieldLabel>
-            </Field>
-          )}
-        />
-
-        <DialogFormActions
-          submit={
-            <Button disabled={isPending} type="submit">
-              {isPending ? "Opening…" : "Open Complaint"}
-            </Button>
-          }
-          onCancel={closeDialog}
-          isPending={isPending}
-        />
-      </form>
-    </FormProvider>
-  );
-};
 
 const COMPLAINT_LINE_RADIO_NAME = "complaint-line";
 
@@ -208,3 +88,123 @@ const ComplaintLineCard = ({
     ) : null}
   </label>
 );
+
+interface OpenComplaintFormProps {
+  lines: OrderLine[];
+  orderCode: string;
+}
+
+export const OpenComplaintForm = ({
+  lines: orderLines,
+  orderCode,
+}: OpenComplaintFormProps) => {
+  const closeDialog = useDialog((s) => s.closeDialog);
+  const mutation = useOpenComplaintMutation();
+  const lines: ComplaintLineOption[] = orderLines.map((line) => ({
+    id: line.id,
+    itemCode: getShortItemTag({
+      order_code: orderCode,
+      item_code: line.item.item_code,
+    }),
+    serviceName: line.service?.name ?? "Service",
+    details: formatOrderServiceItemDetails(line.item),
+  }));
+  const form = useForm<OpenComplaintValues>({
+    resolver: zodResolver(openComplaintSchema),
+    defaultValues: {
+      order_service_id: lines[0]?.id ?? 0,
+      reason: "",
+      start_rework: true,
+    },
+  });
+
+  const { isPending } = mutation;
+
+  const onSubmit = async (values: OpenComplaintValues) => {
+    await mutation.mutateAsync(values);
+    closeDialog();
+  };
+
+  return (
+    <FormProvider {...form}>
+      <form
+        className="flex flex-col gap-5"
+        onSubmit={form.handleSubmit(onSubmit)}
+      >
+        <Controller
+          control={form.control}
+          name="order_service_id"
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <p className="text-body font-medium">Service</p>
+              <div
+                aria-label="Item with complaint"
+                className="grid gap-2"
+                role="radiogroup"
+              >
+                {lines.map((line) => (
+                  <ComplaintLineCard
+                    disabled={isPending}
+                    isSelected={field.value === line.id}
+                    key={line.id}
+                    line={line}
+                    onSelect={() => field.onChange(line.id)}
+                  />
+                ))}
+              </div>
+              <FieldError errors={[fieldState.error]} />
+            </Field>
+          )}
+        />
+
+        <Controller
+          control={form.control}
+          name="reason"
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="complaint-reason">Reason</FieldLabel>
+              <Textarea
+                aria-invalid={fieldState.invalid}
+                disabled={isPending}
+                id="complaint-reason"
+                onChange={(event) => field.onChange(event)}
+                placeholder="e.g. stain still on toe box"
+                rows={4}
+                value={field.value}
+              />
+              <FieldError errors={[fieldState.error]} />
+            </Field>
+          )}
+        />
+
+        <Controller
+          control={form.control}
+          name="start_rework"
+          render={({ field }) => (
+            <Field orientation="horizontal">
+              <Checkbox
+                checked={field.value}
+                disabled={isPending}
+                id="complaint-start-rework"
+                onCheckedChange={(value) => field.onChange(Boolean(value))}
+              />
+              <FieldLabel htmlFor="complaint-start-rework">
+                Start rework now (free re-clean on this order)
+              </FieldLabel>
+            </Field>
+          )}
+        />
+
+        <DialogFormActions
+          submit={
+            <Button disabled={isPending} type="submit">
+              {isPending ? "Opening…" : "Open Complaint"}
+            </Button>
+          }
+          onCancel={closeDialog}
+          isPending={isPending}
+        />
+      </form>
+    </FormProvider>
+  );
+};

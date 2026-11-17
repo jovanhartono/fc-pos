@@ -12,7 +12,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
+import { useSheetDirtyGuard } from "@/hooks/use-sheet-dirty-guard";
 
 export type CategoryFormState = z.infer<typeof POSTCategorySchema>;
 
@@ -23,24 +23,24 @@ const defaultForm: CategoryFormState = {
   starts_after_cleaning: false,
 };
 
-type CategoryFormProps = {
+interface CategoryFormProps {
   defaultValues?: CategoryFormState;
   handleOnSubmit: (values: CategoryFormState) => Promise<void> | void;
   isEditing: boolean;
   onReset: () => void;
-};
+}
 
-export function CategoryForm({
+export const CategoryForm = ({
   defaultValues,
   handleOnSubmit,
   isEditing,
   onReset,
-}: CategoryFormProps) {
+}: CategoryFormProps) => {
   const form = useForm({
     resolver: zodResolver(POSTCategorySchema),
     defaultValues: defaultValues ?? defaultForm,
   });
-  const isSubmitting = form.formState.isSubmitting;
+  const { isSubmitting } = form.formState;
   useSheetDirtyGuard(form.formState.isDirty);
 
   return (
@@ -98,7 +98,7 @@ export function CategoryForm({
                 checked={field.value}
                 disabled={isSubmitting}
                 id="category-active"
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => field.onChange(checked)}
                 title="Active"
               />
             )}
@@ -112,7 +112,7 @@ export function CategoryForm({
                 description="Work waits until the Item is cleaned, like Repaint. The Counter adds its days on top of the clean."
                 disabled={isSubmitting}
                 id="category-starts-after-cleaning"
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => field.onChange(checked)}
                 title="Starts after cleaning"
               />
             )}
@@ -128,4 +128,4 @@ export function CategoryForm({
       </FieldGroup>
     </form>
   );
-}
+};

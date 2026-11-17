@@ -72,7 +72,7 @@ mock.module("@/modules/reports/quality.service", () => ({
   },
 }));
 
-const reportsRoutes = (await import("@/routes/admin/reports")).default;
+const { default: reportsRoutes } = await import("@/routes/admin/reports");
 
 const owner: AuthUser = {
   id: 11,

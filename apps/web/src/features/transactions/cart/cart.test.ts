@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  type AppliedVoucher,
   buildActiveItemMap,
-  type CartCampaign,
   countUnpricedServiceLines,
   enrichItemCart,
   enrichProductCart,
@@ -11,12 +9,16 @@ import {
   getCartCount,
   getCartPricing,
   getCartSubtotal,
-  type ItemCartLine,
   moveCartService,
-  type ProductCartLine,
-  type ServiceCartLine,
-  type TransactionDraftValues,
   toOrderPayload,
+} from "./cart";
+import type {
+  AppliedVoucher,
+  CartCampaign,
+  ItemCartLine,
+  ProductCartLine,
+  ServiceCartLine,
+  TransactionDraftValues,
 } from "./cart";
 
 const productLine = (id: number, qty: number): ProductCartLine => ({
@@ -198,13 +200,13 @@ describe("getCartCount", () => {
   });
 });
 
-describe("getCartPricing", () => {
-  const percentCampaign = (value: string): CartCampaign => ({
-    discount_type: "percentage",
-    discount_value: value,
-    max_discount: null,
-  });
+const percentCampaign = (value: string): CartCampaign => ({
+  discount_type: "percentage",
+  discount_value: value,
+  max_discount: null,
+});
 
+describe("getCartPricing", () => {
   test("manual discount only", () => {
     const pricing = getCartPricing({
       subtotal: 100_000,

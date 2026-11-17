@@ -10,7 +10,7 @@ import {
 
 type SelectFieldItems =
   | Record<string, ReactNode>
-  | ReadonlyArray<{ value: string; label: ReactNode }>;
+  | readonly { value: string; label: ReactNode }[];
 
 interface SelectFieldProps {
   items: SelectFieldItems;

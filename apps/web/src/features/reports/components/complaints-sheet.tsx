@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { COMPLAINT_OUTCOMES } from "@/features/complaints/lib/format";
 import type { QualityReport } from "@/features/reports/api";
 import { rangeLabel } from "@/features/reports/utils/format";
-import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
+import { useLeaveSheetLink } from "@/hooks/use-leave-sheet-link";
 import { formatDay } from "@/lib/dayjs";
 import { getItemName } from "@/lib/order-service-item-details";
 import { useSheet } from "@/stores/sheet-store";

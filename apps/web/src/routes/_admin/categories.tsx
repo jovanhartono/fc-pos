@@ -14,25 +14,15 @@ import { ListPanel } from "@/components/list-panel";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
-  type Category,
   categoriesKeys,
   categoriesQueries,
   createCategory,
   updateCategory,
 } from "@/features/categories/api";
-import {
-  CategoryForm,
-  type CategoryFormState,
-} from "@/features/categories/components/category-form";
+import type { Category } from "@/features/categories/api";
+import { CategoryForm } from "@/features/categories/components/category-form";
+import type { CategoryFormState } from "@/features/categories/components/category-form";
 import { useSheet } from "@/stores/sheet-store";
-
-export const Route = createFileRoute("/_admin/categories")({
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(categoriesQueries.list()),
-  component: CategoriesPage,
-  // Past a second, the page itself draws with skeleton rows.
-  pendingComponent: CategoriesPage,
-});
 
 const CategoriesActions = ({ row }: { row: DataTableRow<Category> }) => {
   const queryClient = useQueryClient();
@@ -125,7 +115,7 @@ const columns: DataTableColumnDef<Category>[] = [
   },
 ];
 
-function CategoriesPage() {
+const CategoriesPage = () => {
   const queryClient = useQueryClient();
   const { openSheet, closeSheet } = useSheet();
 
@@ -186,4 +176,12 @@ function CategoriesPage() {
       </ListPanel>
     </>
   );
-}
+};
+
+export const Route = createFileRoute("/_admin/categories")({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(categoriesQueries.list()),
+  component: CategoriesPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: CategoriesPage,
+});

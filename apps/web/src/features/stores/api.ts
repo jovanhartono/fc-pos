@@ -3,7 +3,8 @@ import type {
   POSTStoreSchema,
 } from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 import type { z } from "zod";
 
 import { parseSuccessData } from "@/lib/http";
@@ -29,18 +30,17 @@ export const storesKeys = {
     [...storesKeys.all, storeId, "devices"] as const,
 };
 
-async function fetchStores() {
+const fetchStores = async () => {
   const response = await parseResponse(rpc.api.admin.stores.$get());
   return response.data;
-}
+};
 
-function fetchStoreDevices(storeId: number) {
-  return parseSuccessData<StoreDevice[]>(
+const fetchStoreDevices = (storeId: number) =>
+  parseSuccessData<StoreDevice[]>(
     rpc.api.admin.stores[":id"].devices.$get({
       param: { id: String(storeId) },
     })
   );
-}
 
 export const storesQueries = {
   list: () =>
@@ -57,35 +57,31 @@ export const storesQueries = {
     }),
 };
 
-export function createStore(payload: CreateStorePayload) {
-  return parseResponse(rpc.api.admin.stores.$post({ json: payload }));
-}
+export const createStore = (payload: CreateStorePayload) =>
+  parseResponse(rpc.api.admin.stores.$post({ json: payload }));
 
-export function updateStore(id: number, payload: UpdateStorePayload) {
-  return parseResponse(
+export const updateStore = (id: number, payload: UpdateStorePayload) =>
+  parseResponse(
     rpc.api.admin.stores[":id"].$put({
       param: { id: String(id) },
       json: payload,
     })
   );
-}
 
-export function registerStoreDevice(
+export const registerStoreDevice = (
   storeId: number,
   payload: RegisterStoreDevicePayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.stores[":id"].devices.$post({
       param: { id: String(storeId) },
       json: payload,
     })
   );
-}
 
-export function deleteStoreDevice(storeId: number, deviceId: number) {
-  return parseResponse(
+export const deleteStoreDevice = (storeId: number, deviceId: number) =>
+  parseResponse(
     rpc.api.admin.stores[":id"].devices[":deviceId"].$delete({
       param: { id: String(storeId), deviceId: String(deviceId) },
     })
   );
-}

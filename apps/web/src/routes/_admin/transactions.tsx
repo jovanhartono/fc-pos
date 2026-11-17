@@ -13,6 +13,22 @@ import { useTransactionsPageBootstrap } from "@/features/transactions/hooks/use-
 import { TransactionsPageProvider } from "@/features/transactions/lib/transactions-context";
 import { pickStore, storeScope } from "@/features/users/lib/store-scope";
 
+const TransactionsPage = () => {
+  const { form, isBootstrapping, pageContext } = useTransactionsPageBootstrap();
+
+  if (isBootstrapping) {
+    return <PosSkeleton />;
+  }
+
+  return (
+    <FormProvider {...form}>
+      <TransactionsPageProvider value={pageContext}>
+        <TransactionsWorkspace />
+      </TransactionsPageProvider>
+    </FormProvider>
+  );
+};
+
 export const Route = createFileRoute("/_admin/transactions")({
   loader: async ({ context }) => {
     await Promise.all([
@@ -38,19 +54,3 @@ export const Route = createFileRoute("/_admin/transactions")({
   // Past a second, the POS's outline instead of the generic placeholder.
   pendingComponent: PosSkeleton,
 });
-
-function TransactionsPage() {
-  const { form, isBootstrapping, pageContext } = useTransactionsPageBootstrap();
-
-  if (isBootstrapping) {
-    return <PosSkeleton />;
-  }
-
-  return (
-    <FormProvider {...form}>
-      <TransactionsPageProvider value={pageContext}>
-        <TransactionsWorkspace />
-      </TransactionsPageProvider>
-    </FormProvider>
-  );
-}

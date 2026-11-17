@@ -20,19 +20,13 @@ export interface RouterContext {
   queryClient: QueryClient;
 }
 
-export const Route = createRootRouteWithContext<RouterContext>()({
-  component: RootComponent,
-  errorComponent: GlobalErrorPage,
-  notFoundComponent: NotFoundPage,
-});
-
 // Clears the tab bar, so "Work started" never lands on top of the nav the
 // worker is about to tap.
 const TOUCH_TOAST_OFFSET = {
   bottom: "calc(env(safe-area-inset-bottom) + 4.25rem)",
 };
 
-function RootComponent() {
+const RootComponent = () => {
   // Top-right lands on top of the mobile header, and far from the thumb.
   const isCoarsePointer = useIsCoarsePointer();
   // Every Order opened counts toward one /orders/$orderId score, not a row
@@ -63,4 +57,10 @@ function RootComponent() {
       <SpeedInsights route={route} beforeSend={dropQueryString} />
     </TooltipProvider>
   );
-}
+};
+
+export const Route = createRootRouteWithContext<RouterContext>()({
+  component: RootComponent,
+  errorComponent: GlobalErrorPage,
+  notFoundComponent: NotFoundPage,
+});

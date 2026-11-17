@@ -15,12 +15,12 @@ const repo = {
   // The Item's other Services and earlier Rework lines.
   otherItemLines: [] as AnyObj[],
   insertedComplaint: undefined as AnyObj | undefined,
-  queuedReworks: [] as Array<{ executor: unknown; values: AnyObj }>,
+  queuedReworks: [] as { executor: unknown; values: AnyObj }[],
   lineReads: [] as [string, unknown, AnyObj?][],
 };
 
 const authz = {
-  assertCalls: [] as Array<{ userId: number; storeId: number }>,
+  assertCalls: [] as { userId: number; storeId: number }[],
   storeIds: [] as number[],
 };
 
@@ -28,7 +28,7 @@ const TX = { __tx: true };
 
 mock.module("@/db", () => ({
   db: {
-    transaction: (cb: (tx: unknown) => unknown) => cb(TX),
+    transaction: (work: (tx: unknown) => unknown) => work(TX),
   },
 }));
 
@@ -243,9 +243,9 @@ describe("openComplaint", () => {
   });
 });
 
-describe("addRework", () => {
-  const add = () => addRework({ user: USER, complaintId: 99 });
+const add = () => addRework({ user: USER, complaintId: 99 });
 
+describe("addRework", () => {
   it("rejects when the complaint is not found", async () => {
     repo.complaintById = undefined;
     const error = await captureRejection(add());

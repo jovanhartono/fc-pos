@@ -8,7 +8,7 @@ import {
   bucketToLabel,
   bucketToTooltipLabel,
 } from "@/features/reports/utils/granularity";
-import { useElementWidth } from "@/hooks/useElementWidth";
+import { useElementWidth } from "@/hooks/use-element-width";
 import dayjs from "@/lib/dayjs";
 
 export interface ChartSeries {
@@ -318,6 +318,40 @@ const ChartCallout = ({ head, x, isLeft, width }: ChartCalloutProps) => (
   </div>
 );
 
+interface ChartTableProps {
+  name: string;
+  labels: string[];
+  axis: ChartAxis;
+  head: (index: number) => ChartHead;
+}
+
+// A manager on a keyboard or VoiceOver can't point at a bar, so every period's
+// number is also in a table only they get.
+const ChartTable = ({ name, labels, axis, head }: ChartTableProps) => (
+  <table className="sr-only">
+    <thead>
+      <tr>
+        <th scope="col">Period</th>
+        <th scope="col">{name}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {labels.map((label, index) => {
+        const cell = head(index);
+        return (
+          <tr key={label}>
+            <th scope="row">{axis.title(label)}</th>
+            <td>
+              {cell.value}
+              {cell.unit === undefined ? null : ` ${cell.unit}`}
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+);
+
 // Every report chart: the total up top that follows a finger (a mouse gets
 // the callout),
 // a dotted grid with the scale on the right, and rounded bar tops.
@@ -391,10 +425,7 @@ export const ReportChart = ({
       const left = xMid(i) - groupWidth / 2;
       return groups.flatMap((stack, g) => {
         const x = left + g * (barWidth + barGap);
-        const top = stack.reduce(
-          (last, series, s) => (series.values[i] > 0 ? s : last),
-          -1
-        );
+        const top = stack.findLastIndex((series) => series.values[i] > 0);
         let base = 0;
         return stack.flatMap((series, s) => {
           const value = series.values[i];
@@ -432,7 +463,7 @@ export const ReportChart = ({
     });
 
   const lines = () => {
-    const [series] = groups[0];
+    const [[series]] = groups;
     // One day in range: a dot, since a line needs two.
     if (n === 1) {
       return (
@@ -505,13 +536,10 @@ export const ReportChart = ({
       if (value === null) {
         runs.push([]);
       } else {
-        runs[runs.length - 1].push([xMid(i), y(value)]);
+        runs.at(-1)?.push([xMid(i), y(value)]);
       }
     }
-    const last = average.values.reduce<number>(
-      (found, value, i) => (value === null ? found : i),
-      -1
-    );
+    const last = average.values.findLastIndex((value) => value !== null);
     return (
       <>
         {runs
@@ -647,37 +675,3 @@ export const ReportChart = ({
     </div>
   );
 };
-
-interface ChartTableProps {
-  name: string;
-  labels: string[];
-  axis: ChartAxis;
-  head: (index: number) => ChartHead;
-}
-
-// A manager on a keyboard or VoiceOver can't point at a bar, so every period's
-// number is also in a table only they get.
-const ChartTable = ({ name, labels, axis, head }: ChartTableProps) => (
-  <table className="sr-only">
-    <thead>
-      <tr>
-        <th scope="col">Period</th>
-        <th scope="col">{name}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {labels.map((label, index) => {
-        const cell = head(index);
-        return (
-          <tr key={label}>
-            <th scope="row">{axis.title(label)}</th>
-            <td>
-              {cell.value}
-              {cell.unit === undefined ? null : ` ${cell.unit}`}
-            </td>
-          </tr>
-        );
-      })}
-    </tbody>
-  </table>
-);

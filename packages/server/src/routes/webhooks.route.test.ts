@@ -53,7 +53,7 @@ mock.module("@/modules/payments/gateways", () => ({
   getPaymentGateway: () => fakeGateway,
 }));
 
-const webhookRoutes = (await import("@/routes/webhooks")).default;
+const { default: webhookRoutes } = await import("@/routes/webhooks");
 
 const app = new Hono<{ Variables: JwtVariables<AuthUser> }>()
   .basePath("/api")

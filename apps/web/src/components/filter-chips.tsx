@@ -29,7 +29,7 @@ export const FilterChips = ({ chips, className }: FilterChipsProps) => (
         <button
           type="button"
           aria-label={`Remove ${chip.label}`}
-          onClick={chip.onRemove}
+          onClick={() => chip.onRemove()}
           className="inline-flex h-7 items-center gap-1 rounded-full bg-primary/10 pr-2 pl-3 text-footnote font-medium text-primary transition-colors hover:bg-primary/15 pointer-coarse:h-9"
         >
           {chip.label}

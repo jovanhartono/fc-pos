@@ -2,10 +2,10 @@ import { Badge } from "@/components/ui/badge";
 import type { DayCloseOrder } from "@/features/counter/api";
 import {
   AmountCell,
-  type AmountTone,
   OrderList,
   OrderRow,
 } from "@/features/counter/components/day-close/order-row";
+import type { AmountTone } from "@/features/counter/components/day-close/order-row";
 import { formatDayShort } from "@/features/counter/lib/day-close";
 import { formatClock } from "@/lib/dayjs";
 import {

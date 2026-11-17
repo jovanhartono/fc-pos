@@ -1,13 +1,8 @@
-import {
-  type DiscountLine,
-  isBogoSlot,
-  orderNetDue,
-} from "@fresclean/api/rules";
+import { isBogoSlot, orderNetDue } from "@fresclean/api/rules";
+import type { DiscountLine } from "@fresclean/api/rules";
 
-import {
-  type CartCampaign,
-  getCartPricing,
-} from "@/features/transactions/cart/cart";
+import { getCartPricing } from "@/features/transactions/cart/cart";
+import type { CartCampaign } from "@/features/transactions/cart/cart";
 import { parseMoney } from "@/shared/money";
 
 export interface PreviewCampaign extends CartCampaign {

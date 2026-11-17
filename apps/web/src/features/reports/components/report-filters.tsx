@@ -12,11 +12,11 @@ import { StoreSelect } from "@/features/orders/components/store-select";
 import type { ReportGranularity } from "@/features/reports/api";
 import {
   DEFAULT_PRESET,
-  type ReportFilterValues,
   rangeLabel,
   resetReportFilters,
   withPresetRange,
 } from "@/features/reports/utils/report-filters";
+import type { ReportFilterValues } from "@/features/reports/utils/report-filters";
 import { storesQueries } from "@/features/stores/api";
 
 interface ReportFiltersProps {
@@ -124,7 +124,7 @@ export const ReportFilters = ({
           <StoreSelect
             id="reports-store"
             label="Store"
-            value={draft.store_id !== undefined ? String(draft.store_id) : ""}
+            value={draft.store_id === undefined ? "" : String(draft.store_id)}
             onValueChange={(next) =>
               setDraft({ store_id: next ? Number(next) : undefined })
             }

@@ -4,7 +4,11 @@ import type * as React from "react";
 import { useFieldControlProps } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+const Input = ({
+  className,
+  type,
+  ...props
+}: React.ComponentProps<"input">) => {
   const fieldProps = useFieldControlProps(props);
 
   return (
@@ -21,6 +25,6 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       {...fieldProps}
     />
   );
-}
+};
 
 export { Input };

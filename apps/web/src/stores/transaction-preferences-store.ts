@@ -1,11 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-type TransactionPreferencesStore = {
+interface TransactionPreferencesStore {
   selectedStoreIdByUser: Record<string, string>;
   setSelectedStoreId: (userKey: string, storeId: string) => void;
   clearSelectedStoreId: (userKey: string) => void;
-};
+}
 
 export const useTransactionPreferencesStore =
   create<TransactionPreferencesStore>()(
@@ -20,16 +20,13 @@ export const useTransactionPreferencesStore =
             },
           })),
         clearSelectedStoreId: (userKey) =>
-          set((state) => {
-            const nextSelectedStoreIdByUser = {
-              ...state.selectedStoreIdByUser,
-            };
-            delete nextSelectedStoreIdByUser[userKey];
-
-            return {
-              selectedStoreIdByUser: nextSelectedStoreIdByUser,
-            };
-          }),
+          set((state) => ({
+            selectedStoreIdByUser: Object.fromEntries(
+              Object.entries(state.selectedStoreIdByUser).filter(
+                ([key]) => key !== userKey
+              )
+            ),
+          })),
       }),
       {
         name: "transaction-preferences",

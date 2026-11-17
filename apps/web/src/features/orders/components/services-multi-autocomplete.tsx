@@ -12,7 +12,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { type Service, servicesQueries } from "@/features/services/api";
+import { servicesQueries } from "@/features/services/api";
+import type { Service } from "@/features/services/api";
 import { cn } from "@/lib/utils";
 
 interface ServicesMultiAutocompleteProps {
@@ -52,7 +53,7 @@ const SelectedServiceBadges = ({
         selectedServices.map((service) => (
           <Badge key={service.id} variant="secondary" className="gap-1 pr-1">
             {service.code}
-            {!disabled ? (
+            {disabled ? null : (
               <button
                 type="button"
                 onClick={(event) => {
@@ -64,7 +65,7 @@ const SelectedServiceBadges = ({
               >
                 <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
               </button>
-            ) : null}
+            )}
           </Badge>
         ))
       ) : (
@@ -94,25 +95,31 @@ export const ServicesMultiAutocomplete = ({
 
   const handleToggle = (serviceId: number) => {
     if (valueSet.has(serviceId)) {
-      onValuesChange(values.filter((id) => id !== serviceId));
+      onValuesChange(values.filter((valueId) => valueId !== serviceId));
       return;
     }
     onValuesChange([...values, serviceId]);
   };
 
   const handleRemove = (serviceId: number) => {
-    onValuesChange(values.filter((id) => id !== serviceId));
+    onValuesChange(values.filter((valueId) => valueId !== serviceId));
   };
 
   return (
     <Field data-invalid={!!error}>
-      {label ? <FieldLabel htmlFor={id}>{label}</FieldLabel> : null}
+      {label ? (
+        <FieldLabel id={`${id}-label`} htmlFor={id}>
+          {label}
+        </FieldLabel>
+      ) : null}
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger
           nativeButton={false}
           render={
             <div
               id={id}
+              aria-labelledby={`${id}-label`}
+              // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role, jsx-a11y/role-has-required-aria-props -- the trigger holds removable badges, so it can't be an input, and Base UI owns the popup id
               role="combobox"
               aria-haspopup="listbox"
               aria-expanded={isOpen}

@@ -8,12 +8,12 @@ interface QueueCategoryPreference {
   mode: QueueCategoryMode;
 }
 
-type QueuePreferencesStore = {
+interface QueuePreferencesStore {
   storeIdByUser: Record<string, number>;
   setStoreId: (userKey: string, storeId: number) => void;
   categoryByUser: Record<string, QueueCategoryPreference | undefined>;
   setCategory: (userKey: string, category?: QueueCategoryPreference) => void;
-};
+}
 
 // Which Store's rack a worker last looked at. The queue reads its Store from
 // the URL, so coming back through the sidebar reset the filter every time.

@@ -517,11 +517,11 @@ interface DraftItem {
   color: string;
   item_code: string;
   model: string;
-  photos: Array<{
+  photos: {
     created_at: Date;
     note: string | null;
     uploaded_by: number | null;
-  }>;
+  }[];
   size: string;
   treatments: DraftServiceLine[];
 }
@@ -543,37 +543,30 @@ const TERMINAL_SERVICE_STATUSES = new Set<OrderServiceStatus>([
   "cancelled",
 ]);
 
-function asMoney(value: number): string {
-  return Math.round(value).toString();
-}
+const asMoney = (value: number): string => Math.round(value).toString();
 
-function chance(probability: number): boolean {
-  return faker.datatype.boolean({ probability });
-}
+const chance = (probability: number): boolean =>
+  faker.datatype.boolean({ probability });
 
-function randInt(min: number, max: number): number {
-  return faker.number.int({ min, max });
-}
+const randInt = (min: number, max: number): number =>
+  faker.number.int({ min, max });
 
-function slugify(value: string): string {
-  return value
+const slugify = (value: string): string =>
+  value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+    .replaceAll(/[^a-z0-9]+/gu, "-")
+    .replaceAll(/^-+|-+$/gu, "");
 
-function sanitizeForS3(value: string): string {
-  return slugify(value).replace(/-/g, "_");
-}
+const sanitizeForS3 = (value: string): string =>
+  slugify(value).replaceAll("-", "_");
 
 // Deterministic (faker-seeded) voucher code so re-seeds are reproducible.
-function generateVoucherCode(): string {
-  return Array.from({ length: VOUCHER_CODE_LENGTH }, () =>
+const generateVoucherCode = (): string =>
+  Array.from({ length: VOUCHER_CODE_LENGTH }, () =>
     faker.helpers.arrayElement(CROCKFORD_CHARSET.split(""))
   ).join("");
-}
 
-function createStatusNote(nextStatus: OrderServiceStatus): string {
+const createStatusNote = (nextStatus: OrderServiceStatus): string => {
   if (nextStatus === "queued") {
     return faker.helpers.arrayElement([
       "Item tagged and moved into the cleaning queue",
@@ -635,9 +628,9 @@ function createStatusNote(nextStatus: OrderServiceStatus): string {
     "Service cancelled and removed from active work queue",
     "Cancellation recorded in the service timeline",
   ]);
-}
+};
 
-function pickWeighted<T>(items: Array<{ item: T; weight: number }>): T {
+const pickWeighted = <T>(items: { item: T; weight: number }[]): T => {
   const total = items.reduce((sum, item) => sum + item.weight, 0);
   let cursor = faker.number.float({ min: 0, max: total, fractionDigits: 6 });
 
@@ -654,12 +647,17 @@ function pickWeighted<T>(items: Array<{ item: T; weight: number }>): T {
   }
 
   return fallback.item;
-}
+};
 
-function resolveOrderStatus(
+const resolveOrderStatus = (
   serviceStatuses: OrderServiceStatus[],
   productCount: number
-): "created" | "processing" | "ready_for_pickup" | "completed" | "cancelled" {
+):
+  | "created"
+  | "processing"
+  | "ready_for_pickup"
+  | "completed"
+  | "cancelled" => {
   if (serviceStatuses.length === 0) {
     return productCount > 0 ? "completed" : "created";
   }
@@ -684,22 +682,22 @@ function resolveOrderStatus(
   }
 
   return "processing";
-}
+};
 
-function createOrderCode(
+const createOrderCode = (
   storeCode: string,
   createdAt: Date,
   counters: Map<string, number>
-): string {
+): string => {
   const iso = new Date(createdAt.getTime() + JAKARTA_OFFSET_MS).toISOString();
   const dateStr = `${iso.slice(8, 10)}${iso.slice(5, 7)}${iso.slice(0, 4)}`;
   const key = `${storeCode}:${dateStr}`;
   const next = (counters.get(key) ?? 0) + 1;
   counters.set(key, next);
   return `#${storeCode}/${dateStr}/${next}`;
-}
+};
 
-function chooseDiscount(
+const chooseDiscount = (
   grossTotal: number,
   createdAt: Date,
   storeId: number,
@@ -708,7 +706,7 @@ function chooseDiscount(
   campaign_id: number | null;
   discount: number;
   discount_source: DiscountSource;
-} {
+} => {
   const eligible = campaigns.filter((campaign) => {
     // Vouchers are redeemed by code, so only listed Campaigns go on seeded Orders.
     if (campaign.redemption_mode === "code") {
@@ -766,9 +764,9 @@ function chooseDiscount(
     discount: 0,
     discount_source: "none",
   };
-}
+};
 
-async function resetDatabase() {
+const resetDatabase = async () => {
   await db.execute(sql`
     TRUNCATE TABLE
       "order_refund_items",
@@ -797,10 +795,10 @@ async function resetDatabase() {
       "users"
     RESTART IDENTITY CASCADE
   `);
-}
+};
 
-function seedStores() {
-  return db
+const seedStores = () =>
+  db
     .insert(storesTable)
     .values(
       STORE_PRESETS.map((store) => ({
@@ -818,19 +816,18 @@ function seedStores() {
       code: storesTable.code,
       name: storesTable.name,
     });
-}
 
-async function seedUsers(stores: StoreRow[]) {
+const seedUsers = async (stores: StoreRow[]) => {
   const passwordHash = await Bun.password.hash(ADMIN_PASSWORD);
 
-  const userRows: Array<{
+  const userRows: {
     username: string;
     name: string;
     role: "admin" | "cashier" | "worker" | "courier";
     is_active: boolean;
     can_process_pickup: boolean;
     password: string;
-  }> = [
+  }[] = [
     {
       username: "admin",
       name: "Fresclean Admin",
@@ -899,7 +896,7 @@ async function seedUsers(stores: StoreRow[]) {
   });
 
   const userByUsername = new Map(users.map((user) => [user.username, user]));
-  const assignments: Array<{ user_id: number; store_id: number }> = [];
+  const assignments: { user_id: number; store_id: number }[] = [];
 
   for (const store of stores) {
     const lowerCode = store.code.toLowerCase();
@@ -935,9 +932,9 @@ async function seedUsers(stores: StoreRow[]) {
     users,
     userByUsername,
   };
-}
+};
 
-async function seedCatalog(adminId: number) {
+const seedCatalog = async (adminId: number) => {
   const categories = await db
     .insert(categoriesTable)
     .values(
@@ -987,7 +984,7 @@ async function seedCatalog(adminId: number) {
     let sku = "";
     do {
       sku = `FC${faker.string.alphanumeric({ length: 7, casing: "upper" })}${String(index)}`;
-      sku = sku.replace(/[^A-Z0-9]/g, "A");
+      sku = sku.replaceAll(/[^A-Z0-9]/gu, "A");
     } while (skuSet.has(sku));
     skuSet.add(sku);
 
@@ -1145,7 +1142,7 @@ async function seedCatalog(adminId: number) {
   );
   if (voucherCampaigns.length > 0) {
     const mintedCodes = new Set<string>();
-    const codeRows: Array<{ campaign_id: number; code: string }> = [];
+    const codeRows: { campaign_id: number; code: string }[] = [];
 
     for (const campaign of voucherCampaigns) {
       for (let index = 0; index < VOUCHER_CODE_COUNT; index++) {
@@ -1169,12 +1166,12 @@ async function seedCatalog(adminId: number) {
     campaigns,
     campaignSeed,
   };
-}
+};
 
-function seedCustomers(
+const seedCustomers = (
   stores: StoreRow[],
   cashiersByStore: Map<number, number[]>
-) {
+) => {
   const storeWeights = stores.map((store) => {
     if (store.code === "KMG") {
       return { item: store.id, weight: 35 };
@@ -1188,7 +1185,7 @@ function seedCustomers(
     return { item: store.id, weight: 15 };
   });
 
-  const customerRows: Array<{
+  const customerRows: {
     name: string;
     phone_number: string;
     email: string | null;
@@ -1196,7 +1193,7 @@ function seedCustomers(
     origin_store_id: number;
     created_by: number;
     updated_by: number;
-  }> = [];
+  }[] = [];
 
   for (let index = 0; index < CUSTOMER_COUNT; index++) {
     const originStoreId = pickWeighted(storeWeights);
@@ -1217,33 +1214,28 @@ function seedCustomers(
     id: customersTable.id,
     origin_store_id: customersTable.origin_store_id,
   });
-}
+};
 
 // Jakarta calendar days as whole numbers (day 0 is Thursday 1970-01-01), so a
 // "day" never depends on the timezone of the machine running the seed.
-function jakartaDayNumber(at: number): number {
-  return Math.floor((at + JAKARTA_OFFSET_MS) / DAY_MS);
-}
+const jakartaDayNumber = (at: number): number =>
+  Math.floor((at + JAKARTA_OFFSET_MS) / DAY_MS);
 
-function jakartaDayStartAt(day: number): number {
-  return day * DAY_MS - JAKARTA_OFFSET_MS;
-}
+const jakartaDayStartAt = (day: number): number =>
+  day * DAY_MS - JAKARTA_OFFSET_MS;
 
-function jakartaHour(at: number): number {
-  return Math.floor(((at + JAKARTA_OFFSET_MS) % DAY_MS) / HOUR_MS);
-}
+const jakartaHour = (at: number): number =>
+  Math.floor(((at + JAKARTA_OFFSET_MS) % DAY_MS) / HOUR_MS);
 
-function isSunday(day: number): boolean {
-  return (day + 4) % 7 === 0;
-}
+const isSunday = (day: number): boolean => (day + 4) % 7 === 0;
 
-function chunked<T>(rows: T[], size: number): T[][] {
+const chunked = <T>(rows: T[], size: number): T[][] => {
   const chunks: T[][] = [];
   for (let start = 0; start < rows.length; start += size) {
     chunks.push(rows.slice(start, start + size));
   }
   return chunks;
-}
+};
 
 type ShiftInsert = typeof shiftsTable.$inferInsert;
 type OrderServiceInsert = typeof ordersServicesTable.$inferInsert;
@@ -1286,7 +1278,7 @@ const OPEN_TODAY_STORES = new Set(["KMG", "BSD"]);
 
 // Worker 1 is steady, with a narrow daily range. Worker 2 is spiky: some very
 // busy days and some slow ones, about the same average.
-function workerProfile(storeCode: string, slot: number): WorkerProfile {
+const workerProfile = (storeCode: string, slot: number): WorkerProfile => {
   const load = STORE_LOAD[storeCode] ?? 1;
   const attendance = ATTENDANCE[storeCode]?.[slot] ?? 0.9;
   if (slot === 0) {
@@ -1308,14 +1300,14 @@ function workerProfile(storeCode: string, slot: number): WorkerProfile {
       return Math.max(1, Math.round(load * randInt(2, 5)));
     },
   };
-}
+};
 
 // One worker's Shifts over the lookback: Mondays to Saturdays they turned up,
 // clocking in 07:00 to 09:59 for 7 to 9 hours. Open ones have no clock-out yet.
-function planShifts(storeCode: string, slot: number, now: number) {
+const planShifts = (storeCode: string, slot: number, now: number) => {
   const today = jakartaDayNumber(now);
   const { attendance } = workerProfile(storeCode, slot);
-  const shifts: Array<ShiftWindow & { clockOut: number | null }> = [];
+  const shifts: (ShiftWindow & { clockOut: number | null })[] = [];
   for (let day = today - SHIFT_LOOKBACK_DAYS; day <= today; day++) {
     const isToday = day === today;
     const keptOpen = isToday && OPEN_TODAY_STORES.has(storeCode);
@@ -1337,12 +1329,12 @@ function planShifts(storeCode: string, slot: number, now: number) {
     });
   }
   return shifts;
-}
+};
 
-async function seedShifts(
+const seedShifts = async (
   stores: StoreRow[],
   workersByStore: Map<number, number[]>
-): Promise<ShiftBook> {
+): Promise<ShiftBook> => {
   const now = Date.now();
   const book: ShiftBook = new Map();
   const rows: ShiftInsert[] = [];
@@ -1371,23 +1363,22 @@ async function seedShifts(
     await db.insert(shiftsTable).values(chunk);
   }
   return book;
-}
+};
 
-function isOnShift(book: ShiftBook, userId: number, at: number): boolean {
-  return (book.get(userId) ?? []).some(
+const isOnShift = (book: ShiftBook, userId: number, at: number): boolean =>
+  (book.get(userId) ?? []).some(
     (window) => at >= window.start && at <= window.end
   );
-}
 
 // A random moment, to the minute, while `userId` was clocked in somewhere
 // between `from` and `to`. Null when they were not on shift at all in that stretch.
-function pickOnShift(
+const pickOnShift = (
   book: ShiftBook,
   userId: number,
   from: number,
   to: number
-): number | null {
-  const spans: Array<{ hi: number; lo: number }> = [];
+): number | null => {
+  const spans: { hi: number; lo: number }[] = [];
   let total = 0;
   for (const window of book.get(userId) ?? []) {
     const lo = Math.max(window.start, from);
@@ -1409,7 +1400,7 @@ function pickOnShift(
     cursor -= span.hi - span.lo;
   }
   return spans.at(-1)?.lo ?? null;
-}
+};
 
 // How long a Service sits between starting and first reaching Waiting QC.
 // Express is the same-day lane; Repair and Repaint take days.
@@ -1421,7 +1412,7 @@ const DURATION_HOURS: Record<ServiceKind, readonly [number, number]> = {
   standard: [24, 72],
 };
 
-const KIND_MIX: Array<{ item: ServiceKind; weight: number }> = [
+const KIND_MIX: { item: ServiceKind; weight: number }[] = [
   { item: "standard", weight: 68 },
   { item: "long", weight: 20 },
   { item: "express", weight: 12 },
@@ -1460,18 +1451,18 @@ interface SeedService {
 
 type ServicePools = Record<
   ServiceKind,
-  Array<{ item: SeedService; weight: number }>
+  { item: SeedService; weight: number }[]
 >;
 
-function serviceKindOf(service: SeedService): ServiceKind {
+const serviceKindOf = (service: SeedService): ServiceKind => {
   if (service.is_priority) {
     return "express";
   }
   const category = CATEGORY_KEY_BY_SERVICE_CODE.get(service.code);
   return category === "repair" || category === "repaint" ? "long" : "standard";
-}
+};
 
-function buildServicePools(services: SeedService[]): ServicePools {
+const buildServicePools = (services: SeedService[]): ServicePools => {
   const pools: ServicePools = { express: [], long: [], standard: [] };
   for (const service of services) {
     const category = CATEGORY_KEY_BY_SERVICE_CODE.get(service.code) ?? "";
@@ -1482,11 +1473,10 @@ function buildServicePools(services: SeedService[]): ServicePools {
     });
   }
   return pools;
-}
+};
 
-function pickAnyService(pools: ServicePools): SeedService {
-  return pickWeighted(pools[pickWeighted(KIND_MIX)]);
-}
+const pickAnyService = (pools: ServicePools): SeedService =>
+  pickWeighted(pools[pickWeighted(KIND_MIX)]);
 
 interface Crew {
   adminId: number;
@@ -1517,12 +1507,12 @@ interface PlannedWork {
 // Someone checks an Item a little after the cleaner hands it over: now and then
 // the cleaner (a self-check), more often the other worker, else the cashier or
 // admin. A worker only checks while clocked in.
-function pickChecker(
+const pickChecker = (
   crew: Crew,
   ctx: PlanContext,
   cleanerId: number,
   finishedAt: number
-): { at: number; by: number } {
+): { at: number; by: number } => {
   const other = crew.workerIds.find((id) => id !== cleanerId);
   const roll = faker.number.float({ min: 0, max: 1 });
   let candidate: number | undefined;
@@ -1546,17 +1536,17 @@ function pickChecker(
     at: finishedAt + randInt(10, 180) * MINUTE_MS,
     by: chance(0.8) ? crew.cashierId : crew.adminId,
   };
-}
+};
 
 // An Item with a QC reject goes to the cleaner again, or sometimes to the other worker,
 // on a later Shift. If nobody on shift can take it, it waits at qc_reject.
-function planRedo(
+const planRedo = (
   crew: Crew,
   ctx: PlanContext,
   work: PlannedWork,
   starterId: number,
   rejectedAt: number
-) {
+) => {
   const other = crew.workerIds.find((id) => id !== starterId);
   const candidates =
     other !== undefined && chance(0.3)
@@ -1605,17 +1595,17 @@ function planRedo(
       last.to = "ready_for_pickup";
     }
   }
-}
+};
 
 // One Service's moves: started on a Shift, handed to Waiting QC (`finishAt`,
 // null while still in hand), checked, and in a few cases sent back and redone.
-function planWork(
+const planWork = (
   crew: Crew,
   ctx: PlanContext,
   starterId: number,
   startAt: number,
   finishAt: number | null
-): PlannedWork {
+): PlannedWork => {
   const work: PlannedWork = {
     events: [{ at: startAt, by: starterId, to: "processing" }],
     handlerId: starterId,
@@ -1649,9 +1639,9 @@ function planWork(
   }
   work.events = work.events.filter((event) => event.at <= ctx.now);
   return work;
-}
+};
 
-function toStatusLogs(events: LineEvent[]): DraftStatusLog[] {
+const toStatusLogs = (events: LineEvent[]): DraftStatusLog[] => {
   let from: OrderServiceStatus = "queued";
   return events.map((event) => {
     const log: DraftStatusLog = {
@@ -1664,25 +1654,23 @@ function toStatusLogs(events: LineEvent[]): DraftStatusLog[] {
     from = event.to;
     return log;
   });
-}
+};
 
-function createLine(
+const createLine = (
   service: SeedService,
   events: LineEvent[],
   handler: { id: number | null; logs: DraftHandlerLog[] }
-): DraftServiceLine {
-  return {
-    cogs: Number(service.cogs),
-    handler_id: handler.id,
-    handler_logs: handler.logs,
-    is_priority: service.is_priority,
-    notes: chance(0.35) ? faker.helpers.arrayElement(SERVICE_NOTE_POOL) : null,
-    price: Number(service.price),
-    service_id: service.id,
-    status: events.at(-1)?.to ?? "queued",
-    status_logs: toStatusLogs(events),
-  };
-}
+): DraftServiceLine => ({
+  cogs: Number(service.cogs),
+  handler_id: handler.id,
+  handler_logs: handler.logs,
+  is_priority: service.is_priority,
+  notes: chance(0.35) ? faker.helpers.arrayElement(SERVICE_NOTE_POOL) : null,
+  price: Number(service.price),
+  service_id: service.id,
+  status: events.at(-1)?.to ?? "queued",
+  status_logs: toStatusLogs(events),
+});
 
 const createLineFromWork = (service: SeedService, work: PlannedWork) =>
   createLine(service, work.events, {
@@ -1699,37 +1687,12 @@ interface AnchoredLine {
   line: DraftServiceLine;
 }
 
-// Each worker's Services: on every day worked, as many reaching Waiting QC as
-// their profile says. Each is placed backwards from that moment, so it was
-// started on one of their own Shifts a Service-type-appropriate time earlier.
-function planWorkedLines(crew: Crew, ctx: PlanContext): AnchoredLine[] {
-  const lines: AnchoredLine[] = [];
-  for (const [slot, workerId] of crew.workerIds.entries()) {
-    const profile = workerProfile(crew.store.code, slot);
-    for (const window of ctx.book.get(workerId) ?? []) {
-      if (window.day < ctx.today - WORK_LOOKBACK_DAYS) {
-        continue;
-      }
-      // Today is part-way through, so only part of a day's work is done yet.
-      const share = Math.min(1, (window.end - window.start) / (8 * HOUR_MS));
-      const count = Math.round(profile.dailyLoad() * share);
-      for (let n = 0; n < count; n++) {
-        const planned = planWorkedLine(crew, ctx, workerId, window);
-        if (planned) {
-          lines.push(planned);
-        }
-      }
-    }
-  }
-  return lines;
-}
-
-function planWorkedLine(
+const planWorkedLine = (
   crew: Crew,
   ctx: PlanContext,
   workerId: number,
   window: ShiftWindow
-): AnchoredLine | null {
+): AnchoredLine | null => {
   const finishAt = pickOnShift(
     ctx.book,
     workerId,
@@ -1759,10 +1722,35 @@ function planWorkedLine(
     }
   }
   return null;
-}
+};
+
+// Each worker's Services: on every day worked, as many reaching Waiting QC as
+// their profile says. Each is placed backwards from that moment, so it was
+// started on one of their own Shifts a Service-type-appropriate time earlier.
+const planWorkedLines = (crew: Crew, ctx: PlanContext): AnchoredLine[] => {
+  const lines: AnchoredLine[] = [];
+  for (const [slot, workerId] of crew.workerIds.entries()) {
+    const profile = workerProfile(crew.store.code, slot);
+    for (const window of ctx.book.get(workerId) ?? []) {
+      if (window.day < ctx.today - WORK_LOOKBACK_DAYS) {
+        continue;
+      }
+      // Today is part-way through, so only part of a day's work is done yet.
+      const share = Math.min(1, (window.end - window.start) / (8 * HOUR_MS));
+      const count = Math.round(profile.dailyLoad() * share);
+      for (let n = 0; n < count; n++) {
+        const planned = planWorkedLine(crew, ctx, workerId, window);
+        if (planned) {
+          lines.push(planned);
+        }
+      }
+    }
+  }
+  return lines;
+};
 
 // Services a worker has started and still holds, for the live "In hand" count.
-function planInHandLines(crew: Crew, ctx: PlanContext): AnchoredLine[] {
+const planInHandLines = (crew: Crew, ctx: PlanContext): AnchoredLine[] => {
   const lines: AnchoredLine[] = [];
   for (const workerId of crew.workerIds) {
     for (let n = randInt(3, 7); n > 0; n--) {
@@ -1783,7 +1771,7 @@ function planInHandLines(crew: Crew, ctx: PlanContext): AnchoredLine[] {
     }
   }
   return lines;
-}
+};
 
 interface PlannedOrder {
   cashierId: number;
@@ -1794,18 +1782,18 @@ interface PlannedOrder {
 
 // The cashier took the Order a little before work began on it. Work starting
 // before the counter opened means it came in the evening before.
-function orderCreatedAt(firstWorkAt: number): number {
+const orderCreatedAt = (firstWorkAt: number): number => {
   const at = firstWorkAt - randInt(20, 240) * MINUTE_MS;
   if (jakartaHour(at) >= 8) {
     return at;
   }
   const evenings = jakartaDayStartAt(jakartaDayNumber(at) - 1);
   return evenings + randInt(16 * 60, 19 * 60 + 30) * MINUTE_MS;
-}
+};
 
 // Lines started close together at one Store share an Order, one to three each.
-function groupIntoOrders(crew: Crew, lines: AnchoredLine[]): PlannedOrder[] {
-  const sorted = [...lines].sort((a, b) => a.anchor - b.anchor);
+const groupIntoOrders = (crew: Crew, lines: AnchoredLine[]): PlannedOrder[] => {
+  const sorted = lines.toSorted((a, b) => a.anchor - b.anchor);
   const orders: PlannedOrder[] = [];
   let group: AnchoredLine[] = [];
   let groupSize = 0;
@@ -1839,18 +1827,18 @@ function groupIntoOrders(crew: Crew, lines: AnchoredLine[]): PlannedOrder[] {
   }
   flush();
   return orders;
-}
+};
 
 // A random counter moment on a day within the lookback, never later than now.
-function randomCounterTime(ctx: PlanContext, maxDaysAgo: number): number {
+const randomCounterTime = (ctx: PlanContext, maxDaysAgo: number): number => {
   const day = ctx.today - randInt(0, maxDaysAgo);
   const at = jakartaDayStartAt(day) + randInt(9 * 60, 19 * 60) * MINUTE_MS;
   return Math.min(at, ctx.now - randInt(30, 180) * MINUTE_MS);
-}
+};
 
 // Orders taken in the last day or so that nobody has started: the queue.
-function planBacklogOrders(crew: Crew, ctx: PlanContext): PlannedOrder[] {
-  return Array.from({ length: randInt(3, 5) }, () => ({
+const planBacklogOrders = (crew: Crew, ctx: PlanContext): PlannedOrder[] =>
+  Array.from({ length: randInt(3, 5) }, () => ({
     cashierId: crew.cashierId,
     createdAt: randomCounterTime(ctx, 1),
     lines: Array.from(
@@ -1865,11 +1853,10 @@ function planBacklogOrders(crew: Crew, ctx: PlanContext): PlannedOrder[] {
     ),
     store: crew.store,
   }));
-}
 
 // Lines the customer called off at the counter before anything was started.
-function planCancelledOrders(crew: Crew, ctx: PlanContext): PlannedOrder[] {
-  return Array.from({ length: randInt(6, 10) }, () => {
+const planCancelledOrders = (crew: Crew, ctx: PlanContext): PlannedOrder[] =>
+  Array.from({ length: randInt(6, 10) }, () => {
     const createdAt = randomCounterTime(ctx, WORK_LOOKBACK_DAYS);
     const cancelledAt = createdAt + randInt(5, 60) * MINUTE_MS;
     return {
@@ -1885,16 +1872,14 @@ function planCancelledOrders(crew: Crew, ctx: PlanContext): PlannedOrder[] {
       store: crew.store,
     };
   });
-}
 
-function planProductOnlyOrders(crew: Crew, ctx: PlanContext): PlannedOrder[] {
-  return Array.from({ length: randInt(12, 18) }, () => ({
+const planProductOnlyOrders = (crew: Crew, ctx: PlanContext): PlannedOrder[] =>
+  Array.from({ length: randInt(12, 18) }, () => ({
     cashierId: crew.cashierId,
     createdAt: randomCounterTime(ctx, WORK_LOOKBACK_DAYS),
     lines: [],
     store: crew.store,
   }));
-}
 
 interface OrderEnv {
   campaigns: CampaignRow[];
@@ -1903,18 +1888,18 @@ interface OrderEnv {
   customersByStore: Map<number, number[]>;
   hasIntakeChannel: boolean;
   now: number;
-  paymentMethods: Array<{ id: number }>;
-  products: Array<{ cogs: string; id: number; price: string }>;
+  paymentMethods: { id: number }[];
+  products: { cogs: string; id: number; price: string }[];
 }
 
 interface DraftRefund {
   at: Date;
-  items: Array<{
+  items: {
     amount: number;
     line: DraftServiceLine;
     note: string | null;
     reason: "cannot_process" | "damaged" | "lost" | "other";
-  }>;
+  }[];
   total: number;
 }
 
@@ -1930,19 +1915,19 @@ interface DraftOrder {
   row: typeof ordersTable.$inferInsert;
 }
 
-function passedAtOf(line: DraftServiceLine): number {
+const passedAtOf = (line: DraftServiceLine): number => {
   const passed = line.status_logs.filter(
     (log) => log.to_status === "ready_for_pickup"
   );
   return passed.at(-1)?.created_at.getTime() ?? 0;
-}
+};
 
-function groupIntoItems(
+const groupIntoItems = (
   lines: DraftServiceLine[],
   code: string,
   createdAt: number,
   cashierId: number
-): DraftItem[] {
+): DraftItem[] => {
   const items: DraftItem[] = [];
   for (const line of lines) {
     const last = items.at(-1);
@@ -1988,9 +1973,9 @@ function groupIntoItems(
     });
   }
   return items;
-}
+};
 
-function pickupChance(ageMs: number): number {
+const pickupChance = (ageMs: number): number => {
   if (ageMs > 3 * DAY_MS) {
     return 0.92;
   }
@@ -1998,10 +1983,10 @@ function pickupChance(ageMs: number): number {
     return 0.55;
   }
   return ageMs > 6 * HOUR_MS ? 0.2 : 0;
-}
+};
 
 // The customer collects during counter hours, never after now.
-function toCounterHours(at: number, now: number): number {
+const toCounterHours = (at: number, now: number): number => {
   const hour = jakartaHour(at);
   const inHours =
     hour >= 9 && hour < 20
@@ -2009,13 +1994,13 @@ function toCounterHours(at: number, now: number): number {
       : jakartaDayStartAt(jakartaDayNumber(at) + (hour >= 20 ? 1 : 0)) +
         randInt(9 * 60, 11 * 60) * MINUTE_MS;
   return Math.min(inHours, now - randInt(1, 5) * MINUTE_MS);
-}
+};
 
 // After the checks, the cashier hands finished Items over whole (ADR-0017) or,
 // rarely, refunds one line. Both are logged against the cashier, not the worker.
-function settleItems(items: DraftItem[], cashierId: number, now: number) {
+const settleItems = (items: DraftItem[], cashierId: number, now: number) => {
   const pickedUp: DraftServiceLine[] = [];
-  const refunded: Array<{ at: number; line: DraftServiceLine }> = [];
+  const refunded: { at: number; line: DraftServiceLine }[] = [];
   let latestPass = 0;
 
   for (const item of items) {
@@ -2065,18 +2050,16 @@ function settleItems(items: DraftItem[], cashierId: number, now: number) {
     });
   }
   return { pickedUp, pickupAt, refunded: refunded.map((r) => r.line) };
-}
+};
 
-function latestMoment(...moments: number[]): number {
-  return moments.reduce((max, at) => (at > max ? at : max), 0);
-}
+const latestMoment = (...moments: number[]): number => Math.max(0, ...moments);
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one Order's whole money and status picture is built in one pass.
-function buildDraftOrder(
+// oxlint-disable-next-line eslint/complexity -- one Order's whole money and status picture is built in one pass.
+const buildDraftOrder = (
   planned: PlannedOrder,
   code: string,
   env: OrderEnv
-): DraftOrder {
+): DraftOrder => {
   const { cashierId, store } = planned;
   const createdAt = new Date(planned.createdAt);
   const items = groupIntoItems(
@@ -2105,10 +2088,9 @@ function buildDraftOrder(
 
   // A cancelled line took the unpaid off-ramp (ADR-0008): the app refuses to
   // cancel on a paid Order, so its price never sits inside `total`.
-  const serviceGross = draftServices.reduce(
-    (sum, line) => (line.status === "cancelled" ? sum : sum + line.price),
-    0
-  );
+  const serviceGross = draftServices
+    .filter((line) => line.status !== "cancelled")
+    .reduce((sum, line) => sum + line.price, 0);
   const productGross = products.reduce(
     (sum, line) => sum + line.price * line.qty,
     0
@@ -2285,23 +2267,23 @@ function buildDraftOrder(
       updated_by: cashierId,
     },
   };
-}
+};
 
-function requireId(ids: Map<string, number>, key: string): number {
+const requireId = (ids: Map<string, number>, key: string): number => {
   const id = ids.get(key);
   if (id === undefined) {
     throw new Error(`Seed lost the id of ${key}`);
   }
   return id;
-}
+};
 
-async function ordersHaveIntakeChannel(): Promise<boolean> {
+const ordersHaveIntakeChannel = async (): Promise<boolean> => {
   const rows = await db.execute(
     sql`select 1 from information_schema.columns where table_name = 'orders' and column_name = 'intake_channel'`,
     "objects"
   );
   return rows.length > 0;
-}
+};
 
 const COMPLAINT_REASONS = [
   "Stain still visible after cleaning",
@@ -2313,8 +2295,8 @@ const COMPLAINT_REASONS = [
 
 // Every draft goes in by the table, in batches, instead of Order by Order: the
 // seed is now thousands of Orders and a round trip each took minutes.
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one ordered pass over every table an Order touches.
-async function insertDrafts(drafts: DraftOrder[], now: number) {
+// oxlint-disable-next-line eslint/complexity -- one ordered pass over every table an Order touches.
+const insertDrafts = async (drafts: DraftOrder[], now: number) => {
   const orderIds = new Map<string, number>();
   for (const chunk of chunked(drafts, 400)) {
     const rows = await db
@@ -2579,33 +2561,33 @@ async function insertDrafts(drafts: DraftOrder[], now: number) {
       where orders.id = v.order_id
     `);
   }
-}
+};
 
-async function seedOrders(params: {
+const seedOrders = async (params: {
   stores: StoreRow[];
-  customers: Array<{ id: number; origin_store_id: number }>;
-  services: Array<{
+  customers: { id: number; origin_store_id: number }[];
+  services: {
     id: number;
     code: string;
     price: string | null;
     cogs: string;
     is_active: boolean;
     is_priority: boolean;
-  }>;
-  products: Array<{
+  }[];
+  products: {
     id: number;
     price: string;
     cogs: string;
     is_active: boolean;
-  }>;
-  paymentMethods: Array<{ id: number; is_active: boolean }>;
+  }[];
+  paymentMethods: { id: number; is_active: boolean }[];
   campaigns: CampaignRow[];
   cashiersByStore: Map<number, number[]>;
   workersByStore: Map<number, number[]>;
   courierIds: number[];
   adminId: number;
   book: ShiftBook;
-}) {
+}) => {
   const now = Date.now();
   // Seeded orders price their lines off the catalog row, so a no-list-price
   // Service (Repair, ADR-0018) cannot take part — it has no number to copy.
@@ -2665,8 +2647,8 @@ async function seedOrders(params: {
 
   // Codes count up through each Store's day in the order the Orders were taken.
   const orderCounters = new Map<string, number>();
-  const drafts = [...planned]
-    .sort((a, b) => a.createdAt - b.createdAt)
+  const drafts = planned
+    .toSorted((a, b) => a.createdAt - b.createdAt)
     .map((order) =>
       buildDraftOrder(
         order,
@@ -2681,23 +2663,21 @@ async function seedOrders(params: {
 
   await insertDrafts(drafts, now);
 
-  const counterRows = Array.from(orderCounters.entries()).map(
-    ([key, lastNumber]) => {
-      const [storeCode, dateStr] = key.split(":");
-      return {
-        store_code: storeCode,
-        date_str: dateStr,
-        last_number: lastNumber,
-      };
-    }
-  );
+  const counterRows = [...orderCounters.entries()].map(([key, lastNumber]) => {
+    const [storeCode, dateStr] = key.split(":");
+    return {
+      store_code: storeCode,
+      date_str: dateStr,
+      last_number: lastNumber,
+    };
+  });
 
   if (counterRows.length > 0) {
     await db.insert(orderCountersTable).values(counterRows);
   }
-}
+};
 
-export async function runSeed() {
+export const runSeed = async () => {
   // The seed truncates every table first, so pointed at prod by mistake it wipes
   // the shop's real Orders. Only a confirmed dev database is allowed through.
   const isDev =
@@ -2748,7 +2728,7 @@ export async function runSeed() {
     catalog.campaigns.map((campaign) => [campaign.code, campaign])
   );
 
-  const scopedRows: Array<{ campaign_id: number; store_id: number }> = [];
+  const scopedRows: { campaign_id: number; store_id: number }[] = [];
   for (const seed of catalog.campaignSeed) {
     const campaign = campaignByCode.get(seed.code);
     if (!campaign) {
@@ -2815,4 +2795,4 @@ export async function runSeed() {
       password: await Bun.password.hash(ADMIN_PASSWORD),
     })
     .where(sql`${usersTable.username} = 'admin'`);
-}
+};

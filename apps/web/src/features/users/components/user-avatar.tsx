@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 // circle read "MJ" or "DF".
 const initialsOf = (name: string) =>
   name
-    .split(/[\s-]+/)
+    .split(/[\s-]+/u)
     .filter((part) => part && !part.endsWith("."))
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())

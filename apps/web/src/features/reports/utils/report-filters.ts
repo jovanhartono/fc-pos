@@ -1,10 +1,7 @@
 import type { ReportGranularity } from "@/features/reports/api";
 import dayjs from "@/lib/dayjs";
-import {
-  type DatePreset,
-  getPreset,
-  jakartaToday,
-} from "@/shared/date-presets";
+import { getPreset, jakartaToday } from "@/shared/date-presets";
+import type { DatePreset } from "@/shared/date-presets";
 
 export const DEFAULT_PRESET: DatePreset = "30d";
 
@@ -18,21 +15,21 @@ export interface ReportFilterValues {
 
 // A tapped preset is kept by name, not by its dates, so an admin who reads
 // "Last 7 days" every morning still gets the last 7 days tomorrow.
-export function toReportFilters({
+export const toReportFilters = ({
   preset,
   from,
   to,
   store_id,
   granularity,
-}: ReportFilterValues): ReportFilterValues {
+}: ReportFilterValues): ReportFilterValues => {
   const range = preset ? { preset } : { from, to };
   return { ...range, store_id, granularity };
-}
+};
 
-export function withPresetRange<T extends ReportFilterValues>(
+export const withPresetRange = <T extends ReportFilterValues>(
   search: T,
   fallback: DatePreset = DEFAULT_PRESET
-) {
+) => {
   const { from, to } = search;
   if (!search.preset && from && to) {
     return { ...search, from, to };
@@ -41,11 +38,15 @@ export function withPresetRange<T extends ReportFilterValues>(
   // tomorrow after changing only the Store.
   const preset = getPreset(search.preset ?? fallback);
   return { ...search, preset: preset.id, from: preset.from, to: preset.to };
-}
+};
 
 // Dates the admin picked on the calendar are saved as dates, so they are shown
 // as dates even on a day they match a preset.
-export function rangeLabel({ preset, from, to }: ReportFilterValues): string {
+export const rangeLabel = ({
+  preset,
+  from,
+  to,
+}: ReportFilterValues): string => {
   if (preset) {
     return getPreset(preset).label;
   }
@@ -63,15 +64,14 @@ export function rangeLabel({ preset, from, to }: ReportFilterValues): string {
     return `${start.date()}–${end.format(format)}`;
   }
   return `${start.format(format)} – ${end.format(format)}`;
-}
+};
 
 // Overview and Aging Queue show only the Store, so their Reset leaves the range
 // and granularity the other tabs read.
-export function resetReportFilters(showsRange: boolean): ReportFilterValues {
-  return showsRange
+export const resetReportFilters = (showsRange: boolean): ReportFilterValues =>
+  showsRange
     ? { preset: DEFAULT_PRESET, store_id: undefined, granularity: undefined }
     : { store_id: undefined };
-}
 
 const FILTER_KEYS: (keyof ReportFilterValues)[] = [
   "preset",
@@ -83,12 +83,12 @@ const FILTER_KEYS: (keyof ReportFilterValues)[] = [
 
 // Every in-app move keeps the filters in the URL, so a URL without any is an
 // arrival from the sidebar or a bare link: show what this admin last read.
-export function withSavedReportFilters<T extends ReportFilterValues>(
+export const withSavedReportFilters = <T extends ReportFilterValues>(
   search: T,
   saved: ReportFilterValues | undefined
-): T {
+): T => {
   if (!saved || FILTER_KEYS.some((key) => search[key] !== undefined)) {
     return search;
   }
   return { ...search, ...saved };
-}
+};

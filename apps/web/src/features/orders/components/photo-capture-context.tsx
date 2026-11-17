@@ -1,31 +1,26 @@
 import { useMutation } from "@tanstack/react-query";
 import {
   createContext,
-  type ReactNode,
-  type RefObject,
   use,
   useEffect,
   useEffectEvent,
   useRef,
   useState,
 } from "react";
+import type { ReactNode, RefObject } from "react";
 import { toast } from "sonner";
 
-import {
-  type PhotoCaptureLabels,
-  resolvePhotoCaptureLabels,
-} from "@/features/orders/components/photo-capture-labels";
+import { resolvePhotoCaptureLabels } from "@/features/orders/components/photo-capture-labels";
+import type { PhotoCaptureLabels } from "@/features/orders/components/photo-capture-labels";
 import type { PhotoStageItem } from "@/features/orders/components/photo-stage";
-import {
-  type UseCameraCaptureResult,
-  useCameraCapture,
-} from "@/features/orders/hooks/useCameraCapture";
+import { useCameraCapture } from "@/features/orders/hooks/use-camera-capture";
+import type { UseCameraCaptureResult } from "@/features/orders/hooks/use-camera-capture";
 import { normalizeImageFile } from "@/features/orders/utils/normalize-image";
 import {
   isAcceptedImage,
-  type PhotoUploader,
   resolveUploadedKey,
 } from "@/features/orders/utils/photo-upload";
+import type { PhotoUploader } from "@/features/orders/utils/photo-upload";
 import { readServerErrorMessage } from "@/lib/server-error";
 
 // Started when the photo hit the strip, not on confirm.
@@ -206,6 +201,7 @@ export const PhotoCaptureProvider = ({
     // A scale-down finishing after staff gave up on the dialog must not land its
     // photo on the next Order.
     sessionRef.current += 1;
+    // oxlint-disable-next-line react/set-state-in-effect -- drops a scale-down still in flight each time the dialog opens or closes
     setNormalizing(null);
 
     if (!open) {
@@ -253,7 +249,7 @@ export const PhotoCaptureProvider = ({
     );
     // Catch now: an upload dropped on 4G before confirm would be an unhandled
     // rejection. Confirm still retries it, and the next upload isn't stranded.
-    pushQueueRef.current = promise.catch(() => undefined);
+    pushQueueRef.current = promise.catch(() => null);
     return { abort: () => controller.abort(), promise };
   };
 

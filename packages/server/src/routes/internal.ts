@@ -6,13 +6,13 @@ import { settleEndedCharges } from "@/modules/payments/payment-charge.service";
 import { closeForgottenShifts } from "@/modules/shifts/shift.service";
 import { success } from "@/utils/http";
 
-function assertCronCaller(authorization?: string) {
+const assertCronCaller = (authorization?: string) => {
   const secret = process.env.CRON_SECRET;
   // No secret configured means nobody can run these, deliberately.
   if (!secret || authorization !== `Bearer ${secret}`) {
     throw new UnauthorizedException();
   }
-}
+};
 
 // Called by Vercel's scheduler with a shared secret, not by signed-in staff, so not under /admin.
 // A GET that deletes because a GET is all the scheduler sends; a repeat finds nothing to take.

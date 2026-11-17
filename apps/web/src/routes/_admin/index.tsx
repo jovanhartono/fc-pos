@@ -6,11 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
-export const Route = createFileRoute("/_admin/")({
-  component: HomePage,
-});
-
-function HomePage() {
+const HomePage = () => {
   const { me } = Route.useRouteContext();
   const now = dayjs().tz(JAKARTA_TZ);
 
@@ -52,4 +48,8 @@ function HomePage() {
       </div>
     </div>
   );
-}
+};
+
+export const Route = createFileRoute("/_admin/")({
+  component: HomePage,
+});

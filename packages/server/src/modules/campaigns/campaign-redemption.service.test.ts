@@ -7,11 +7,13 @@ import {
   ordersTable,
 } from "@/db/schema";
 import {
-  type CampaignRedemptionFields,
   claimRedemptions,
-  type ResolvedCampaignRow,
   releaseRedemptions,
   voidCampaignsBelowMinimum,
+} from "@/modules/campaigns/campaign-redemption.service";
+import type {
+  CampaignRedemptionFields,
+  ResolvedCampaignRow,
 } from "@/modules/campaigns/campaign-redemption.service";
 import type { OrderTx } from "@/modules/orders/order.repository";
 import { captureRejection } from "@/test-support/capture-rejection";
@@ -27,7 +29,7 @@ interface InsertCall {
 }
 
 // Each update resolves with the next entry of updateResults, in call order.
-function makeTx({
+const makeTx = ({
   updateResults = [],
   orderCampaigns = [],
   campaignMinimums = [],
@@ -39,7 +41,7 @@ function makeTx({
     code_id: number | null;
   }[];
   campaignMinimums?: { minOrderTotal: string | null }[];
-} = {}) {
+} = {}) => {
   const updates: UpdateCall[] = [];
   const inserts: InsertCall[] = [];
   const deletes: unknown[] = [];
@@ -87,7 +89,7 @@ function makeTx({
   };
 
   return { tx: tx as unknown as OrderTx, updates, inserts, deletes };
-}
+};
 
 const redemptionFields: CampaignRedemptionFields = {
   applied_amount: "10000",

@@ -1,7 +1,8 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { Loading03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import type * as React from "react";
 import { useWebHaptics } from "web-haptics/react";
 
@@ -58,7 +59,7 @@ const buttonVariants = cva(
   }
 );
 
-function Button({
+const Button = ({
   className,
   variant = "default",
   size = "default",
@@ -82,15 +83,14 @@ function Button({
     spinner?: React.ReactNode;
     haptic?: "success" | "nudge" | "error" | "buzz" | false;
     hapticMode?: "touch" | "always";
-  }) {
+  }) => {
   const { trigger, isSupported } = useWebHaptics();
   const isDisabled = disabled || loading;
-  const resolvedIcon = !loading ? icon : null;
-  const dataIcon = resolvedIcon
-    ? iconLocation === "right"
-      ? "inline-end"
-      : "inline-start"
-    : undefined;
+  const resolvedIcon = loading ? null : icon;
+  let dataIcon: "inline-end" | "inline-start" | undefined;
+  if (resolvedIcon) {
+    dataIcon = iconLocation === "right" ? "inline-end" : "inline-start";
+  }
 
   const handleClick: NonNullable<ButtonPrimitive.Props["onClick"]> = (
     event
@@ -137,6 +137,6 @@ function Button({
       )}
     </ButtonPrimitive>
   );
-}
+};
 
 export { Button, buttonVariants };

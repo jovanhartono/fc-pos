@@ -72,7 +72,7 @@ export const PUTOrderDropoffPhotoSchema = z.object({
 
 export const POSTOrderPickupEventSchema = z.object({
   image_path: z.string().trim().min(1).max(512),
-  pickup_code: z.string().regex(/^\d{6}$/, "Pickup code must be 6 digits"),
+  pickup_code: z.string().regex(/^\d{6}$/u, "Pickup code must be 6 digits"),
   // Items, not lines (ADR-0017): the counter hands back a whole shoe, never half
   // of one.
   item_ids: z.array(z.coerce.number().int().positive()).min(1),
@@ -300,9 +300,9 @@ export type PostOrderPickupEventInput = z.infer<
   typeof POSTOrderPickupEventSchema
 >;
 
-export function normalizeOrderServiceQueueQuery(
+export const normalizeOrderServiceQueueQuery = (
   query?: GetOrderServiceQueueQuery
-) {
+) => {
   const pagination = normalizePagination(query, {
     maxPageSize: MAX_PAGE_SIZE,
   });
@@ -318,4 +318,4 @@ export function normalizeOrderServiceQueueQuery(
     category_id: query?.category_id,
     category_mode: query?.category_mode,
   };
-}
+};

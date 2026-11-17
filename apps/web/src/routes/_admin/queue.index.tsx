@@ -20,11 +20,8 @@ import { z } from "zod";
 
 import { APP_CONTENT_SCROLL_ID } from "@/components/app-shell";
 import { EmptyState, NoMatchState } from "@/components/empty-state";
-import {
-  dateRangeLabel,
-  type FilterChip,
-  FilterChips,
-} from "@/components/filter-chips";
+import { dateRangeLabel, FilterChips } from "@/components/filter-chips";
+import type { FilterChip } from "@/components/filter-chips";
 import { FilterPanel } from "@/components/filter-panel";
 import { PageHeader } from "@/components/page-header";
 import { StickyControls } from "@/components/sticky-controls";
@@ -33,28 +30,27 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { categoriesQueries } from "@/features/categories/api";
-import {
-  type FetchOrderServiceQueueQuery,
-  lookupQueueTarget,
-  ordersQueries,
-  type QueueCategoryMode,
-  type QueueItem,
+import { lookupQueueTarget, ordersQueries } from "@/features/orders/api";
+import type {
+  FetchOrderServiceQueueQuery,
+  QueueCategoryMode,
+  QueueItem,
 } from "@/features/orders/api";
 import { ShowQueueItemsLabel } from "@/features/orders/components/filter-result-labels";
 import { QueueCategoryFilter } from "@/features/orders/components/queue-category-filter";
 import { QueueRow } from "@/features/orders/components/queue-row";
 import { QueueStatusTabs } from "@/features/orders/components/queue-status-tabs";
 import { StoreSelect } from "@/features/orders/components/store-select";
-import { useBarcodeScanner } from "@/features/orders/hooks/useBarcodeScanner";
+import { useBarcodeScanner } from "@/features/orders/hooks/use-barcode-scanner";
 import {
   QUEUE_CATEGORY_MODES,
   WORKSHOP_SERVICE_STATUSES,
 } from "@/features/orders/lib/queue-search-values";
 import { storesQueries } from "@/features/stores/api";
-import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { useStoreScope } from "@/features/users/hooks/use-store-scope";
 import { pickStore, storeScope } from "@/features/users/lib/store-scope";
-import { useLoadMore } from "@/hooks/useLoadMore";
-import { useMinuteClock } from "@/hooks/useMinuteClock";
+import { useLoadMore } from "@/hooks/use-load-more";
+import { useMinuteClock } from "@/hooks/use-minute-clock";
 import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { isNotFoundError, readServerErrorMessage } from "@/lib/server-error";
 import { cn } from "@/lib/utils";
@@ -80,50 +76,14 @@ const queueSearchSchema = z.object({
   search: z.string().min(1).optional(),
   dateFrom: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .regex(/^\d{4}-\d{2}-\d{2}$/u)
     .optional(),
   dateTo: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .regex(/^\d{4}-\d{2}-\d{2}$/u)
     .optional(),
   categoryId: z.coerce.number().int().positive().optional(),
   categoryMode: z.enum(QUEUE_CATEGORY_MODES).optional(),
-});
-
-export const Route = createFileRoute("/_admin/queue/")({
-  validateSearch: (search) => queueSearchSchema.parse(search),
-  // The worker's rack is picked before the page draws, so the chips and the
-  // Filters badge don't redraw a beat after arriving. The remembered Store is
-  // restored only on arrival, so an explicit clear stays cleared.
-  beforeLoad: ({ context, search, cause }) => {
-    if (search.storeId !== undefined || cause === "preload") {
-      return;
-    }
-    const currentUser = getCurrentUser();
-    const persistedStoreId = currentUser
-      ? useQueuePreferencesStore.getState().storeIdByUser[
-          String(currentUser.id)
-        ]
-      : undefined;
-    // Only a Store this worker may still see — one moved between Stores
-    // since must not land on the old rack. A worker always has a rack; only
-    // an admin may look at none.
-    const storeId = pickStore(storeScope(context.me), {
-      remembered: cause === "enter" ? persistedStoreId : undefined,
-    });
-    if (storeId !== undefined) {
-      throw redirect({
-        to: "/queue",
-        search: { ...search, storeId },
-        replace: true,
-      });
-    }
-  },
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(storesQueries.list()),
-  component: QueuePage,
-  // Past a second, the page itself draws with skeleton cards.
-  pendingComponent: QueuePage,
 });
 
 interface QueueFilterValues {
@@ -134,7 +94,38 @@ interface QueueFilterValues {
   dateTo?: string;
 }
 
-function QueuePage() {
+// A card's shape: the Item over its Order line, then one Service row.
+const QueueSkeleton = () => (
+  <div aria-hidden className="grid gap-2">
+    {Array.from({ length: 6 }, (_, index) => (
+      <div className="overflow-hidden rounded-lg border bg-card" key={index}>
+        <div className="grid gap-0.5 px-3 pt-2.5 pb-2">
+          <Skeleton className="my-0.5 h-4 w-1/2" />
+          <Skeleton className="my-0.5 h-3.5 w-2/3" />
+        </div>
+        <div className="grid gap-1 border-t border-border/70 px-3 py-2.5">
+          <Skeleton className="my-0.5 h-4 w-2/5" />
+          <Skeleton className="my-0.5 h-3.5 w-1/4" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+interface NoQueueItemsProps {
+  search: string | undefined;
+  onClear: () => void;
+}
+
+const NoQueueItems = ({ search, onClear }: NoQueueItemsProps) => {
+  if (search) {
+    return <NoMatchState noun="Items" search={search} onClear={onClear} />;
+  }
+  return <EmptyState icon={Task01Icon}>No Items.</EmptyState>;
+};
+
+// oxlint-disable-next-line eslint/complexity -- one page wiring search, scan, filters and the rack; the count is its `??` fallbacks and optional filters
+const QueuePage = () => {
   const currentUser = getCurrentUser();
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
@@ -186,9 +177,9 @@ function QueuePage() {
   // own rack; picking "All categories" forgets it, so All is a rack too.
   const selectedCategoryId = search.categoryId ?? persistedCategory?.categoryId;
   const selectedCategoryMode =
-    (search.categoryId !== undefined
-      ? search.categoryMode
-      : persistedCategory?.mode) ?? "only";
+    (search.categoryId === undefined
+      ? persistedCategory?.mode
+      : search.categoryMode) ?? "only";
 
   const parsedStoreId = search.storeId ?? pickStore(scope);
   const selectedStatus = search.status;
@@ -210,19 +201,19 @@ function QueuePage() {
   const queueQueryFor = (
     f: QueueFilterValues
   ): FetchOrderServiceQueueQuery | undefined =>
-    f.storeId !== undefined
-      ? {
+    f.storeId === undefined
+      ? undefined
+      : {
           limit: QUEUE_PAGE_SIZE,
           store_id: f.storeId,
-          ...(selectedStatus !== undefined ? { status: selectedStatus } : {}),
-          ...(selectedSearch !== undefined ? { search: selectedSearch } : {}),
-          ...(f.dateFrom !== undefined ? { date_from: f.dateFrom } : {}),
-          ...(f.dateTo !== undefined ? { date_to: f.dateTo } : {}),
-          ...(f.categoryId !== undefined
-            ? { category_id: f.categoryId, category_mode: f.categoryMode }
-            : {}),
-        }
-      : undefined;
+          ...(selectedStatus === undefined ? {} : { status: selectedStatus }),
+          ...(selectedSearch === undefined ? {} : { search: selectedSearch }),
+          ...(f.dateFrom === undefined ? {} : { date_from: f.dateFrom }),
+          ...(f.dateTo === undefined ? {} : { date_to: f.dateTo }),
+          ...(f.categoryId === undefined
+            ? {}
+            : { category_id: f.categoryId, category_mode: f.categoryMode }),
+        };
   const queueQueryInput = queueQueryFor(appliedFilters);
 
   // A new status, date or Category keeps the last cards and count up, faded,
@@ -253,7 +244,7 @@ function QueuePage() {
   });
 
   const lookupMutation = useMutation({
-    mutationFn: async ({ value }: { mode: "manual" | "scan"; value: string }) =>
+    mutationFn: ({ value }: { mode: "manual" | "scan"; value: string }) =>
       lookupQueueTarget(value.trim()),
     onSuccess: (result) => {
       if (result.service_id !== null) {
@@ -269,14 +260,14 @@ function QueuePage() {
 
       // Several lines open on the one Item: show its card and let the
       // worker say which one they are starting.
-      const itemCode = result.item_code;
-      if (itemCode !== null) {
+      const matchedItemCode = result.item_code;
+      if (matchedItemCode !== null) {
         void navigate({
           replace: true,
           search: (prev) => ({
             ...prev,
             storeId: result.store_id,
-            search: itemCode,
+            search: matchedItemCode,
             status: undefined,
           }),
         });
@@ -625,15 +616,7 @@ function QueuePage() {
           !queueQuery.isError &&
           !hasQueueItems &&
           parsedStoreId !== undefined ? (
-            selectedSearch ? (
-              <NoMatchState
-                noun="Items"
-                search={selectedSearch}
-                onClear={clearSearchFilter}
-              />
-            ) : (
-              <EmptyState icon={Task01Icon}>No Items.</EmptyState>
-            )
+            <NoQueueItems search={selectedSearch} onClear={clearSearchFilter} />
           ) : null}
 
           <div className="h-6" ref={loadMoreRef} />
@@ -647,22 +630,40 @@ function QueuePage() {
       </div>
     </>
   );
-}
+};
 
-// A card's shape: the Item over its Order line, then one Service row.
-const QueueSkeleton = () => (
-  <div aria-hidden className="grid gap-2">
-    {Array.from({ length: 6 }, (_, index) => (
-      <div className="overflow-hidden rounded-lg border bg-card" key={index}>
-        <div className="grid gap-0.5 px-3 pt-2.5 pb-2">
-          <Skeleton className="my-0.5 h-4 w-1/2" />
-          <Skeleton className="my-0.5 h-3.5 w-2/3" />
-        </div>
-        <div className="grid gap-1 border-t border-border/70 px-3 py-2.5">
-          <Skeleton className="my-0.5 h-4 w-2/5" />
-          <Skeleton className="my-0.5 h-3.5 w-1/4" />
-        </div>
-      </div>
-    ))}
-  </div>
-);
+export const Route = createFileRoute("/_admin/queue/")({
+  validateSearch: (search) => queueSearchSchema.parse(search),
+  // The worker's rack is picked before the page draws, so the chips and the
+  // Filters badge don't redraw a beat after arriving. The remembered Store is
+  // restored only on arrival, so an explicit clear stays cleared.
+  beforeLoad: ({ context, search, cause }) => {
+    if (search.storeId !== undefined || cause === "preload") {
+      return;
+    }
+    const currentUser = getCurrentUser();
+    const persistedStoreId = currentUser
+      ? useQueuePreferencesStore.getState().storeIdByUser[
+          String(currentUser.id)
+        ]
+      : undefined;
+    // Only a Store this worker may still see — one moved between Stores
+    // since must not land on the old rack. A worker always has a rack; only
+    // an admin may look at none.
+    const storeId = pickStore(storeScope(context.me), {
+      remembered: cause === "enter" ? persistedStoreId : undefined,
+    });
+    if (storeId !== undefined) {
+      throw redirect({
+        to: "/queue",
+        search: { ...search, storeId },
+        replace: true,
+      });
+    }
+  },
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(storesQueries.list()),
+  component: QueuePage,
+  // Past a second, the page itself draws with skeleton cards.
+  pendingComponent: QueuePage,
+});

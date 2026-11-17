@@ -1,10 +1,11 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
 
+import "@/test-support/pglite";
 import { campaignEligibleServicesTable, campaignsTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // What a Refund leaves behind, read back off real rows: the Line's state, the
@@ -75,7 +76,8 @@ describe("refund", () => {
     });
 
     expect(result.total_refund_amount).toBe(80_000);
-    expect((await readOrder(order.id))?.refunded_amount).toBe("80000");
+    const refunded = await readOrder(order.id);
+    expect(refunded?.refunded_amount).toBe("80000");
   });
 
   it("refuses a second refund of the same treatment", async () => {
@@ -95,7 +97,8 @@ describe("refund", () => {
     expect((error as Error).message).toBe(
       `Order service ${serviceId} has no refundable amount remaining`
     );
-    expect((await readOrder(order.id))?.refunded_amount).toBe("80000");
+    const afterRetry = await readOrder(order.id);
+    expect(afterRetry?.refunded_amount).toBe("80000");
   });
 
   it("refuses a second refund of the same product", async () => {
@@ -115,7 +118,8 @@ describe("refund", () => {
     expect((error as Error).message).toBe(
       `Order product ${productId} has no refundable amount remaining`
     );
-    expect((await readOrder(order.id))?.refunded_amount).toBe("40000");
+    const afterRetry = await readOrder(order.id);
+    expect(afterRetry?.refunded_amount).toBe("40000");
   });
 
   it("keeps a Buy N Get M discount on the Services that earned it", async () => {
@@ -190,13 +194,10 @@ describe("cancel", () => {
     });
     const { productId, serviceId } = await lineIds(order.id);
 
-    expect(
-      (
-        await testDb.query.campaignsTable.findFirst({
-          where: { id: campaign.id },
-        })
-      )?.redeemed_count
-    ).toBe(1);
+    const claimed = await testDb.query.campaignsTable.findFirst({
+      where: { id: campaign.id },
+    });
+    expect(claimed?.redeemed_count).toBe(1);
 
     await cancelOrder({
       orderId: order.id,
@@ -209,13 +210,11 @@ describe("cancel", () => {
       user: shop.cashier,
     });
 
-    expect((await readOrder(order.id))?.status).toBe("cancelled");
-    expect(
-      (
-        await testDb.query.campaignsTable.findFirst({
-          where: { id: campaign.id },
-        })
-      )?.redeemed_count
-    ).toBe(0);
+    const cancelled = await readOrder(order.id);
+    expect(cancelled?.status).toBe("cancelled");
+    const released = await testDb.query.campaignsTable.findFirst({
+      where: { id: campaign.id },
+    });
+    expect(released?.redeemed_count).toBe(0);
   });
 });

@@ -11,25 +11,21 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useIsFetching, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Link,
-  type LinkProps,
   useCanGoBack,
   useNavigate,
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
-import {
-  type PropsWithChildren,
-  type MouseEvent as ReactMouseEvent,
-  useEffect,
-  useState,
-} from "react";
+import type { LinkProps } from "@tanstack/react-router";
+import { useEffect } from "react";
+import type { PropsWithChildren, MouseEvent as ReactMouseEvent } from "react";
 
 import {
   HOME_NAV_ITEM,
-  type NavItem,
   navGroupsForRole,
   tabBarItemsForRole,
 } from "@/components/app-navigation";
+import type { NavItem } from "@/components/app-navigation";
 import { AppTabBar } from "@/components/app-tab-bar";
 import { BrandLogo } from "@/components/brand-logo";
 import { useOpenCommandBar } from "@/components/command-bar";
@@ -62,6 +58,7 @@ import {
 import { logout } from "@/features/auth/api";
 import { usersQueries } from "@/features/users/api";
 import { UserAvatar } from "@/features/users/components/user-avatar";
+import { useMountValue } from "@/hooks/use-mount-value";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, useAuthStore } from "@/stores/auth-store";
 
@@ -247,7 +244,7 @@ const FooterProfileLink = ({
   );
 };
 
-function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
+const SidebarNavLinks = ({ items }: { items: readonly NavItem[] }) => {
   const leaveMoreThenGo = useLeaveMoreThenGo();
   const router = useRouter();
 
@@ -263,7 +260,7 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
                 // An admin back at the desk after an hour away still gets the page
                 // instantly; viewport preload ran once, when the app opened.
                 onMouseEnter={() => {
-                  router.preloadRoute({ to: item.to }).catch(() => undefined);
+                  router.preloadRoute({ to: item.to }).catch(() => null);
                 }}
                 className="text-foreground"
                 onClick={leaveMoreThenGo(item.to)}
@@ -282,14 +279,14 @@ function SidebarNavLinks({ items }: { items: readonly NavItem[] }) {
       ))}
     </SidebarMenu>
   );
-}
+};
 
-export function AppShell({ title, children }: AppShellProps) {
+export const AppShell = ({ title, children }: AppShellProps) => {
   const clearUser = useAuthStore((state) => state.clearUser);
   const user = getCurrentUser();
   // Read once on purpose: following the window width re-rendered the whole shell
   // mid-resize and fought a cashier who had collapsed the sidebar by hand.
-  const [startsCollapsed] = useState(() => window.innerWidth < 1280);
+  const startsCollapsed = useMountValue(() => window.innerWidth < 1280);
   // Nav visibility follows the DB-fresh role from /admin/users/me, not the
   // stale JWT claim — role changes apply without re-login.
   const meQuery = useQuery(usersQueries.me());
@@ -315,7 +312,7 @@ export function AppShell({ title, children }: AppShellProps) {
   const handleLogout = async () => {
     // Waits, so a slow sign-out can't land after the next person's sign-in
     // and wipe their cookie.
-    await logout().catch(() => undefined);
+    await logout().catch(() => null);
     clearUser();
   };
 
@@ -454,4 +451,4 @@ export function AppShell({ title, children }: AppShellProps) {
       </SidebarInset>
     </SidebarProvider>
   );
-}
+};

@@ -79,6 +79,16 @@ window.addEventListener("popstate", (event) => {
 const OVERLAY_SELECTOR =
   '[data-slot="sheet-content"], [data-slot="dialog-content"]';
 
+const segmentsOf = (pathname: string) => pathname.split("/").filter(Boolean);
+
+// Only a list and its own record slide — the queue and the Item a
+// worker opens from it. Home is every screen's neighbour, not its
+// parent, so tapping a tab crosses over instead of sliding.
+const isChildOf = (child: string[], parent: string[]) =>
+  parent.length > 0 &&
+  child.length > parent.length &&
+  parent.every((segment, index) => child[index] === segment);
+
 const router = createRouter({
   routeTree,
   context: {
@@ -107,17 +117,8 @@ const router = createRouter({
       if (!fromLocation) {
         return [];
       }
-      const segmentsOf = (pathname: string) =>
-        pathname.split("/").filter(Boolean);
       const from = segmentsOf(fromLocation.pathname);
       const to = segmentsOf(toLocation.pathname);
-      // Only a list and its own record slide — the queue and the Item a
-      // worker opens from it. Home is every screen's neighbour, not its
-      // parent, so tapping a tab crosses over instead of sliding.
-      const isChildOf = (child: string[], parent: string[]) =>
-        parent.length > 0 &&
-        child.length > parent.length &&
-        parent.every((segment, index) => child[index] === segment);
       if (isChildOf(to, from)) {
         return ["push"];
       }
@@ -155,7 +156,7 @@ declare module "@tanstack/react-router" {
   }
 }
 
-const rootElement = document.getElementById("root");
+const rootElement = document.querySelector("#root");
 if (!rootElement) {
   throw new Error("Root element not found");
 }

@@ -3,10 +3,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import { SectionTitle } from "@/components/section";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
-import {
-  buildLineTimeline,
-  type TimelineLine,
-} from "@/features/orders/lib/line-timeline";
+import { buildLineTimeline } from "@/features/orders/lib/line-timeline";
+import type { TimelineLine } from "@/features/orders/lib/line-timeline";
 
 interface StatusTimelineProps {
   line: TimelineLine;

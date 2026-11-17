@@ -71,7 +71,7 @@ const HiddenFileInput = () => {
       multiple={meta.isMultiple}
       className="sr-only"
       onChange={(event) => {
-        const files = Array.from(event.target.files ?? []);
+        const files = [...(event.target.files ?? [])];
         // Stop the viewfinder so the cashier's gallery pick shows on screen; a
         // cancelled picker leaves the camera alone.
         if (files.length > 0) {
@@ -89,7 +89,7 @@ export const PhotoCaptureDialog = () => {
   return (
     <Dialog
       open={meta.open}
-      onOpenChange={actions.onOpenChange}
+      onOpenChange={(isOpen) => actions.onOpenChange(isOpen)}
       onOpenChangeComplete={(isOpen) => {
         if (!isOpen) {
           actions.resetDialogState();

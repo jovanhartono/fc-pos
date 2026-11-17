@@ -1,9 +1,9 @@
 import {
-  type DiscountLine,
   GATEWAY_LABELS,
   isDiscountSettled,
   orderNetDue,
 } from "@fresclean/api/rules";
+import type { DiscountLine } from "@fresclean/api/rules";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -32,11 +32,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { WaitingLabel } from "@/components/waiting-label";
 import type { Campaign } from "@/features/campaigns/api";
-import {
-  fetchPaymentCharge,
-  type OrderDetail,
-  ordersQueries,
-  type UpdateOrderPaymentPayload,
+import { fetchPaymentCharge, ordersQueries } from "@/features/orders/api";
+import type {
+  OrderDetail,
+  UpdateOrderPaymentPayload,
 } from "@/features/orders/api";
 import {
   PAID_LIST,
@@ -45,7 +44,7 @@ import {
 import { OrderMoneySummary } from "@/features/orders/components/order-money-summary";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { useOpenQrisDialog } from "@/features/orders/components/qris-charge-dialog";
-import { useOrderPaymentMutation } from "@/features/orders/hooks/useOrderMutations";
+import { useOrderPaymentMutation } from "@/features/orders/hooks/use-order-mutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";
@@ -58,7 +57,7 @@ import type { AppliedVoucher } from "@/features/transactions/cart/cart";
 import { CampaignTileGroup } from "@/features/transactions/components/campaign-tile-group";
 import { DiscountPreviewRows } from "@/features/transactions/components/discount-preview-rows";
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
-import { useAvailableCampaigns } from "@/features/transactions/hooks/useCheckoutPricing";
+import { useAvailableCampaigns } from "@/features/transactions/hooks/use-checkout-pricing";
 import {
   previewDiscounts,
   toDiscountLines,
@@ -75,27 +74,46 @@ interface OrderPaymentSectionProps {
   gates: OrderActionGates;
 }
 
-export const OrderPaymentSection = ({
-  orderId,
-  detail,
-  gates,
-}: OrderPaymentSectionProps) => (
-  <section className="grid gap-3">
-    <OrderSectionHeader
-      action={
-        gates.canCollectPayment ? (
-          <CollectPaymentAction detail={detail} orderId={orderId} />
-        ) : null
-      }
-    >
-      Payment
-    </OrderSectionHeader>
-    <Card className="gap-0 overflow-hidden py-0">
-      <OrderMoneySummary detail={detail} />
-      <PaymentDetails detail={detail} gates={gates} />
-      {gates.canCollectPayment ? <OpenQrisRow orderId={orderId} /> : null}
-    </Card>
-  </section>
+interface PaidByValueProps {
+  value: string;
+}
+
+const PaidByValue = ({ value }: PaidByValueProps) => (
+  <div className={PAID_ROW}>
+    <dt className="text-muted-foreground">Marked by</dt>
+    <dd className="font-medium">{value}</dd>
+  </div>
+);
+
+// A Customer paying on the Track page leaves no staff member on the Order.
+interface PaidByRowProps {
+  detail: OrderDetail;
+}
+
+const PaidByRow = ({ detail }: PaidByRowProps) => {
+  if (detail.paidBy) {
+    return <PaidByValue value={detail.paidBy.name} />;
+  }
+  if (detail.paymentMethod?.gateway) {
+    return <PaidByValue value="Paid online" />;
+  }
+  return null;
+};
+
+const PaidDetails = ({ detail }: { detail: OrderDetail }) => (
+  <dl className={PAID_LIST}>
+    <div className={PAID_ROW}>
+      <dt className="text-muted-foreground">Method</dt>
+      <dd className="font-medium">{detail.paymentMethod?.name ?? "—"}</dd>
+    </div>
+    {detail.paid_at ? (
+      <div className={PAID_ROW}>
+        <dt className="text-muted-foreground">Paid at</dt>
+        <dd className="tabular-nums">{formatOrderDateTime(detail.paid_at)}</dd>
+      </div>
+    ) : null}
+    <PaidByRow detail={detail} />
+  </dl>
 );
 
 // Payment status already shows in the header chip, so this adds only how it
@@ -119,8 +137,8 @@ const PaymentDetails = ({
       <>
         <Separator />
         <p className="px-4 py-4 text-body text-muted-foreground compact:text-subhead">
-          A line has no price yet. Set it from the item's detail, then collect
-          payment.
+          A line has no price yet. Set it from the item&apos;s detail, then
+          collect payment.
         </p>
       </>
     );
@@ -161,13 +179,13 @@ const OpenQrisRow = ({ orderId }: OpenQrisRowProps) => {
       return;
     }
     lastChargeIdRef.current = null;
-    fetchPaymentCharge(orderId, lastChargeId)
-      .then((ended) => {
-        if (ended.status === "paid") {
-          void onQrisPaid(queryClient);
-        }
-      })
-      .catch(() => undefined);
+    const checkEndedCharge = async () => {
+      const ended = await fetchPaymentCharge(orderId, lastChargeId);
+      if (ended.status === "paid") {
+        void onQrisPaid(queryClient);
+      }
+    };
+    checkEndedCharge().catch(() => null);
   }, [charge, orderId, queryClient]);
 
   if (!charge) {
@@ -200,83 +218,6 @@ const OpenQrisRow = ({ orderId }: OpenQrisRowProps) => {
 // The QRIS choice in the PaymentMethod list: it charges through the gateway,
 // whose own PaymentMethod lands on the Order once the money arrives.
 const QRIS_METHOD = "qris";
-
-interface CollectPaymentActionProps {
-  orderId: number;
-  detail: OrderDetail;
-}
-
-const CollectPaymentAction = ({
-  orderId,
-  detail,
-}: CollectPaymentActionProps) => {
-  const openNestedSheet = useSheet((s) => s.openNestedSheet);
-  // ADR-0018: a discount settled at drop-off is already on the Customer's
-  // Receipt and the server refuses a second, so that form has no discount fields.
-  const isSettled = isDiscountSettled(detail.discount_source);
-
-  return (
-    <Button
-      onClick={() =>
-        openNestedSheet({
-          title: "Collect Payment",
-          content: () =>
-            isSettled ? (
-              <SettledDiscountPaymentForm detail={detail} orderId={orderId} />
-            ) : (
-              <CollectPaymentForm detail={detail} orderId={orderId} />
-            ),
-        })
-      }
-      size="sm"
-      type="button"
-    >
-      Collect Payment
-    </Button>
-  );
-};
-
-const PaidDetails = ({ detail }: { detail: OrderDetail }) => (
-  <dl className={PAID_LIST}>
-    <div className={PAID_ROW}>
-      <dt className="text-muted-foreground">Method</dt>
-      <dd className="font-medium">{detail.paymentMethod?.name ?? "—"}</dd>
-    </div>
-    {detail.paid_at ? (
-      <div className={PAID_ROW}>
-        <dt className="text-muted-foreground">Paid at</dt>
-        <dd className="tabular-nums">{formatOrderDateTime(detail.paid_at)}</dd>
-      </div>
-    ) : null}
-    <PaidByRow detail={detail} />
-  </dl>
-);
-
-// A Customer paying on the Track page leaves no staff member on the Order.
-interface PaidByRowProps {
-  detail: OrderDetail;
-}
-
-const PaidByRow = ({ detail }: PaidByRowProps) => {
-  if (detail.paidBy) {
-    return <PaidByValue value={detail.paidBy.name} />;
-  }
-  if (detail.paymentMethod?.gateway) {
-    return <PaidByValue value="Paid online" />;
-  }
-  return null;
-};
-
-interface PaidByValueProps {
-  value: string;
-}
-
-const PaidByValue = ({ value }: PaidByValueProps) => (
-  <div className={PAID_ROW}>
-    <dt className="text-muted-foreground">Marked by</dt>
-    <dd className="font-medium">{value}</dd>
-  </div>
-);
 
 // Mark as paid books the payment now; QRIS closes this sheet and waits in a
 // dialog for the gateway to say the money arrived.
@@ -354,7 +295,7 @@ const PaymentMethodField = () => {
             className="w-full"
             id="collect-payment-method"
             items={items}
-            onValueChange={field.onChange}
+            onValueChange={(value) => field.onChange(value)}
             placeholder="Select payment method"
             value={field.value}
           />
@@ -554,7 +495,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
         // stopped spinner.
         onSubmit={form.handleSubmit((values) => {
           payment.submit(values.paymentMethodId, {
-            campaign_ids: values.campaignIds.map((id) => Number(id)),
+            campaign_ids: values.campaignIds.map(Number),
             voucher_codes: values.vouchers.map((entry) => entry.code),
             discount: values.discount || "0",
           });
@@ -570,7 +511,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
                 eligibleCampaigns={eligibleCampaigns}
                 hasStore={storeId !== undefined}
                 isLoading={campaignsQuery.isPending}
-                onChange={field.onChange}
+                onChange={(ids) => field.onChange(ids)}
                 selectedIds={field.value}
               />
               <VoucherField
@@ -592,7 +533,7 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
               </FieldLabel>
               <CurrencyInput
                 id="collect-payment-discount"
-                onValueChange={field.onChange}
+                onValueChange={(value) => field.onChange(value)}
                 value={field.value}
               />
               <FieldError errors={[fieldState.error]} />
@@ -612,3 +553,61 @@ const CollectPaymentForm = ({ orderId, detail }: CollectPaymentFormProps) => {
     </FormProvider>
   );
 };
+
+interface CollectPaymentActionProps {
+  orderId: number;
+  detail: OrderDetail;
+}
+
+const CollectPaymentAction = ({
+  orderId,
+  detail,
+}: CollectPaymentActionProps) => {
+  const openNestedSheet = useSheet((s) => s.openNestedSheet);
+  // ADR-0018: a discount settled at drop-off is already on the Customer's
+  // Receipt and the server refuses a second, so that form has no discount fields.
+  const isSettled = isDiscountSettled(detail.discount_source);
+
+  return (
+    <Button
+      onClick={() =>
+        openNestedSheet({
+          title: "Collect Payment",
+          content: () =>
+            isSettled ? (
+              <SettledDiscountPaymentForm detail={detail} orderId={orderId} />
+            ) : (
+              <CollectPaymentForm detail={detail} orderId={orderId} />
+            ),
+        })
+      }
+      size="sm"
+      type="button"
+    >
+      Collect Payment
+    </Button>
+  );
+};
+
+export const OrderPaymentSection = ({
+  orderId,
+  detail,
+  gates,
+}: OrderPaymentSectionProps) => (
+  <section className="grid gap-3">
+    <OrderSectionHeader
+      action={
+        gates.canCollectPayment ? (
+          <CollectPaymentAction detail={detail} orderId={orderId} />
+        ) : null
+      }
+    >
+      Payment
+    </OrderSectionHeader>
+    <Card className="gap-0 overflow-hidden py-0">
+      <OrderMoneySummary detail={detail} />
+      <PaymentDetails detail={detail} gates={gates} />
+      {gates.canCollectPayment ? <OpenQrisRow orderId={orderId} /> : null}
+    </Card>
+  </section>
+);

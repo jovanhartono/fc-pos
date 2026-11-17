@@ -2,8 +2,6 @@ import {
   and,
   desc,
   eq,
-  type InferInsertModel,
-  type InferSelectModel,
   inArray,
   isNull,
   lt,
@@ -11,8 +9,10 @@ import {
   notInArray,
   sql,
 } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
-import { type DbExecutor, db } from "@/db";
+import { db } from "@/db";
+import type { DbExecutor } from "@/db";
 import { paymentChargesTable } from "@/db/schema";
 import type { PaymentGatewayName } from "@/modules/payments/gateways/types";
 
@@ -28,9 +28,8 @@ const findPaymentChargeByIdPrepared = db.query.paymentChargesTable
   .prepare("find_payment_charge_by_id");
 
 // The POS polls this every few seconds while a QRIS is on screen.
-export function findPaymentChargeById(orderId: number, id: number) {
-  return findPaymentChargeByIdPrepared.execute({ id, orderId });
-}
+export const findPaymentChargeById = (orderId: number, id: number) =>
+  findPaymentChargeByIdPrepared.execute({ id, orderId });
 
 const findPaymentChargeByReferencePrepared = db.query.paymentChargesTable
   .findFirst({
@@ -38,16 +37,15 @@ const findPaymentChargeByReferencePrepared = db.query.paymentChargesTable
   })
   .prepare("find_payment_charge_by_reference");
 
-export function findPaymentChargeByReference(reference: string) {
-  return findPaymentChargeByReferencePrepared.execute({ reference });
-}
+export const findPaymentChargeByReference = (reference: string) =>
+  findPaymentChargeByReferencePrepared.execute({ reference });
 
 // The Customer's own charge from the Track page: nobody on staff created it.
-export function findNewestPendingTrackCharge(
+export const findNewestPendingTrackCharge = (
   orderId: number,
   gateway: PaymentGatewayName
-) {
-  return db.query.paymentChargesTable.findFirst({
+) =>
+  db.query.paymentChargesTable.findFirst({
     where: {
       order_id: orderId,
       gateway,
@@ -56,11 +54,10 @@ export function findNewestPendingTrackCharge(
     },
     orderBy: { id: "desc" },
   });
-}
 
 // A cashier's QRIS only: the Customer's own QR is theirs to cancel.
-export function findOpenQrisCharge(orderId: number) {
-  return db.query.paymentChargesTable.findFirst({
+export const findOpenQrisCharge = (orderId: number) =>
+  db.query.paymentChargesTable.findFirst({
     where: {
       order_id: orderId,
       created_by: { isNotNull: true },
@@ -69,48 +66,42 @@ export function findOpenQrisCharge(orderId: number) {
     },
     orderBy: { id: "desc" },
   });
-}
 
 // A newer charge the gateway never accepted replaced nothing.
-export function findNewerPaymentCharge(orderId: number, id: number) {
-  return db.query.paymentChargesTable.findFirst({
+export const findNewerPaymentCharge = (orderId: number, id: number) =>
+  db.query.paymentChargesTable.findFirst({
     where: { order_id: orderId, id: { gt: id }, status: { ne: "failed" } },
     columns: { created_by: true },
     orderBy: { id: "desc" },
   });
-}
 
-export function findOrderForCharge(orderId: number) {
-  return db.query.ordersTable.findFirst({
+export const findOrderForCharge = (orderId: number) =>
+  db.query.ordersTable.findFirst({
     where: { id: orderId },
     columns: { code: true, payment_status: true, status: true },
     with: { customer: { columns: { name: true, phone_number: true } } },
   });
-}
 
-export function insertPaymentCharge(
+export const insertPaymentCharge = (
   values: InferInsertModel<typeof paymentChargesTable>
-) {
-  return db.insert(paymentChargesTable).values(values).returning();
-}
+) => db.insert(paymentChargesTable).values(values).returning();
 
-export function updatePaymentChargeById(
+export const updatePaymentChargeById = (
   id: number,
   values: Partial<InferInsertModel<typeof paymentChargesTable>>
-) {
-  return db
+) =>
+  db
     .update(paymentChargesTable)
     .set(values)
     .where(eq(paymentChargesTable.id, id))
     .returning();
-}
 
 // Every pending charge on the Order, or `only` that one, or all `except` it.
-export function updatePendingChargesCancelled(
+export const updatePendingChargesCancelled = (
   orderId: number,
   { only, except }: { only?: number; except?: number } = {}
-) {
-  return db
+) =>
+  db
     .update(paymentChargesTable)
     .set({ status: "cancelled" })
     .where(
@@ -122,16 +113,15 @@ export function updatePendingChargesCancelled(
       )
     )
     .returning();
-}
 
-export function updatePendingChargeStatus(
+export const updatePendingChargeStatus = (
   id: number,
   values: Pick<
     InferInsertModel<typeof paymentChargesTable>,
     "last_payload" | "status"
   >
-) {
-  return db
+) =>
+  db
     .update(paymentChargesTable)
     .set(values)
     .where(
@@ -140,16 +130,15 @@ export function updatePendingChargeStatus(
         eq(paymentChargesTable.status, "pending")
       )
     );
-}
 
 // A paid or needs_review charge is final: a second notification for the same
 // money must not move it again.
-export function updateUnsettledChargeById(
+export const updateUnsettledChargeById = (
   executor: DbExecutor,
   id: number,
   values: Partial<InferInsertModel<typeof paymentChargesTable>>
-) {
-  return executor
+) =>
+  executor
     .update(paymentChargesTable)
     .set(values)
     .where(
@@ -159,13 +148,12 @@ export function updateUnsettledChargeById(
       )
     )
     .returning({ id: paymentChargesTable.id });
-}
 
 // Pending or cancelled charges that ended more than `graceMs` ago and the
 // daily job has not asked about yet. Newest first, so one the gateway keeps
 // failing on cannot hold back the rest.
-export function findEndedUncheckedCharges(graceMs: number) {
-  return db
+export const findEndedUncheckedCharges = (graceMs: number) =>
+  db
     .select()
     .from(paymentChargesTable)
     .where(
@@ -177,18 +165,16 @@ export function findEndedUncheckedCharges(graceMs: number) {
     )
     .orderBy(desc(paymentChargesTable.expires_at))
     .limit(100);
-}
 
-export function updateChargeEndChecked(id: number) {
-  return db
+export const updateChargeEndChecked = (id: number) =>
+  db
     .update(paymentChargesTable)
     .set({ end_checked_at: new Date() })
     .where(eq(paymentChargesTable.id, id));
-}
 
 // Wins the right to ask the gateway, at most once per interval per charge.
-export function updateChargeStatusCheckedAt(id: number, checkedBefore: Date) {
-  return db
+export const updateChargeStatusCheckedAt = (id: number, checkedBefore: Date) =>
+  db
     .update(paymentChargesTable)
     .set({ updated_at: new Date() })
     .where(
@@ -199,4 +185,3 @@ export function updateChargeStatusCheckedAt(id: number, checkedBefore: Date) {
       )
     )
     .returning({ id: paymentChargesTable.id });
-}

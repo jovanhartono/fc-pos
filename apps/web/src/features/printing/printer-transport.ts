@@ -1,3 +1,4 @@
+/* oxlint-disable max-classes-per-file -- the two printer errors belong together */
 export class PrinterNotPairedError extends Error {
   constructor() {
     super("No printer paired on this device");
@@ -22,5 +23,5 @@ export interface PrintOptions {
 }
 
 export interface PrinterTransport {
-  print(data: Uint8Array, options: PrintOptions): Promise<void>;
+  print: (data: Uint8Array, options: PrintOptions) => Promise<void>;
 }

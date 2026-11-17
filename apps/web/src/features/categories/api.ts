@@ -1,6 +1,7 @@
 import type { POSTCategorySchema } from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 import type { z } from "zod";
 
 import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
@@ -18,10 +19,10 @@ export const categoriesKeys = {
   list: () => [...categoriesKeys.all, "list"] as const,
 };
 
-async function fetchCategories() {
+const fetchCategories = async () => {
   const response = await parseResponse(rpc.api.admin.categories.$get());
   return response.data;
-}
+};
 
 export const categoriesQueries = {
   list: () =>
@@ -32,15 +33,13 @@ export const categoriesQueries = {
     }),
 };
 
-export function createCategory(payload: CreateCategoryPayload) {
-  return parseResponse(rpc.api.admin.categories.$post({ json: payload }));
-}
+export const createCategory = (payload: CreateCategoryPayload) =>
+  parseResponse(rpc.api.admin.categories.$post({ json: payload }));
 
-export function updateCategory(id: number, payload: UpdateCategoryPayload) {
-  return parseResponse(
+export const updateCategory = (id: number, payload: UpdateCategoryPayload) =>
+  parseResponse(
     rpc.api.admin.categories[":id"].$put({
       param: { id: String(id) },
       json: payload,
     })
   );
-}

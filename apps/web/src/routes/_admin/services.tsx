@@ -14,27 +14,94 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   createService,
-  type Service,
   servicesKeys,
   servicesQueries,
   updateService,
 } from "@/features/services/api";
-import {
-  ServiceForm,
-  type ServiceFormSubmitValues,
-} from "@/features/services/components/service-form";
+import type { Service } from "@/features/services/api";
+import { ServiceForm } from "@/features/services/components/service-form";
+import type { ServiceFormSubmitValues } from "@/features/services/components/service-form";
 import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
-export const Route = createFileRoute("/_admin/services")({
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(servicesQueries.list()),
-  component: ServicesPage,
-  // Past a second, the page itself draws with skeleton rows.
-  pendingComponent: ServicesPage,
-});
+const columnsFor = (
+  onEdit: (service: Service) => void
+): DataTableColumnDef<Service>[] => [
+  {
+    accessorKey: "code",
+    header: "Code",
+    meta: {
+      kind: "code",
+      width: { percent: 8, minRem: 4.5 },
+      mobileCard: { slot: "subtitle" },
+    },
+  },
+  {
+    accessorKey: "name",
+    header: "Service",
+    meta: { kind: "name", width: { percent: 32, minRem: 9 } },
+  },
+  {
+    id: "category",
+    header: "Category",
+    meta: {
+      width: { percent: 11, minRem: 6.25 },
+      mobileCard: { slot: "subtitle" },
+    },
+    cell: ({ row }) => row.original.category?.name ?? "-",
+  },
+  {
+    accessorKey: "cogs",
+    header: "COGS",
+    meta: { align: "right", width: { percent: 11, minRem: 5.75 } },
+    cell: ({ row }) => formatMoney(String(row.original.cogs)),
+  },
+  {
+    accessorKey: "price",
+    header: "Price",
+    meta: { align: "right", width: { percent: 11, minRem: 6.25 } },
+    cell: ({ row }) =>
+      row.original.price === null ? (
+        <span className="text-muted-foreground">Dynamic Price</span>
+      ) : (
+        <MoneyValue value={row.original.price} />
+      ),
+  },
+  {
+    id: "status",
+    header: "Status",
+    meta: {
+      width: { percent: 18, minRem: 9.5 },
+      mobileCard: { slot: "status" },
+    },
+    cell: ({ row }) => (
+      <span className="flex items-center gap-1.5">
+        {row.original.is_priority ? (
+          <Badge variant="priority">Priority</Badge>
+        ) : (
+          <Badge variant="outline">Standard</Badge>
+        )}
+        <ActiveBadge isActive={row.original.is_active} />
+      </span>
+    ),
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    meta: {
+      width: { percent: 9, minRem: 4.5 },
+      mobileCard: { slot: "title-end" },
+    },
+    cell: ({ row }) => (
+      <EditRowButton
+        label={`Edit ${row.original.name}`}
+        onClick={() => onEdit(row.original)}
+      />
+    ),
+  },
+];
 
-function ServicesPage() {
+const ServicesPage = () => {
   const queryClient = useQueryClient();
   const { openSheet, closeSheet } = useSheet();
 
@@ -109,80 +176,7 @@ function ServicesPage() {
     });
   };
 
-  const columns: DataTableColumnDef<Service>[] = [
-    {
-      accessorKey: "code",
-      header: "Code",
-      meta: {
-        kind: "code",
-        width: { percent: 8, minRem: 4.5 },
-        mobileCard: { slot: "subtitle" },
-      },
-    },
-    {
-      accessorKey: "name",
-      header: "Service",
-      meta: { kind: "name", width: { percent: 32, minRem: 9 } },
-    },
-    {
-      id: "category",
-      header: "Category",
-      meta: {
-        width: { percent: 11, minRem: 6.25 },
-        mobileCard: { slot: "subtitle" },
-      },
-      cell: ({ row }) => row.original.category?.name ?? "-",
-    },
-    {
-      accessorKey: "cogs",
-      header: "COGS",
-      meta: { align: "right", width: { percent: 11, minRem: 5.75 } },
-      cell: ({ row }) => formatMoney(String(row.original.cogs)),
-    },
-    {
-      accessorKey: "price",
-      header: "Price",
-      meta: { align: "right", width: { percent: 11, minRem: 6.25 } },
-      cell: ({ row }) =>
-        row.original.price === null ? (
-          <span className="text-muted-foreground">Dynamic Price</span>
-        ) : (
-          <MoneyValue value={row.original.price} />
-        ),
-    },
-    {
-      id: "status",
-      header: "Status",
-      meta: {
-        width: { percent: 18, minRem: 9.5 },
-        mobileCard: { slot: "status" },
-      },
-      cell: ({ row }) => (
-        <span className="flex items-center gap-1.5">
-          {row.original.is_priority ? (
-            <Badge variant="priority">Priority</Badge>
-          ) : (
-            <Badge variant="outline">Standard</Badge>
-          )}
-          <ActiveBadge isActive={row.original.is_active} />
-        </span>
-      ),
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      meta: {
-        width: { percent: 9, minRem: 4.5 },
-        mobileCard: { slot: "title-end" },
-      },
-      cell: ({ row }) => (
-        <EditRowButton
-          label={`Edit ${row.original.name}`}
-          onClick={() => handleOpenEditSheet(row.original)}
-        />
-      ),
-    },
-  ];
+  const columns = columnsFor(handleOpenEditSheet);
 
   return (
     <>
@@ -214,4 +208,12 @@ function ServicesPage() {
       </ListPanel>
     </>
   );
-}
+};
+
+export const Route = createFileRoute("/_admin/services")({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(servicesQueries.list()),
+  component: ServicesPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: ServicesPage,
+});

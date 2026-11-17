@@ -51,7 +51,7 @@ export const VoucherCodeEntry = ({
     },
     // Opt out of the global error toast (main.tsx): the rejection is already
     // reported inline under the input, and the toast would repeat it verbatim.
-    onError: () => undefined,
+    onError: () => null,
   });
 
   const liveVoucherQuery = useQuery({

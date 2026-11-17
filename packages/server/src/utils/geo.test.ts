@@ -5,10 +5,10 @@ import { distanceKm } from "@/utils/geo";
 // Pinned against Kemang's real location because the distances that matter are
 // tens of metres: a formula only right at continental scale would show a
 // worker at the counter as having left the shop.
-const KEMANG = { latitude: -6.261_578, longitude: 106.812_735 };
+const KEMANG = { latitude: -6.261578, longitude: 106.812735 };
 
 // 6371 km * 1 degree in radians. One degree of latitude, anywhere.
-const KM_PER_DEGREE_LATITUDE = 111.194_927;
+const KM_PER_DEGREE_LATITUDE = 111.194927;
 
 describe("distanceKm", () => {
   it("is zero for the same spot", () => {
@@ -17,7 +17,7 @@ describe("distanceKm", () => {
 
   it("reads a worker at the counter as 30 m, not as zero", () => {
     const atTheCounter = {
-      latitude: KEMANG.latitude + 0.000_27,
+      latitude: KEMANG.latitude + 0.00027,
       longitude: KEMANG.longitude,
     };
 
@@ -42,7 +42,7 @@ describe("distanceKm", () => {
   });
 
   it("survives a store pinned with latitude and longitude swapped", () => {
-    const swapped = { latitude: 6.261_578, longitude: -106.812_735 };
+    const swapped = { latitude: 6.261578, longitude: -106.812735 };
 
     // Nonsense, but a finite number rather than NaN: the clock-in still has to
     // record something the audit query can spot.

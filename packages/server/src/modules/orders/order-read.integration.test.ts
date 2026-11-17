@@ -1,8 +1,9 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it, mock } from "bun:test";
 
+import "@/test-support/pglite";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // Who may see the Pickup code, the six digits that release a Customer's Items

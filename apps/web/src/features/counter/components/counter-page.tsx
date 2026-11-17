@@ -18,11 +18,11 @@ import {
 } from "@/features/counter/components/pending-sections";
 import { PickupShelfSection } from "@/features/counter/components/pickup-shelf-section";
 import { WorkshopSection } from "@/features/counter/components/workshop-section";
-import { useJakartaToday } from "@/features/counter/hooks/useJakartaToday";
+import { useJakartaToday } from "@/features/counter/hooks/use-jakarta-today";
 import { StoreSelect } from "@/features/orders/components/store-select";
-import { useOrderSheet } from "@/features/orders/hooks/useOrderSheet";
+import { useOrderSheet } from "@/features/orders/hooks/use-order-sheet";
 import { storesQueries } from "@/features/stores/api";
-import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { useStoreScope } from "@/features/users/hooks/use-store-scope";
 import { pickStore } from "@/features/users/lib/store-scope";
 import { useIsMobile } from "@/hooks/use-mobile";
 

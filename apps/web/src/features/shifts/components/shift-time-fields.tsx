@@ -29,7 +29,12 @@ type ShiftTimeValues = z.infer<typeof shiftTimesSchema>;
 // A day picked without its time (or the reverse) is held as "2026-11-16T" or
 // "T09:00", so Save says what's missing instead of dropping the half-filled field.
 const isComplete = (value: string) =>
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value);
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u.test(value);
+
+const TIME_FIELDS = [
+  { name: "clock_in_at", label: "Clock in" },
+  { name: "clock_out_at", label: "Clock out" },
+] as const;
 
 export const checkClockOutAfterClockIn = (
   values: ShiftTimeValues,
@@ -56,11 +61,6 @@ export const checkClockOutAfterClockIn = (
     });
   }
 };
-
-const TIME_FIELDS = [
-  { name: "clock_in_at", label: "Clock in" },
-  { name: "clock_out_at", label: "Clock out" },
-] as const;
 
 interface DateTimeInputProps {
   id: string;
@@ -155,7 +155,7 @@ export const ShiftTimeFields = ({
             />
             {isOptional ? (
               <FieldDescription>
-                Leave empty while they're still on shift.
+                Leave empty while they&apos;re still on shift.
               </FieldDescription>
             ) : null}
             <FieldError errors={[fieldState.error]} />

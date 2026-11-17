@@ -5,7 +5,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-interface InputOTPProps extends OTPFieldPrimitive.Root.Props {}
+type InputOTPProps = OTPFieldPrimitive.Root.Props;
 
 export const InputOTP = ({ className, ...props }: InputOTPProps) => (
   <OTPFieldPrimitive.Root
@@ -15,7 +15,7 @@ export const InputOTP = ({ className, ...props }: InputOTPProps) => (
   />
 );
 
-interface InputOTPGroupProps extends React.ComponentProps<"div"> {}
+type InputOTPGroupProps = React.ComponentProps<"div">;
 
 export const InputOTPGroup = ({ className, ...props }: InputOTPGroupProps) => (
   <div
@@ -28,7 +28,7 @@ export const InputOTPGroup = ({ className, ...props }: InputOTPGroupProps) => (
   />
 );
 
-interface InputOTPSlotProps extends OTPFieldPrimitive.Input.Props {}
+type InputOTPSlotProps = OTPFieldPrimitive.Input.Props;
 
 export const InputOTPSlot = ({ className, ...props }: InputOTPSlotProps) => (
   <OTPFieldPrimitive.Input
@@ -43,7 +43,7 @@ export const InputOTPSlot = ({ className, ...props }: InputOTPSlotProps) => (
   />
 );
 
-interface InputOTPSeparatorProps extends OTPFieldPrimitive.Separator.Props {}
+type InputOTPSeparatorProps = OTPFieldPrimitive.Separator.Props;
 
 export const InputOTPSeparator = ({
   className,

@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
+import type { ReactNode } from "react";
 
 import { SectionTitle } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
@@ -8,13 +9,16 @@ import {
   ComplaintsChip,
   QcChip,
 } from "@/features/reports/components/tone-chip";
-import { type PerformancePeriod, usersQueries } from "@/features/users/api";
+import { usersQueries } from "@/features/users/api";
+import type { PerformancePeriod } from "@/features/users/api";
 import {
   comparedPeriodLabel,
   FIGURE_COUNTS,
-  type Figure,
   figuresOf,
-  type MeasuredRole,
+} from "@/features/users/utils/my-performance";
+import type {
+  Figure,
+  MeasuredRole,
 } from "@/features/users/utils/my-performance";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +42,7 @@ const FigureValueText = ({ value }: Pick<Figure, "value">) => {
       <ComplaintsChip complaints={value.complaints} finished={value.finished} />
     );
   }
-  return <>{value.text}</>;
+  return value.text;
 };
 
 interface FigureRowProps {
@@ -126,7 +130,7 @@ export const MyPerformance = ({ role }: MyPerformanceProps) => {
   } else if (query.isError) {
     rows = (
       <li className="py-2.5 text-body text-destructive">
-        Couldn't load your figures. Check the connection.
+        Couldn&apos;t load your figures. Check the connection.
       </li>
     );
   }

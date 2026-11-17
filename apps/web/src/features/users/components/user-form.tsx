@@ -1,8 +1,5 @@
-import {
-  Controller,
-  type SubmitHandler,
-  useFormContext,
-} from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
+import type { SubmitHandler } from "react-hook-form";
 
 import { SelectField } from "@/components/form/select-field";
 import {
@@ -19,9 +16,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { StoreChecklist } from "@/features/stores/components/store-checklist";
 import { PasswordInput } from "@/features/users/components/password-input";
-import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
+import { useSheetDirtyGuard } from "@/hooks/use-sheet-dirty-guard";
 
-export type UserFormState = {
+export interface UserFormState {
   username: string;
   name: string;
   password: string;
@@ -30,23 +27,23 @@ export type UserFormState = {
   is_active: boolean;
   can_process_pickup: boolean;
   store_ids: number[];
-};
+}
 
-type UserFormProps = {
+interface UserFormProps {
   onSubmit: SubmitHandler<UserFormState>;
   isEditing: boolean;
-  stores: Array<{ id: number; code: string; name: string }>;
+  stores: { id: number; code: string; name: string }[];
   onReset: () => void;
-};
+}
 
-export function UserForm({
+export const UserForm = ({
   onSubmit,
   isEditing,
   stores,
   onReset,
-}: UserFormProps) {
+}: UserFormProps) => {
   const { control, handleSubmit, formState } = useFormContext<UserFormState>();
-  const isSubmitting = formState.isSubmitting;
+  const { isSubmitting } = formState;
   useSheetDirtyGuard(formState.isDirty);
 
   return (
@@ -95,7 +92,7 @@ export function UserForm({
           )}
         />
 
-        {!isEditing ? (
+        {isEditing ? null : (
           <>
             <Controller
               name="password"
@@ -137,7 +134,7 @@ export function UserForm({
               )}
             />
           </>
-        ) : null}
+        )}
 
         <Controller
           name="role"
@@ -173,7 +170,7 @@ export function UserForm({
             <StoreChecklist
               disabled={isSubmitting}
               idPrefix="user-store"
-              onChange={field.onChange}
+              onChange={(value) => field.onChange(value)}
               stores={stores}
               value={field.value}
             />
@@ -189,7 +186,7 @@ export function UserForm({
                 checked={field.value}
                 disabled={isSubmitting}
                 id="user-active"
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => field.onChange(checked)}
                 title="Active"
               />
             )}
@@ -202,7 +199,7 @@ export function UserForm({
                 checked={field.value}
                 disabled={isSubmitting}
                 id="user-pickup"
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => field.onChange(checked)}
                 title="Can process pickup"
               />
             )}
@@ -218,4 +215,4 @@ export function UserForm({
       </FieldGroup>
     </form>
   );
-}
+};

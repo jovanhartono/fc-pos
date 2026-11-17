@@ -141,7 +141,7 @@ mock.module("@/modules/payments/payment-charge.service", () => ({
   getPaymentCharge: marker("getPaymentCharge"),
 }));
 
-const ordersRoutes = (await import("@/routes/admin/orders")).default;
+const { default: ordersRoutes } = await import("@/routes/admin/orders");
 
 // Asep works the Kemang counter. In production adminMiddleware puts him on the
 // context; here that one step stands in for the whole JWT layer.
@@ -172,14 +172,14 @@ beforeEach(() => {
   feeWrites.length = 0;
 });
 
-describe("setting a Delivery fee", () => {
-  const patchFee = (orderId: number, deliveryFee: string) =>
-    app.request(`/orders/${orderId}/delivery-fee`, {
-      body: JSON.stringify({ delivery_fee: deliveryFee }),
-      headers: { "Content-Type": "application/json" },
-      method: "PATCH",
-    });
+const patchFee = (orderId: number, deliveryFee: string) =>
+  app.request(`/orders/${orderId}/delivery-fee`, {
+    body: JSON.stringify({ delivery_fee: deliveryFee }),
+    headers: { "Content-Type": "application/json" },
+    method: "PATCH",
+  });
 
+describe("setting a Delivery fee", () => {
   it("saves the fee a GoSend quote brought in after drop-off", async () => {
     const res = await patchFee(123, "25.000");
 

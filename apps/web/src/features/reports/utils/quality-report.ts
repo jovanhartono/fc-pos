@@ -18,25 +18,25 @@ export type CheckerCounts = Pick<
   | "complaints_after"
 >;
 
-export const teamOf = (rows: readonly CheckerRow[]): CheckerCounts =>
-  rows.reduce(
-    (team, row) => ({
-      checks: team.checks + row.checks,
-      days_checked: team.days_checked + row.days_checked,
-      passes: team.passes + row.passes,
-      rejects: team.rejects + row.rejects,
-      self_checks: team.self_checks + row.self_checks,
-      complaints_after: team.complaints_after + row.complaints_after,
-    }),
-    {
-      checks: 0,
-      days_checked: 0,
-      passes: 0,
-      rejects: 0,
-      self_checks: 0,
-      complaints_after: 0,
-    }
-  );
+export const teamOf = (rows: readonly CheckerRow[]): CheckerCounts => {
+  const team: CheckerCounts = {
+    checks: 0,
+    days_checked: 0,
+    passes: 0,
+    rejects: 0,
+    self_checks: 0,
+    complaints_after: 0,
+  };
+  for (const row of rows) {
+    team.checks += row.checks;
+    team.days_checked += row.days_checked;
+    team.passes += row.passes;
+    team.rejects += row.rejects;
+    team.self_checks += row.self_checks;
+    team.complaints_after += row.complaints_after;
+  }
+  return team;
+};
 
 // One checker's average day, so a slow checker reads against it.
 export const teamPace = (team: CheckerCounts) =>

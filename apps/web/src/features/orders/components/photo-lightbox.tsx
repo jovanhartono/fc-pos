@@ -185,6 +185,7 @@ const Filmstrip = ({ activeIndex, items, onSelect }: FilmstripProps) => {
   );
 };
 
+// oxlint-disable-next-line complexity -- one viewer for swipe, keyboard, download and delete
 export const PhotoLightbox = ({
   open,
   onOpenChange,

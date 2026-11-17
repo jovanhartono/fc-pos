@@ -11,5 +11,5 @@ const DATA_BASE64 =
 export const RECEIPT_LOGO: RasterBitmap | null = {
   widthBytes: WIDTH_BYTES,
   height: HEIGHT,
-  data: Uint8Array.from(atob(DATA_BASE64), (char) => char.charCodeAt(0)),
+  data: Uint8Array.from(atob(DATA_BASE64), (char) => char.codePointAt(0) ?? 0),
 };

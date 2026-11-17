@@ -23,9 +23,7 @@ const twMerge = extendTailwindMerge({
   },
 });
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 export const pluralize = (
   count: number,
@@ -33,6 +31,5 @@ export const pluralize = (
   plural = `${noun}s`
 ): string => `${count.toLocaleString("en-ID")} ${count === 1 ? noun : plural}`;
 
-export const getNumericValue = (formattedValue: string): string => {
-  return formattedValue.replaceAll(/[^\d]/g, "");
-};
+export const getNumericValue = (formattedValue: string): string =>
+  formattedValue.replaceAll(/[^\d]/gu, "");

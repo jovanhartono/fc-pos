@@ -1,7 +1,5 @@
-import {
-  isCancelledBeforePayment,
-  type OrderPaymentState,
-} from "@/features/orders/lib/order-action-gates";
+import { isCancelledBeforePayment } from "@/features/orders/lib/order-action-gates";
+import type { OrderPaymentState } from "@/features/orders/lib/order-action-gates";
 import { formatMoney } from "@/shared/money";
 
 export interface OrderAmountState extends OrderPaymentState {

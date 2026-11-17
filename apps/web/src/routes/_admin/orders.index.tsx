@@ -4,10 +4,10 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
-  type LinkProps,
   redirect,
   useNavigate,
 } from "@tanstack/react-router";
+import type { LinkProps } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { DataTable } from "@/components/data-table";
@@ -19,20 +19,15 @@ import { PageHeader } from "@/components/page-header";
 import { TablePagination } from "@/components/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { CustomerLink } from "@/features/customers/components/customer-link";
-import {
-  type FetchOrdersQuery,
-  type Order,
-  ordersQueries,
-} from "@/features/orders/api";
+import { ordersQueries } from "@/features/orders/api";
+import type { FetchOrdersQuery, Order } from "@/features/orders/api";
 import { ItemsProgress } from "@/features/orders/components/items-progress";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { PaymentBadges } from "@/features/orders/components/order-badges";
-import {
-  OrderFilters,
-  type OrderFilterValues,
-} from "@/features/orders/components/order-filters";
+import { OrderFilters } from "@/features/orders/components/order-filters";
+import type { OrderFilterValues } from "@/features/orders/components/order-filters";
 import { OrderPhoneRow } from "@/features/orders/components/order-phone-row";
-import { useOrderSheet } from "@/features/orders/hooks/useOrderSheet";
+import { useOrderSheet } from "@/features/orders/hooks/use-order-sheet";
 import {
   NOTIFIED_VALUES,
   ORDER_STATUS_VALUES,
@@ -41,16 +36,16 @@ import {
 } from "@/features/orders/lib/order-filter-values";
 import { paymentMethodsQueries } from "@/features/payment-methods/api";
 import { storesQueries } from "@/features/stores/api";
-import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { useStoreScope } from "@/features/users/hooks/use-store-scope";
 import { pickStore, storeScope } from "@/features/users/lib/store-scope";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatListDate } from "@/lib/dayjs";
 import {
   DEFAULT_PAGE_SIZE,
-  type PageSize,
   pageSizeChange,
   pageSizeSearch,
 } from "@/lib/page-size";
+import type { PageSize } from "@/lib/page-size";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 
 const ordersSearchSchema = z.object({
@@ -70,38 +65,38 @@ const ordersSearchSchema = z.object({
   notified: z.enum(NOTIFIED_VALUES).optional().catch(undefined),
   dateFrom: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .regex(/^\d{4}-\d{2}-\d{2}$/u)
     .optional()
     .catch(undefined),
   dateTo: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .regex(/^\d{4}-\d{2}-\d{2}$/u)
     .optional()
     .catch(undefined),
   paidFrom: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .regex(/^\d{4}-\d{2}-\d{2}$/u)
     .optional()
     .catch(undefined),
   paidTo: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .regex(/^\d{4}-\d{2}-\d{2}$/u)
     .optional()
     .catch(undefined),
   // The Order open in the sheet over the list, on a tablet or desktop.
   open: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
-function buildOrdersListParams(
+const buildOrdersListParams = (
   filters: OrderFilterValues & { page: number; limit?: PageSize },
   storeId?: number
-): FetchOrdersQuery {
+): FetchOrdersQuery => {
   const pageSize = filters.limit ?? DEFAULT_PAGE_SIZE;
   return {
     limit: pageSize,
     offset: (filters.page - 1) * pageSize,
     ...(filters.search ? { search: filters.search } : {}),
-    ...(storeId !== undefined ? { store_id: storeId } : {}),
+    ...(storeId === undefined ? {} : { store_id: storeId }),
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.paymentStatus ? { payment_status: filters.paymentStatus } : {}),
     ...(filters.paymentMethodId
@@ -114,51 +109,106 @@ function buildOrdersListParams(
     ...(filters.paidFrom ? { paid_from: filters.paidFrom } : {}),
     ...(filters.paidTo ? { paid_to: filters.paidTo } : {}),
   };
-}
+};
 
-export const Route = createFileRoute("/_admin/orders/")({
-  validateSearch: (search) => ordersSearchSchema.parse(search),
-  // A cashier or worker only sees their own store's Orders, so the store is
-  // picked before the page draws instead of the list loading twice.
-  beforeLoad: ({ context, search }) => {
-    if (search.storeId !== undefined) {
-      return;
-    }
-    const storeId = pickStore(storeScope(context.me));
-    if (storeId !== undefined) {
-      throw redirect({
-        to: "/orders",
-        search: { ...search, storeId },
-        replace: true,
-      });
-    }
+const columnsFor = (
+  orderLink: (orderId: number) => LinkProps
+): DataTableColumnDef<Order>[] => [
+  {
+    accessorKey: "code",
+    header: "Order code",
+    meta: { width: { percent: 16, minRem: 9 } },
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-0.5">
+        <div className="flex gap-x-1">
+          {row.original.has_complaint ? (
+            <span className="text-footnote text-destructive">Complaint</span>
+          ) : null}
+          <Link
+            {...orderLink(row.original.id)}
+            className="font-medium tabular-nums"
+          >
+            {row.original.code}
+          </Link>
+        </div>
+        <span className="text-caption font-normal text-muted-foreground">
+          {row.original.store_name}
+        </span>
+      </div>
+    ),
   },
-  // Opening an Order in the sheet over the list must not re-run the list's loader.
-  loaderDeps: ({ search: { open: _open, ...listSearch } }) => listSearch,
-  loader: async ({ context, deps, cause }) => {
-    // A new filter, page or search keeps the list on screen and swaps the rows
-    // in place; only opening the page waits for them.
-    if (cause === "stay") {
-      return;
-    }
-    const canListOrders =
-      deps.storeId !== undefined || storeScope(context.me).isAdmin;
-    const listParams = buildOrdersListParams(deps, deps.storeId);
-
-    await Promise.all([
-      context.queryClient.ensureQueryData(storesQueries.list()),
-      context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
-      canListOrders
-        ? context.queryClient.ensureQueryData(ordersQueries.list(listParams))
-        : undefined,
-    ]);
+  {
+    id: "created_at",
+    header: "Created at",
+    meta: { width: { percent: 11, minRem: 6.25 } },
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap tabular-nums">
+        {formatListDate(row.original.created_at)}
+      </span>
+    ),
   },
-  component: OrdersPage,
-  // Past a second, the page itself draws with skeleton rows.
-  pendingComponent: OrdersPage,
-});
+  {
+    accessorKey: "customer_name",
+    header: "Customer",
+    meta: { width: { percent: 25, minRem: 9 } },
+    cell: ({ row }) => (
+      <div>
+        <span className="flex items-baseline gap-x-1.5">
+          <CustomerLink
+            className="line-clamp-2 min-w-0"
+            customerId={row.original.customer_id}
+            name={row.original.customer_name}
+          />
+          {row.original.notified ? (
+            <NotifiedLabel className="shrink-0" />
+          ) : null}
+        </span>
+        <span className="block text-footnote whitespace-nowrap text-muted-foreground tabular-nums">
+          {row.original.customer_phone}
+        </span>
+      </div>
+    ),
+  },
+  {
+    id: "items_ready",
+    header: "Items ready",
+    meta: { width: { percent: 11, minRem: 6 } },
+    cell: ({ row }) => (
+      <ItemsProgress
+        done={row.original.items_ready}
+        total={row.original.items_total}
+      />
+    ),
+  },
+  {
+    accessorKey: "status",
+    header: "Fulfillment",
+    meta: { width: { percent: 14, minRem: 8 } },
+    cell: ({ row }) => (
+      <Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
+        {formatOrderStatus(row.original.status)}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: "payment_status",
+    header: "Payment",
+    meta: { width: { percent: 11, minRem: 6.25 } },
+    cell: ({ row }) => (
+      <div className="flex flex-wrap gap-1">
+        <PaymentBadges order={row.original} />
+      </div>
+    ),
+  },
+  {
+    id: "total",
+    header: "Total",
+    meta: { align: "right", width: { percent: 12, minRem: 6.5 } },
+    cell: ({ row }) => <MoneyValue value={orderNetTotal(row.original)} />,
+  },
+];
 
-function OrdersPage() {
+const OrdersPage = () => {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
 
@@ -227,100 +277,7 @@ function OrdersPage() {
     orders,
   });
 
-  const columns: DataTableColumnDef<Order>[] = [
-    {
-      accessorKey: "code",
-      header: "Order code",
-      meta: { width: { percent: 16, minRem: 9 } },
-      cell: ({ row }) => (
-        <div className="flex flex-col gap-0.5">
-          <div className="flex gap-x-1">
-            {row.original.has_complaint ? (
-              <span className="text-footnote text-destructive">Complaint</span>
-            ) : null}
-            <Link
-              {...orderLink(row.original.id)}
-              className="font-medium tabular-nums"
-            >
-              {row.original.code}
-            </Link>
-          </div>
-          <span className="text-caption font-normal text-muted-foreground">
-            {row.original.store_name}
-          </span>
-        </div>
-      ),
-    },
-    {
-      id: "created_at",
-      header: "Created at",
-      meta: { width: { percent: 11, minRem: 6.25 } },
-      cell: ({ row }) => (
-        <span className="whitespace-nowrap tabular-nums">
-          {formatListDate(row.original.created_at)}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "customer_name",
-      header: "Customer",
-      meta: { width: { percent: 25, minRem: 9 } },
-      cell: ({ row }) => (
-        <div>
-          <span className="flex items-baseline gap-x-1.5">
-            <CustomerLink
-              className="line-clamp-2 min-w-0"
-              customerId={row.original.customer_id}
-              name={row.original.customer_name}
-            />
-            {row.original.notified ? (
-              <NotifiedLabel className="shrink-0" />
-            ) : null}
-          </span>
-          <span className="block text-footnote whitespace-nowrap text-muted-foreground tabular-nums">
-            {row.original.customer_phone}
-          </span>
-        </div>
-      ),
-    },
-    {
-      id: "items_ready",
-      header: "Items ready",
-      meta: { width: { percent: 11, minRem: 6 } },
-      cell: ({ row }) => (
-        <ItemsProgress
-          done={row.original.items_ready}
-          total={row.original.items_total}
-        />
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "Fulfillment",
-      meta: { width: { percent: 14, minRem: 8 } },
-      cell: ({ row }) => (
-        <Badge variant={getOrderStatusBadgeVariant(row.original.status)}>
-          {formatOrderStatus(row.original.status)}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "payment_status",
-      header: "Payment",
-      meta: { width: { percent: 11, minRem: 6.25 } },
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-1">
-          <PaymentBadges order={row.original} />
-        </div>
-      ),
-    },
-    {
-      id: "total",
-      header: "Total",
-      meta: { align: "right", width: { percent: 12, minRem: 6.5 } },
-      cell: ({ row }) => <MoneyValue value={orderNetTotal(row.original)} />,
-    },
-  ];
+  const columns = columnsFor(orderLink);
 
   const pager = (
     <TablePagination
@@ -387,4 +344,46 @@ function OrdersPage() {
       </ListPanel>
     </>
   );
-}
+};
+
+export const Route = createFileRoute("/_admin/orders/")({
+  validateSearch: (search) => ordersSearchSchema.parse(search),
+  // A cashier or worker only sees their own store's Orders, so the store is
+  // picked before the page draws instead of the list loading twice.
+  beforeLoad: ({ context, search }) => {
+    if (search.storeId !== undefined) {
+      return;
+    }
+    const storeId = pickStore(storeScope(context.me));
+    if (storeId !== undefined) {
+      throw redirect({
+        to: "/orders",
+        search: { ...search, storeId },
+        replace: true,
+      });
+    }
+  },
+  // Opening an Order in the sheet over the list must not re-run the list's loader.
+  loaderDeps: ({ search: { open: _open, ...listSearch } }) => listSearch,
+  loader: async ({ context, deps, cause }) => {
+    // A new filter, page or search keeps the list on screen and swaps the rows
+    // in place; only opening the page waits for them.
+    if (cause === "stay") {
+      return;
+    }
+    const canListOrders =
+      deps.storeId !== undefined || storeScope(context.me).isAdmin;
+    const listParams = buildOrdersListParams(deps, deps.storeId);
+
+    await Promise.all([
+      context.queryClient.ensureQueryData(storesQueries.list()),
+      context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
+      canListOrders
+        ? context.queryClient.ensureQueryData(ordersQueries.list(listParams))
+        : undefined,
+    ]);
+  },
+  component: OrdersPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: OrdersPage,
+});

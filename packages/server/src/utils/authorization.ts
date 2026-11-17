@@ -4,10 +4,10 @@ import { db } from "@/db";
 import { ForbiddenException, NotFoundException } from "@/http-exceptions";
 import type { AuthUser } from "@/types";
 
-export function assertStoreAccess(
+export const assertStoreAccess = (
   user: AuthUser,
   storeId: number
-): Promise<void> {
+): Promise<void> => {
   if (user.role !== "admin" && !user.store_ids.includes(storeId)) {
     return Promise.reject(
       new ForbiddenException("You do not have access to this store")
@@ -15,7 +15,7 @@ export function assertStoreAccess(
   }
 
   return Promise.resolve();
-}
+};
 
 interface AllStoresScope {
   kind: "all";
@@ -44,10 +44,10 @@ export type StoreScope =
 // Naming a Store: a cashier at Kemang either works there or is refused. Naming
 // none: staff see their own Stores, an admin sees all, and a new hire with no
 // Store yet sees nothing.
-export async function resolveStoreScope(
+export const resolveStoreScope = async (
   user: AuthUser,
   storeId?: number
-): Promise<StoreScope> {
+): Promise<StoreScope> => {
   if (storeId !== undefined) {
     await assertStoreAccess(user, storeId);
     return { kind: "one", storeId };
@@ -60,14 +60,14 @@ export async function resolveStoreScope(
   return user.store_ids.length === 0
     ? { kind: "none" }
     : { kind: "some", storeIds: user.store_ids };
-}
+};
 
 // A scope no screen handled has to stop the request. Falling through would run
 // the query with no Store filter at all, which is every Store's takings — so
 // adding a fifth kind of scope must fail to compile, not quietly serve the lot.
-export function unhandledStoreScope(scope: never): never {
+export const unhandledStoreScope = (scope: never): never => {
   throw new Error(`Unhandled store scope: ${JSON.stringify(scope)}`);
-}
+};
 
 const findOrderForAccessPrepared = db.query.ordersTable
   .findFirst({
@@ -76,7 +76,7 @@ const findOrderForAccessPrepared = db.query.ordersTable
   })
   .prepare("find_order_for_access");
 
-export async function assertOrderAccess(user: AuthUser, orderId: number) {
+export const assertOrderAccess = async (user: AuthUser, orderId: number) => {
   const order = await findOrderForAccessPrepared.execute({ id: orderId });
 
   if (!order) {
@@ -85,4 +85,4 @@ export async function assertOrderAccess(user: AuthUser, orderId: number) {
 
   await assertStoreAccess(user, order.store_id);
   return order;
-}
+};

@@ -1,6 +1,6 @@
 import { EditRowButton } from "@/components/edit-row-button";
 import type { Shift } from "@/features/shifts/api";
-import { useEditShift } from "@/features/shifts/hooks/useEditShift";
+import { useEditShift } from "@/features/shifts/hooks/use-edit-shift";
 import { shiftSummary } from "@/features/shifts/lib/shift-times";
 
 interface EditShiftButtonProps {

@@ -9,39 +9,35 @@ import {
   updateStoreIsActive,
 } from "@/modules/stores/store.repository";
 
-export function getStores() {
-  return listStores();
-}
+export const getStores = () => listStores();
 
-export function getStoreById(id: number) {
-  return findStoreById(id);
-}
+export const getStoreById = (id: number) => findStoreById(id);
 
-export async function createStore(
+export const createStore = async (
   payload: InferInsertModel<typeof storesTable>
-) {
+) => {
   const [store] = await insertStore(payload);
   return store;
-}
+};
 
-export async function updateStore({
+export const updateStore = async ({
   id,
   payload,
 }: {
   id: number;
   payload: Partial<InferInsertModel<typeof storesTable>>;
-}) {
+}) => {
   const [store] = await updateStoreById(id, payload);
   return store ?? null;
-}
+};
 
-export async function updateStoreStatus({
+export const updateStoreStatus = async ({
   id,
   is_active,
 }: {
   id: number;
   is_active: boolean;
-}) {
+}) => {
   const [store] = await updateStoreIsActive(id, is_active);
   return store ?? null;
-}
+};

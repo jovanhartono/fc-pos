@@ -8,7 +8,7 @@ mock.module("@/db", () => ({
   db: { execute: executeMock },
 }));
 
-const healthRoutes = (await import("@/routes/health")).default;
+const { default: healthRoutes } = await import("@/routes/health");
 
 const app = new Hono().route("/health", healthRoutes);
 

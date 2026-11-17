@@ -5,13 +5,13 @@ import { getOrderStateOrThrow } from "@/modules/orders/order-read.repository";
 import { assertCanSendPickupNotice } from "@/modules/permissions/permissions";
 import type { JWTPayload } from "@/types";
 
-export async function createOrderPickupNotice({
+export const createOrderPickupNotice = async ({
   orderId,
   user,
 }: {
   orderId: number;
   user: JWTPayload;
-}) {
+}) => {
   assertCanSendPickupNotice(user);
 
   const order = await getOrderStateOrThrow(db, orderId);
@@ -25,4 +25,4 @@ export async function createOrderPickupNotice({
   await db
     .insert(orderPickupNoticesTable)
     .values({ order_id: orderId, sent_by: user.id });
-}
+};

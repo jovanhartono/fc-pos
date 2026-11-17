@@ -129,25 +129,25 @@ describe("Store totals", () => {
   });
 });
 
-describe("the range joined with who is on the floor", () => {
-  const rangeRow = (overrides: Partial<WorkerRangeRow>): WorkerRangeRow => {
-    const { live: _, ...row } = worker(overrides);
-    return row;
-  };
-  const liveRow = (
-    overrides: Partial<WorkerLiveRow>,
-    live: Partial<WorkerRow["live"]>
-  ): WorkerLiveRow => ({
-    user_id: 1,
-    user_name: "Ani",
-    avatar_url: null,
-    role: "worker",
-    store_id: 1,
-    store_name: "Kemang",
-    live: { ...quiet, ...live },
-    ...overrides,
-  });
+const rangeRow = (overrides: Partial<WorkerRangeRow>): WorkerRangeRow => {
+  const { live: _, ...row } = worker(overrides);
+  return row;
+};
+const liveRow = (
+  overrides: Partial<WorkerLiveRow>,
+  liveOverrides: Partial<WorkerRow["live"]>
+): WorkerLiveRow => ({
+  user_id: 1,
+  user_name: "Ani",
+  avatar_url: null,
+  role: "worker",
+  store_id: 1,
+  store_name: "Kemang",
+  live: { ...quiet, ...liveOverrides },
+  ...overrides,
+});
 
+describe("the range joined with who is on the floor", () => {
   it("puts each person's live figures on their range row", () => {
     const rows = withLive(
       [rangeRow({ services_processed: 12 })],
@@ -193,13 +193,14 @@ describe("the range joined with who is on the floor", () => {
   });
 });
 
+const at = (local: string) => `2026-10-19T${local}:00+07:00`;
+const live = (overrides: Partial<WorkerRow["live"]>) => ({
+  ...quiet,
+  ...overrides,
+});
+
 describe("right now", () => {
   const now = new Date("2026-10-19T10:00:00+07:00").getTime();
-  const at = (local: string) => `2026-10-19T${local}:00+07:00`;
-  const live = (overrides: Partial<WorkerRow["live"]>) => ({
-    ...quiet,
-    ...overrides,
-  });
 
   it("is on shift only while a Shift is open", () => {
     expect(openShiftSince(live({ clock_in_at: at("08:00") }))).toBe(
@@ -258,6 +259,8 @@ describe("Needs a look", () => {
     needsALook([row], now).map(
       ({ before, problem, after }) => `${before}[${problem}]${after}`
     );
+  const since = (minutes: number) =>
+    new Date(now - minutes * 60_000).toISOString();
 
   it("flags work today with no Shift", () => {
     expect(
@@ -270,8 +273,6 @@ describe("Needs a look", () => {
   });
 
   it("flags an open Shift past the idle limit with nothing reaching QC today", () => {
-    const since = (minutes: number) =>
-      new Date(now - minutes * 60_000).toISOString();
     expect(
       flagText(worker({ live: { ...quiet, clock_in_at: since(355) } }))
     ).toEqual(["on shift 5h 55m, [0 Services today]"]);

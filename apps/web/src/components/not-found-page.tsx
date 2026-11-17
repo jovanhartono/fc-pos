@@ -9,18 +9,18 @@ import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 
+const handleBack = () => {
+  if (typeof window !== "undefined" && window.history.length > 1) {
+    window.history.back();
+    return;
+  }
+  window.location.assign("/");
+};
+
 const NotFoundPage = () => {
   useEffect(() => {
     document.title = "Page Not Found | Fresclean POS";
   }, []);
-
-  const handleBack = () => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      window.history.back();
-      return;
-    }
-    window.location.assign("/");
-  };
 
   return (
     <main className="grid min-h-dvh place-items-center bg-background px-4 py-10">

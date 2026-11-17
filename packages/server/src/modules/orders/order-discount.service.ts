@@ -17,7 +17,7 @@ export interface ResolvedDiscount {
   discountSource: "none" | "manual" | "campaign";
 }
 
-export async function resolveDiscount(
+export const resolveDiscount = async (
   executor: DbExecutor,
   {
     campaignIds,
@@ -36,7 +36,7 @@ export async function resolveDiscount(
     storeCode: string;
     lines: { price: number; service_id: number }[];
   }
-): Promise<ResolvedDiscount> {
+): Promise<ResolvedDiscount> => {
   const manual = Math.max(0, manualDiscount);
 
   if (campaignIds.length === 0 && voucherCodes.length === 0) {
@@ -150,4 +150,4 @@ export async function resolveDiscount(
     discountSource,
     campaignRows,
   };
-}
+};

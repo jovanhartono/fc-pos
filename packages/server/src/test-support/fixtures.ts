@@ -31,7 +31,7 @@ const toPayload = (
 
 // One shop open for business: a store with an admin and a cashier on its roster,
 // one way to pay, and a catalog with a listed Service and a Product in stock.
-export async function seedShop() {
+export const seedShop = async () => {
   const [store] = await testDb
     .insert(storesTable)
     .values({
@@ -123,13 +123,13 @@ export async function seedShop() {
     serviceId: service.id,
     store,
   };
-}
+};
 
 export type Shop = Awaited<ReturnType<typeof seedShop>>;
 
 // The Item photo, filed straight onto the Item: the presign/upload round
 // trip is S3's business, and the gates under test only read the row.
-export async function addItemPhoto(itemId: number, uploadedBy: number) {
+export const addItemPhoto = async (itemId: number, uploadedBy: number) => {
   const [photo] = await testDb
     .insert(itemImagesTable)
     .values({
@@ -140,4 +140,4 @@ export async function addItemPhoto(itemId: number, uploadedBy: number) {
     .returning();
 
   return photo;
-}
+};

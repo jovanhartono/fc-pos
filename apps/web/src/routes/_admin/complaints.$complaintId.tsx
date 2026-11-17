@@ -17,7 +17,7 @@ import { TextSkeleton } from "@/components/text-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { complaintsQueries } from "@/features/complaints/api";
-import { useAddReworkMutation } from "@/features/complaints/hooks/useComplaintMutations";
+import { useAddReworkMutation } from "@/features/complaints/hooks/use-complaint-mutations";
 import { getComplaintOutcome } from "@/features/complaints/lib/format";
 import { CustomerLink } from "@/features/customers/components/customer-link";
 import { LINE_GRID } from "@/features/orders/components/order-detail-parts";
@@ -89,7 +89,7 @@ const ComplaintDetailPage = () => {
   }
 
   const subject = detail.orderService;
-  const order = detail.orderService.order;
+  const { order } = detail.orderService;
   // Refund is the terminal rung (ADR-0013), and a Complaint runs one round at
   // a time.
   const isFinished =

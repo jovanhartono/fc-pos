@@ -1,5 +1,6 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
 
 import { and, eq } from "drizzle-orm";
 
@@ -12,7 +13,8 @@ import {
   servicesTable,
   storesTable,
 } from "@/db/schema";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // August at the Kemang shop. Every Order is dropped off 1 August 09:00 and the
@@ -234,7 +236,7 @@ describe("the turnaround of Items ready in the stretch", () => {
   it("measures from the Order's drop-off to the Item's last first-ready", async () => {
     await seedAugust();
     const { items } = await getTurnaroundReport({ ...AUGUST });
-    const hours = items.map((item) => item.hours).sort((a, b) => a - b);
+    const hours = items.map((item) => item.hours).toSorted((a, b) => a - b);
 
     expect(hours).toEqual([
       6, 12, 12, 18, 18, 24, 30, 30, 36, 40, 42, 48, 54, 60, 72, 110.5,
@@ -249,8 +251,11 @@ describe("the turnaround of Items ready in the stretch", () => {
 
     expect(byHours(18)?.ready_day).toBe("2026-08-02");
     expect(byHours(110.5)?.ready_day).toBe("2026-08-05");
-    expect(byHours(72)?.categories.sort()).toEqual(["Bags", "Footwear"]);
-    expect(byHours(72)?.services.sort()).toEqual(["Bag Clean", "Deep Clean"]);
+    expect(byHours(72)?.categories.toSorted()).toEqual(["Bags", "Footwear"]);
+    expect(byHours(72)?.services.toSorted()).toEqual([
+      "Bag Clean",
+      "Deep Clean",
+    ]);
     expect(byHours(72)?.store_code).toBe("KMG");
   });
 
@@ -355,13 +360,15 @@ describe("the breakdown", () => {
       [20, "processing", "waiting_qc"],
       [26, "waiting_qc", "ready_for_pickup"],
     ];
+    const adminId = shop.admin.id;
     for (const item of Object.values(placed)) {
+      const lineId = lineOf(item, cleanId);
       await testDb.insert(orderServiceStatusLogsTable).values(
         steps.map(([hours, from, to]) => ({
-          changed_by: shop.admin.id,
+          changed_by: adminId,
           created_at: afterDropOff(hours),
           from_status: from,
-          order_service_id: lineOf(item, cleanId),
+          order_service_id: lineId,
           to_status: to,
         }))
       );
@@ -390,7 +397,8 @@ describe("the breakdown", () => {
 
   it("leaves out a ready line whose Item still has a line in the workshop", async () => {
     await seedAugust();
-    const before = (await getTurnaroundReport({ ...AUGUST })).rows[0].breakdown;
+    const beforeReport = await getTurnaroundReport({ ...AUGUST });
+    const before = beforeReport.rows[0].breakdown;
     const half = await testDb.query.itemsTable.findFirst({
       where: { brand: "half" },
       with: { services: true },
@@ -409,7 +417,8 @@ describe("the breakdown", () => {
           eq(orderServiceStatusLogsTable.to_status, "ready_for_pickup")
         )
       );
-    const after = (await getTurnaroundReport({ ...AUGUST })).rows[0].breakdown;
+    const afterReport = await getTurnaroundReport({ ...AUGUST });
+    const after = afterReport.rows[0].breakdown;
 
     expect(after).toEqual(before);
   });

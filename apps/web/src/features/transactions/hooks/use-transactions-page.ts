@@ -27,16 +27,16 @@ import {
   countCartTreatments,
   defaultDraftValues,
   resetTransactionDraft,
-  type TransactionDraftValues,
   toOrderPayload,
 } from "@/features/transactions/cart/cart";
+import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 import {
   collectCheckoutIssues,
   describeServerFailure,
   summarizeCheckoutIssues,
 } from "@/features/transactions/lib/checkout-issues";
 import type { TransactionsPageContextValue } from "@/features/transactions/lib/transactions-context";
-import { useStoreScope } from "@/features/users/hooks/useStoreScope";
+import { useStoreScope } from "@/features/users/hooks/use-store-scope";
 import { canOpenStore } from "@/features/users/lib/store-scope";
 import { readServerErrorMessage } from "@/lib/server-error";
 import { getCurrentUser } from "@/stores/auth-store";
@@ -113,13 +113,13 @@ const transactionDraftSchema = z
     }
   });
 
-export type TransactionsPageBootstrap = {
+export interface TransactionsPageBootstrap {
   form: ReturnType<typeof useForm<TransactionDraftValues>>;
   isBootstrapping: boolean;
   pageContext: TransactionsPageContextValue;
-};
+}
 
-export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
+export const useTransactionsPageBootstrap = (): TransactionsPageBootstrap => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const currentUser = getCurrentUser();
@@ -201,7 +201,7 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
     mutationFn: createOrder,
     // No global error toast: the sheet footer already reports a failed
     // checkout.
-    onError: () => undefined,
+    onError: () => null,
   });
 
   const resetCart = () => {
@@ -226,8 +226,10 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
       // from the Order page. Skipped without Web Bluetooth, or every
       // checkout on that browser would show an error.
       if (orderId && navigator.bluetooth) {
-        void printOrderReceipt(orderId, { allowPairing: false }).catch(
-          (error: unknown) => {
+        const autoPrint = async () => {
+          try {
+            await printOrderReceipt(orderId, { allowPairing: false });
+          } catch (error) {
             if (error instanceof NoRegisteredDeviceError) {
               toast.info("No printer registered", {
                 description: "Add one from Devices next to the Store name.",
@@ -244,7 +246,8 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
               description: "Reprint it from the Order page.",
             });
           }
-        );
+        };
+        void autoPrint();
       }
 
       const { dropoffPhoto } = useTransactionsPageStore.getState();
@@ -268,11 +271,11 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
           resetCart();
           void navigate({ to: "/orders", search: { page: 1 } });
         },
-        onOrderDetailNavigate: (orderId) => {
+        onOrderDetailNavigate: (createdOrderId) => {
           resetCart();
           void navigate({
             to: "/orders/$orderId",
-            params: { orderId: String(orderId) },
+            params: { orderId: String(createdOrderId) },
           });
         },
       });
@@ -330,4 +333,4 @@ export function useTransactionsPageBootstrap(): TransactionsPageBootstrap {
   };
 
   return { form, isBootstrapping, pageContext };
-}
+};

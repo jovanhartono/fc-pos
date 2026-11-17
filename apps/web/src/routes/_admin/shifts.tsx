@@ -10,11 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StoreSelect } from "@/features/orders/components/store-select";
 import { withPresetRange } from "@/features/reports/utils/report-filters";
-import {
-  type Shift,
-  type ShiftsOverview,
-  shiftsQueries,
-} from "@/features/shifts/api";
+import { shiftsQueries } from "@/features/shifts/api";
+import type { Shift, ShiftsOverview } from "@/features/shifts/api";
 import { NewShiftForm } from "@/features/shifts/components/new-shift-form";
 import { ShiftsDayView } from "@/features/shifts/components/shifts-day-view";
 import { ShiftsRangeControl } from "@/features/shifts/components/shifts-range-control";
@@ -23,24 +20,26 @@ import { useOpenWorkerShifts } from "@/features/shifts/components/worker-shifts-
 import {
   buildStoreGroups,
   listDays,
-  type PersonRow,
   rangeLabel,
-  type ShiftsRange,
-  type StoreGroup,
+} from "@/features/shifts/lib/shifts-overview";
+import type {
+  PersonRow,
+  ShiftsRange,
+  StoreGroup,
 } from "@/features/shifts/lib/shifts-overview";
 import { storesQueries } from "@/features/stores/api";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { staleFade } from "@/lib/content-fade";
 import {
   DATE_PRESETS,
-  type DatePreset,
   getPresets,
   jakartaToday,
   matchPreset,
 } from "@/shared/date-presets";
+import type { DatePreset } from "@/shared/date-presets";
 import { useDialog } from "@/stores/dialog-store";
 
-const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/u;
 
 const shiftsSearchSchema = z.object({
   preset: z.enum(DATE_PRESETS).optional().catch(undefined),
@@ -176,16 +175,17 @@ const ShiftsPage = () => {
     });
   };
 
-  const setPreset = (preset: DatePreset) =>
+  const setPreset = (next: DatePreset) => {
     void navigate({
       replace: true,
       search: (prev) => ({
         ...prev,
-        preset: preset === SHIFTS_PRESET ? undefined : preset,
+        preset: next === SHIFTS_PRESET ? undefined : next,
         from: undefined,
         to: undefined,
       }),
     });
+  };
 
   const handleCreate = () =>
     openDialog({

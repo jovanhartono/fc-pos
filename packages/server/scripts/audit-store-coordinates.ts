@@ -30,11 +30,10 @@ interface Row {
 }
 
 try {
-  const stores: Row[] = (
-    await pool.query(
-      "select id, code, name, is_active, latitude, longitude from stores order by code"
-    )
-  ).rows;
+  const result = await pool.query(
+    "select id, code, name, is_active, latitude, longitude from stores order by code"
+  );
+  const stores: Row[] = result.rows;
 
   const problems: string[] = [];
 

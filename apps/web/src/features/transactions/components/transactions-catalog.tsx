@@ -20,16 +20,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import type { Category } from "@/features/categories/api";
-import { useCategoryMap } from "@/features/categories/hooks/useCategoryMap";
+import { useCategoryMap } from "@/features/categories/hooks/use-category-map";
 import { StoreSelect } from "@/features/orders/components/store-select";
 import { StoreDevicesDialog } from "@/features/printing/components/store-devices-dialog";
 import { productsQueries } from "@/features/products/api";
 import { servicesQueries } from "@/features/services/api";
-import {
-  resolveActiveItemId,
-  type TransactionDraftValues,
-} from "@/features/transactions/cart/cart";
-import { useCartOps } from "@/features/transactions/cart/useCart";
+import { resolveActiveItemId } from "@/features/transactions/cart/cart";
+import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
+import { useCartOps } from "@/features/transactions/cart/use-cart";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import { cn } from "@/lib/utils";
@@ -67,7 +65,7 @@ const useCatalog = () => {
       });
     }
   }
-  const categoryOptions = [...byId.values()].sort((a, b) =>
+  const categoryOptions = [...byId.values()].toSorted((a, b) =>
     a.name.localeCompare(b.name)
   );
 
@@ -76,157 +74,28 @@ const useCatalog = () => {
 
 type CatalogEntry = ReturnType<typeof useCatalog>["catalogEntries"][number];
 
-export function TransactionsCatalog() {
-  const { isAdmin, visibleStores, handleStoreChange } =
-    useTransactionsPageContext();
-  const openDialog = useDialog((s) => s.openDialog);
+const CatalogEmpty = () => {
   const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
   const setSearchTerm = useTransactionsPageStore(
     (state) => state.setSearchTerm
   );
-  const activeCategory = useTransactionsPageStore(
-    (state) => state.activeCategory
-  );
-  const setActiveCategory = useTransactionsPageStore(
-    (state) => state.setActiveCategory
-  );
 
-  const { catalogEntries, categoryMap, categoryOptions } = useCatalog();
-
-  const { control, formState } = useFormContext<TransactionDraftValues>();
-  const selectedStoreId = useWatch({ control, name: "selectedStoreId" }) ?? "";
-  const storeError = formState.errors.selectedStoreId;
-
-  const deferredSearchTerm = useDeferredValue(searchTerm);
-  const searchValue = deferredSearchTerm.trim().toLowerCase();
-
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) {
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      const isTyping =
-        target?.tagName === "INPUT" ||
-        target?.tagName === "TEXTAREA" ||
-        target?.isContentEditable;
-      if (isTyping) {
-        return;
-      }
-      event.preventDefault();
-      searchInputRef.current?.focus();
-      searchInputRef.current?.select();
-    };
-    window.addEventListener("keydown", handleKeydown);
-    return () => window.removeEventListener("keydown", handleKeydown);
-  }, []);
+  if (searchTerm.trim().length === 0) {
+    return (
+      <EmptyState icon={ShoppingCart01Icon}>
+        No Services or Products.
+      </EmptyState>
+    );
+  }
 
   return (
-    <div className="grid gap-5">
-      <StickyControls className="grid gap-3">
-        {/* hideLabel returns the bare Combobox, so the error has to be
-						    rendered here — this is the only place the Store can be fixed,
-						    and the checkout sheet covers it. */}
-        <Field data-invalid={!!storeError}>
-          <div className="flex gap-2">
-            <StoreSelect
-              hideLabel
-              required
-              value={selectedStoreId}
-              onValueChange={handleStoreChange}
-              allowedStoreIds={visibleStores.map((store) => store.id)}
-              disabled={!isAdmin && visibleStores.length < 2}
-              triggerClassName="min-w-0"
-              // The empty picker is the hint: no floating note, and no
-              // line that appears and pushes the catalog down.
-              placeholder="Select a store to check out"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="shrink-0"
-              disabled={!selectedStoreId}
-              icon={<HugeiconsIcon icon={BluetoothIcon} className="size-4" />}
-              onClick={() =>
-                openDialog({
-                  title: "Bluetooth Devices",
-                  description:
-                    "The POS only prints to devices registered here.",
-                  content: () => (
-                    <StoreDevicesDialog storeId={Number(selectedStoreId)} />
-                  ),
-                })
-              }
-            >
-              Devices
-            </Button>
-          </div>
-          <FieldError errors={[storeError]} />
-        </Field>
-
-        <Field>
-          <FieldLabel className="sr-only" htmlFor="transaction-search">
-            Search
-          </FieldLabel>
-          <SearchInput
-            ref={searchInputRef}
-            id="transaction-search"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search services or products"
-            inputClassName="border-border/70 bg-background"
-          />
-        </Field>
-
-        {/* Hidden when the catalog has one category, because then the strip
-						    only ever says "All". */}
-        {categoryOptions.length > 1 ? (
-          <ChipStripScroller>
-            <fieldset className={CHIP_STRIP_ROW}>
-              <legend className="sr-only">Filter by category</legend>
-              <Button
-                aria-pressed={activeCategory === "all"}
-                className={cn(
-                  CHIP_CLASS,
-                  activeCategory !== "all" && "text-foreground"
-                )}
-                onClick={() => setActiveCategory("all")}
-                type="button"
-                variant={activeCategory === "all" ? "default" : "secondary"}
-              >
-                All
-              </Button>
-              {categoryOptions.map((category) => {
-                const isActive = activeCategory === category.id;
-
-                return (
-                  <Button
-                    aria-pressed={isActive}
-                    className={cn(CHIP_CLASS, !isActive && "text-foreground")}
-                    key={category.id}
-                    onClick={() => setActiveCategory(category.id)}
-                    type="button"
-                    variant={isActive ? "default" : "secondary"}
-                  >
-                    {category.name}
-                  </Button>
-                );
-              })}
-            </fieldset>
-          </ChipStripScroller>
-        ) : null}
-      </StickyControls>
-
-      <CatalogGrid
-        catalogEntries={catalogEntries}
-        categoryMap={categoryMap}
-        searchValue={searchValue}
-      />
-    </div>
+    <NoMatchState
+      noun="Services or Products"
+      search={searchTerm.trim()}
+      onClear={() => setSearchTerm("")}
+    />
   );
-}
+};
 
 interface CatalogGridProps {
   catalogEntries: CatalogEntry[];
@@ -397,25 +266,154 @@ const CatalogGrid = ({
   );
 };
 
-const CatalogEmpty = () => {
+export const TransactionsCatalog = () => {
+  const { isAdmin, visibleStores, handleStoreChange } =
+    useTransactionsPageContext();
+  const openDialog = useDialog((s) => s.openDialog);
   const searchTerm = useTransactionsPageStore((state) => state.searchTerm);
   const setSearchTerm = useTransactionsPageStore(
     (state) => state.setSearchTerm
   );
+  const activeCategory = useTransactionsPageStore(
+    (state) => state.activeCategory
+  );
+  const setActiveCategory = useTransactionsPageStore(
+    (state) => state.setActiveCategory
+  );
 
-  if (searchTerm.trim().length === 0) {
-    return (
-      <EmptyState icon={ShoppingCart01Icon}>
-        No Services or Products.
-      </EmptyState>
-    );
-  }
+  const { catalogEntries, categoryMap, categoryOptions } = useCatalog();
+
+  const { control, formState } = useFormContext<TransactionDraftValues>();
+  const selectedStoreId = useWatch({ control, name: "selectedStoreId" }) ?? "";
+  const storeError = formState.errors.selectedStoreId;
+
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const searchValue = deferredSearchTerm.trim().toLowerCase();
+
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      const isTyping =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+      if (isTyping) {
+        return;
+      }
+      event.preventDefault();
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    };
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, []);
 
   return (
-    <NoMatchState
-      noun="Services or Products"
-      search={searchTerm.trim()}
-      onClear={() => setSearchTerm("")}
-    />
+    <div className="grid gap-5">
+      <StickyControls className="grid gap-3">
+        {/* hideLabel returns the bare Combobox, so the error has to be
+						    rendered here — this is the only place the Store can be fixed,
+						    and the checkout sheet covers it. */}
+        <Field data-invalid={!!storeError}>
+          <div className="flex gap-2">
+            <StoreSelect
+              hideLabel
+              required
+              value={selectedStoreId}
+              onValueChange={handleStoreChange}
+              allowedStoreIds={visibleStores.map((store) => store.id)}
+              disabled={!isAdmin && visibleStores.length < 2}
+              triggerClassName="min-w-0"
+              // The empty picker is the hint: no floating note, and no
+              // line that appears and pushes the catalog down.
+              placeholder="Select a store to check out"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0"
+              disabled={!selectedStoreId}
+              icon={<HugeiconsIcon icon={BluetoothIcon} className="size-4" />}
+              onClick={() =>
+                openDialog({
+                  title: "Bluetooth Devices",
+                  description:
+                    "The POS only prints to devices registered here.",
+                  content: () => (
+                    <StoreDevicesDialog storeId={Number(selectedStoreId)} />
+                  ),
+                })
+              }
+            >
+              Devices
+            </Button>
+          </div>
+          <FieldError errors={[storeError]} />
+        </Field>
+
+        <Field>
+          <FieldLabel className="sr-only" htmlFor="transaction-search">
+            Search
+          </FieldLabel>
+          <SearchInput
+            ref={searchInputRef}
+            id="transaction-search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search services or products"
+            inputClassName="border-border/70 bg-background"
+          />
+        </Field>
+
+        {/* Hidden when the catalog has one category, because then the strip
+						    only ever says "All". */}
+        {categoryOptions.length > 1 ? (
+          <ChipStripScroller>
+            <fieldset className={CHIP_STRIP_ROW}>
+              <legend className="sr-only">Filter by category</legend>
+              <Button
+                aria-pressed={activeCategory === "all"}
+                className={cn(
+                  CHIP_CLASS,
+                  activeCategory !== "all" && "text-foreground"
+                )}
+                onClick={() => setActiveCategory("all")}
+                type="button"
+                variant={activeCategory === "all" ? "default" : "secondary"}
+              >
+                All
+              </Button>
+              {categoryOptions.map((category) => {
+                const isActive = activeCategory === category.id;
+
+                return (
+                  <Button
+                    aria-pressed={isActive}
+                    className={cn(CHIP_CLASS, !isActive && "text-foreground")}
+                    key={category.id}
+                    onClick={() => setActiveCategory(category.id)}
+                    type="button"
+                    variant={isActive ? "default" : "secondary"}
+                  >
+                    {category.name}
+                  </Button>
+                );
+              })}
+            </fieldset>
+          </ChipStripScroller>
+        ) : null}
+      </StickyControls>
+
+      <CatalogGrid
+        catalogEntries={catalogEntries}
+        categoryMap={categoryMap}
+        searchValue={searchValue}
+      />
+    </div>
   );
 };

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 
-import {
-  type PhotoCaptureLabelsInput,
-  type PhotoCaptureVariant,
-  resolvePhotoCaptureLabels,
+import { resolvePhotoCaptureLabels } from "@/features/orders/components/photo-capture-labels";
+import type {
+  PhotoCaptureLabelsInput,
+  PhotoCaptureVariant,
 } from "@/features/orders/components/photo-capture-labels";
 
 const labelsFor = (

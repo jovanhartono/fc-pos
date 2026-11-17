@@ -64,9 +64,9 @@ mock.module("@/db", () => ({
         }),
       },
     },
-    transaction: (cb: (tx: typeof TX) => unknown) => {
+    transaction: (work: (tx: typeof TX) => unknown) => {
       dbState.transactions += 1;
-      return cb(TX);
+      return work(TX);
     },
     // The guard tests below must stop before the list query runs.
     select: () => {
@@ -86,7 +86,7 @@ const actualStatusMachine =
   await import("@/modules/orders/order-status-machine");
 
 const machine = {
-  calls: [] as Array<{ executor: unknown; input: AnyObj }>,
+  calls: [] as { executor: unknown; input: AnyObj }[],
   from: "queued",
 };
 

@@ -3,17 +3,16 @@ import { usePrinterStore } from "@/stores/printer-store";
 import {
   NoRegisteredDeviceError,
   PrinterNotPairedError,
-  type PrinterTransport,
-  type PrintOptions,
 } from "./printer-transport";
+import type { PrinterTransport, PrintOptions } from "./printer-transport";
 
 // Vendor services seen on budget ESC/POS BLE boards (incl. CBT-80-class
 // printers). Pairing accepts any device; these only unlock GATT access.
 const PRINTER_SERVICES: BluetoothServiceUUID[] = [
-  0x18f0,
-  0xffe0,
-  0xff00,
-  0xffb0,
+  0x18_f0,
+  0xff_e0,
+  0xff_00,
+  0xff_b0,
   "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
   "49535343-fe7d-4ae5-8fa9-9fafd205e455",
 ];
@@ -30,11 +29,15 @@ interface ConnectedPrinter {
 
 let cached: ConnectedPrinter | null = null;
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) =>
+  // oxlint-disable-next-line promise/avoid-new -- setTimeout only takes a callback
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
-async function findWritableCharacteristic(
+const findWritableCharacteristic = async (
   server: BluetoothRemoteGATTServer
-): Promise<BluetoothRemoteGATTCharacteristic | null> {
+): Promise<BluetoothRemoteGATTCharacteristic | null> => {
   for (const service of await server.getPrimaryServices()) {
     for (const characteristic of await service.getCharacteristics()) {
       if (
@@ -46,16 +49,17 @@ async function findWritableCharacteristic(
     }
   }
   return null;
-}
+};
 
 // Chrome never fails a connect to a printer that is off or out of range; it waits
 // until the printer shows up again (crbug.com/666377). Uncapped, one dead
 // connect would hold up every later print for the rest of the session.
 const CONNECT_TIMEOUT_MS = 10_000;
 
-async function connect(device: BluetoothDevice): Promise<ConnectedPrinter> {
+const connect = async (device: BluetoothDevice): Promise<ConnectedPrinter> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
+  // oxlint-disable-next-line promise/avoid-new -- a timer to race the connect against, which Chrome never fails on its own
+  const timeout = new Promise<never>((_resolve, reject) => {
     timer = setTimeout(() => {
       device.gatt?.disconnect();
       reject(
@@ -92,11 +96,11 @@ async function connect(device: BluetoothDevice): Promise<ConnectedPrinter> {
   );
 
   return cached;
-}
+};
 
-async function findGrantedDevice(
+const findGrantedDevice = async (
   deviceId: string
-): Promise<BluetoothDevice | null> {
+): Promise<BluetoothDevice | null> => {
   // getDevices is not available on every Chrome release; without it a
   // reload loses the silent-reconnect path until the next manual print.
   if (typeof navigator.bluetooth.getDevices !== "function") {
@@ -104,17 +108,17 @@ async function findGrantedDevice(
   }
   const devices = await navigator.bluetooth.getDevices();
   return devices.find((device) => device.id === deviceId) ?? null;
-}
+};
 
 // The printer this laptop last used may belong to the Store next door, so it
 // only counts if this Store registered it.
 const isRegistered = (device: BluetoothDevice, deviceNames: string[]) =>
   device.name !== undefined && deviceNames.includes(device.name);
 
-async function resolvePrinter({
+const resolvePrinter = async ({
   allowPairing,
   deviceNames,
-}: PrintOptions): Promise<ConnectedPrinter> {
+}: PrintOptions): Promise<ConnectedPrinter> => {
   if (deviceNames.length === 0) {
     throw new NoRegisteredDeviceError();
   }
@@ -159,11 +163,11 @@ async function resolvePrinter({
   const printer = await connect(device);
   usePrinterStore.getState().setDeviceId(device.id);
   return printer;
-}
+};
 
 // Registering a printer: the cashier picks from every nearby device, and one
 // connect proves it is in range before the Store saves its name. Nothing prints.
-export async function pairBluetoothDevice(): Promise<string> {
+export const pairBluetoothDevice = async (): Promise<string> => {
   if (!navigator.bluetooth) {
     throw new Error("Bluetooth is not available in this browser");
   }
@@ -185,9 +189,9 @@ export async function pairBluetoothDevice(): Promise<string> {
   device.gatt?.disconnect();
 
   return device.name;
-}
+};
 
-async function printNow(data: Uint8Array, options: PrintOptions) {
+const printNow = async (data: Uint8Array, options: PrintOptions) => {
   if (!navigator.bluetooth) {
     throw new Error("Bluetooth is not available in this browser");
   }
@@ -203,7 +207,7 @@ async function printNow(data: Uint8Array, options: PrintOptions) {
       await characteristic.writeValue(chunk);
     }
   }
-}
+};
 
 // An auto-print racing a manual reprint would mix two Receipts on the paper,
 // so every print waits for the one before.

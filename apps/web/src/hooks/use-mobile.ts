@@ -2,7 +2,7 @@ import * as React from "react";
 
 const MOBILE_BREAKPOINT = 768;
 
-export function useIsMobile(breakpoint = MOBILE_BREAKPOINT) {
+export const useIsMobile = (breakpoint = MOBILE_BREAKPOINT) => {
   const [isMobile, setIsMobile] = React.useState(
     () => window.innerWidth < breakpoint
   );
@@ -13,14 +13,15 @@ export function useIsMobile(breakpoint = MOBILE_BREAKPOINT) {
       setIsMobile(window.innerWidth < breakpoint);
     };
     mql.addEventListener("change", onChange);
+    // oxlint-disable-next-line react/set-state-in-effect -- re-reads the width when the breakpoint prop changes
     setIsMobile(window.innerWidth < breakpoint);
     return () => mql.removeEventListener("change", onChange);
   }, [breakpoint]);
 
   return isMobile;
-}
+};
 
-export function useIsCoarsePointer() {
+export const useIsCoarsePointer = () => {
   const [isCoarse, setIsCoarse] = React.useState(
     () => window.matchMedia("(any-pointer: coarse)").matches
   );
@@ -36,4 +37,4 @@ export function useIsCoarsePointer() {
   }, []);
 
   return isCoarse;
-}
+};

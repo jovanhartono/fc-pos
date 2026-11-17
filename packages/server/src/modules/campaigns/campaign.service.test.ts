@@ -154,16 +154,16 @@ const makeListedRow = (over: AnyObj = {}) => ({
   ...over,
 });
 
-describe("getUsableCampaigns", () => {
-  const call = (campaignIds: number[]) =>
-    getUsableCampaigns(EXECUTOR, {
-      campaignIds,
-      grossTotal: 100_000,
-      lines: [],
-      storeId: 1,
-      storeCode: "JKT",
-    });
+const call = (campaignIds: number[]) =>
+  getUsableCampaigns(EXECUTOR, {
+    campaignIds,
+    grossTotal: 100_000,
+    lines: [],
+    storeId: 1,
+    storeCode: "JKT",
+  });
 
+describe("getUsableCampaigns", () => {
   it("rejects when a requested campaign id is missing", async () => {
     repo.byIds = [makeListedRow({ id: 1 })];
     const error = await captureRejection(call([1, 2]));

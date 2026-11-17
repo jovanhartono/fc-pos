@@ -2,8 +2,8 @@ import {
   allocateRefund,
   lineKey,
   orderLineRefundCaps,
-  type RefundLineRef,
 } from "@fresclean/api/rules";
+import type { RefundLineRef } from "@fresclean/api/rules";
 
 import type { OrderDetail } from "@/features/orders/api";
 import { flattenOrderLines } from "@/features/orders/lib/order-lines";

@@ -7,14 +7,14 @@ import { assertCanCreateOrder } from "@/modules/permissions/permissions";
 import { findUserById } from "@/modules/users/user.repository";
 import type { JWTPayload } from "@/types";
 
-export async function assertActiveCourier(courierId: number) {
+export const assertActiveCourier = async (courierId: number) => {
   const courier = await findUserById(courierId);
   if (courier?.role !== "courier" || !courier.is_active) {
     throw new BadRequestException("This courier isn't Active");
   }
-}
+};
 
-export async function updateOrderCollectedBy({
+export const updateOrderCollectedBy = async ({
   orderId,
   collectedBy,
   user,
@@ -22,7 +22,7 @@ export async function updateOrderCollectedBy({
   orderId: number;
   collectedBy: number | null;
   user: JWTPayload;
-}) {
+}) => {
   assertCanCreateOrder(user);
 
   const order = await db.query.ordersTable.findFirst({
@@ -51,4 +51,4 @@ export async function updateOrderCollectedBy({
     });
 
   return rows[0] ?? null;
-}
+};

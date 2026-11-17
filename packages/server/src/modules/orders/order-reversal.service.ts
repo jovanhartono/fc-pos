@@ -17,8 +17,8 @@ import { changeUnpaidOrder } from "@/modules/orders/order-settlement.service";
 import {
   applyRefundTransition,
   cancelOrderServices,
-  type DbExecutor,
 } from "@/modules/orders/order-status-machine";
+import type { DbExecutor } from "@/modules/orders/order-status-machine";
 import type { OrderTx } from "@/modules/orders/order.repository";
 import {
   assertCanCancelOrderService,
@@ -29,8 +29,8 @@ import {
   allocateRefund,
   lineKey,
   orderLineRefundCaps,
-  type RefundLineKind,
 } from "@/schema/refund-allocation";
+import type { RefundLineKind } from "@/schema/refund-allocation";
 import type { JWTPayload } from "@/types";
 
 type RefundLineInput = PostOrderRefundInput["items"][number];
@@ -43,7 +43,7 @@ interface RefundLine {
   reason: RefundLineInput["reason"];
 }
 
-function toRefundLine(item: RefundLineInput): RefundLine {
+const toRefundLine = (item: RefundLineInput): RefundLine => {
   if (item.order_service_id != null) {
     return {
       kind: "service",
@@ -64,12 +64,12 @@ function toRefundLine(item: RefundLineInput): RefundLine {
   throw new BadRequestException(
     "Each refund item must reference a service or product line"
   );
-}
+};
 
-async function getOrderLineRefundCaps(
+const getOrderLineRefundCaps = async (
   executor: DbExecutor,
   order: Pick<typeof ordersTable.$inferSelect, "discount" | "id">
-) {
+) => {
   const orderId = order.id;
   const [serviceRows, productRows, campaignRows, refundedRows] =
     await Promise.all([
@@ -143,9 +143,9 @@ async function getOrderLineRefundCaps(
     refundedByLineKey,
     services: serviceRows,
   });
-}
+};
 
-export async function createOrderRefund({
+export const createOrderRefund = async ({
   orderId,
   body,
   user,
@@ -153,7 +153,7 @@ export async function createOrderRefund({
   orderId: number;
   body: PostOrderRefundInput;
   user: JWTPayload;
-}) {
+}) => {
   const lines = body.items.map(toRefundLine);
 
   const uniqueLineKeys = new Set(
@@ -266,7 +266,7 @@ export async function createOrderRefund({
     refund,
     total_refund_amount: totalRefundAmount,
   };
-}
+};
 
 type CancelLineInput = PostOrderCancelInput["items"][number];
 
@@ -277,7 +277,7 @@ interface CancelLine {
   reason: CancelLineInput["reason"];
 }
 
-function toCancelLine(item: CancelLineInput): CancelLine {
+const toCancelLine = (item: CancelLineInput): CancelLine => {
   if (item.order_service_id != null) {
     return {
       kind: "service",
@@ -297,7 +297,7 @@ function toCancelLine(item: CancelLineInput): CancelLine {
   throw new BadRequestException(
     "Each cancel item must reference a service or product line"
   );
-}
+};
 
 interface CancelProductRow {
   cancelled_at: Date | null;
@@ -308,11 +308,11 @@ interface CancelProductRow {
 }
 
 // Only one of two simultaneous cancels wins, so stock is put back exactly once.
-async function cancelProductLines(
+const cancelProductLines = async (
   tx: OrderTx,
   productLines: CancelLine[],
   productRowById: Map<number, CancelProductRow>
-) {
+) => {
   for (const line of productLines) {
     const row = productRowById.get(line.id);
     if (!row) {
@@ -342,13 +342,13 @@ async function cancelProductLines(
       await incrementProductStock(tx, row.product_id, row.qty);
     }
   }
-}
+};
 
 // Cancellation is the unpaid twin of a Refund (ADR-0008): no money moves, and
 // cancelled Products go back on the shelf. A promo stays only while the Order
 // still clears its minimum (ADR-0018); on a paid Order it stays and only shrinks
 // to fit (ADR-0015).
-export async function cancelOrder({
+export const cancelOrder = async ({
   orderId,
   body,
   user,
@@ -356,7 +356,7 @@ export async function cancelOrder({
   orderId: number;
   body: PostOrderCancelInput;
   user: JWTPayload;
-}) {
+}) => {
   const lines = body.items.map(toCancelLine);
 
   const uniqueLineKeys = new Set(
@@ -441,4 +441,4 @@ export async function cancelOrder({
     cancelled_product_ids: productLines.map((line) => line.id),
     order_id: orderId,
   };
-}
+};

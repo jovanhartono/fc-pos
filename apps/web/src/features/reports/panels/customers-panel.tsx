@@ -4,7 +4,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomerLink } from "@/features/customers/components/customer-link";
-import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
+import { reportsQueries } from "@/features/reports/api";
+import type { ReportGranularity } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -30,6 +31,9 @@ interface CustomersPanelProps {
   granularity?: ReportGranularity;
 }
 
+const count = (v: number) => numberFormatter.format(v);
+
+// oxlint-disable-next-line eslint/complexity -- one flat panel; the count is its `??` fallbacks for a report still loading
 export const CustomersPanel = ({
   from,
   to,
@@ -45,7 +49,7 @@ export const CustomersPanel = ({
     }),
     placeholderData: keepPreviousData,
   });
-  const data = query.data;
+  const { data } = query;
   const summary = data?.summary.current;
   const deltas = data?.summary.deltas;
   const axis = rangeAxis(data?.granularity ?? "day");
@@ -75,13 +79,8 @@ export const CustomersPanel = ({
       ),
     },
   ];
-  const count = (v: number) => numberFormatter.format(v);
-
   const topCustomers = data?.top_customers ?? [];
-  const maxTopCollected = topCustomers.reduce(
-    (m, c) => Math.max(m, c.collected),
-    0
-  );
+  const maxTopCollected = Math.max(0, ...topCustomers.map((c) => c.collected));
 
   const handleExport = () => {
     if (!data) {
@@ -93,8 +92,8 @@ export const CustomersPanel = ({
         `Customers,${escapeCsv(row.bucket)},${row.new_customers},${row.cumulative}`
       );
     }
-    lines.push("");
     lines.push(
+      "",
       "Customer orders,Period,New-customer orders,Returning-customer orders"
     );
     for (const row of data.mix_series) {
@@ -102,8 +101,7 @@ export const CustomersPanel = ({
         `Orders,${escapeCsv(row.bucket)},${row.new_customer_orders},${row.returning_customer_orders}`
       );
     }
-    lines.push("");
-    lines.push("Top customers,Customer ID,Name,Phone,Orders,Collected");
+    lines.push("", "Top customers,Customer ID,Name,Phone,Orders,Collected");
     for (const c of topCustomers) {
       lines.push(
         `Top customers,${c.customer_id},${escapeCsv(c.customer_name)},${escapeCsv(c.customer_phone)},${c.orders},${c.collected}`

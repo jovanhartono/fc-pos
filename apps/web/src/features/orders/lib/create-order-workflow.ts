@@ -2,14 +2,14 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { onOrderMoved, onRedemptionSpent } from "@/lib/cache-events";
 
-type HandleCreatedOrderSuccessOptions = {
+interface HandleCreatedOrderSuccessOptions {
   created: unknown;
   queryClient: QueryClient;
   onFallbackNavigate: () => void;
   onOrderDetailNavigate: (orderId: number) => void;
-};
+}
 
-export function getCreatedOrderId(created: unknown): number | undefined {
+export const getCreatedOrderId = (created: unknown): number | undefined => {
   if (
     typeof created !== "object" ||
     created === null ||
@@ -23,14 +23,14 @@ export function getCreatedOrderId(created: unknown): number | undefined {
 
   const { id } = created.data as { id?: unknown };
   return typeof id === "number" ? id : undefined;
-}
+};
 
-export async function handleCreatedOrderSuccess({
+export const handleCreatedOrderSuccess = async ({
   created,
   queryClient,
   onFallbackNavigate,
   onOrderDetailNavigate,
-}: HandleCreatedOrderSuccessOptions) {
+}: HandleCreatedOrderSuccessOptions) => {
   const orderId = getCreatedOrderId(created);
 
   await Promise.all([
@@ -47,4 +47,4 @@ export async function handleCreatedOrderSuccess({
   }
 
   onOrderDetailNavigate(orderId);
-}
+};

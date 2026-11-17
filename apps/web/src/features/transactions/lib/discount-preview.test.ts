@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  type PreviewCampaign,
-  previewDiscounts,
-  toDiscountLines,
-} from "./discount-preview";
+import { previewDiscounts, toDiscountLines } from "./discount-preview";
+import type { PreviewCampaign } from "./discount-preview";
 
 const campaign = (
   id: number,
@@ -27,6 +24,12 @@ const noDiscounts = {
   manualDiscount: "",
   deliveryFee: 0,
 };
+
+// Lines of an Order already placed, as Collect Payment reads them.
+const orderLine = (
+  service: { id: number; price: string | null },
+  price: string
+) => ({ price, service, status: "processing", complaint_id: null });
 
 describe("previewDiscounts", () => {
   test("never discounts the Delivery fee", () => {
@@ -135,11 +138,6 @@ describe("previewDiscounts", () => {
   test("a Repair is never the free one in a Buy N", () => {
     const repair = { id: 7, price: null };
     const deepClean = { id: 8, price: "50000" };
-    // Lines of an Order already placed, as Collect Payment reads them.
-    const orderLine = (
-      service: { id: number; price: string | null },
-      price: string
-    ) => ({ price, service, status: "processing", complaint_id: null });
     const lines = toDiscountLines([
       orderLine(repair, "10000"),
       ...Array.from({ length: 4 }, () => orderLine(deepClean, "50000")),

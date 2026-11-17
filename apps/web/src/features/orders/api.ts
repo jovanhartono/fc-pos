@@ -5,16 +5,12 @@ import type {
   POSTOrderSchema,
 } from "@fresclean/api/schema";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 import type { z } from "zod";
 
-import {
-  type PaginatedData,
-  type PhotoContentType,
-  parseSuccessData,
-  toPaginated,
-  toSearchParams,
-} from "@/lib/http";
+import { parseSuccessData, toPaginated, toSearchParams } from "@/lib/http";
+import type { PaginatedData, PhotoContentType } from "@/lib/http";
 import { rpc } from "@/lib/rpc";
 
 export type Order = InferResponseType<
@@ -48,7 +44,7 @@ export type QueueItem = InferResponseType<
 
 export type QueueItemService = QueueItem["services"][number];
 
-export type FetchOrdersQuery = {
+export interface FetchOrdersQuery {
   limit?: number;
   offset?: number;
   search?: string;
@@ -69,9 +65,9 @@ export type FetchOrdersQuery = {
   date_to?: string;
   paid_from?: string;
   paid_to?: string;
-};
+}
 
-export type FetchOrderServiceQueueQuery = {
+export interface FetchOrderServiceQueueQuery {
   limit?: number;
   offset?: number;
   search?: string;
@@ -89,7 +85,7 @@ export type FetchOrderServiceQueueQuery = {
   date_to?: string;
   category_id?: number;
   category_mode?: QueueCategoryMode;
-};
+}
 
 export type QueueCategoryMode = (typeof QUEUE_CATEGORY_MODES)[number];
 
@@ -111,7 +107,7 @@ export type OrderRefundReason =
   | "other"
   | "customer_cancelled";
 
-export type UpdateOrderServiceStatusPayload = {
+export interface UpdateOrderServiceStatusPayload {
   cancel_note?: string;
   cancel_reason?: OrderCancelReason;
   note?: string;
@@ -124,16 +120,16 @@ export type UpdateOrderServiceStatusPayload = {
     | "picked_up"
     | "refunded"
     | "cancelled";
-};
+}
 
 // ADR-0018: discounts go with the payment only for an Order that came in
 // unpriced; an Order whose discount settled at drop-off must send none.
-export type UpdateOrderPaymentPayload = {
+export interface UpdateOrderPaymentPayload {
   payment_method_id: number;
   campaign_ids: number[];
   voucher_codes: string[];
   discount: string;
-};
+}
 
 export type PaymentCharge = InferResponseType<
   (typeof rpc.api.admin.orders)[":id"]["payment-charges"][":chargeId"]["$get"]
@@ -146,53 +142,49 @@ export type CreatePaymentChargePayload = Omit<
 
 // A Repair's price, keyed once agreed with the Customer or re-keyed to fix a
 // typo while the Order is unpaid (ADR-0018).
-export type SetOrderServicePricePayload = {
+export interface SetOrderServicePricePayload {
   price: string;
-};
+}
 
-export type UpdateOrderCourierPayload = {
+export interface UpdateOrderCourierPayload {
   collected_by: number | null;
-};
+}
 
 export interface UpdateOrderDeliveryFeePayload {
   delivery_fee: string;
 }
 
-export type CreateOrderRefundPayload = {
+export interface CreateOrderRefundPayload {
   note?: string;
-  items: Array<
-    ({ order_service_id: number } | { order_product_id: number }) & {
-      reason: OrderRefundReason;
-      note?: string;
-    }
-  >;
-};
+  items: (({ order_service_id: number } | { order_product_id: number }) & {
+    reason: OrderRefundReason;
+    note?: string;
+  })[];
+}
 
-export type CancelOrderPayload = {
-  items: Array<
-    ({ order_service_id: number } | { order_product_id: number }) & {
-      reason: OrderCancelReason;
-      note?: string;
-    }
-  >;
-};
+export interface CancelOrderPayload {
+  items: (({ order_service_id: number } | { order_product_id: number }) & {
+    reason: OrderCancelReason;
+    note?: string;
+  })[];
+}
 
-export type PresignItemPhotoPayload = {
+export interface PresignItemPhotoPayload {
   content_type: PhotoContentType;
-};
+}
 
-export type SaveItemPhotoPayload = {
+export interface SaveItemPhotoPayload {
   image_path: string;
   note?: string;
-};
+}
 
-export type PresignOrderDropoffPhotoPayload = {
+export interface PresignOrderDropoffPhotoPayload {
   content_type: PhotoContentType;
-};
+}
 
-export type SaveOrderDropoffPhotoPayload = {
+export interface SaveOrderDropoffPhotoPayload {
   image_path: string;
-};
+}
 
 export type PresignOrderPickupEventPayload = z.infer<
   typeof POSTOrderPickupEventPresignSchema
@@ -202,16 +194,16 @@ export type CreateOrderPickupEventPayload = z.infer<
   typeof POSTOrderPickupEventSchema
 >;
 
-export type PhotoDownloadRef = {
+export interface PhotoDownloadRef {
   kind: "item" | "dropoff" | "pickup";
   id: number;
-};
+}
 
-type PresignedUpload = {
+interface PresignedUpload {
   upload_url: string;
   key: string;
   expires_in_seconds: number;
-};
+}
 
 // Every screen that shows an Order or one of its Items keys under "orders", so
 // a single prefix covers the order page, the /orders list and the /queue strip.
@@ -233,9 +225,9 @@ export const ordersKeys = {
     [...ordersKeys.queues(), query ?? {}] as const,
 };
 
-async function fetchOrdersPage(
+const fetchOrdersPage = async (
   query?: FetchOrdersQuery
-): Promise<PaginatedData<Order>> {
+): Promise<PaginatedData<Order>> => {
   const response = await parseResponse(
     rpc.api.admin.orders.$get({
       query:
@@ -246,35 +238,46 @@ async function fetchOrdersPage(
   );
 
   return toPaginated(response);
-}
+};
 
-export function fetchOrderDetail(id: number) {
-  return parseSuccessData<OrderDetail>(
+export const fetchOrderDetail = (id: number) =>
+  parseSuccessData<OrderDetail>(
     rpc.api.admin.orders[":id"].$get({
       param: { id: String(id) },
     })
   );
-}
 
-export function fetchOrderReceipt(id: number) {
-  return parseSuccessData<OrderReceipt>(
+export const fetchOrderReceipt = (id: number) =>
+  parseSuccessData<OrderReceipt>(
     rpc.api.admin.orders[":id"].receipt.$get({
       param: { id: String(id) },
     })
   );
-}
 
-export function fetchOrderService(orderId: number, serviceId: number) {
-  return parseSuccessData<OrderServiceDetail>(
+export const fetchOrderService = (orderId: number, serviceId: number) =>
+  parseSuccessData<OrderServiceDetail>(
     rpc.api.admin.orders[":id"].services[":serviceId"].$get({
       param: { id: String(orderId), serviceId: String(serviceId) },
     })
   );
-}
 
-async function fetchOrderServiceQueuePage(
+export const fetchPaymentCharge = (orderId: number, chargeId: number) =>
+  parseSuccessData<PaymentCharge>(
+    rpc.api.admin.orders[":id"]["payment-charges"][":chargeId"].$get({
+      param: { id: String(orderId), chargeId: String(chargeId) },
+    })
+  );
+
+export const fetchOpenPaymentCharge = (orderId: number) =>
+  parseSuccessData<PaymentCharge | null>(
+    rpc.api.admin.orders[":id"]["payment-charges"].open.$get({
+      param: { id: String(orderId) },
+    })
+  );
+
+const fetchOrderServiceQueuePage = async (
   query?: FetchOrderServiceQueueQuery
-): Promise<PaginatedData<QueueItem>> {
+): Promise<PaginatedData<QueueItem>> => {
   const response = await parseResponse(
     rpc.api.admin.orders.services.queue.$get({
       query:
@@ -283,7 +286,7 @@ async function fetchOrderServiceQueuePage(
   );
 
   return toPaginated(response);
-}
+};
 
 export const ordersQueries = {
   list: (query?: FetchOrdersQuery) =>
@@ -339,167 +342,138 @@ export const ordersQueries = {
     }),
 };
 
-export function createOrder(payload: CreateOrderPayload) {
-  return parseResponse(rpc.api.admin.orders.$post({ json: payload }));
-}
+export const createOrder = (payload: CreateOrderPayload) =>
+  parseResponse(rpc.api.admin.orders.$post({ json: payload }));
 
-export function lookupQueueTarget(q: string) {
-  return parseSuccessData<OrderLookup>(
+export const lookupQueueTarget = (q: string) =>
+  parseSuccessData<OrderLookup>(
     rpc.api.admin.orders.lookup.$get({ query: { q } })
   );
-}
 
-export function updateOrderServiceStatus(
+export const updateOrderServiceStatus = (
   orderId: number,
   serviceId: number,
   payload: UpdateOrderServiceStatusPayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.orders[":id"].services[":serviceId"].status.$patch({
       param: { id: String(orderId), serviceId: String(serviceId) },
       json: payload,
     })
   );
-}
 
-export function updateOrderPayment(
+export const updateOrderPayment = (
   orderId: number,
   payload: UpdateOrderPaymentPayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.orders[":id"].payment.$patch({
       param: { id: String(orderId) },
       json: payload,
     })
   );
-}
 
-export function createPaymentCharge(
+export const createPaymentCharge = (
   orderId: number,
   payload: CreatePaymentChargePayload
-) {
-  return parseSuccessData<PaymentCharge>(
+) =>
+  parseSuccessData<PaymentCharge>(
     rpc.api.admin.orders[":id"]["payment-charges"].$post({
       param: { id: String(orderId) },
       json: payload,
     })
   );
-}
 
-export function fetchPaymentCharge(orderId: number, chargeId: number) {
-  return parseSuccessData<PaymentCharge>(
-    rpc.api.admin.orders[":id"]["payment-charges"][":chargeId"].$get({
-      param: { id: String(orderId), chargeId: String(chargeId) },
-    })
-  );
-}
-
-export function fetchOpenPaymentCharge(orderId: number) {
-  return parseSuccessData<PaymentCharge | null>(
-    rpc.api.admin.orders[":id"]["payment-charges"].open.$get({
-      param: { id: String(orderId) },
-    })
-  );
-}
-
-export function cancelPaymentCharge(orderId: number, chargeId: number) {
-  return parseSuccessData<PaymentCharge>(
+export const cancelPaymentCharge = (orderId: number, chargeId: number) =>
+  parseSuccessData<PaymentCharge>(
     rpc.api.admin.orders[":id"]["payment-charges"][":chargeId"].cancel.$post({
       param: { id: String(orderId), chargeId: String(chargeId) },
     })
   );
-}
 
-export function setOrderServicePrice(
+export const setOrderServicePrice = (
   orderId: number,
   serviceId: number,
   payload: SetOrderServicePricePayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.orders[":id"].services[":serviceId"].price.$patch({
       param: { id: String(orderId), serviceId: String(serviceId) },
       json: payload,
     })
   );
-}
 
-export function updateOrderCourier(
+export const updateOrderCourier = (
   orderId: number,
   payload: UpdateOrderCourierPayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.orders[":id"].courier.$patch({
       param: { id: String(orderId) },
       json: payload,
     })
   );
-}
 
-export function updateOrderDeliveryFee(
+export const updateOrderDeliveryFee = (
   orderId: number,
   payload: UpdateOrderDeliveryFeePayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.orders[":id"]["delivery-fee"].$patch({
       param: { id: String(orderId) },
       json: payload,
     })
   );
-}
 
-export function createOrderRefund(
+export const createOrderRefund = (
   orderId: number,
   payload: CreateOrderRefundPayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.orders[":id"].refunds.$post({
       param: { id: String(orderId) },
       json: payload,
     })
   );
-}
 
-export function cancelOrder(orderId: number, payload: CancelOrderPayload) {
-  return parseResponse(
+export const cancelOrder = (orderId: number, payload: CancelOrderPayload) =>
+  parseResponse(
     rpc.api.admin.orders[":id"].cancel.$post({
       param: { id: String(orderId) },
       json: payload,
     })
   );
-}
 
-export function presignItemPhoto(
+export const presignItemPhoto = (
   orderId: number,
   itemId: number,
   payload: PresignItemPhotoPayload
-) {
-  return parseSuccessData<PresignedUpload>(
+) =>
+  parseSuccessData<PresignedUpload>(
     rpc.api.admin.orders[":id"].items[":itemId"].photos.presign.$post({
       param: { id: String(orderId), itemId: String(itemId) },
       json: payload,
     })
   );
-}
 
-export function saveItemPhoto(
+export const saveItemPhoto = (
   orderId: number,
   itemId: number,
   payload: SaveItemPhotoPayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.orders[":id"].items[":itemId"].photos.$post({
       param: { id: String(orderId), itemId: String(itemId) },
       json: payload,
     })
   );
-}
 
-export function deleteItemPhoto(
+export const deleteItemPhoto = (
   orderId: number,
   itemId: number,
   photoId: number
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.orders[":id"].items[":itemId"].photos[":photoId"].$delete({
       param: {
         id: String(orderId),
@@ -508,66 +482,59 @@ export function deleteItemPhoto(
       },
     })
   );
-}
 
-export function presignOrderDropoffPhoto(
+export const presignOrderDropoffPhoto = (
   orderId: number,
   payload: PresignOrderDropoffPhotoPayload
-) {
-  return parseSuccessData<PresignedUpload>(
+) =>
+  parseSuccessData<PresignedUpload>(
     rpc.api.admin.orders[":id"]["dropoff-photo"].presign.$post({
       param: { id: String(orderId) },
       json: payload,
     })
   );
-}
 
-export function saveOrderDropoffPhoto(
+export const saveOrderDropoffPhoto = (
   orderId: number,
   payload: SaveOrderDropoffPhotoPayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.orders[":id"]["dropoff-photo"].$put({
       param: { id: String(orderId) },
       json: payload,
     })
   );
-}
 
-export function presignOrderPickupEvent(
+export const presignOrderPickupEvent = (
   orderId: number,
   payload: PresignOrderPickupEventPayload
-) {
-  return parseSuccessData<PresignedUpload>(
+) =>
+  parseSuccessData<PresignedUpload>(
     rpc.api.admin.orders[":id"]["pickup-events"].presign.$post({
       param: { id: String(orderId) },
       json: payload,
     })
   );
-}
 
-export function createOrderPickupEvent(
+export const createOrderPickupEvent = (
   orderId: number,
   payload: CreateOrderPickupEventPayload
-) {
-  return parseResponse(
+) =>
+  parseResponse(
     rpc.api.admin.orders[":id"]["pickup-events"].$post({
       param: { id: String(orderId) },
       json: payload,
     })
   );
-}
 
-export function createOrderPickupNotice(orderId: number) {
-  return parseResponse(
+export const createOrderPickupNotice = (orderId: number) =>
+  parseResponse(
     rpc.api.admin.orders[":id"]["pickup-notices"].$post({
       param: { id: String(orderId) },
     })
   );
-}
 
-export function createPhotoDownloadUrl(photo: PhotoDownloadRef) {
-  return parseSuccessData<{ url: string }>(
+export const createPhotoDownloadUrl = (photo: PhotoDownloadRef) =>
+  parseSuccessData<{ url: string }>(
     rpc.api.admin.photos["download-url"].$post({ json: photo })
   );
-}

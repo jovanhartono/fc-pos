@@ -1,3 +1,4 @@
+/* oxlint-disable no-bitwise -- ESC/POS commands are raw bytes */
 const ESC = 0x1b;
 const GS = 0x1d;
 
@@ -13,10 +14,10 @@ export interface RasterBitmap {
 // garbage, so text is coerced to plain ASCII before encoding.
 export const toPrintableAscii = (value: string): string =>
   value
-    .replaceAll("\u00a0", " ")
+    .replaceAll("\u00A0", " ")
     .replaceAll("·", "-")
     .normalize("NFKD")
-    .replaceAll(/[^\n -~]/g, "");
+    .replaceAll(/[^\n -~]/gu, "");
 
 export class EscPosBuilder {
   private readonly bytes: number[] = [];

@@ -8,12 +8,12 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import { cn } from "@/lib/utils";
 
-export type ComboboxOption = {
+export interface ComboboxOption {
   value: string;
   label: string;
-};
+}
 
-type ComboboxProps = {
+interface ComboboxProps {
   id?: string;
   required?: boolean;
   options: ComboboxOption[];
@@ -27,9 +27,9 @@ type ComboboxProps = {
   disabled?: boolean;
   className?: string;
   triggerClassName?: string;
-};
+}
 
-export function Combobox({
+export const Combobox = ({
   id,
   required,
   options,
@@ -43,7 +43,7 @@ export function Combobox({
   className,
   triggerClassName,
   onInputChange,
-}: ComboboxProps) {
+}: ComboboxProps) => {
   const selectedOption =
     options.find((option) => option.value === value) ?? null;
 
@@ -131,7 +131,6 @@ export function Combobox({
             </ComboboxPrimitive.List>
 
             <ComboboxPrimitive.Empty className="px-2 py-3 text-footnote text-muted-foreground">
-              {/* biome-ignore lint/suspicious/noLeakedRender: emptyText is a string prop, so no 0 or NaN can reach the DOM */}
               {loading ? "Loading options..." : emptyText}
             </ComboboxPrimitive.Empty>
           </ComboboxPrimitive.Popup>
@@ -139,4 +138,4 @@ export function Combobox({
       </ComboboxPrimitive.Portal>
     </ComboboxPrimitive.Root>
   );
-}
+};

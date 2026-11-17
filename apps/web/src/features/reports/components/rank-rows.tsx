@@ -23,7 +23,7 @@ export const shareNote = (value: number, total: number) =>
 // Stores, Categories and Services rank the same way on the Financial tab, so
 // an owner reads each "who earns the most" list without relearning it.
 export const RankRows = ({ rows }: RankRowsProps) => {
-  const max = rows.reduce((m, row) => Math.max(m, row.value), 0);
+  const max = Math.max(0, ...rows.map((row) => row.value));
   return (
     <div className="grid grid-cols-1 gap-3">
       {rows.map((row) => (

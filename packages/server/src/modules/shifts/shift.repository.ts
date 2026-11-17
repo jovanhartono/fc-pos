@@ -13,10 +13,8 @@ import {
 import { db } from "@/db";
 import { shiftsTable, usersTable } from "@/db/schema";
 import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
-import {
-  FORGOTTEN_SHIFT_HOURS,
-  type GetShiftsQuery,
-} from "@/modules/shifts/shift.schema";
+import { FORGOTTEN_SHIFT_HOURS } from "@/modules/shifts/shift.schema";
+import type { GetShiftsQuery } from "@/modules/shifts/shift.schema";
 import { jakartaDayEnd, jakartaDayStart } from "@/utils/date";
 
 export interface InsertShiftValues {
@@ -27,17 +25,16 @@ export interface InsertShiftValues {
   user_id: number;
 }
 
-export function insertShift(values: InsertShiftValues) {
-  return db
+export const insertShift = (values: InsertShiftValues) =>
+  db
     .insert(shiftsTable)
     .values(values)
     .returning()
     .then((rows) => rows[0]);
-}
 
 // An Auto-closed Shift gets a normal day, capped at midnight, so payroll pays
 // no overtime nobody worked (ADR-0025). Cron, clock-in and clock-out share it.
-export function closeOpenShiftsBefore(cutoff: Date, userId?: number) {
+export const closeOpenShiftsBefore = (cutoff: Date, userId?: number) => {
   // The SQL twin of jakartaDayStart(clock-in) + 1 day; timestamps are UTC wall clock.
   const nextMidnight = sql`((date_trunc('day', (${shiftsTable.clock_in_at} AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Jakarta') + interval '1 day') AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'UTC'`;
   return db
@@ -54,10 +51,10 @@ export function closeOpenShiftsBefore(cutoff: Date, userId?: number) {
       )
     )
     .returning();
-}
+};
 
-export function findOpenShiftByUserId(userId: number) {
-  return db.query.shiftsTable.findFirst({
+export const findOpenShiftByUserId = (userId: number) =>
+  db.query.shiftsTable.findFirst({
     where: {
       user_id: userId,
       clock_out_at: { isNull: true },
@@ -68,10 +65,9 @@ export function findOpenShiftByUserId(userId: number) {
       },
     },
   });
-}
 
-export function updateOpenShiftClockOutByUserId(userId: number) {
-  return db
+export const updateOpenShiftClockOutByUserId = (userId: number) =>
+  db
     .update(shiftsTable)
     .set({ clock_out_at: new Date() })
     .where(
@@ -79,22 +75,19 @@ export function updateOpenShiftClockOutByUserId(userId: number) {
     )
     .returning()
     .then((rows) => rows[0] ?? null);
-}
 
-export function findShiftById(shiftId: number) {
-  return db.query.shiftsTable.findFirst({ where: { id: shiftId } });
-}
+export const findShiftById = (shiftId: number) =>
+  db.query.shiftsTable.findFirst({ where: { id: shiftId } });
 
-export function findLatestShiftByUserId(userId: number) {
-  return db.query.shiftsTable.findFirst({
+export const findLatestShiftByUserId = (userId: number) =>
+  db.query.shiftsTable.findFirst({
     where: { user_id: userId },
     orderBy: { clock_in_at: "desc" },
   });
-}
 
 // Another Shift of the same worker sharing any moment with [clockIn, clockOut).
 // An open Shift runs on with no end.
-export function findOverlappingShift({
+export const findOverlappingShift = ({
   shiftId,
   userId,
   clockIn,
@@ -104,8 +97,8 @@ export function findOverlappingShift({
   userId: number;
   clockIn: Date;
   clockOut?: Date;
-}) {
-  return db.query.shiftsTable.findFirst({
+}) =>
+  db.query.shiftsTable.findFirst({
     where: {
       id: { ne: shiftId ?? EmptyFilter },
       user_id: userId,
@@ -116,9 +109,8 @@ export function findOverlappingShift({
       ],
     },
   });
-}
 
-export function updateShiftById(
+export const updateShiftById = (
   shiftId: number,
   values: {
     clock_in_at: Date;
@@ -126,8 +118,8 @@ export function updateShiftById(
     edited_by: number;
     store_id: number;
   }
-) {
-  return db
+) =>
+  db
     .update(shiftsTable)
     .set({ ...values, auto_closed: false })
     .where(
@@ -141,17 +133,15 @@ export function updateShiftById(
     )
     .returning()
     .then((rows) => rows[0] ?? null);
-}
 
-export function deleteShiftById(shiftId: number) {
-  return db
+export const deleteShiftById = (shiftId: number) =>
+  db
     .delete(shiftsTable)
     .where(eq(shiftsTable.id, shiftId))
     .returning()
     .then((rows) => rows[0] ?? null);
-}
 
-function buildCountWhere(query?: GetShiftsQuery) {
+const buildCountWhere = (query?: GetShiftsQuery) => {
   const conditions = [
     query?.user_id === undefined
       ? undefined
@@ -168,9 +158,9 @@ function buildCountWhere(query?: GetShiftsQuery) {
   ].filter((condition) => condition !== undefined);
 
   return conditions.length > 0 ? and(...conditions) : undefined;
-}
+};
 
-export function listShifts({
+export const listShifts = ({
   limit,
   offset,
   query,
@@ -178,8 +168,8 @@ export function listShifts({
   limit: number;
   offset: number;
   query?: GetShiftsQuery;
-}) {
-  return db.query.shiftsTable.findMany({
+}) =>
+  db.query.shiftsTable.findMany({
     where: {
       user_id: query?.user_id ?? EmptyFilter,
       store_id: query?.store_id ?? EmptyFilter,
@@ -211,16 +201,14 @@ export function listShifts({
     limit,
     offset,
   });
-}
 
-export function countShifts(query?: GetShiftsQuery) {
-  return db.$count(shiftsTable, buildCountWhere(query));
-}
+export const countShifts = (query?: GetShiftsQuery) =>
+  db.$count(shiftsTable, buildCountWhere(query));
 
 // One row per worker, Store and Jakarta day: the weekly meal fee is paid per
 // day worked, so two Shifts on one day still count once. A picked Store keeps
 // everyone who worked there, with their days at every Store.
-export function listShiftDays({
+export const listShiftDays = ({
   from,
   to,
   storeId,
@@ -228,7 +216,7 @@ export function listShiftDays({
   from: string;
   to: string;
   storeId?: number;
-}) {
+}) => {
   const workedAtStore =
     storeId === undefined
       ? undefined
@@ -271,4 +259,4 @@ export function listShiftDays({
       day
     )
     .orderBy(day);
-}
+};

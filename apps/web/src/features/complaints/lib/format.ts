@@ -1,7 +1,5 @@
-import {
-  type ComplaintOutcome as ComplaintOutcomeKey,
-  complaintOutcome,
-} from "@fresclean/api/rules";
+import { complaintOutcome } from "@fresclean/api/rules";
+import type { ComplaintOutcome as ComplaintOutcomeKey } from "@fresclean/api/rules";
 import type { ItemNameFields } from "@fresclean/api/types";
 
 import {

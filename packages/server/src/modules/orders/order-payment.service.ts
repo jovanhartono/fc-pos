@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
-import { type DbExecutor, db } from "@/db";
+import { db } from "@/db";
+import type { DbExecutor } from "@/db";
 import { ordersTable } from "@/db/schema";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import type { PatchOrderPaymentInput } from "@/modules/orders/order-admin.schema";
@@ -8,15 +9,15 @@ import { findOrderState } from "@/modules/orders/order-read.repository";
 import {
   assertDiscountRequestAllowed,
   assertPayable,
-  type DiscountRequest,
   previewDiscount,
-  type SettleDiscountInput,
   settleDiscount,
 } from "@/modules/orders/order-settlement.service";
-import {
-  findSettlementLines,
-  type OrderTx,
-} from "@/modules/orders/order.repository";
+import type {
+  DiscountRequest,
+  SettleDiscountInput,
+} from "@/modules/orders/order-settlement.service";
+import { findSettlementLines } from "@/modules/orders/order.repository";
+import type { OrderTx } from "@/modules/orders/order.repository";
 import { findPaymentMethodById } from "@/modules/payment-methods/payment-method.repository";
 import { cancelOrderPendingCharges } from "@/modules/payments/payment-charge-close";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";
@@ -32,11 +33,11 @@ export class NetDueChangedError extends Error {
   }
 }
 
-async function findPayableOrder(
+const findPayableOrder = async (
   executor: DbExecutor,
   orderId: number,
   request: DiscountRequest
-) {
+) => {
   const order = await findOrderState(executor, orderId);
 
   if (!order) {
@@ -80,14 +81,14 @@ async function findPayableOrder(
   };
 
   return { discountInput, order };
-}
+};
 
 // What a counter QRIS asks for, without spending the Voucher code: the
 // Customer may still walk away from the QR.
-export async function quoteOrderNetDue(
+export const quoteOrderNetDue = async (
   orderId: number,
   request: DiscountRequest
-) {
+) => {
   const payable = await findPayableOrder(db, orderId, request);
 
   if (!payable) {
@@ -102,7 +103,7 @@ export async function quoteOrderNetDue(
     refunded: Number(payable.order.refunded_amount),
     deliveryFee: Number(payable.order.delivery_fee),
   });
-}
+};
 
 interface MarkOrderPaidInput {
   // null when the Customer paid online from the Track page.
@@ -114,16 +115,7 @@ interface MarkOrderPaidInput {
   tx?: OrderTx;
 }
 
-// Shared by the cashier's Mark as paid and a gateway confirming the money.
-export function markOrderPaid({ tx, ...input }: MarkOrderPaidInput) {
-  // Read inside the transaction, so a price set mid-payment cannot leave the
-  // Customer paying a total that no longer matches their lines.
-  return tx
-    ? markOrderPaidIn(tx, input)
-    : db.transaction((newTx) => markOrderPaidIn(newTx, input));
-}
-
-async function markOrderPaidIn(
+const markOrderPaidIn = async (
   tx: OrderTx,
   {
     actorId,
@@ -132,7 +124,7 @@ async function markOrderPaidIn(
     paymentMethodId,
     request,
   }: Omit<MarkOrderPaidInput, "tx">
-) {
+) => {
   const payable = await findPayableOrder(tx, orderId, request);
 
   if (!payable) {
@@ -183,11 +175,19 @@ async function markOrderPaidIn(
   }
 
   return rows[0];
-}
+};
+
+// Shared by the cashier's Mark as paid and a gateway confirming the money.
+export const markOrderPaid = ({ tx, ...input }: MarkOrderPaidInput) =>
+  // Read inside the transaction, so a price set mid-payment cannot leave the
+  // Customer paying a total that no longer matches their lines.
+  tx
+    ? markOrderPaidIn(tx, input)
+    : db.transaction((newTx) => markOrderPaidIn(newTx, input));
 
 // A cashier keys money they took themselves. The gateway's PaymentMethod would
 // put cash on the gateway's Day close line with nothing behind it.
-export async function assertCashierPaymentMethod(id: number) {
+export const assertCashierPaymentMethod = async (id: number) => {
   const method = await findPaymentMethodById(id);
   if (!method) {
     throw new NotFoundException("Payment method not found");
@@ -198,9 +198,9 @@ export async function assertCashierPaymentMethod(id: number) {
   if (method.gateway !== null) {
     throw new BadRequestException(`${method.name} takes online payments only`);
   }
-}
+};
 
-export async function updateOrderPayment({
+export const updateOrderPayment = async ({
   orderId,
   body,
   user,
@@ -208,7 +208,7 @@ export async function updateOrderPayment({
   orderId: number;
   body: PatchOrderPaymentInput;
   user: JWTPayload;
-}) {
+}) => {
   assertCanProcessPayment(user);
   await assertCashierPaymentMethod(body.payment_method_id);
 
@@ -225,4 +225,4 @@ export async function updateOrderPayment({
   }
 
   return payment;
-}
+};

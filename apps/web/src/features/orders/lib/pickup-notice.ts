@@ -61,7 +61,7 @@ export const buildPickupNoticeMessage = ({
 
 // Customers' numbers are stored as +62812…; wa.me wants the digits only.
 export const whatsappUrl = (phone: string, text: string): string =>
-  `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
+  `https://wa.me/${phone.replaceAll(/\D/gu, "")}?text=${encodeURIComponent(text)}`;
 
 export const formatNoticeTime = (value: string): string =>
   dayjs(value).format("D MMM, HH:mm");

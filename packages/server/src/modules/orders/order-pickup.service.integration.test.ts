@@ -1,9 +1,10 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it, mock } from "bun:test";
 
+import "@/test-support/pglite";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // The handover and the move to picked_up are one transaction, so an Item that

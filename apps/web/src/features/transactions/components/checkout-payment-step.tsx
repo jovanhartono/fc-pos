@@ -21,18 +21,82 @@ import {
   paymentMethodsQueries,
   toCounterPaymentMethodOptions,
 } from "@/features/payment-methods/api";
-import {
-  countUnpricedServiceLines,
-  type TransactionDraftValues,
+import { countUnpricedServiceLines } from "@/features/transactions/cart/cart";
+import type {
+  AppliedVoucher,
+  TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
-import { useCart } from "@/features/transactions/cart/useCart";
+import { useCart } from "@/features/transactions/cart/use-cart";
 import { CampaignTileGroup } from "@/features/transactions/components/campaign-tile-group";
 import { DiscountPreviewRows } from "@/features/transactions/components/discount-preview-rows";
 import { VoucherCodeEntry } from "@/features/transactions/components/voucher-code-entry";
-import { useCheckoutPricing } from "@/features/transactions/hooks/useCheckoutPricing";
+import { useCheckoutPricing } from "@/features/transactions/hooks/use-checkout-pricing";
 import { useTransactionsPageContext } from "@/features/transactions/lib/transactions-context";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
+
+const NO_VOUCHERS: AppliedVoucher[] = [];
+
+const PAYMENT_METHOD_RADIO_NAME = "checkout-payment-method";
+
+interface PaymentMethodTileProps {
+  label: string;
+  hint?: string;
+  value: string;
+  isSelected: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+}
+
+const PaymentMethodTile = ({
+  label,
+  hint,
+  value,
+  isSelected,
+  disabled,
+  onSelect,
+}: PaymentMethodTileProps) => (
+  <label
+    className={cn(
+      "flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50 motion-reduce:active:scale-100",
+      isSelected
+        ? "border-primary bg-primary text-primary-foreground"
+        : "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",
+      disabled &&
+        "cursor-not-allowed opacity-50 hover:border-border/70 hover:bg-transparent active:scale-100"
+    )}
+  >
+    <input
+      checked={isSelected}
+      className="sr-only"
+      disabled={disabled}
+      name={PAYMENT_METHOD_RADIO_NAME}
+      onChange={onSelect}
+      type="radio"
+      value={value}
+    />
+    <span className="flex flex-col">
+      <span className="text-body font-medium">{label}</span>
+      {hint ? (
+        <span
+          className={cn(
+            "text-caption",
+            isSelected ? "text-primary-foreground/70" : "text-muted-foreground"
+          )}
+        >
+          {hint}
+        </span>
+      ) : null}
+    </span>
+    {isSelected ? (
+      <HugeiconsIcon
+        icon={Tick02Icon}
+        className="size-4 shrink-0"
+        strokeWidth={2}
+      />
+    ) : null}
+  </label>
+);
 
 // A discount settles once every line is priced, not once money arrives
 // (ADR-0018), so a Customer paying at pickup still gets it on the Receipt.
@@ -49,7 +113,7 @@ export const CheckoutPaymentStep = () => {
   const { serviceRows } = useCart();
   const form = useFormContext<TransactionDraftValues>();
   const appliedVouchers =
-    useWatch({ control: form.control, name: "appliedVouchers" }) ?? [];
+    useWatch({ control: form.control, name: "appliedVouchers" }) ?? NO_VOUCHERS;
   const selectedStoreId =
     useWatch({ control: form.control, name: "selectedStoreId" }) ?? "";
   const paymentMethodsQuery = useQuery(paymentMethodsQueries.list());
@@ -187,7 +251,7 @@ export const CheckoutPaymentStep = () => {
             </FieldLabel>
             <CurrencyInput
               id="transaction-delivery-fee"
-              onValueChange={field.onChange}
+              onValueChange={(value) => field.onChange(value)}
               value={field.value ?? ""}
             />
             <FieldError errors={[fieldState.error]} />
@@ -207,7 +271,7 @@ export const CheckoutPaymentStep = () => {
                   eligibleCampaigns={eligibleCampaigns}
                   hasStore={selectedStoreNumber !== undefined}
                   isLoading={campaignsQuery.isLoading}
-                  onChange={field.onChange}
+                  onChange={(ids) => field.onChange(ids)}
                   selectedIds={field.value}
                 />
                 <VoucherCodeEntry
@@ -237,7 +301,7 @@ export const CheckoutPaymentStep = () => {
                 </FieldLabel>
                 <CurrencyInput
                   id="transaction-discount"
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => field.onChange(value)}
                   value={field.value}
                 />
                 <FieldError errors={[fieldState.error]} />
@@ -288,64 +352,3 @@ export const CheckoutPaymentStep = () => {
     </div>
   );
 };
-
-const PAYMENT_METHOD_RADIO_NAME = "checkout-payment-method";
-
-interface PaymentMethodTileProps {
-  label: string;
-  hint?: string;
-  value: string;
-  isSelected: boolean;
-  disabled?: boolean;
-  onSelect: () => void;
-}
-
-const PaymentMethodTile = ({
-  label,
-  hint,
-  value,
-  isSelected,
-  disabled,
-  onSelect,
-}: PaymentMethodTileProps) => (
-  <label
-    className={cn(
-      "flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:border-ring has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50 motion-reduce:active:scale-100",
-      isSelected
-        ? "border-primary bg-primary text-primary-foreground"
-        : "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40",
-      disabled &&
-        "cursor-not-allowed opacity-50 hover:border-border/70 hover:bg-transparent active:scale-100"
-    )}
-  >
-    <input
-      checked={isSelected}
-      className="sr-only"
-      disabled={disabled}
-      name={PAYMENT_METHOD_RADIO_NAME}
-      onChange={onSelect}
-      type="radio"
-      value={value}
-    />
-    <span className="flex flex-col">
-      <span className="text-body font-medium">{label}</span>
-      {hint ? (
-        <span
-          className={cn(
-            "text-caption",
-            isSelected ? "text-primary-foreground/70" : "text-muted-foreground"
-          )}
-        >
-          {hint}
-        </span>
-      ) : null}
-    </span>
-    {isSelected ? (
-      <HugeiconsIcon
-        icon={Tick02Icon}
-        className="size-4 shrink-0"
-        strokeWidth={2}
-      />
-    ) : null}
-  </label>
-);

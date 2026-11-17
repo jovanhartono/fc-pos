@@ -1,7 +1,6 @@
 import { ArrowRight01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
@@ -15,7 +14,7 @@ import type { WorkerRow } from "@/features/reports/api";
 import { Pace, PersonName } from "@/features/reports/components/person-cells";
 import { StoreGroup } from "@/features/reports/components/store-group";
 import { BadCount } from "@/features/reports/components/tone-chip";
-import { useStoreCodes } from "@/features/reports/hooks/useStoreCodes";
+import { useStoreCodes } from "@/features/reports/hooks/use-store-codes";
 import {
   numberFormatter,
   paceText,
@@ -28,7 +27,8 @@ import {
   sinceText,
 } from "@/features/reports/utils/workers-report";
 import { storesQueries } from "@/features/stores/api";
-import { useMinuteClock } from "@/hooks/useMinuteClock";
+import { useMinuteClock } from "@/hooks/use-minute-clock";
+import { useMountValue } from "@/hooks/use-mount-value";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
 type Live = WorkerRow["live"];
@@ -127,6 +127,14 @@ export const HelpHeader = ({ label, help }: HelpHeaderProps) => (
   </Tooltip>
 );
 
+export const OpenArrow = () => (
+  <HugeiconsIcon
+    icon={ArrowRight01Icon}
+    aria-hidden="true"
+    className="size-3.5 text-muted-foreground"
+  />
+);
+
 const columnsFor = (now: number): DataTableColumnDef<WorkerRow>[] => [
   {
     accessorKey: "user_name",
@@ -197,14 +205,6 @@ const columnsFor = (now: number): DataTableColumnDef<WorkerRow>[] => [
     cell: () => <OpenArrow />,
   },
 ];
-
-export const OpenArrow = () => (
-  <HugeiconsIcon
-    icon={ArrowRight01Icon}
-    aria-hidden="true"
-    className="size-3.5 text-muted-foreground"
-  />
-);
 
 interface WorkerCardProps {
   row: WorkerRow;
@@ -315,7 +315,7 @@ export const WorkersTable = ({
   const storeCodes = useStoreCodes();
   // Fixed at mount: the live view re-sorts every minute, and a Store the
   // owner closed must not pop open because another overtook it.
-  const [firstStoreId] = useState(() => groupByStore(workers)[0]?.store_id);
+  const firstStoreId = useMountValue(() => groupByStore(workers)[0]?.store_id);
   if (workers.length === 0) {
     return <EmptyState icon={UserGroupIcon}>No worker activity</EmptyState>;
   }

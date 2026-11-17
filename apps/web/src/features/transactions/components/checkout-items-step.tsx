@@ -29,17 +29,19 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCategoryMap } from "@/features/categories/hooks/useCategoryMap";
+import { useCategoryMap } from "@/features/categories/hooks/use-category-map";
 import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoCaptureDialog } from "@/features/orders/components/photo-upload-dialog";
 import {
   getServiceLinePrice,
-  type ItemCartDisplayLine,
   isUnpricedServiceLine,
-  type ServiceCartDisplayLine,
-  type TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
-import { useCart, useCartOps } from "@/features/transactions/cart/useCart";
+import type {
+  ItemCartDisplayLine,
+  ServiceCartDisplayLine,
+  TransactionDraftValues,
+} from "@/features/transactions/cart/cart";
+import { useCart, useCartOps } from "@/features/transactions/cart/use-cart";
 import { RemoveLineButton } from "@/features/transactions/components/remove-line-button";
 import { getEntityCategoryName } from "@/features/transactions/lib/transactions";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
@@ -61,120 +63,6 @@ const ITEM_FIELDS: ItemFieldSpec[] = [
   { key: "color", label: "Color", placeholder: "e.g. Black" },
   { key: "size", label: "Size", placeholder: "e.g. 42" },
 ];
-
-export const CheckoutItemsStep = () => {
-  const { removeProduct, updateProductQty, productRows, itemRows, addItem } =
-    useCart();
-  const form = useFormContext<TransactionDraftValues>();
-  const categoryMap = useCategoryMap();
-
-  return (
-    <div className="grid gap-5">
-      <CheckoutDropoffPhotoField />
-
-      <div className="grid gap-3">
-        {productRows.length === 0 && itemRows.length === 0 ? (
-          <EmptyState icon={ShoppingCart01Icon}>Cart is empty.</EmptyState>
-        ) : null}
-
-        {productRows.map((line) => (
-          <div
-            className="grid gap-3 rounded-md border border-border/70 p-3"
-            key={`product-${line.id}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-body font-medium">{line.product.name}</p>
-                <p className="text-footnote text-muted-foreground">
-                  Product | {getEntityCategoryName(line.product, categoryMap)}
-                </p>
-              </div>
-              <RemoveLineButton
-                label={`Remove ${line.product.name}`}
-                onClick={() => removeProduct(line.id)}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Button
-                  aria-label="Decrease quantity"
-                  className="size-11"
-                  onClick={() =>
-                    updateProductQty(
-                      line.id,
-                      line.qty - 1,
-                      Number(line.product.stock ?? line.qty)
-                    )
-                  }
-                  size="icon-xs"
-                  type="button"
-                  variant="outline"
-                >
-                  -
-                </Button>
-                <div className="min-w-10 text-center text-body font-medium">
-                  {line.qty}
-                </div>
-                <Button
-                  aria-label="Increase quantity"
-                  className="size-11"
-                  disabled={line.qty >= Number(line.product.stock ?? line.qty)}
-                  onClick={() =>
-                    updateProductQty(
-                      line.id,
-                      line.qty + 1,
-                      Number(line.product.stock ?? line.qty)
-                    )
-                  }
-                  size="icon-xs"
-                  type="button"
-                  variant="outline"
-                >
-                  +
-                </Button>
-              </div>
-              <p className="text-body font-medium tabular-nums">
-                {formatMoney(parseMoney(line.product.price) * line.qty)}
-              </p>
-            </div>
-          </div>
-        ))}
-
-        {itemRows.map((item, index) => (
-          <CheckoutItemCard
-            allItems={itemRows}
-            item={item}
-            itemNumber={index + 1}
-            key={item.line_id}
-          />
-        ))}
-
-        {itemRows.length > 0 ? (
-          <Button onClick={addItem} type="button" variant="outline">
-            + New item
-          </Button>
-        ) : null}
-      </div>
-
-      <Controller
-        control={form.control}
-        name="notes"
-        render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="transaction-notes">Order note</FieldLabel>
-            <Textarea
-              id="transaction-notes"
-              onChange={field.onChange}
-              placeholder="Add notes"
-              value={field.value}
-            />
-            <FieldError errors={[fieldState.error]} />
-          </Field>
-        )}
-      />
-    </div>
-  );
-};
 
 interface MoveTarget {
   item: ItemCartDisplayLine;
@@ -398,6 +286,7 @@ const CheckoutDropoffPhotoField = () => {
 
   useEffect(() => {
     if (!dropoffPhoto) {
+      // oxlint-disable-next-line react/set-state-in-effect -- the preview is an object URL made from the store's photo and freed here
       setPreviewUrl(null);
       // After Reset, a lightbox left open would pop up again over the next
       // Customer's drop-off photo.
@@ -502,5 +391,119 @@ const CheckoutDropoffPhotoField = () => {
         />
       ) : null}
     </>
+  );
+};
+
+export const CheckoutItemsStep = () => {
+  const { removeProduct, updateProductQty, productRows, itemRows, addItem } =
+    useCart();
+  const form = useFormContext<TransactionDraftValues>();
+  const categoryMap = useCategoryMap();
+
+  return (
+    <div className="grid gap-5">
+      <CheckoutDropoffPhotoField />
+
+      <div className="grid gap-3">
+        {productRows.length === 0 && itemRows.length === 0 ? (
+          <EmptyState icon={ShoppingCart01Icon}>Cart is empty.</EmptyState>
+        ) : null}
+
+        {productRows.map((line) => (
+          <div
+            className="grid gap-3 rounded-md border border-border/70 p-3"
+            key={`product-${line.id}`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-body font-medium">{line.product.name}</p>
+                <p className="text-footnote text-muted-foreground">
+                  Product | {getEntityCategoryName(line.product, categoryMap)}
+                </p>
+              </div>
+              <RemoveLineButton
+                label={`Remove ${line.product.name}`}
+                onClick={() => removeProduct(line.id)}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  aria-label="Decrease quantity"
+                  className="size-11"
+                  onClick={() =>
+                    updateProductQty(
+                      line.id,
+                      line.qty - 1,
+                      Number(line.product.stock ?? line.qty)
+                    )
+                  }
+                  size="icon-xs"
+                  type="button"
+                  variant="outline"
+                >
+                  -
+                </Button>
+                <div className="min-w-10 text-center text-body font-medium">
+                  {line.qty}
+                </div>
+                <Button
+                  aria-label="Increase quantity"
+                  className="size-11"
+                  disabled={line.qty >= Number(line.product.stock ?? line.qty)}
+                  onClick={() =>
+                    updateProductQty(
+                      line.id,
+                      line.qty + 1,
+                      Number(line.product.stock ?? line.qty)
+                    )
+                  }
+                  size="icon-xs"
+                  type="button"
+                  variant="outline"
+                >
+                  +
+                </Button>
+              </div>
+              <p className="text-body font-medium tabular-nums">
+                {formatMoney(parseMoney(line.product.price) * line.qty)}
+              </p>
+            </div>
+          </div>
+        ))}
+
+        {itemRows.map((item, index) => (
+          <CheckoutItemCard
+            allItems={itemRows}
+            item={item}
+            itemNumber={index + 1}
+            key={item.line_id}
+          />
+        ))}
+
+        {itemRows.length > 0 ? (
+          <Button onClick={addItem} type="button" variant="outline">
+            + New item
+          </Button>
+        ) : null}
+      </div>
+
+      <Controller
+        control={form.control}
+        name="notes"
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor="transaction-notes">Order note</FieldLabel>
+            <Textarea
+              id="transaction-notes"
+              onChange={(event) => field.onChange(event)}
+              placeholder="Add notes"
+              value={field.value}
+            />
+            <FieldError errors={[fieldState.error]} />
+          </Field>
+        )}
+      />
+    </div>
   );
 };

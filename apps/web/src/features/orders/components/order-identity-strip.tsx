@@ -37,13 +37,13 @@ import {
   RefundOrderForm,
 } from "@/features/orders/components/order-line-reversal-form";
 import { OrderPickupEventDialog } from "@/features/orders/components/order-pickup-event-dialog";
-import { useNotifyCustomer } from "@/features/orders/hooks/useNotifyCustomer";
+import { useNotifyCustomer } from "@/features/orders/hooks/use-notify-customer";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import type { OrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { showsPickupProgress } from "@/features/orders/lib/order-sheet";
 import { formatNoticeTime } from "@/features/orders/lib/pickup-notice";
 import { buildTrackingUrl } from "@/features/orders/lib/tracking-link";
-import { usePrintReceiptMutation } from "@/features/printing/hooks/usePrintReceipt";
+import { usePrintReceiptMutation } from "@/features/printing/hooks/use-print-receipt";
 import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 
@@ -53,6 +53,7 @@ interface OrderIdentityStripProps {
   gates: OrderActionGates;
 }
 
+// oxlint-disable-next-line complexity -- one strip shows every Order action, each behind its own gate
 export const OrderIdentityStrip = ({
   orderId,
   detail,
@@ -63,7 +64,7 @@ export const OrderIdentityStrip = ({
   const printReceiptMutation = usePrintReceiptMutation(orderId);
   const notifyCustomer = useNotifyCustomer(orderId);
 
-  const fulfillment = detail.fulfillment;
+  const { fulfillment } = detail;
   const totalCount = fulfillment.total_count;
   // ADR-0017: count Collectable Items, not ready OrderServices. A shoe with its
   // repaint done but its sole swap still in QC has nothing to hand back yet.

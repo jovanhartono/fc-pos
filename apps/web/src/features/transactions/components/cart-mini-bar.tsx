@@ -8,7 +8,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { countCartTreatments } from "@/features/transactions/cart/cart";
-import { useCart } from "@/features/transactions/cart/useCart";
+import { useCart } from "@/features/transactions/cart/use-cart";
 import { CartLines } from "@/features/transactions/components/cart-lines";
 import { ItemTray } from "@/features/transactions/components/item-tray";
 import { formatMoney } from "@/shared/money";

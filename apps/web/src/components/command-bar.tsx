@@ -4,9 +4,11 @@ import {
   Search01Icon,
   UserIcon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import type { IconSvgElement } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { type NavigateOptions, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
+import type { NavigateOptions } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { HOME_NAV_ITEM, navGroupsForRole } from "@/components/app-navigation";
@@ -140,7 +142,7 @@ const CommandBarPanel = () => {
         }
       }}
     >
-      {/* biome-ignore lint/a11y/noLabelWithoutControl: Autocomplete.Input renders the input inside it */}
+      {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- Autocomplete.Input renders the input inside it */}
       <label className="flex h-13 items-center gap-3 border-b pr-12 pl-4">
         <HugeiconsIcon
           icon={Search01Icon}

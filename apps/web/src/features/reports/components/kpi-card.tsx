@@ -5,7 +5,8 @@ import {
   MinusSignIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { createContext, type ReactNode, useContext } from "react";
+import { createContext, useContext } from "react";
+import type { ReactNode } from "react";
 
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,10 +17,10 @@ import {
 } from "@/components/ui/popover";
 import type { KpiDelta } from "@/features/reports/api";
 import {
-  type DeltaAs,
   formatKpiDeltaChange,
   kpiDeltaChange,
 } from "@/features/reports/utils/kpi-delta";
+import type { DeltaAs } from "@/features/reports/utils/kpi-delta";
 import { cn } from "@/lib/utils";
 
 interface KpiCardProps {

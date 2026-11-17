@@ -123,7 +123,7 @@ export const groupByStore = <T extends WorkerRangeRow>(
       rows: storeRows,
       totals: totalsOf(storeRows),
     }))
-    .sort((a, b) => b.totals.services - a.totals.services);
+    .toSorted((a, b) => b.totals.services - a.totals.services);
 };
 
 export const workerKey = (userId: number, storeId: number) =>
@@ -165,7 +165,7 @@ export const withLive = (
   for (const row of liveByKey.values()) {
     rows.push({ ...row, ...NOTHING_IN_RANGE });
   }
-  return rows.sort(
+  return rows.toSorted(
     (a, b) =>
       a.store_name.localeCompare(b.store_name) ||
       b.services_processed - a.services_processed ||
@@ -296,7 +296,7 @@ export const splitTopServices = (
   services: DetailService[],
   limit = TOP_SERVICES_IN_CHART
 ) => {
-  const sorted = [...services].sort(
+  const sorted = services.toSorted(
     (a, b) => b.count - a.count || a.service_name.localeCompare(b.service_name)
   );
   return { top: sorted.slice(0, limit), rest: sorted.slice(limit) };

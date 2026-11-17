@@ -1,10 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import {
-  buildLineTimeline,
-  getFirstPickupAt,
-  type TimelineLine,
-} from "./line-timeline";
+import { buildLineTimeline, getFirstPickupAt } from "./line-timeline";
+import type { TimelineLine } from "./line-timeline";
 
 const cashier = { name: "Cahya" };
 const worker = { name: "Sari" };
@@ -63,13 +60,13 @@ describe("a rework line's timeline", () => {
   });
 });
 
-describe("the original's first pickup, as a rework reads it", () => {
-  const pickedUpAt = (picked_up_at: string | null) => ({
-    orderService: {
-      pickupEvent: picked_up_at === null ? null : { picked_up_at },
-    },
-  });
+const pickedUpAt = (picked_up_at: string | null) => ({
+  orderService: {
+    pickupEvent: picked_up_at === null ? null : { picked_up_at },
+  },
+});
 
+describe("the original's first pickup, as a rework reads it", () => {
   it("is the pickup of a pair that went home before this round was opened", () => {
     // Turned down at the counter with no rework, taken home anyway, and
     // brought back two days later for the re-clean.

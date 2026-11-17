@@ -16,6 +16,55 @@ const campaignDiscountLabel = (campaign: Campaign): string => {
   return `Buy ${campaign.buy_quantity ?? 0} Get ${campaign.free_quantity ?? 0}`;
 };
 
+interface CampaignTileProps {
+  code: string;
+  discountLabel: string;
+  isSelected: boolean;
+  onToggle: () => void;
+}
+
+// Campaigns stack, so tiles are checkboxes; the whole tile is the tap target.
+const CampaignTile = ({
+  code,
+  discountLabel,
+  isSelected,
+  onToggle,
+}: CampaignTileProps) => (
+  <label
+    className={cn(
+      "flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50 motion-reduce:active:scale-100",
+      isSelected
+        ? "border-success/40 bg-tone-good text-foreground"
+        : "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40"
+    )}
+  >
+    <input
+      checked={isSelected}
+      className="sr-only"
+      onChange={onToggle}
+      type="checkbox"
+    />
+    <span className="flex flex-col">
+      <span className="text-body font-medium">{code}</span>
+      <span
+        className={cn(
+          "text-caption",
+          isSelected ? "text-tone-good-foreground" : "text-muted-foreground"
+        )}
+      >
+        {discountLabel}
+      </span>
+    </span>
+    {isSelected ? (
+      <HugeiconsIcon
+        icon={Tick02Icon}
+        className="size-4 shrink-0 text-tone-good-foreground"
+        strokeWidth={2}
+      />
+    ) : null}
+  </label>
+);
+
 interface CampaignTileGroupProps {
   eligibleCampaigns: Campaign[];
   selectedIds: string[];
@@ -78,52 +127,3 @@ export const CampaignTileGroup = ({
     </div>
   );
 };
-
-interface CampaignTileProps {
-  code: string;
-  discountLabel: string;
-  isSelected: boolean;
-  onToggle: () => void;
-}
-
-// Campaigns stack, so tiles are checkboxes; the whole tile is the tap target.
-const CampaignTile = ({
-  code,
-  discountLabel,
-  isSelected,
-  onToggle,
-}: CampaignTileProps) => (
-  <label
-    className={cn(
-      "flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left transition active:scale-[0.97] has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-ring/50 motion-reduce:active:scale-100",
-      isSelected
-        ? "border-success/40 bg-tone-good text-foreground"
-        : "border-border/70 text-foreground/80 hover:border-border hover:bg-muted/40"
-    )}
-  >
-    <input
-      checked={isSelected}
-      className="sr-only"
-      onChange={onToggle}
-      type="checkbox"
-    />
-    <span className="flex flex-col">
-      <span className="text-body font-medium">{code}</span>
-      <span
-        className={cn(
-          "text-caption",
-          isSelected ? "text-tone-good-foreground" : "text-muted-foreground"
-        )}
-      >
-        {discountLabel}
-      </span>
-    </span>
-    {isSelected ? (
-      <HugeiconsIcon
-        icon={Tick02Icon}
-        className="size-4 shrink-0 text-tone-good-foreground"
-        strokeWidth={2}
-      />
-    ) : null}
-  </label>
-);

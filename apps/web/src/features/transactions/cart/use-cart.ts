@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useFormContext, useWatch } from "react-hook-form";
 
-import { type Product, productsQueries } from "@/features/products/api";
-import { type Service, servicesQueries } from "@/features/services/api";
+import { productsQueries } from "@/features/products/api";
+import type { Product } from "@/features/products/api";
+import { servicesQueries } from "@/features/services/api";
+import type { Service } from "@/features/services/api";
 import {
   buildActiveItemMap,
   createCartLineId,
@@ -11,16 +13,18 @@ import {
   enrichProductCart,
   getCartCount,
   getCartSubtotal,
-  type ItemCartDisplayLine,
-  type ItemCartLine,
   moveCartService,
-  type ProductCartDisplayLine,
-  type ProductCartLine,
   resetTransactionDraft,
   resolveActiveItemId,
-  type ServiceCartDisplayLine,
-  type ServiceCartLine,
-  type TransactionDraftValues,
+} from "@/features/transactions/cart/cart";
+import type {
+  ItemCartDisplayLine,
+  ItemCartLine,
+  ProductCartDisplayLine,
+  ProductCartLine,
+  ServiceCartDisplayLine,
+  ServiceCartLine,
+  TransactionDraftValues,
 } from "@/features/transactions/cart/cart";
 import { useTransactionsPageStore } from "@/stores/transactions-store";
 
@@ -58,7 +62,7 @@ export interface CartOps {
 
 // Write ops only — reads via getValues, so consumers (e.g. the catalog) do
 // not re-render on cart changes.
-export function useCartOps(): CartOps {
+export const useCartOps = (): CartOps => {
   const form = useFormContext<TransactionDraftValues>();
   const setSubmitError = useTransactionsPageStore(
     (state) => state.setSubmitError
@@ -179,7 +183,7 @@ export function useCartOps(): CartOps {
 
     setSubmitError("");
 
-    if (lineIndex >= 0) {
+    if (lineIndex !== -1) {
       const line = currentCart[lineIndex];
       if (maxStock > 0 && line.qty >= maxStock) {
         return;
@@ -277,7 +281,7 @@ export function useCartOps(): CartOps {
     addItem,
     setActiveItem: setActiveItemId,
   };
-}
+};
 
 export interface Cart extends CartOps {
   productRows: ProductCartDisplayLine[];
@@ -310,7 +314,7 @@ const useItemRows = (itemCart: ItemCartLine[]) => {
   return { itemRows, serviceRows: itemRows.flatMap((item) => item.services) };
 };
 
-export function useCart(): Cart {
+export const useCart = (): Cart => {
   const ops = useCartOps();
 
   const productCart = useWatch<TransactionDraftValues, "productCart">({
@@ -328,4 +332,4 @@ export function useCart(): Cart {
   const count = getCartCount(productCart, itemCart);
 
   return { ...ops, productRows, itemRows, serviceRows, subtotal, count };
-}
+};

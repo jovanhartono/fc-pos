@@ -2,10 +2,8 @@ import type { ReactNode } from "react";
 
 import { Tooltip, TooltipContent } from "@/components/ui/tooltip";
 import { clockRange } from "@/features/shifts/lib/shift-times";
-import {
-  type DayMark,
-  rangeLabel,
-} from "@/features/shifts/lib/shifts-overview";
+import { rangeLabel } from "@/features/shifts/lib/shifts-overview";
+import type { DayMark } from "@/features/shifts/lib/shifts-overview";
 import { formatShiftLength } from "@/lib/dayjs";
 
 export const dayLabel = (day: string) => rangeLabel({ from: day, to: day });

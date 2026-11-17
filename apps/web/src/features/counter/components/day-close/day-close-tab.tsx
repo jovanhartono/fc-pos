@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useEffectEvent } from "react";
 
 import { counterQueries } from "@/features/counter/api";
 import { CollectedSection } from "@/features/counter/components/day-close/collected-section";
@@ -38,23 +38,27 @@ export const DayCloseTab = ({ day, storeId, today }: DayCloseTabProps) => {
 
   // A phone that went into an Order from a list comes back to the same list;
   // Back off the list itself closes it rather than leaving it over another tab.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: only a new list or day reopens the sheet
-  useEffect(() => {
+  const openListSheet = useEffectEvent(() => {
     if (!(list && data) || useSheet.getState().sheetState.open) {
       return;
     }
     const sheet = daySheet(list, data, formatDayLabel(data.date, today));
     if (!sheet) {
-      void setList(undefined);
+      setList(undefined);
       return;
     }
     useSheet.getState().openSheet({
       ...sheet,
       isRestoredOnBack: true,
-      onClose: () => void setList(undefined),
+      onClose: () => {
+        setList(undefined);
+      },
     });
     return () => useSheet.getState().closeSheetInstantly();
-  }, [list, data?.date]);
+  });
+  const dataDate = data?.date;
+  // oxlint-disable-next-line react/exhaustive-effect-dependencies -- only a new list or day reopens the sheet
+  useEffect(() => openListSheet(), [list, dataDate]);
 
   if (!data) {
     return isError ? (

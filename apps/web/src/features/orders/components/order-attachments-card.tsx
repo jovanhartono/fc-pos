@@ -9,15 +9,11 @@ import {
   TILE_GRID,
   TileCaption,
 } from "@/features/orders/components/order-detail-parts";
-import {
-  OrderPhotoGallery,
-  type OrderPhotoGalleryItem,
-} from "@/features/orders/components/order-photo-gallery";
+import { OrderPhotoGallery } from "@/features/orders/components/order-photo-gallery";
+import type { OrderPhotoGalleryItem } from "@/features/orders/components/order-photo-gallery";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
-import {
-  PhotoLightbox,
-  type PhotoLightboxItem,
-} from "@/features/orders/components/photo-lightbox";
+import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
+import type { PhotoLightboxItem } from "@/features/orders/components/photo-lightbox";
 import { SinglePhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import {
@@ -37,46 +33,52 @@ type DropoffOrder = Pick<
 const EMPTY_TILE =
   "flex aspect-square w-full items-center justify-center rounded-md border bg-muted text-muted-foreground";
 
-interface OrderAttachmentsCardProps {
-  order: DropoffOrder;
-  canManageDropoff: boolean;
-  onUploaded: () => Promise<void>;
-  pickupEvents: PickupEvent[];
+interface DropoffPhotoProps {
+  capturedAt: string;
+  imageUrl: string;
+  orderId: number;
 }
 
-export const OrderAttachmentsCard = ({
-  order,
-  canManageDropoff,
-  onUploaded,
-  pickupEvents,
-}: OrderAttachmentsCardProps) => {
-  const pickupItems = toPickupItems(pickupEvents);
-  // One pickup sits beside the drop-off so the counter compares what came in
-  // with what went out; a split collection gets its own row of pickups.
-  const hasManyPickups = pickupItems.length > 1;
+// The one Drop-off photo gets its own tile: staff open it to check what came
+// in when a Customer complains.
+const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  const item: PhotoLightboxItem = {
+    alt: "Order drop-off",
+    created_at: capturedAt,
+    download: { kind: "dropoff", id: orderId },
+    id: orderId,
+    image_url: imageUrl,
+  };
 
   return (
-    <section className="grid gap-3">
-      <OrderSectionHeader>Attachments</OrderSectionHeader>
-      <Card className="gap-4 p-4 text-body">
-        <div className={TILE_GRID}>
-          <DropoffAttachment
-            canManage={canManageDropoff}
-            onUploaded={onUploaded}
-            order={order}
-          />
-          {hasManyPickups ? null : <PickupTiles items={pickupItems} />}
-        </div>
-        {hasManyPickups ? (
-          <div className="grid gap-1.5">
-            <AttachmentLabel>Pickups</AttachmentLabel>
-            <div className={TILE_GRID}>
-              <PickupTiles items={pickupItems} />
-            </div>
-          </div>
-        ) : null}
-      </Card>
-    </section>
+    <div>
+      <button
+        aria-label="Open drop-off photo"
+        className="block w-full overflow-hidden rounded-md border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
+        onClick={() => setIsLightboxOpen(true)}
+        type="button"
+      >
+        <img
+          alt={item.alt}
+          className="aspect-square w-full bg-muted object-cover"
+          decoding="async"
+          height={PHOTO_TILE_SIZE}
+          loading="lazy"
+          onError={handleTileError}
+          src={photoTileUrl(imageUrl)}
+          width={PHOTO_TILE_SIZE}
+        />
+      </button>
+
+      <PhotoLightbox
+        items={[item]}
+        onOpenChange={setIsLightboxOpen}
+        open={isLightboxOpen}
+        title="Drop-Off Photo"
+      />
+    </div>
   );
 };
 
@@ -149,55 +151,6 @@ const DropoffAttachment = ({
   );
 };
 
-interface DropoffPhotoProps {
-  capturedAt: string;
-  imageUrl: string;
-  orderId: number;
-}
-
-// The one Drop-off photo gets its own tile: staff open it to check what came
-// in when a Customer complains.
-const DropoffPhoto = ({ capturedAt, imageUrl, orderId }: DropoffPhotoProps) => {
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-
-  const item: PhotoLightboxItem = {
-    alt: "Order drop-off",
-    created_at: capturedAt,
-    download: { kind: "dropoff", id: orderId },
-    id: orderId,
-    image_url: imageUrl,
-  };
-
-  return (
-    <div>
-      <button
-        aria-label="Open drop-off photo"
-        className="block w-full overflow-hidden rounded-md border border-border bg-muted transition-[border-color,box-shadow] hover:border-ring focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
-        onClick={() => setIsLightboxOpen(true)}
-        type="button"
-      >
-        <img
-          alt={item.alt}
-          className="aspect-square w-full bg-muted object-cover"
-          decoding="async"
-          height={PHOTO_TILE_SIZE}
-          loading="lazy"
-          onError={handleTileError}
-          src={photoTileUrl(imageUrl)}
-          width={PHOTO_TILE_SIZE}
-        />
-      </button>
-
-      <PhotoLightbox
-        items={[item]}
-        onOpenChange={setIsLightboxOpen}
-        open={isLightboxOpen}
-        title="Drop-Off Photo"
-      />
-    </div>
-  );
-};
-
 // The caption is the only place that shows when and by whom Items left.
 const toPickupItems = (pickupEvents: PickupEvent[]): OrderPhotoGalleryItem[] =>
   pickupEvents
@@ -244,3 +197,46 @@ const PickupTiles = ({ items }: PickupTilesProps) => (
     title="Pickup Photo"
   />
 );
+
+interface OrderAttachmentsCardProps {
+  order: DropoffOrder;
+  canManageDropoff: boolean;
+  onUploaded: () => Promise<void>;
+  pickupEvents: PickupEvent[];
+}
+
+export const OrderAttachmentsCard = ({
+  order,
+  canManageDropoff,
+  onUploaded,
+  pickupEvents,
+}: OrderAttachmentsCardProps) => {
+  const pickupItems = toPickupItems(pickupEvents);
+  // One pickup sits beside the drop-off so the counter compares what came in
+  // with what went out; a split collection gets its own row of pickups.
+  const hasManyPickups = pickupItems.length > 1;
+
+  return (
+    <section className="grid gap-3">
+      <OrderSectionHeader>Attachments</OrderSectionHeader>
+      <Card className="gap-4 p-4 text-body">
+        <div className={TILE_GRID}>
+          <DropoffAttachment
+            canManage={canManageDropoff}
+            onUploaded={onUploaded}
+            order={order}
+          />
+          {hasManyPickups ? null : <PickupTiles items={pickupItems} />}
+        </div>
+        {hasManyPickups ? (
+          <div className="grid gap-1.5">
+            <AttachmentLabel>Pickups</AttachmentLabel>
+            <div className={TILE_GRID}>
+              <PickupTiles items={pickupItems} />
+            </div>
+          </div>
+        ) : null}
+      </Card>
+    </section>
+  );
+};

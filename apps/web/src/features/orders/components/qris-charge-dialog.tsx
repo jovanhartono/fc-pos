@@ -11,21 +11,19 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import {
-  PaymentOutcome,
-  type PaymentOutcomeProps,
-} from "@/components/payment-outcome";
+import { PaymentOutcome } from "@/components/payment-outcome";
+import type { PaymentOutcomeProps } from "@/components/payment-outcome";
 import { QrisWaiting } from "@/components/qris-waiting";
 import { Button } from "@/components/ui/button";
-import {
-  type CreatePaymentChargePayload,
-  ordersQueries,
-  type PaymentCharge,
+import { ordersQueries } from "@/features/orders/api";
+import type {
+  CreatePaymentChargePayload,
+  PaymentCharge,
 } from "@/features/orders/api";
 import {
   useCancelPaymentChargeMutation,
   useCreatePaymentChargeMutation,
-} from "@/features/orders/hooks/useOrderMutations";
+} from "@/features/orders/hooks/use-order-mutations";
 import { onQrisPaid } from "@/lib/cache-events";
 import { qrisImageSrc } from "@/lib/qris";
 import { readServerErrorMessage } from "@/lib/server-error";
@@ -43,28 +41,183 @@ const requestOfCharge = (
   discount: String(charge.discount_request?.discount ?? 0),
 });
 
-// showNew creates the QRIS as the dialog opens; reopen shows one from the Order.
-export const useOpenQrisDialog = (orderId: number) => {
-  const openDialog = useDialog((s) => s.openDialog);
+interface ChargeAmountProps {
+  amount: number;
+}
 
-  const open = (
-    gateway: GatewayName,
-    props: Omit<QrisChargeDialogProps, "orderId">
-  ) =>
-    openDialog({
-      title: `QRIS · ${GATEWAY_LABELS[gateway]}`,
-      content: () => <QrisChargeDialog orderId={orderId} {...props} />,
-    });
+const ChargeAmount = ({ amount }: ChargeAmountProps) => (
+  <p className="text-center text-title-1 font-medium tabular-nums">
+    {formatMoney(amount)}
+  </p>
+);
 
+interface PendingChargeProps {
+  charge: PaymentCharge;
+}
+
+const PendingCharge = ({ charge }: PendingChargeProps) => {
+  const qrSrc = qrisImageSrc(charge);
+
+  // DOKU without its QRIS keys sends only a hosted QRIS page.
+  if (qrSrc) {
+    return (
+      <>
+        <ChargeAmount amount={charge.amount} />
+        <img
+          alt="QRIS"
+          className="aspect-square w-full max-w-60 justify-self-center rounded-md border bg-white p-3"
+          src={qrSrc}
+        />
+        <QrisWaiting
+          expiresAt={charge.expires_at}
+          mockPageUrl={charge.redirect_url}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <ChargeAmount amount={charge.amount} />
+      <Button
+        disabled={!charge.redirect_url}
+        // Opened inside the tap: iOS blocks a tab opened after an await.
+        onClick={() => {
+          if (charge.redirect_url) {
+            window.open(charge.redirect_url, "_blank");
+          }
+        }}
+        size="lg"
+        type="button"
+      >
+        Open QRIS Page
+      </Button>
+      <p className="text-center text-subhead text-balance text-muted-foreground">
+        The QRIS opens in a new tab. Show it to the Customer to scan.
+      </p>
+      <QrisWaiting expiresAt={charge.expires_at} mockPageUrl={null} />
+    </>
+  );
+};
+
+interface Outcome extends PaymentOutcomeProps {
+  next: "new" | "close" | "done";
+}
+
+const totalChangedOutcome = ({
+  amount: chargeAmount,
+  next_amount: nextAmount,
+}: PaymentCharge): Outcome => {
+  // Closed without the total moving, like a Track page that failed to open.
+  if (nextAmount === chargeAmount) {
+    return {
+      icon: RefreshIcon,
+      tone: "neutral",
+      title: "QRIS Closed",
+      text: "This QRIS closed before it was paid. Show a new one to try again.",
+      next: "new",
+    };
+  }
+  if (nextAmount === 0) {
+    return {
+      icon: RefreshIcon,
+      tone: "neutral",
+      title: "Total Changed",
+      text: "Nothing is left to pay on this Order.",
+      next: "close",
+    };
+  }
   return {
-    showNew: (gateway: GatewayName, request: CreatePaymentChargePayload) =>
-      open(gateway, { request }),
-    reopen: (charge: PaymentCharge) =>
-      open(charge.gateway, {
-        initialCharge: charge,
-        request: requestOfCharge(charge),
-      }),
+    icon: RefreshIcon,
+    tone: "neutral",
+    title: "Total Changed",
+    text:
+      nextAmount === null
+        ? "The Order changed after this QRIS was shown. Show a new one for the new total."
+        : `This QRIS was for ${formatMoney(chargeAmount)}. Show a new one for ${formatMoney(nextAmount)}.`,
+    next: "new",
   };
+};
+
+const closedOutcome = (charge: PaymentCharge): Outcome => {
+  switch (charge.closed_reason) {
+    case "order_paid": {
+      return {
+        icon: Tick02Icon,
+        tone: "neutral",
+        title: "Already Paid",
+        text: "This Order was paid another way, so this QRIS was closed.",
+        next: "close",
+      };
+    }
+    case "customer_paying": {
+      return {
+        icon: SmartPhone01Icon,
+        tone: "neutral",
+        title: "Paying on Their Phone",
+        text: "The Customer chose to pay from the Track page, so this QRIS was closed.",
+        next: "close",
+      };
+    }
+    case "replaced": {
+      return {
+        icon: RefreshIcon,
+        tone: "neutral",
+        title: "QRIS Replaced",
+        text: "A newer QRIS was shown for this Order.",
+        next: "close",
+      };
+    }
+    default: {
+      return totalChangedOutcome(charge);
+    }
+  }
+};
+
+const outcomeOf = (charge: PaymentCharge): Outcome => {
+  const amount = formatMoney(charge.amount);
+
+  switch (charge.status) {
+    case "paid": {
+      return {
+        icon: Tick02Icon,
+        tone: "good",
+        title: "Payment Received",
+        text: `The Customer paid ${amount}.`,
+        next: "done",
+      };
+    }
+    case "expired": {
+      return {
+        icon: Clock01Icon,
+        tone: "neutral",
+        title: "QRIS Expired",
+        text: "The Customer didn't pay in time. Show a new QRIS to try again.",
+        next: "new",
+      };
+    }
+    case "failed": {
+      return {
+        icon: Alert02Icon,
+        tone: "bad",
+        title: "Payment Failed",
+        text: "The Customer's payment didn't go through. Show a new QRIS to try again.",
+        next: "new",
+      };
+    }
+    case "needs_review": {
+      return {
+        icon: Alert02Icon,
+        tone: "warn",
+        title: "Payment Needs Review",
+        text: `${amount} arrived but couldn't be applied to this Order. Ask an admin to check it.`,
+        next: "close",
+      };
+    }
+    default: {
+      return closedOutcome(charge);
+    }
+  }
 };
 
 interface QrisChargeDialogProps {
@@ -200,172 +353,26 @@ const QrisChargeDialog = ({
   );
 };
 
-interface PendingChargeProps {
-  charge: PaymentCharge;
-}
+// showNew creates the QRIS as the dialog opens; reopen shows one from the Order.
+export const useOpenQrisDialog = (orderId: number) => {
+  const openDialog = useDialog((s) => s.openDialog);
 
-const PendingCharge = ({ charge }: PendingChargeProps) => {
-  const qrSrc = qrisImageSrc(charge);
+  const open = (
+    gateway: GatewayName,
+    props: Omit<QrisChargeDialogProps, "orderId">
+  ) =>
+    openDialog({
+      title: `QRIS · ${GATEWAY_LABELS[gateway]}`,
+      content: () => <QrisChargeDialog orderId={orderId} {...props} />,
+    });
 
-  // DOKU without its QRIS keys sends only a hosted QRIS page.
-  if (qrSrc) {
-    return (
-      <>
-        <ChargeAmount amount={charge.amount} />
-        <img
-          alt="QRIS"
-          className="aspect-square w-full max-w-60 justify-self-center rounded-md border bg-white p-3"
-          src={qrSrc}
-        />
-        <QrisWaiting
-          expiresAt={charge.expires_at}
-          mockPageUrl={charge.redirect_url}
-        />
-      </>
-    );
-  }
-
-  return (
-    <>
-      <ChargeAmount amount={charge.amount} />
-      <Button
-        disabled={!charge.redirect_url}
-        // Opened inside the tap: iOS blocks a tab opened after an await.
-        onClick={() => {
-          if (charge.redirect_url) {
-            window.open(charge.redirect_url, "_blank");
-          }
-        }}
-        size="lg"
-        type="button"
-      >
-        Open QRIS Page
-      </Button>
-      <p className="text-center text-subhead text-balance text-muted-foreground">
-        The QRIS opens in a new tab. Show it to the Customer to scan.
-      </p>
-      <QrisWaiting expiresAt={charge.expires_at} mockPageUrl={null} />
-    </>
-  );
-};
-
-interface ChargeAmountProps {
-  amount: number;
-}
-
-const ChargeAmount = ({ amount }: ChargeAmountProps) => (
-  <p className="text-center text-title-1 font-medium tabular-nums">
-    {formatMoney(amount)}
-  </p>
-);
-
-interface Outcome extends PaymentOutcomeProps {
-  next: "new" | "close" | "done";
-}
-
-const outcomeOf = (charge: PaymentCharge): Outcome => {
-  const amount = formatMoney(charge.amount);
-
-  switch (charge.status) {
-    case "paid":
-      return {
-        icon: Tick02Icon,
-        tone: "good",
-        title: "Payment Received",
-        text: `The Customer paid ${amount}.`,
-        next: "done",
-      };
-    case "expired":
-      return {
-        icon: Clock01Icon,
-        tone: "neutral",
-        title: "QRIS Expired",
-        text: "The Customer didn't pay in time. Show a new QRIS to try again.",
-        next: "new",
-      };
-    case "failed":
-      return {
-        icon: Alert02Icon,
-        tone: "bad",
-        title: "Payment Failed",
-        text: "The Customer's payment didn't go through. Show a new QRIS to try again.",
-        next: "new",
-      };
-    case "needs_review":
-      return {
-        icon: Alert02Icon,
-        tone: "warn",
-        title: "Payment Needs Review",
-        text: `${amount} arrived but couldn't be applied to this Order. Ask an admin to check it.`,
-        next: "close",
-      };
-    default:
-      return closedOutcome(charge);
-  }
-};
-
-const closedOutcome = (charge: PaymentCharge): Outcome => {
-  switch (charge.closed_reason) {
-    case "order_paid":
-      return {
-        icon: Tick02Icon,
-        tone: "neutral",
-        title: "Already Paid",
-        text: "This Order was paid another way, so this QRIS was closed.",
-        next: "close",
-      };
-    case "customer_paying":
-      return {
-        icon: SmartPhone01Icon,
-        tone: "neutral",
-        title: "Paying on Their Phone",
-        text: "The Customer chose to pay from the Track page, so this QRIS was closed.",
-        next: "close",
-      };
-    case "replaced":
-      return {
-        icon: RefreshIcon,
-        tone: "neutral",
-        title: "QRIS Replaced",
-        text: "A newer QRIS was shown for this Order.",
-        next: "close",
-      };
-    default:
-      return totalChangedOutcome(charge);
-  }
-};
-
-const totalChangedOutcome = ({
-  amount: chargeAmount,
-  next_amount: nextAmount,
-}: PaymentCharge): Outcome => {
-  // Closed without the total moving, like a Track page that failed to open.
-  if (nextAmount === chargeAmount) {
-    return {
-      icon: RefreshIcon,
-      tone: "neutral",
-      title: "QRIS Closed",
-      text: "This QRIS closed before it was paid. Show a new one to try again.",
-      next: "new",
-    };
-  }
-  if (nextAmount === 0) {
-    return {
-      icon: RefreshIcon,
-      tone: "neutral",
-      title: "Total Changed",
-      text: "Nothing is left to pay on this Order.",
-      next: "close",
-    };
-  }
   return {
-    icon: RefreshIcon,
-    tone: "neutral",
-    title: "Total Changed",
-    text:
-      nextAmount === null
-        ? "The Order changed after this QRIS was shown. Show a new one for the new total."
-        : `This QRIS was for ${formatMoney(chargeAmount)}. Show a new one for ${formatMoney(nextAmount)}.`,
-    next: "new",
+    showNew: (gateway: GatewayName, request: CreatePaymentChargePayload) =>
+      open(gateway, { request }),
+    reopen: (charge: PaymentCharge) =>
+      open(charge.gateway, {
+        initialCharge: charge,
+        request: requestOfCharge(charge),
+      }),
   };
 };

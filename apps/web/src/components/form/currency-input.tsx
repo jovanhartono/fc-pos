@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { formatMoney, formatMoneyInput } from "@/shared/money";
 import { getNumericValue } from "@/shared/utils";
 
-type CurrencyInputProps = {
+interface CurrencyInputProps {
   id: string;
   value: string;
   onValueChange: (value: string) => void;
@@ -14,9 +14,9 @@ type CurrencyInputProps = {
   disabled?: boolean;
   required?: boolean;
   className?: string;
-};
+}
 
-export function CurrencyInput({
+export const CurrencyInput = ({
   id,
   value,
   onValueChange,
@@ -24,7 +24,7 @@ export function CurrencyInput({
   disabled,
   required,
   className,
-}: CurrencyInputProps) {
+}: CurrencyInputProps) => {
   const displayValue = formatMoneyInput(value);
 
   return (
@@ -49,4 +49,4 @@ export function CurrencyInput({
       />
     </div>
   );
-}
+};

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { EmptyState } from "@/components/empty-state";
 import type { WorkerProductivityReport } from "@/features/reports/api";
-import { useStoreCodes } from "@/features/reports/hooks/useStoreCodes";
+import { useStoreCodes } from "@/features/reports/hooks/use-store-codes";
 import { numberFormatter } from "@/features/reports/utils/format";
 import {
   buildCountIndex,

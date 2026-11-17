@@ -10,7 +10,8 @@ import {
 } from "@tanstack/react-query";
 import { parseResponse } from "hono/client";
 
-import { type PaginatedData, toPaginated } from "@/lib/http";
+import { toPaginated } from "@/lib/http";
+import type { PaginatedData } from "@/lib/http";
 import { REPORT_STALE_TIME } from "@/lib/query-defaults";
 import { rpc } from "@/lib/rpc";
 import { jakartaToday } from "@/shared/date-presets";
@@ -42,35 +43,38 @@ export const counterKeys = {
     [...counterKeys.detail(storeId), "pickup-shelf"] as const,
 };
 
-async function fetchPickupShelfPage(
+const fetchPickupShelfPage = async (
   storeId: number,
   offset: number
-): Promise<PaginatedData<CounterShelfOrder>> {
+): Promise<PaginatedData<CounterShelfOrder>> => {
   const response = await parseResponse(
     rpc.api.admin.counter["pickup-shelf"].$get({
       query: { store_id: String(storeId), offset: String(offset) },
     })
   );
   return toPaginated(response);
-}
+};
 
-async function fetchCounter(storeId: number): Promise<Counter> {
+const fetchCounter = async (storeId: number): Promise<Counter> => {
   const response = await parseResponse(
     rpc.api.admin.counter.$get({
       query: { store_id: String(storeId) },
     })
   );
   return response.data;
-}
+};
 
-async function fetchDayClose(storeId: number, date: string): Promise<DayClose> {
+const fetchDayClose = async (
+  storeId: number,
+  date: string
+): Promise<DayClose> => {
   const response = await parseResponse(
     rpc.api.admin.counter["day-close"].$get({
       query: { store_id: String(storeId), date },
     })
   );
   return response.data;
-}
+};
 
 // A cashier leaves this open on the iPad all day, so it refreshes itself;
 // coming back to the tab refreshes it too, by TanStack's default.

@@ -18,13 +18,13 @@ import type {
 } from "@/modules/campaigns/campaign.schema";
 import { assertCanManageCampaigns } from "@/modules/permissions/permissions";
 import {
-  type CampaignEligibilityContext,
   campaignIneligibilityReason,
   campaignRunReason,
 } from "@/schema/campaign-eligibility";
+import type { CampaignEligibilityContext } from "@/schema/campaign-eligibility";
 import type { JWTPayload } from "@/types";
 
-async function ensureStoresExist(storeIds: number[]) {
+const ensureStoresExist = async (storeIds: number[]) => {
   if (storeIds.length === 0) {
     return;
   }
@@ -34,9 +34,9 @@ async function ensureStoresExist(storeIds: number[]) {
   if (stores.length !== storeIds.length) {
     throw new BadRequestException("One of these Stores doesn't exist");
   }
-}
+};
 
-async function ensureServicesExist(serviceIds: number[]) {
+const ensureServicesExist = async (serviceIds: number[]) => {
   if (serviceIds.length === 0) {
     return;
   }
@@ -46,19 +46,17 @@ async function ensureServicesExist(serviceIds: number[]) {
   if (services.length !== serviceIds.length) {
     throw new BadRequestException("One of these Services doesn't exist");
   }
-}
+};
 
-function markExpired<T extends { ends_at: Date | null }>(
+const markExpired = <T extends { ends_at: Date | null }>(
   campaign: T,
   now: Date
-): T & { is_expired: boolean } {
-  return {
-    ...campaign,
-    is_expired: campaign.ends_at !== null && campaign.ends_at < now,
-  };
-}
+): T & { is_expired: boolean } => ({
+  ...campaign,
+  is_expired: campaign.ends_at !== null && campaign.ends_at < now,
+});
 
-export async function getCampaigns(query?: GetCampaignsQuery) {
+export const getCampaigns = async (query?: GetCampaignsQuery) => {
   const now = new Date();
   const campaigns = await listCampaigns({
     is_active: query?.is_active,
@@ -69,10 +67,10 @@ export async function getCampaigns(query?: GetCampaignsQuery) {
   });
 
   return campaigns.map((campaign) => markExpired(campaign, now));
-}
+};
 
 // Most days no Voucher runs, and the POS hides its code field then.
-export async function hasLiveVoucher(storeId: number) {
+export const hasLiveVoucher = async (storeId: number) => {
   const now = new Date();
   const vouchers = await listCampaigns({
     is_active: true,
@@ -82,19 +80,19 @@ export async function hasLiveVoucher(storeId: number) {
   return vouchers.some(
     (campaign) => campaignRunReason(campaign, { now, storeId }) === null
   );
-}
+};
 
-export async function getCampaignById(id: number) {
+export const getCampaignById = async (id: number) => {
   const campaign = await findCampaignById(id);
   if (!campaign) {
     return campaign;
   }
   return markExpired(campaign, new Date());
-}
+};
 
 // The Voucher code comes back beside the Campaign, not on it, so no response
 // can leak a spendable code to someone who never typed it.
-export async function resolveVoucherCode(
+export const resolveVoucherCode = async (
   executor: DbExecutor,
   code: string,
   ctx: {
@@ -103,7 +101,7 @@ export async function resolveVoucherCode(
     grossTotal: number;
     lines: { service_id: number }[];
   }
-) {
+) => {
   const row = await findCampaignByCode(executor, code);
 
   if (!row) {
@@ -152,9 +150,9 @@ export async function resolveVoucherCode(
     campaign: markExpired(campaign, now),
     voucherCode: code,
   };
-}
+};
 
-function buildCreatePayload(payload: CampaignPayload) {
+const buildCreatePayload = (payload: CampaignPayload) => {
   const usage_limit =
     payload.redemption_mode === "code" ? null : (payload.usage_limit ?? null);
 
@@ -191,7 +189,7 @@ function buildCreatePayload(payload: CampaignPayload) {
     redemption_mode: payload.redemption_mode ?? "listed",
     usage_limit,
   };
-}
+};
 
 interface UpdateWritePayload {
   buy_quantity?: number | null;
@@ -222,11 +220,11 @@ const UPDATE_FIELDS = [
   "buy_quantity",
   "free_quantity",
   "usage_limit",
-] as const satisfies ReadonlyArray<keyof UpdateWritePayload>;
+] as const satisfies readonly (keyof UpdateWritePayload)[];
 
-function buildUpdatePayload(
+const buildUpdatePayload = (
   payload: CampaignUpdatePayload
-): UpdateWritePayload {
+): UpdateWritePayload => {
   const out: UpdateWritePayload = {};
   for (const key of UPDATE_FIELDS) {
     const value = payload[key];
@@ -249,15 +247,15 @@ function buildUpdatePayload(
   }
 
   return out;
-}
+};
 
-export async function createCampaign({
+export const createCampaign = async ({
   user,
   payload,
 }: {
   user: JWTPayload;
   payload: CampaignPayload;
-}) {
+}) => {
   assertCanManageCampaigns(user);
 
   const storeIds = [...new Set(payload.store_ids)];
@@ -278,9 +276,9 @@ export async function createCampaign({
         ? (payload.code_count ?? undefined)
         : undefined,
   });
-}
+};
 
-export async function updateCampaign({
+export const updateCampaign = async ({
   user,
   id,
   payload,
@@ -288,7 +286,7 @@ export async function updateCampaign({
   user: JWTPayload;
   id: number;
   payload: CampaignUpdatePayload;
-}) {
+}) => {
   assertCanManageCampaigns(user);
 
   const storeIds = payload.store_ids
@@ -310,12 +308,18 @@ export async function updateCampaign({
     storeIds,
     serviceIds,
   });
-}
+};
 
-export function deleteCampaign({ user, id }: { user: JWTPayload; id: number }) {
+export const deleteCampaign = ({
+  user,
+  id,
+}: {
+  user: JWTPayload;
+  id: number;
+}) => {
   assertCanManageCampaigns(user);
   return deleteCampaignById(id);
-}
+};
 
 type CampaignEligibility = Pick<
   Awaited<ReturnType<typeof findCampaignsByIdsWithEligibility>>[number],
@@ -331,17 +335,17 @@ type CampaignEligibility = Pick<
   | "stores"
 >;
 
-export function assertCampaignUsable(
+export const assertCampaignUsable = (
   campaign: CampaignEligibility,
   ctx: CampaignEligibilityContext & { storeCode: string }
-) {
+) => {
   const reason = campaignIneligibilityReason(campaign, ctx);
   if (reason) {
     throw new BadRequestException(reason);
   }
-}
+};
 
-export async function getUsableCampaigns(
+export const getUsableCampaigns = async (
   executor: DbExecutor,
   {
     campaignIds,
@@ -356,7 +360,7 @@ export async function getUsableCampaigns(
     storeId: number;
     storeCode: string;
   }
-) {
+) => {
   const campaigns = await findCampaignsByIdsWithEligibility(
     executor,
     campaignIds
@@ -397,4 +401,4 @@ export async function getUsableCampaigns(
       eligible_service_ids: eligibleServices.map((entry) => entry.service_id),
     })
   );
-}
+};

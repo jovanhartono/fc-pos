@@ -132,9 +132,9 @@ mock.module("@/db", () => ({
         }),
       },
     },
-    transaction: (cb: (tx: unknown) => unknown) => {
+    transaction: (work: (tx: unknown) => unknown) => {
       writes.transactionCount += 1;
-      return cb(fakeTx);
+      return work(fakeTx);
     },
   },
 }));

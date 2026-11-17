@@ -71,7 +71,7 @@ export const daySheet = (
         ),
       };
     }
-    case "orders":
+    case "orders": {
       return {
         title: `${dayLabel} Orders`,
         description: `${day} · ${pluralize(dropped.orders, "Order")}`,
@@ -82,7 +82,8 @@ export const daySheet = (
           />
         ),
       };
-    case "picked-up":
+    }
+    case "picked-up": {
       return {
         title: "Picked Up",
         description: `${day} · ${pluralize(picked.orders, "Order")} · ${pluralize(picked.items, "Item")}`,
@@ -90,7 +91,9 @@ export const daySheet = (
           <PickedUpSheetContent date={data.date} orders={picked.order_list} />
         ),
       };
-    default:
+    }
+    default: {
       return null;
+    }
   }
 };

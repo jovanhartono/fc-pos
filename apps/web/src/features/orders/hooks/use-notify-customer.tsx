@@ -6,12 +6,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
-import {
-  createOrderPickupNotice,
-  type OrderDetail,
-  type OrderReceipt,
-  ordersQueries,
-} from "@/features/orders/api";
+import { createOrderPickupNotice, ordersQueries } from "@/features/orders/api";
+import type { OrderDetail, OrderReceipt } from "@/features/orders/api";
 import {
   buildPickupNoticeMessage,
   formatNoticeTime,

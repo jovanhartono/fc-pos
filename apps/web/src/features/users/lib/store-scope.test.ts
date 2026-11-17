@@ -3,9 +3,9 @@ import { describe, expect, it } from "bun:test";
 import {
   canOpenStore,
   pickStore,
-  type StoreScope,
   storeScope,
 } from "@/features/users/lib/store-scope";
+import type { StoreScope } from "@/features/users/lib/store-scope";
 
 const userAt = (...storeIds: number[]) =>
   storeScope({

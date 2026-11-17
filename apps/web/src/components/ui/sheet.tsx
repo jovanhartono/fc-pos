@@ -1,15 +1,11 @@
 import { Drawer as SheetPrimitive } from "@base-ui/react/drawer";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  type ComponentProps,
-  createContext,
-  useContext,
-  useState,
-} from "react";
+import { createContext, useContext, useState } from "react";
+import type { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
-import { useBlockEdgeSwipe } from "@/hooks/useBlockEdgeSwipe";
+import { useBlockEdgeSwipe } from "@/hooks/use-block-edge-swipe";
 import { cn } from "@/lib/utils";
 
 type SheetSide = "top" | "right" | "bottom" | "left";

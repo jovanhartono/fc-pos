@@ -9,8 +9,8 @@ const app = new Hono().get("/", async (c) => {
   try {
     await db.execute(sql`select 1`);
     return c.json(success({ ok: true }));
-  } catch (err) {
-    console.error("health check failed", err);
+  } catch (error) {
+    console.error("health check failed", error);
     return c.json(
       failure("Database unavailable"),
       StatusCodes.SERVICE_UNAVAILABLE

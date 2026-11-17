@@ -63,7 +63,7 @@ describe("getItemTotalRow", () => {
         line({ subtotal: "20000" }),
         line({ status: "cancelled", subtotal: "99000" }),
       ])
-    ).toEqual({ amount: 70000 });
+    ).toEqual({ amount: 70_000 });
   });
 
   it("leaves a refunded Service out of the count and the sum", () => {
@@ -73,7 +73,7 @@ describe("getItemTotalRow", () => {
         line({ subtotal: "20000" }),
         line({ status: "refunded", subtotal: "30000" }),
       ])
-    ).toEqual({ amount: 70000 });
+    ).toEqual({ amount: 70_000 });
     expect(getItemTotalRow([line(), line({ status: "refunded" })])).toBeNull();
   });
 
@@ -89,7 +89,7 @@ describe("getItemTotalRow", () => {
   it("sums two paid Services", () => {
     expect(
       getItemTotalRow([line(), line({ price: "30000", subtotal: "30000" })])
-    ).toEqual({ amount: 80000 });
+    ).toEqual({ amount: 80_000 });
   });
 
   it("has no amount while a Line is unpriced", () => {

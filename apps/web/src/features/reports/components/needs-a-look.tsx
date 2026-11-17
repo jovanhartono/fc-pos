@@ -4,9 +4,9 @@ import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import type { WorkerRow } from "@/features/reports/api";
 import { WorkerName } from "@/features/reports/components/workers-table";
-import { useStoreCodes } from "@/features/reports/hooks/useStoreCodes";
+import { useStoreCodes } from "@/features/reports/hooks/use-store-codes";
 import { needsALook } from "@/features/reports/utils/workers-report";
-import { useMinuteClock } from "@/hooks/useMinuteClock";
+import { useMinuteClock } from "@/hooks/use-minute-clock";
 
 export interface NeedsALookItem {
   key: string;

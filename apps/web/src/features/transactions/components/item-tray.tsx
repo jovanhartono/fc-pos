@@ -2,11 +2,9 @@ import { Add01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Button } from "@/components/ui/button";
-import {
-  type ItemCartDisplayLine,
-  resolveActiveItemId,
-} from "@/features/transactions/cart/cart";
-import { useCartOps } from "@/features/transactions/cart/useCart";
+import { resolveActiveItemId } from "@/features/transactions/cart/cart";
+import type { ItemCartDisplayLine } from "@/features/transactions/cart/cart";
+import { useCartOps } from "@/features/transactions/cart/use-cart";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { cn } from "@/lib/utils";
 import { pluralize } from "@/shared/utils";

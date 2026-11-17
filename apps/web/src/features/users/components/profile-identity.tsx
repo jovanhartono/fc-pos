@@ -16,12 +16,11 @@ import { SinglePhotoUploadDialog } from "@/features/orders/components/photo-uplo
 import { storesQueries } from "@/features/stores/api";
 import {
   avatarUploader,
-  type Me,
   removeAvatar,
-  type UpdateOwnProfilePayload,
   updateOwnProfile,
   usersKeys,
 } from "@/features/users/api";
+import type { Me, UpdateOwnProfilePayload } from "@/features/users/api";
 import { UserAvatar } from "@/features/users/components/user-avatar";
 
 interface ProfileIdentityProps {

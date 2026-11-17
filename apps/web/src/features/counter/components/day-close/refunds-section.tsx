@@ -7,7 +7,7 @@ import type { DayClose } from "@/features/counter/api";
 import { AmountCell } from "@/features/counter/components/day-close/order-row";
 import { formatDayShort } from "@/features/counter/lib/day-close";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
-import { useOpenNestedOrder } from "@/features/orders/hooks/useOpenNestedOrder";
+import { useOpenNestedOrder } from "@/features/orders/hooks/use-open-nested-order";
 import { formatRefundReason } from "@/lib/status";
 
 interface RefundsSectionProps {

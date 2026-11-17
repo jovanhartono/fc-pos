@@ -3,15 +3,13 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
+import { reportsQueries } from "@/features/reports/api";
+import type { ReportGranularity } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
-import {
-  type ChartSeries,
-  rangeAxis,
-  sumHead,
-} from "@/features/reports/components/report-chart";
+import { rangeAxis, sumHead } from "@/features/reports/components/report-chart";
+import type { ChartSeries } from "@/features/reports/components/report-chart";
 import {
   csvFilename,
   downloadCsv,
@@ -48,7 +46,7 @@ export const PaymentsPanel = ({
     ...reportsQueries.paymentMix({ from, to, store_id: storeId, granularity }),
     placeholderData: keepPreviousData,
   });
-  const data = query.data;
+  const { data } = query;
 
   // Methods arrive biggest first, so the top four get colours and the rest
   // share one grey Other.
@@ -79,17 +77,15 @@ export const PaymentsPanel = ({
     if (!data) {
       return;
     }
-    const lines: string[] = [];
-    lines.push(
-      `Payment mix,Period,${data.method_keys.map((m) => escapeCsv(m.label)).join(",")}`
-    );
+    const lines: string[] = [
+      `Payment mix,Period,${data.method_keys.map((m) => escapeCsv(m.label)).join(",")}`,
+    ];
     for (const row of data.series) {
       lines.push(
         `Payment mix,${escapeCsv(row.bucket as string)},${data.method_keys.map((m) => row[m.key] ?? 0).join(",")}`
       );
     }
-    lines.push("");
-    lines.push("Totals,Method,Collected,Orders,Share");
+    lines.push("", "Totals,Method,Collected,Orders,Share");
     for (const m of data.summary.methods) {
       lines.push(
         `Totals,${escapeCsv(m.payment_method_name)},${m.collected},${m.orders},${m.share}`

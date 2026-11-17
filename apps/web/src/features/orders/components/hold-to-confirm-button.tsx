@@ -1,10 +1,5 @@
-import {
-  type KeyboardEvent,
-  type PointerEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent, PointerEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,21 +7,21 @@ import { cn } from "@/lib/utils";
 const HOLD_DURATION_MS = 1000;
 const HOLD_KEYS = new Set([" ", "Enter"]);
 
-type HoldToConfirmButtonProps = {
+interface HoldToConfirmButtonProps {
   children: string;
   disabled?: boolean;
   loading?: boolean;
   className?: string;
   onComplete: () => Promise<void> | void;
-};
+}
 
-export function HoldToConfirmButton({
+export const HoldToConfirmButton = ({
   children,
   disabled,
   loading,
   className,
   onComplete,
-}: HoldToConfirmButtonProps) {
+}: HoldToConfirmButtonProps) => {
   const frameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const completedRef = useRef(false);
@@ -48,16 +43,17 @@ export function HoldToConfirmButton({
     setProgress(0);
   };
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (frameRef.current !== null) {
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
       startTimeRef.current = null;
       completedRef.current = false;
-    };
-  }, []);
+    },
+    []
+  );
 
   const startHold = () => {
     setIsHolding(true);
@@ -115,18 +111,18 @@ export function HoldToConfirmButton({
     startHold();
   };
 
-  const endKeyHold = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (HOLD_KEYS.has(event.key)) {
-      cancelHold();
-    }
-  };
-
   const cancelHold = () => {
     if (completedRef.current || loading) {
       return;
     }
 
     resetHold();
+  };
+
+  const endKeyHold = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (HOLD_KEYS.has(event.key)) {
+      cancelHold();
+    }
   };
 
   return (
@@ -153,9 +149,8 @@ export function HoldToConfirmButton({
         style={{ width: `${progress * 100}%` }}
       />
       <span className="relative z-10">
-        {/* biome-ignore lint/suspicious/noLeakedRender: children is the button label, a ReactNode the caller already renders */}
         {isHolding ? "Keep Holding..." : children}
       </span>
     </Button>
   );
-}
+};

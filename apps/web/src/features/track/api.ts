@@ -9,10 +9,10 @@ export type PublicTrackedOrder = InferResponseType<
   typeof rpcPublic.api.public.orders.track.$post
 >["data"];
 
-export type TrackPublicOrderPayload = {
+export interface TrackPublicOrderPayload {
   code: string;
   phone_number: string;
-};
+}
 
 export const trackKeys = {
   all: ["publicTrackOrder"] as const,
@@ -20,21 +20,19 @@ export const trackKeys = {
     [...trackKeys.all, code, phoneNumber] as const,
 };
 
-export async function trackPublicOrder(payload: TrackPublicOrderPayload) {
-  return parseSuccessData<PublicTrackedOrder>(
+export const trackPublicOrder = (payload: TrackPublicOrderPayload) =>
+  parseSuccessData<PublicTrackedOrder>(
     rpcPublic.api.public.orders.track.$post({ json: payload })
   );
-}
 
 export type TrackCharge = NonNullable<PublicTrackedOrder["open_charge"]>;
 
 // Same proof as tracking; answers with the QRIS to show, or DOKU's QRIS page
 // to go to while its SNAP keys are missing.
-export function payTrackedOrder(payload: TrackPublicOrderPayload) {
-  return parseSuccessData<TrackCharge>(
+export const payTrackedOrder = (payload: TrackPublicOrderPayload) =>
+  parseSuccessData<TrackCharge>(
     rpcPublic.api.public.orders.pay.$post({ json: payload })
   );
-}
 
 export const trackQueries = {
   order: (code?: string, phoneNumber?: string) =>

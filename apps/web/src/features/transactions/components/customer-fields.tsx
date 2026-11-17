@@ -69,7 +69,7 @@ export const CustomerFields = () => {
         render={({ field, fieldState }) => (
           <CustomerPhoneField
             error={fieldState.error}
-            onValueChange={field.onChange}
+            onValueChange={(value) => field.onChange(value)}
             value={field.value}
           />
         )}
@@ -103,7 +103,7 @@ export const CustomerFields = () => {
             <Input
               id="customer-name"
               value={field.value}
-              onChange={field.onChange}
+              onChange={(event) => field.onChange(event)}
               readOnly={isReturning}
               aria-invalid={fieldState.invalid}
               placeholder="e.g. Budi Santoso"

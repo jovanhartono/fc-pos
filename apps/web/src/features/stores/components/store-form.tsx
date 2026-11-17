@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
+import { useSheetDirtyGuard } from "@/hooks/use-sheet-dirty-guard";
 
 export type StoreFormState = z.infer<typeof POSTStoreSchema>;
 
@@ -31,21 +31,21 @@ const defaultForm: StoreFormState = {
   is_active: true,
 };
 
-type StoreFormProps = {
+interface StoreFormProps {
   defaultValues?: StoreFormState;
   handleOnSubmit: (values: StoreFormState) => Promise<void> | void;
   isSubmitting?: boolean;
   isEditing: boolean;
   onReset: () => void;
-};
+}
 
-export function StoreForm({
+export const StoreForm = ({
   defaultValues,
   handleOnSubmit,
   isSubmitting: isSubmittingProp = false,
   isEditing,
   onReset,
-}: StoreFormProps) {
+}: StoreFormProps) => {
   const form = useForm({
     resolver: zodResolver(POSTStoreSchema),
     defaultValues: defaultValues ?? defaultForm,
@@ -104,7 +104,7 @@ export function StoreForm({
                 label="Phone"
                 value={field.value}
                 placeholder="e.g. +628123456789"
-                onValueChange={field.onChange}
+                onValueChange={(value) => field.onChange(value)}
                 disabled={isSubmitting}
                 required
                 error={fieldState.error}
@@ -143,7 +143,7 @@ export function StoreForm({
               <Input
                 name={field.name}
                 ref={field.ref}
-                onBlur={field.onBlur}
+                onBlur={() => field.onBlur()}
                 onChange={(event) => field.onChange(event.target.value)}
                 id="store-latitude"
                 placeholder="e.g. -6.200000"
@@ -166,7 +166,7 @@ export function StoreForm({
               <Input
                 name={field.name}
                 ref={field.ref}
-                onBlur={field.onBlur}
+                onBlur={() => field.onBlur()}
                 onChange={(event) => field.onChange(event.target.value)}
                 id="store-longitude"
                 placeholder="e.g. 106.816666"
@@ -187,7 +187,7 @@ export function StoreForm({
                 checked={field.value}
                 disabled={isSubmitting}
                 id="store-active"
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => field.onChange(checked)}
                 title="Active"
               />
             )}
@@ -202,4 +202,4 @@ export function StoreForm({
       </FieldGroup>
     </form>
   );
-}
+};

@@ -22,7 +22,7 @@ const GalleryPickerButton = () => {
       aria-label="Upload from device"
       className="grid size-12 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
       disabled={state.isBusy}
-      onClick={actions.openFileInput}
+      onClick={() => actions.openFileInput()}
       type="button"
     >
       <HugeiconsIcon icon={Image02Icon} className="size-5" aria-hidden="true" />
@@ -74,7 +74,7 @@ const ShutterTrailingSlot = () => {
       aria-label={meta.labels.confirmAria}
       className="grid size-14 place-items-center bg-white text-black transition hover:bg-white/90 disabled:opacity-40"
       disabled={state.isBusy}
-      onClick={actions.confirm}
+      onClick={() => actions.confirm()}
       type="button"
     >
       {state.isBusy ? (
@@ -103,7 +103,7 @@ const ShutterControls = () => {
         aria-label="Capture photo"
         className="grid size-16 place-items-center justify-self-center rounded-full border-4 border-white transition focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none disabled:opacity-40"
         disabled={!state.camera.isReady || state.isBusy}
-        onClick={actions.captureCameraPhoto}
+        onClick={() => actions.captureCameraPhoto()}
         type="button"
       >
         <span className="size-12 rounded-full bg-white transition active:scale-90 motion-reduce:active:scale-100" />
@@ -126,7 +126,7 @@ const EmptyControls = () => {
       <button
         className="flex h-14 flex-1 items-center justify-center gap-2 rounded-full bg-white text-headline font-medium text-black transition hover:bg-white/90 disabled:opacity-40"
         disabled={state.isBusy}
-        onClick={() => void actions.openCamera()}
+        onClick={() => actions.openCamera()}
         type="button"
       >
         <HugeiconsIcon
@@ -141,7 +141,7 @@ const EmptyControls = () => {
         aria-label="Upload from device"
         className="grid size-14 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25 disabled:opacity-40"
         disabled={state.isBusy}
-        onClick={actions.openFileInput}
+        onClick={() => actions.openFileInput()}
         type="button"
       >
         <HugeiconsIcon
@@ -188,7 +188,7 @@ const ReviewControls = () => {
         <button
           className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 text-body font-medium text-white transition hover:bg-white/20 disabled:opacity-40"
           disabled={state.isBusy}
-          onClick={() => void actions.openCamera()}
+          onClick={() => actions.openCamera()}
           type="button"
         >
           <HugeiconsIcon
@@ -213,7 +213,7 @@ const ReviewControls = () => {
         type="button"
         disabled={state.isBusy}
         loading={state.isBusy}
-        onClick={actions.confirm}
+        onClick={() => actions.confirm()}
       >
         {meta.labels.confirm}
       </Button>

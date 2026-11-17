@@ -1,4 +1,5 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -27,7 +28,9 @@ export const StickyControls = ({
     let offset = 0;
     const measure = () => {
       offset =
+        // oxlint-disable-next-line unicorn/prefer-number-coercion -- CSS values end in "px", which Number() turns into NaN
         Number.parseFloat(getComputedStyle(pane).paddingTop) +
+        // oxlint-disable-next-line unicorn/prefer-number-coercion -- CSS values end in "px", which Number() turns into NaN
         Number.parseFloat(getComputedStyle(bar).top);
     };
     const update = () => {

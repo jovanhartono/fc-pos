@@ -13,28 +13,91 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
   createProduct,
-  type Product,
   productsKeys,
   productsQueries,
   updateProduct,
 } from "@/features/products/api";
-import {
-  ProductForm,
-  type ProductFormState,
-} from "@/features/products/components/product-form";
+import type { Product } from "@/features/products/api";
+import { ProductForm } from "@/features/products/components/product-form";
+import type { ProductFormState } from "@/features/products/components/product-form";
 import { ProductStock } from "@/features/products/components/product-stock";
 import { formatMoney } from "@/shared/money";
 import { useSheet } from "@/stores/sheet-store";
 
-export const Route = createFileRoute("/_admin/products")({
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(productsQueries.list()),
-  component: ProductsPage,
-  // Past a second, the page itself draws with skeleton rows.
-  pendingComponent: ProductsPage,
-});
+const columnsFor = (
+  onEdit: (product: Product) => void
+): DataTableColumnDef<Product>[] => [
+  {
+    accessorKey: "sku",
+    header: "SKU",
+    meta: {
+      kind: "code",
+      width: { percent: 16, minRem: 9 },
+      mobileCard: { slot: "subtitle" },
+    },
+  },
+  {
+    accessorKey: "name",
+    header: "Product",
+    meta: { kind: "name", width: { percent: 24, minRem: 9 } },
+  },
+  {
+    id: "category",
+    header: "Category",
+    meta: {
+      width: { percent: 13, minRem: 6.5 },
+      mobileCard: { slot: "subtitle" },
+    },
+    cell: ({ row }) => row.original.category?.name ?? "-",
+  },
+  {
+    accessorKey: "cogs",
+    header: "COGS",
+    meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
+    cell: ({ row }) => formatMoney(String(row.original.cogs)),
+  },
+  {
+    accessorKey: "price",
+    header: "Price",
+    meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
+    cell: ({ row }) => <MoneyValue value={row.original.price} />,
+  },
+  {
+    accessorKey: "stock",
+    header: "Stock",
+    meta: {
+      align: "right",
+      width: { percent: 9, minRem: 4.5 },
+      mobileCard: { slot: "badges" },
+    },
+    cell: ({ row }) => <ProductStock stock={row.original.stock} />,
+  },
+  {
+    id: "status",
+    header: "Status",
+    meta: {
+      width: { percent: 9, minRem: 4.5 },
+      mobileCard: { slot: "status" },
+    },
+    cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    meta: {
+      width: { percent: 9, minRem: 4.5 },
+      mobileCard: { slot: "title-end" },
+    },
+    cell: ({ row }) => (
+      <EditRowButton
+        label={`Edit ${row.original.name}`}
+        onClick={() => onEdit(row.original)}
+      />
+    ),
+  },
+];
 
-function ProductsPage() {
+const ProductsPage = () => {
   const queryClient = useQueryClient();
   const { openSheet, closeSheet } = useSheet();
 
@@ -108,76 +171,7 @@ function ProductsPage() {
     });
   };
 
-  const columns: DataTableColumnDef<Product>[] = [
-    {
-      accessorKey: "sku",
-      header: "SKU",
-      meta: {
-        kind: "code",
-        width: { percent: 16, minRem: 9 },
-        mobileCard: { slot: "subtitle" },
-      },
-    },
-    {
-      accessorKey: "name",
-      header: "Product",
-      meta: { kind: "name", width: { percent: 24, minRem: 9 } },
-    },
-    {
-      id: "category",
-      header: "Category",
-      meta: {
-        width: { percent: 13, minRem: 6.5 },
-        mobileCard: { slot: "subtitle" },
-      },
-      cell: ({ row }) => row.original.category?.name ?? "-",
-    },
-    {
-      accessorKey: "cogs",
-      header: "COGS",
-      meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
-      cell: ({ row }) => formatMoney(String(row.original.cogs)),
-    },
-    {
-      accessorKey: "price",
-      header: "Price",
-      meta: { align: "right", width: { percent: 10, minRem: 5.5 } },
-      cell: ({ row }) => <MoneyValue value={row.original.price} />,
-    },
-    {
-      accessorKey: "stock",
-      header: "Stock",
-      meta: {
-        align: "right",
-        width: { percent: 9, minRem: 4.5 },
-        mobileCard: { slot: "badges" },
-      },
-      cell: ({ row }) => <ProductStock stock={row.original.stock} />,
-    },
-    {
-      id: "status",
-      header: "Status",
-      meta: {
-        width: { percent: 9, minRem: 4.5 },
-        mobileCard: { slot: "status" },
-      },
-      cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      meta: {
-        width: { percent: 9, minRem: 4.5 },
-        mobileCard: { slot: "title-end" },
-      },
-      cell: ({ row }) => (
-        <EditRowButton
-          label={`Edit ${row.original.name}`}
-          onClick={() => handleOpenEditSheet(row.original)}
-        />
-      ),
-    },
-  ];
+  const columns = columnsFor(handleOpenEditSheet);
 
   return (
     <>
@@ -209,4 +203,12 @@ function ProductsPage() {
       </ListPanel>
     </>
   );
-}
+};
+
+export const Route = createFileRoute("/_admin/products")({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(productsQueries.list()),
+  component: ProductsPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: ProductsPage,
+});

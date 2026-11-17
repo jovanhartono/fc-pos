@@ -1,6 +1,6 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it } from "bun:test";
 
+import "@/test-support/pglite";
 import {
   complaintsTable,
   itemImagesTable,
@@ -8,7 +8,8 @@ import {
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // The photo gate (ADR-0012, ADR-0019): whether the workshop may start on an

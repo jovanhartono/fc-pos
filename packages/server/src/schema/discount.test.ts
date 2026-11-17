@@ -2,13 +2,12 @@ import { describe, expect, it } from "bun:test";
 
 import {
   applyManualDiscount,
-  type CampaignDiscountInput,
   computeCampaignContribution,
-  type DiscountLine,
   isBogoSlot,
   orderNetDue,
   stackCampaignDiscounts,
 } from "@/schema/discount";
+import type { CampaignDiscountInput, DiscountLine } from "@/schema/discount";
 
 const fixed = (
   value: number,

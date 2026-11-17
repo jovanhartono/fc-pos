@@ -1,9 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
-import {
-  createFileRoute,
-  type SearchSchemaInput,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { SearchSchemaInput } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -11,10 +8,8 @@ import { PageHeader } from "@/components/page-header";
 import { reportsQueries } from "@/features/reports/api";
 import { ExportSlotContext } from "@/features/reports/components/export-button";
 import { ReportFilters } from "@/features/reports/components/report-filters";
-import {
-  ReportShell,
-  type ReportTab,
-} from "@/features/reports/components/report-shell";
+import { ReportShell } from "@/features/reports/components/report-shell";
+import type { ReportTab } from "@/features/reports/components/report-shell";
 // Bundled with the page rather than loaded per tab: a tab's first open used to
 // blank the page under a placeholder while its code arrived.
 import { AgingQueuePanel } from "@/features/reports/panels/aging-queue-panel";
@@ -27,11 +22,11 @@ import { PaymentsPanel } from "@/features/reports/panels/payments-panel";
 import { QualityPanel } from "@/features/reports/panels/quality-panel";
 import { WorkersPanel } from "@/features/reports/panels/workers-panel";
 import {
-  type ReportFilterValues,
   toReportFilters,
   withPresetRange,
   withSavedReportFilters,
 } from "@/features/reports/utils/report-filters";
+import type { ReportFilterValues } from "@/features/reports/utils/report-filters";
 import { storesQueries } from "@/features/stores/api";
 import { DATE_PRESETS, jakartaToday } from "@/shared/date-presets";
 import { getCurrentUser } from "@/stores/auth-store";
@@ -65,7 +60,7 @@ type Tab = z.infer<typeof tabSchema>;
 
 const granularitySchema = z.enum(["day", "week", "month", "year"]).optional();
 
-const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/u;
 
 const reportsSearchSchema = z
   .object({
@@ -74,7 +69,7 @@ const reportsSearchSchema = z
     from: z.string().regex(dateRegex).optional().catch(undefined),
     to: z.string().regex(dateRegex).optional().catch(undefined),
     store_id: z.coerce.number().int().positive().optional().catch(undefined),
-    granularity: granularitySchema.catch(() => undefined),
+    granularity: granularitySchema.catch(undefined),
   })
   .transform((value) => {
     const range = withPresetRange(value);
@@ -86,7 +81,7 @@ const reportsSearchSchema = z
 
 type ReportsSearch = z.infer<typeof reportsSearchSchema>;
 
-function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
+const prefetchForTab = (queryClient: QueryClient, search: ReportsSearch) => {
   const range = {
     from: search.from,
     to: search.to,
@@ -94,7 +89,7 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
     granularity: search.granularity,
   };
   switch (search.tab) {
-    case "overview":
+    case "overview": {
       return queryClient.ensureQueryData(
         reportsQueries.overview({
           date: jakartaToday(),
@@ -102,20 +97,25 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
           trend_days: 7,
         })
       );
-    case "financial":
+    }
+    case "financial": {
       return queryClient.ensureQueryData(reportsQueries.financial(range));
-    case "operations":
+    }
+    case "operations": {
       return Promise.all([
         queryClient.ensureQueryData(reportsQueries.ordersFlow(range)),
         queryClient.ensureQueryData(reportsQueries.turnaround(range)),
       ]);
-    case "payments":
+    }
+    case "payments": {
       return queryClient.ensureQueryData(reportsQueries.paymentMix(range));
-    case "customers":
+    }
+    case "customers": {
       return queryClient.ensureQueryData(
         reportsQueries.customerAcquisition(range)
       );
-    case "quality":
+    }
+    case "quality": {
       return queryClient.ensureQueryData(
         reportsQueries.quality({
           from: search.from,
@@ -123,7 +123,8 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
           store_id: search.store_id,
         })
       );
-    case "workers":
+    }
+    case "workers": {
       return queryClient.ensureQueryData(
         reportsQueries.workerProductivity({
           from: search.from,
@@ -131,11 +132,13 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
           store_id: search.store_id,
         })
       );
-    case "campaigns":
+    }
+    case "campaigns": {
       return queryClient.ensureQueryData(
         reportsQueries.campaignEffectiveness(range)
       );
-    case "aging-queue":
+    }
+    case "aging-queue": {
       return queryClient.ensureQueryData(
         reportsQueries.agingQueue({
           store_id: search.store_id,
@@ -143,10 +146,12 @@ function prefetchForTab(queryClient: QueryClient, search: ReportsSearch) {
           offset: 0,
         })
       );
-    default:
+    }
+    default: {
       return Promise.resolve();
+    }
   }
-}
+};
 
 const descriptions: Record<Tab, string> = {
   overview: "Today's revenue, throughput, and order flow.",
@@ -161,7 +166,7 @@ const descriptions: Record<Tab, string> = {
   "aging-queue": "Items still in queue, oldest first",
 };
 
-function ReportsPage() {
+const ReportsPage = () => {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
   const setFilters = useReportPreferencesStore((state) => state.setFilters);
@@ -295,7 +300,7 @@ function ReportsPage() {
       </ReportShell>
     </ExportSlotContext.Provider>
   );
-}
+};
 
 export const Route = createFileRoute("/_admin/reports")({
   // Restored before the loader runs, so an admin coming back from the sidebar
@@ -316,8 +321,9 @@ export const Route = createFileRoute("/_admin/reports")({
   // reading, faded, until the new numbers land in place.
   loader: async ({ context, deps, cause }) => {
     if (cause === "stay") {
-      // A failed fetch is shown by the panel itself.
-      prefetchForTab(context.queryClient, deps).catch(() => undefined);
+      prefetchForTab(context.queryClient, deps).catch(() => {
+        // A failed fetch is shown by the panel itself.
+      });
       return;
     }
     await Promise.all([

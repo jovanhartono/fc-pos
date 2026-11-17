@@ -7,10 +7,10 @@ import { EmptyState } from "@/components/empty-state";
 import { SectionTitle } from "@/components/section";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  type FinancialReport,
-  type ReportGranularity,
-  reportsQueries,
+import { reportsQueries } from "@/features/reports/api";
+import type {
+  FinancialReport,
+  ReportGranularity,
 } from "@/features/reports/api";
 import {
   BusyHoursCard,
@@ -21,17 +21,16 @@ import {
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import { MoneyWalkFlowCard } from "@/features/reports/components/money-walk-flow";
+import { RankRows, shareNote } from "@/features/reports/components/rank-rows";
+import type { RankRow } from "@/features/reports/components/rank-rows";
 import {
-  type RankRow,
-  RankRows,
-  shareNote,
-} from "@/features/reports/components/rank-rows";
-import {
-  type ChartAxis,
-  type ChartSeries,
   ReportChart,
   rangeAxis,
   valueAt,
+} from "@/features/reports/components/report-chart";
+import type {
+  ChartAxis,
+  ChartSeries,
 } from "@/features/reports/components/report-chart";
 import { StoreCategoryMixCard } from "@/features/reports/components/store-category-mix";
 import { storeRankRows } from "@/features/reports/components/store-revenue-rows";
@@ -52,6 +51,7 @@ import {
   formatKpiDeltaChange,
   kpiDeltaChange,
 } from "@/features/reports/utils/kpi-delta";
+import { maxBy } from "@/features/reports/utils/max-by";
 import { CONTENT_FADE, staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 import { getPreset } from "@/shared/date-presets";
@@ -68,157 +68,6 @@ interface DataProps {
 }
 
 const ratio = (num: number, denom: number) => (denom > 0 ? num / denom : 0);
-
-const exportCsv = (data: FinancialReport) => {
-  const summary = data.summary.current;
-  const prev = data.summary.previous;
-  const lines: string[] = [];
-  lines.push("Financial totals,Metric,Current,Previous");
-  lines.push(`Totals,Gross sales,${summary.gross_sales},${prev.gross_sales}`);
-  lines.push(
-    `Totals,Services,${summary.services_gross_sales},${prev.services_gross_sales}`
-  );
-  lines.push(
-    `Totals,Products,${summary.products_gross_sales},${prev.products_gross_sales}`
-  );
-  lines.push(`Totals,Discount,${summary.discount},${prev.discount}`);
-  lines.push(`Totals,Collected,${summary.collected},${prev.collected}`);
-  lines.push(`Totals,Refunds,${summary.refunds},${prev.refunds}`);
-  lines.push(`Totals,Revenue,${summary.revenue},${prev.revenue}`);
-  lines.push(`Totals,COGS,${summary.cogs},${prev.cogs}`);
-  lines.push(
-    `Totals,Gross profit,${summary.gross_profit},${prev.gross_profit}`
-  );
-  lines.push(`Totals,Margin,${summary.margin},${prev.margin}`);
-  lines.push(
-    `Totals,Discount rate,${summary.discount_rate},${prev.discount_rate}`
-  );
-  lines.push(`Totals,Refund rate,${summary.refund_rate},${prev.refund_rate}`);
-  lines.push("");
-  lines.push(
-    "Financial series,Period,Services,Products,Gross sales,Discount,Collected,Refunds,Revenue,COGS,Gross profit"
-  );
-  for (const row of data.series) {
-    lines.push(
-      `Series,${escapeCsv(row.bucket)},${row.services},${row.products},${row.gross_sales},${row.discount},${row.collected},${row.refunds},${row.revenue},${row.cogs},${row.gross_profit}`
-    );
-  }
-  lines.push("");
-  const matrix = data.store_category_matrix;
-  lines.push(
-    "Store × Category,Store code,Store name,Category,Gross sales,Share within store,Store total"
-  );
-  for (const row of matrix.rows) {
-    for (const cell of row.cells) {
-      const col = matrix.columns.find(
-        (c) => c.category_id === cell.category_id
-      );
-      lines.push(
-        `Store×Category,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${escapeCsv(col?.label ?? "")},${cell.gross_sales},${cell.share},${row.total}`
-      );
-    }
-  }
-  lines.push("");
-  lines.push("Store revenue,Store code,Store name,Revenue,Orders,Share");
-  for (const row of data.store_breakdown) {
-    lines.push(
-      `Store,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${row.revenue},${row.orders},${row.share}`
-    );
-  }
-  lines.push("");
-  lines.push("Top Services,Code,Name,Gross sales,Sold,COGS");
-  for (const row of data.top_services) {
-    lines.push(
-      `Service,${escapeCsv(row.code)},${escapeCsv(row.name)},${row.gross_sales},${row.items},${row.cogs}`
-    );
-  }
-  lines.push("");
-  lines.push("Busy Hours,Weekday,Hour,Collected in range");
-  for (const row of data.busy_hours) {
-    lines.push(`Hour,${WEEKDAYS[row.weekday]},${row.hour},${row.collected}`);
-  }
-  lines.push("");
-  lines.push("Unpaid Orders,Days since drop-off,Orders,Amount");
-  for (const row of data.unpaid_orders) {
-    lines.push(`Unpaid,${UNPAID_LABELS[row.key]},${row.orders},${row.amount}`);
-  }
-  downloadCsv(
-    csvFilename("financial", data.from, data.to, data.store_id),
-    lines.join("\n")
-  );
-};
-
-export const FinancialPanel = ({
-  from,
-  to,
-  storeId,
-  granularity,
-}: FinancialPanelProps) => {
-  const query = useQuery({
-    ...reportsQueries.financial({ from, to, store_id: storeId, granularity }),
-    placeholderData: keepPreviousData,
-  });
-  const data = query.data;
-  const categoryTotal =
-    data?.category_treemap.reduce((sum, row) => sum + row.gross_sales, 0) ?? 0;
-
-  return (
-    <div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
-      <ExportButton disabled={!data} onClick={() => data && exportCsv(data)} />
-      <HeroCard data={data} />
-      <KpiGrid data={data} />
-      {data ? (
-        <div className={cn("grid gap-6", CONTENT_FADE)}>
-          <Highlights data={data} />
-          <MoneyWalkFlowCard summary={data.summary.current} />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <WeekdayCard data={data} />
-            <BusyHoursCard
-              from={data.from}
-              rows={data.busy_hours}
-              to={data.to}
-            />
-          </div>
-          <div className="grid gap-6 lg:grid-cols-2">
-            <RankCard
-              rows={data.category_treemap.slice(0, 6).map((row) => ({
-                key: row.category_id,
-                name: row.category_name,
-                value: row.gross_sales,
-                notes: [shareNote(row.gross_sales, categoryTotal)],
-              }))}
-              title="Categories"
-            />
-            <RankCard
-              rows={storeRankRows(data.store_breakdown)}
-              title="Stores"
-            />
-          </div>
-          <StoreCategoryMixCard matrix={data.store_category_matrix} />
-          <div className="grid gap-6 lg:grid-cols-2">
-            <RankCard
-              rows={data.top_services.map((row) => ({
-                key: row.service_id,
-                code: row.code,
-                name: row.name,
-                value: row.gross_sales,
-                notes: [
-                  shareNote(
-                    row.gross_sales,
-                    data.summary.current.services_gross_sales
-                  ),
-                  `${numberFormatter.format(row.items)} sold`,
-                ],
-              }))}
-              title="Top Services"
-            />
-            <UnpaidOrdersCard rows={data.unpaid_orders} />
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-};
 
 interface MaybeDataProps {
   data: FinancialReport | undefined;
@@ -290,6 +139,7 @@ const HeroCard = ({ data }: MaybeDataProps) => {
   );
 };
 
+// oxlint-disable-next-line eslint/complexity -- one flat row of cards; the count is its `??` fallbacks for a report still loading
 const KpiGrid = ({ data }: MaybeDataProps) => {
   const now = data?.summary.current;
   const deltas = data?.summary.deltas;
@@ -361,8 +211,8 @@ const Highlights = ({ data }: DataProps) => {
     return null;
   }
   const axis = rangeAxis(data.granularity);
-  const best = earning.reduce((a, b) => (b.revenue > a.revenue ? b : a));
-  const slowest = earning.reduce((a, b) => (b.revenue < a.revenue ? b : a));
+  const best = maxBy(earning, (row) => row.revenue);
+  const slowest = maxBy(earning, (row) => -row.revenue);
   const to = dayjs(data.to);
   // Only while the month is still running: a past 1–15 Oct has a real total.
   const thisMonth = getPreset("thisMonth");
@@ -528,5 +378,143 @@ const UnpaidOrdersCard = ({ rows }: UnpaidOrdersCardProps) => {
         </ul>
       </CardContent>
     </Card>
+  );
+};
+
+const exportCsv = (data: FinancialReport) => {
+  const summary = data.summary.current;
+  const prev = data.summary.previous;
+  const lines: string[] = [
+    "Financial totals,Metric,Current,Previous",
+    `Totals,Gross sales,${summary.gross_sales},${prev.gross_sales}`,
+    `Totals,Services,${summary.services_gross_sales},${prev.services_gross_sales}`,
+    `Totals,Products,${summary.products_gross_sales},${prev.products_gross_sales}`,
+    `Totals,Discount,${summary.discount},${prev.discount}`,
+    `Totals,Collected,${summary.collected},${prev.collected}`,
+    `Totals,Refunds,${summary.refunds},${prev.refunds}`,
+    `Totals,Revenue,${summary.revenue},${prev.revenue}`,
+    `Totals,COGS,${summary.cogs},${prev.cogs}`,
+    `Totals,Gross profit,${summary.gross_profit},${prev.gross_profit}`,
+    `Totals,Margin,${summary.margin},${prev.margin}`,
+    `Totals,Discount rate,${summary.discount_rate},${prev.discount_rate}`,
+    `Totals,Refund rate,${summary.refund_rate},${prev.refund_rate}`,
+    "",
+    "Financial series,Period,Services,Products,Gross sales,Discount,Collected,Refunds,Revenue,COGS,Gross profit",
+  ];
+  for (const row of data.series) {
+    lines.push(
+      `Series,${escapeCsv(row.bucket)},${row.services},${row.products},${row.gross_sales},${row.discount},${row.collected},${row.refunds},${row.revenue},${row.cogs},${row.gross_profit}`
+    );
+  }
+  lines.push("");
+  const matrix = data.store_category_matrix;
+  lines.push(
+    "Store × Category,Store code,Store name,Category,Gross sales,Share within store,Store total"
+  );
+  for (const row of matrix.rows) {
+    for (const cell of row.cells) {
+      const col = matrix.columns.find(
+        (c) => c.category_id === cell.category_id
+      );
+      lines.push(
+        `Store×Category,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${escapeCsv(col?.label ?? "")},${cell.gross_sales},${cell.share},${row.total}`
+      );
+    }
+  }
+  lines.push("", "Store revenue,Store code,Store name,Revenue,Orders,Share");
+  for (const row of data.store_breakdown) {
+    lines.push(
+      `Store,${escapeCsv(row.store_code)},${escapeCsv(row.store_name)},${row.revenue},${row.orders},${row.share}`
+    );
+  }
+  lines.push("", "Top Services,Code,Name,Gross sales,Sold,COGS");
+  for (const row of data.top_services) {
+    lines.push(
+      `Service,${escapeCsv(row.code)},${escapeCsv(row.name)},${row.gross_sales},${row.items},${row.cogs}`
+    );
+  }
+  lines.push("", "Busy Hours,Weekday,Hour,Collected in range");
+  for (const row of data.busy_hours) {
+    lines.push(`Hour,${WEEKDAYS[row.weekday]},${row.hour},${row.collected}`);
+  }
+  lines.push("", "Unpaid Orders,Days since drop-off,Orders,Amount");
+  for (const row of data.unpaid_orders) {
+    lines.push(`Unpaid,${UNPAID_LABELS[row.key]},${row.orders},${row.amount}`);
+  }
+  downloadCsv(
+    csvFilename("financial", data.from, data.to, data.store_id),
+    lines.join("\n")
+  );
+};
+
+export const FinancialPanel = ({
+  from,
+  to,
+  storeId,
+  granularity,
+}: FinancialPanelProps) => {
+  const query = useQuery({
+    ...reportsQueries.financial({ from, to, store_id: storeId, granularity }),
+    placeholderData: keepPreviousData,
+  });
+  const { data } = query;
+  const categoryTotal =
+    data?.category_treemap.reduce((sum, row) => sum + row.gross_sales, 0) ?? 0;
+
+  return (
+    <div className={cn("grid gap-6", staleFade(query.isPlaceholderData))}>
+      <ExportButton disabled={!data} onClick={() => data && exportCsv(data)} />
+      <HeroCard data={data} />
+      <KpiGrid data={data} />
+      {data ? (
+        <div className={cn("grid gap-6", CONTENT_FADE)}>
+          <Highlights data={data} />
+          <MoneyWalkFlowCard summary={data.summary.current} />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <WeekdayCard data={data} />
+            <BusyHoursCard
+              from={data.from}
+              rows={data.busy_hours}
+              to={data.to}
+            />
+          </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RankCard
+              rows={data.category_treemap.slice(0, 6).map((row) => ({
+                key: row.category_id,
+                name: row.category_name,
+                value: row.gross_sales,
+                notes: [shareNote(row.gross_sales, categoryTotal)],
+              }))}
+              title="Categories"
+            />
+            <RankCard
+              rows={storeRankRows(data.store_breakdown)}
+              title="Stores"
+            />
+          </div>
+          <StoreCategoryMixCard matrix={data.store_category_matrix} />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RankCard
+              rows={data.top_services.map((row) => ({
+                key: row.service_id,
+                code: row.code,
+                name: row.name,
+                value: row.gross_sales,
+                notes: [
+                  shareNote(
+                    row.gross_sales,
+                    data.summary.current.services_gross_sales
+                  ),
+                  `${numberFormatter.format(row.items)} sold`,
+                ],
+              }))}
+              title="Top Services"
+            />
+            <UnpaidOrdersCard rows={data.unpaid_orders} />
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 };

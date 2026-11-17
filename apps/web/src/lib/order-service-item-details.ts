@@ -1,32 +1,29 @@
 import type { ItemNameFields } from "@fresclean/api/types";
 
-type ServiceItemDetails = {
+interface ServiceItemDetails {
   brand?: string | null;
   color?: string | null;
   model?: string | null;
   size?: string | null;
-};
+}
 
 // One field order for every surface that names an Item — the cart line, the
 // checkout row, the queue row. Two screens listing the same Item as
 // "Nike · Black · Yeezy" and "Nike · Yeezy · Black" read as two different Items.
-export function getOrderServiceItemDescriptors({
+export const getOrderServiceItemDescriptors = ({
   brand,
   model,
   color,
   size,
-}: ServiceItemDetails): string[] {
-  return [brand, model, color, size].flatMap((value) => {
+}: ServiceItemDetails): string[] =>
+  [brand, model, color, size].flatMap((value) => {
     const trimmed = value?.trim();
     return trimmed ? [trimmed] : [];
   });
-}
 
-export function getOrderServiceItemDetails(
+export const getOrderServiceItemDetails = (
   details: ServiceItemDetails
-): string | null {
-  return getOrderServiceItemDescriptors(details).join(" · ") || null;
-}
+): string | null => getOrderServiceItemDescriptors(details).join(" · ") || null;
 
 export const getRowItemDetails = (row: Omit<ItemNameFields, "item_code">) =>
   getOrderServiceItemDetails({
@@ -58,6 +55,5 @@ export const getShortItemTag = ({
     : item_code;
 };
 
-export function formatOrderServiceItemDetails(details: ServiceItemDetails) {
-  return getOrderServiceItemDetails(details) ?? "No item details";
-}
+export const formatOrderServiceItemDetails = (details: ServiceItemDetails) =>
+  getOrderServiceItemDetails(details) ?? "No item details";

@@ -39,7 +39,7 @@ const askedFor = async (run: () => Promise<unknown>) => {
 
   return queries.map((query) => ({
     params: query.params,
-    sql: query.sql.replace(/\s+/g, " ").trim(),
+    sql: query.sql.replaceAll(/\s+/gu, " ").trim(),
   }));
 };
 

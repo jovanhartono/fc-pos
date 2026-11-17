@@ -1,4 +1,5 @@
-import { type PointerEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { PointerEvent } from "react";
 
 import { Section } from "@/components/section";
 import {
@@ -9,13 +10,13 @@ import {
 import { NoShifts } from "@/features/shifts/components/no-shifts";
 import {
   DayMarkCell,
-  type MarkSize,
   ShiftsLegend,
 } from "@/features/shifts/components/shift-marks";
-import {
-  formatHours,
-  type PersonRow,
-  type StoreGroup,
+import type { MarkSize } from "@/features/shifts/components/shift-marks";
+import { formatHours } from "@/features/shifts/lib/shifts-overview";
+import type {
+  PersonRow,
+  StoreGroup,
 } from "@/features/shifts/lib/shifts-overview";
 import dayjs from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
@@ -39,48 +40,6 @@ const layoutFor = (dayCount: number): { size: MarkSize; nameWidth: string } => {
     return { size: "small", nameWidth: "18%" };
   }
   return { size: "bar", nameWidth: "22%" };
-};
-
-export const ShiftsRangeView = ({
-  groups,
-  days,
-  today,
-  isPhone,
-  onOpen,
-}: ShiftsRangeViewProps) => {
-  return (
-    <div className="grid gap-4">
-      <ShiftsLegend />
-      <div className="grid gap-5">
-        {groups.map((group) => (
-          <Section key={group.store.id} title={group.store.name}>
-            <div className="overflow-hidden rounded-lg border bg-card">
-              {group.rows.length === 0 ? (
-                <NoShifts />
-              ) : isPhone ? (
-                group.rows.map((row) => (
-                  <PersonCard
-                    key={row.person.id}
-                    row={row}
-                    days={days}
-                    today={today}
-                    onOpen={() => onOpen(row, group)}
-                  />
-                ))
-              ) : (
-                <PersonGrid
-                  group={group}
-                  days={days}
-                  today={today}
-                  onOpen={onOpen}
-                />
-              )}
-            </div>
-          </Section>
-        ))}
-      </div>
-    </div>
-  );
 };
 
 interface PersonNameProps {
@@ -152,6 +111,71 @@ const findHoverCell = (
     anchor: strip.children[col],
   };
 };
+
+interface GridRowProps {
+  index: number;
+  row: PersonRow;
+  group: StoreGroup;
+  days: string[];
+  today: string;
+  size: MarkSize;
+  columns: string;
+  onOpen: (row: PersonRow, group: StoreGroup) => void;
+}
+
+const GridRow = ({
+  index,
+  row,
+  group,
+  days,
+  today,
+  size,
+  columns,
+  onOpen,
+}: GridRowProps) => (
+  <button
+    type="button"
+    data-row={index}
+    onClick={() => onOpen(row, group)}
+    className="grid w-full items-center py-2.5 pl-3 text-left not-first:border-t hover:bg-muted"
+    style={{ gridTemplateColumns: columns }}
+  >
+    <PersonName row={row} />
+    {size === "bar" ? (
+      <span data-strip className="mr-3 flex gap-px">
+        {days.map((day) => (
+          <DayMarkCell
+            key={day}
+            mark={row.marks.get(day)}
+            isFuture={day > today}
+            size="bar"
+          />
+        ))}
+      </span>
+    ) : (
+      <span
+        data-strip
+        className="grid items-center justify-items-center"
+        style={{ gridTemplateColumns: dayColumns(days.length) }}
+      >
+        {days.map((day) => (
+          <DayMarkCell
+            key={day}
+            mark={row.marks.get(day)}
+            isFuture={day > today}
+            size={size}
+          />
+        ))}
+      </span>
+    )}
+    <span className="pr-3 text-right text-title-3 font-medium tabular-nums">
+      {row.days}
+    </span>
+    <span className="pr-3 text-right text-body tabular-nums">
+      {formatHours(row.minutes)}
+    </span>
+  </button>
+);
 
 const PersonGrid = ({ group, days, today, onOpen }: PersonGridProps) => {
   const { size, nameWidth } = layoutFor(days.length);
@@ -270,71 +294,6 @@ const PersonGrid = ({ group, days, today, onOpen }: PersonGridProps) => {
   );
 };
 
-interface GridRowProps {
-  index: number;
-  row: PersonRow;
-  group: StoreGroup;
-  days: string[];
-  today: string;
-  size: MarkSize;
-  columns: string;
-  onOpen: (row: PersonRow, group: StoreGroup) => void;
-}
-
-const GridRow = ({
-  index,
-  row,
-  group,
-  days,
-  today,
-  size,
-  columns,
-  onOpen,
-}: GridRowProps) => (
-  <button
-    type="button"
-    data-row={index}
-    onClick={() => onOpen(row, group)}
-    className="grid w-full items-center py-2.5 pl-3 text-left not-first:border-t hover:bg-muted"
-    style={{ gridTemplateColumns: columns }}
-  >
-    <PersonName row={row} />
-    {size === "bar" ? (
-      <span data-strip className="mr-3 flex gap-px">
-        {days.map((day) => (
-          <DayMarkCell
-            key={day}
-            mark={row.marks.get(day)}
-            isFuture={day > today}
-            size="bar"
-          />
-        ))}
-      </span>
-    ) : (
-      <span
-        data-strip
-        className="grid items-center justify-items-center"
-        style={{ gridTemplateColumns: dayColumns(days.length) }}
-      >
-        {days.map((day) => (
-          <DayMarkCell
-            key={day}
-            mark={row.marks.get(day)}
-            isFuture={day > today}
-            size={size}
-          />
-        ))}
-      </span>
-    )}
-    <span className="pr-3 text-right text-title-3 font-medium tabular-nums">
-      {row.days}
-    </span>
-    <span className="pr-3 text-right text-body tabular-nums">
-      {formatHours(row.minutes)}
-    </span>
-  </button>
-);
-
 interface PersonCardProps {
   row: PersonRow;
   days: string[];
@@ -374,4 +333,63 @@ const PersonCard = ({ row, days, today, onOpen }: PersonCardProps) => (
       {formatHours(row.minutes)}
     </span>
   </button>
+);
+
+interface StoreGroupRowsProps {
+  group: StoreGroup;
+  days: string[];
+  today: string;
+  isPhone: boolean;
+  onOpen: (row: PersonRow, group: StoreGroup) => void;
+}
+
+const StoreGroupRows = ({
+  group,
+  days,
+  today,
+  isPhone,
+  onOpen,
+}: StoreGroupRowsProps) => {
+  if (group.rows.length === 0) {
+    return <NoShifts />;
+  }
+  if (isPhone) {
+    return group.rows.map((row) => (
+      <PersonCard
+        key={row.person.id}
+        row={row}
+        days={days}
+        today={today}
+        onOpen={() => onOpen(row, group)}
+      />
+    ));
+  }
+  return <PersonGrid group={group} days={days} today={today} onOpen={onOpen} />;
+};
+
+export const ShiftsRangeView = ({
+  groups,
+  days,
+  today,
+  isPhone,
+  onOpen,
+}: ShiftsRangeViewProps) => (
+  <div className="grid gap-4">
+    <ShiftsLegend />
+    <div className="grid gap-5">
+      {groups.map((group) => (
+        <Section key={group.store.id} title={group.store.name}>
+          <div className="overflow-hidden rounded-lg border bg-card">
+            <StoreGroupRows
+              group={group}
+              days={days}
+              today={today}
+              isPhone={isPhone}
+              onOpen={onOpen}
+            />
+          </div>
+        </Section>
+      ))}
+    </div>
+  </div>
 );

@@ -5,7 +5,7 @@ import { isBackNavigation } from "@/lib/back-navigation";
 
 type RenderNode = () => ReactNode;
 
-type SheetState = {
+interface SheetState {
   open: boolean;
   title: ReactNode;
   description: string | null;
@@ -16,13 +16,16 @@ type SheetState = {
   onClose: (() => void) | null;
   isInstant: boolean;
   isRestoredOnBack: boolean;
-};
+}
 
 // A sheet opened from another sheet, like an Item's from a worker's, offers
 // the way back above its title.
-type SheetBack = { label: string; onClick: () => void };
+interface SheetBack {
+  label: string;
+  onClick: () => void;
+}
 
-export type OpenSheetPayload = {
+export interface OpenSheetPayload {
   title?: ReactNode;
   description?: string | null;
   content: RenderNode;
@@ -38,9 +41,9 @@ export type OpenSheetPayload = {
   // The page reopens this sheet after Back, already open as Safari's
   // swipe-back picture showed it; see useLeaveSheetLink.
   isRestoredOnBack?: boolean;
-};
+}
 
-type SheetStore = {
+interface SheetStore {
   sheetState: SheetState;
   isDirty: boolean;
   afterClose: (() => void) | null;
@@ -57,7 +60,7 @@ type SheetStore = {
   closeSheetThen: (then: () => void) => void;
   clearClosedSheet: () => void;
   setDirty: (dirty: boolean) => void;
-};
+}
 
 const defaultState: SheetState = {
   open: false,

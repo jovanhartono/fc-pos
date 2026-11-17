@@ -1,10 +1,10 @@
 import {
-  type ChartSeries,
   dateAxis,
   headParts,
   ReportChart,
   valueAt,
 } from "@/features/reports/components/report-chart";
+import type { ChartSeries } from "@/features/reports/components/report-chart";
 import { numberFormatter } from "@/features/reports/utils/format";
 import { QC_COLORS } from "@/features/reports/utils/palette";
 

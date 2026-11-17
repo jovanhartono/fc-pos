@@ -1,12 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 
-import {
-  type PaginatedData,
-  parseSuccessData,
-  toPaginated,
-  toSearchParams,
-} from "@/lib/http";
+import { parseSuccessData, toPaginated, toSearchParams } from "@/lib/http";
+import type { PaginatedData } from "@/lib/http";
 import { rpc } from "@/lib/rpc";
 
 export type ComplaintListItem = InferResponseType<
@@ -17,18 +14,18 @@ export type ComplaintDetail = InferResponseType<
   (typeof rpc.api.admin.complaints)[":id"]["$get"]
 >["data"];
 
-export type FetchComplaintsQuery = {
+export interface FetchComplaintsQuery {
   store_id?: number;
   search?: string;
   limit?: number;
   offset?: number;
-};
+}
 
-export type OpenComplaintPayload = {
+export interface OpenComplaintPayload {
   order_service_id: number;
   reason: string;
   start_rework?: boolean;
-};
+}
 
 export const complaintsKeys = {
   all: ["complaints"] as const,
@@ -38,9 +35,9 @@ export const complaintsKeys = {
   detail: (id: number) => [...complaintsKeys.all, "detail", id] as const,
 };
 
-async function fetchComplaintsPage(
+const fetchComplaintsPage = async (
   query?: FetchComplaintsQuery
-): Promise<PaginatedData<ComplaintListItem>> {
+): Promise<PaginatedData<ComplaintListItem>> => {
   const response = await parseResponse(
     rpc.api.admin.complaints.$get({
       query:
@@ -51,15 +48,14 @@ async function fetchComplaintsPage(
   );
 
   return toPaginated(response);
-}
+};
 
-function fetchComplaintDetail(id: number) {
-  return parseSuccessData<ComplaintDetail>(
+const fetchComplaintDetail = (id: number) =>
+  parseSuccessData<ComplaintDetail>(
     rpc.api.admin.complaints[":id"].$get({
       param: { id: String(id) },
     })
   );
-}
 
 export const complaintsQueries = {
   list: (query?: FetchComplaintsQuery) =>
@@ -74,14 +70,12 @@ export const complaintsQueries = {
     }),
 };
 
-export function openComplaint(payload: OpenComplaintPayload) {
-  return parseResponse(rpc.api.admin.complaints.$post({ json: payload }));
-}
+export const openComplaint = (payload: OpenComplaintPayload) =>
+  parseResponse(rpc.api.admin.complaints.$post({ json: payload }));
 
-export function addComplaintRework(complaintId: number) {
-  return parseResponse(
+export const addComplaintRework = (complaintId: number) =>
+  parseResponse(
     rpc.api.admin.complaints[":id"].rework.$post({
       param: { id: String(complaintId) },
     })
   );
-}

@@ -1,9 +1,11 @@
 import {
   applyManualDiscount,
-  type CampaignContribution,
-  type CampaignDiscountInput,
-  type DiscountLine,
   stackCampaignDiscounts,
+} from "@fresclean/api/rules";
+import type {
+  CampaignContribution,
+  CampaignDiscountInput,
+  DiscountLine,
 } from "@fresclean/api/rules";
 import { normalizePhoneNumber } from "@fresclean/api/schema";
 import type { UseFormReturn } from "react-hook-form";
@@ -14,13 +16,13 @@ import type { Product } from "@/features/products/api";
 import type { Service } from "@/features/services/api";
 import { parseMoney } from "@/shared/money";
 
-export type ProductCartLine = {
+export interface ProductCartLine {
   kind: "product";
   id: number;
   qty: number;
-};
+}
 
-export type ServiceCartLine = {
+export interface ServiceCartLine {
   kind: "service";
   line_id: string;
   id: number;
@@ -28,18 +30,18 @@ export type ServiceCartLine = {
   // ADR-0018: only read for a Repair, the price agreed with the Customer or ""
   // while the workshop still has to inspect it.
   price: string;
-};
+}
 
 // One Item and the Services sold for it (ADR-0017): a pair sold three Services
 // is described once, not once per Service.
-export type ItemCartLine = {
+export interface ItemCartLine {
   line_id: string;
   brand: string;
   color: string;
   model: string;
   size: string;
   services: ServiceCartLine[];
-};
+}
 
 export type ProductCartDisplayLine = ProductCartLine & {
   product: Product;
@@ -60,7 +62,7 @@ export interface AppliedVoucher {
   campaign: ResolvedVoucher;
 }
 
-export type TransactionDraftValues = {
+export interface TransactionDraftValues {
   selectedStoreId: string;
   customerName: string;
   customerPhone: string;
@@ -73,7 +75,7 @@ export type TransactionDraftValues = {
   notes: string;
   productCart: ProductCartLine[];
   itemCart: ItemCartLine[];
-};
+}
 
 export const defaultDraftValues: TransactionDraftValues = {
   selectedStoreId: "",
@@ -222,10 +224,10 @@ export const getServiceLinePrice = (line: {
     ? parseMoney(line.price)
     : parseMoney(line.service.price);
 
-type SubtotalServiceRow = {
+interface SubtotalServiceRow {
   price: string;
   service: { price: string | number | null };
-};
+}
 
 export const getCartSubtotal = (
   productRows: { qty: number; product: { price: string | number } }[],
@@ -330,7 +332,7 @@ export const toOrderPayload = ({
     store_id: Number(selectedStoreId),
     // Sent as drafted: a Campaign left on an unpaid Order (a stale tab) gets
     // the server's 400, not a silent strip the Customer finds at pickup (ADR-0018).
-    campaign_ids: selectedCampaignIds.map((id) => Number(id)),
+    campaign_ids: selectedCampaignIds.map(Number),
     voucher_codes: appliedVouchers.map((entry) => entry.code.trim()),
     discount: manualDiscount || "0",
     delivery_fee: deliveryFee || "0",

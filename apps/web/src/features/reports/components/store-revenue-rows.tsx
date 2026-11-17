@@ -1,7 +1,5 @@
-import {
-  type RankRow,
-  RankRows,
-} from "@/features/reports/components/rank-rows";
+import { RankRows } from "@/features/reports/components/rank-rows";
+import type { RankRow } from "@/features/reports/components/rank-rows";
 import {
   compactMoney,
   percentFormatter,

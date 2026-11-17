@@ -1,23 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
-  type EncodedUpload,
   encodeForUpload,
   MAX_UPLOAD_DIMENSION,
 } from "@/features/orders/utils/normalize-image";
+import type { EncodedUpload } from "@/features/orders/utils/normalize-image";
 
 const waitForVideoReady = (video: HTMLVideoElement) =>
+  // oxlint-disable-next-line promise/avoid-new -- the video only reports readiness through events
   new Promise<void>((resolve, reject) => {
     if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
       resolve();
       return;
     }
 
+    /* oxlint-disable no-use-before-define -- the two listeners and the timeout each clear all three */
     const cleanup = () => {
       video.removeEventListener("loadedmetadata", handleReady);
       video.removeEventListener("error", handleError);
       clearTimeout(timeoutId);
     };
+    /* oxlint-enable no-use-before-define */
     const handleReady = () => {
       cleanup();
       resolve();

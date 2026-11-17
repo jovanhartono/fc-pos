@@ -5,7 +5,7 @@ import { isValidPhoneNumber, normalizePhoneNumber } from "@/schema/phone";
 // Indonesian prices are written 1.500 for fifteen hundred: the dot is a
 // thousands separator, never a decimal point, and the counter has no sen.
 const parseIndonesianCurrency = (formattedValue: string): number =>
-  Number(formattedValue.replaceAll(/[^\d]/g, ""));
+  Number(formattedValue.replaceAll(/[^\d]/gu, ""));
 
 export const varcharSchema = (field: string, maxLength = 255) =>
   z
@@ -82,7 +82,7 @@ export const voucherCodesSchema = z
     "Duplicate voucher codes are not allowed"
   );
 
-const DATE_YYYY_MM_DD_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_YYYY_MM_DD_REGEX = /^\d{4}-\d{2}-\d{2}$/u;
 
 export const dateStringSchema = (field: string) =>
   z

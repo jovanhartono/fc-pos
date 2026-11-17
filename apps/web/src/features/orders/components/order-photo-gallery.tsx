@@ -2,10 +2,8 @@ import type * as React from "react";
 import { useState } from "react";
 
 import type { PhotoDownloadRef } from "@/features/orders/api";
-import {
-  PhotoLightbox,
-  type PhotoLightboxItem,
-} from "@/features/orders/components/photo-lightbox";
+import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
+import type { PhotoLightboxItem } from "@/features/orders/components/photo-lightbox";
 import {
   handleTileError,
   PHOTO_TILE_SIZE,
@@ -13,7 +11,7 @@ import {
 } from "@/features/orders/utils/photo-tile";
 import { cn } from "@/lib/utils";
 
-export type OrderPhotoGalleryItem = {
+export interface OrderPhotoGalleryItem {
   alt: string;
   caption?: React.ReactNode;
   created_at: string;
@@ -22,21 +20,21 @@ export type OrderPhotoGalleryItem = {
   image_url: string;
   label?: React.ReactNode;
   note?: string | null;
-};
+}
 
-type OrderPhotoGalleryProps = {
+interface OrderPhotoGalleryProps {
   emptyState?: React.ReactNode;
   gridClassName?: string;
   items: OrderPhotoGalleryItem[];
   title?: string;
-};
+}
 
-export function OrderPhotoGallery({
+export const OrderPhotoGallery = ({
   emptyState,
   gridClassName,
   items,
   title = "Attachment Viewer",
-}: OrderPhotoGalleryProps) {
+}: OrderPhotoGalleryProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -106,4 +104,4 @@ export function OrderPhotoGallery({
       />
     </>
   );
-}
+};

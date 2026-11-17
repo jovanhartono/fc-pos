@@ -5,7 +5,7 @@ import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 interface StoreChecklistProps {
   idPrefix: string;
-  stores: Array<{ id: number; name: string }>;
+  stores: { id: number; name: string }[];
   value: number[];
   onChange: (value: number[]) => void;
   disabled?: boolean;

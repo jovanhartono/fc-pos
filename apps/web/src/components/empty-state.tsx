@@ -1,5 +1,6 @@
 import { Search01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import type { IconSvgElement } from "@hugeicons/react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,7 @@ export const NoMatchState = ({
     }
   >
     <p className="max-w-full wrap-break-word">
-      No {noun} match "{search}"
+      No {noun} match &quot;{search}&quot;
     </p>
   </EmptyState>
 );

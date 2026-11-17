@@ -2,23 +2,25 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { DbExecutor } from "@/db";
 import {
-  type cancelReasonEnum,
   complaintsTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
   ordersTable,
 } from "@/db/schema";
+import type { cancelReasonEnum } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { assertStartPhoto } from "@/modules/orders/order-photo-gate.repository";
 import {
-  type DerivedItemStatus,
-  type ItemStatusLine,
   isCollectableItemStatus,
   isHandedOverByPickup,
   ORDER_SERVICE_TRANSITIONS,
   ORDER_TERMINAL_SERVICE_STATUSES,
-  type OrderServiceStatus,
   WORKSHOP_SERVICE_STATUSES,
+} from "@/schema/order-status";
+import type {
+  DerivedItemStatus,
+  ItemStatusLine,
+  OrderServiceStatus,
 } from "@/schema/order-status";
 
 type CancelReason = (typeof cancelReasonEnum.enumValues)[number];
@@ -38,9 +40,8 @@ const ORDER_TERMINAL_SERVICE_STATUS_SET = new Set<OrderServiceStatus>(
   ORDER_TERMINAL_SERVICE_STATUSES
 );
 
-export function isTerminalOrderServiceStatus(status: OrderServiceStatus) {
-  return ORDER_TERMINAL_SERVICE_STATUS_SET.has(status);
-}
+export const isTerminalOrderServiceStatus = (status: OrderServiceStatus) =>
+  ORDER_TERMINAL_SERVICE_STATUS_SET.has(status);
 
 export interface OrderFulfillmentSummary {
   active_count: number;
@@ -56,9 +57,9 @@ export interface OrderFulfillmentSummary {
 // One status per thing counted. The Order detail passes Item statuses, so a pair
 // booked for a clean and a repaint counts once at the counter. Cancelled ones are
 // left out, or the Order would read "2 of 3" forever after the Customer took everything.
-export function summarizeOrderFulfillment(
+export const summarizeOrderFulfillment = (
   statuses: OrderServiceStatus[]
-): OrderFulfillmentSummary {
+): OrderFulfillmentSummary => {
   const total_count = statuses.filter(
     (status) => status !== "cancelled"
   ).length;
@@ -84,7 +85,7 @@ export function summarizeOrderFulfillment(
     terminal_count,
     total_count,
   };
-}
+};
 
 // The progress rule an Order and an Item share; each names its own endings.
 type TreatmentWorkPhase =
@@ -93,9 +94,9 @@ type TreatmentWorkPhase =
   | "all_ready"
   | "no_live_work";
 
-function classifyTreatmentWork(
+const classifyTreatmentWork = (
   services: { status: OrderServiceStatus }[]
-): TreatmentWorkPhase {
+): TreatmentWorkPhase => {
   const active = services.filter(
     (item) => !isTerminalOrderServiceStatus(item.status)
   );
@@ -116,11 +117,11 @@ function classifyTreatmentWork(
     return "in_progress";
   }
   return "nothing_started";
-}
+};
 
-export function deriveItemStatus(
+export const deriveItemStatus = (
   services: ItemStatusLine[]
-): DerivedItemStatus {
+): DerivedItemStatus => {
   const phase = classifyTreatmentWork(services);
 
   if (phase === "all_ready") {
@@ -146,15 +147,14 @@ export function deriveItemStatus(
     return "picked_up";
   }
   return "refunded";
-}
+};
 
-export function isItemCollectable(services: ItemStatusLine[]): boolean {
-  return isCollectableItemStatus(deriveItemStatus(services));
-}
+export const isItemCollectable = (services: ItemStatusLine[]): boolean =>
+  isCollectableItemStatus(deriveItemStatus(services));
 
 // The "2 of 3 ready" pair, one entry per Item: ready once it can leave the
 // counter (or already has); a cancelled one is not counted at all.
-export function countItemsReady(items: ItemStatusLine[][]) {
+export const countItemsReady = (items: ItemStatusLine[][]) => {
   const statuses = items
     .map(deriveItemStatus)
     .filter((status) => status !== "cancelled");
@@ -164,12 +164,12 @@ export function countItemsReady(items: ItemStatusLine[][]) {
       (status) => isCollectableItemStatus(status) || status === "picked_up"
     ).length,
   };
-}
+};
 
-export function deriveOrderStatus(
+export const deriveOrderStatus = (
   services: { status: OrderServiceStatus }[],
   products: { cancelled_at: Date | null }[]
-): DerivedOrderStatus {
+): DerivedOrderStatus => {
   // Products have no workshop status, so only services count as live work.
   const phase = classifyTreatmentWork(services);
 
@@ -198,14 +198,14 @@ export function deriveOrderStatus(
   }
 
   return "completed";
-}
+};
 
 // Cancelled work drops off the bill; refunded work stays, because the Refund is
 // already recorded on the Order and dropping it here would take the money off twice.
-export function billableOrderTotal(
+export const billableOrderTotal = (
   services: { status: OrderServiceStatus; subtotal: string | null }[],
   products: { cancelled_at: Date | null; subtotal: string | null }[]
-): number {
+): number => {
   const serviceTotal = services
     .filter((item) => item.status !== "cancelled")
     .reduce((sum, item) => sum + Number(item.subtotal ?? 0), 0);
@@ -214,22 +214,21 @@ export function billableOrderTotal(
     .reduce((sum, item) => sum + Number(item.subtotal ?? 0), 0);
 
   return serviceTotal + productTotal;
-}
+};
 
 // coalesce, not now(): a price edit or payment on an uncollected Order must not
 // restart its shelf clock, or a week-old Order would never show as overdue. Null
 // otherwise, so work sent back to the workshop starts a fresh wait once ready again.
-export function nextReadyAt(status: DerivedOrderStatus) {
-  return status === "ready_for_pickup"
+export const nextReadyAt = (status: DerivedOrderStatus) =>
+  status === "ready_for_pickup"
     ? sql`coalesce(${ordersTable.ready_at}, now())`
     : null;
-}
 
-export async function recomputeOrderRollup(
+export const recomputeOrderRollup = async (
   executor: DbExecutor,
   orderId: number,
   updatedBy: number
-): Promise<void> {
+): Promise<void> => {
   const [services, products] = await Promise.all([
     executor.query.ordersServicesTable.findMany({
       where: { order_id: orderId },
@@ -262,7 +261,7 @@ export async function recomputeOrderRollup(
       updated_by: updatedBy,
     })
     .where(eq(ordersTable.id, orderId));
-}
+};
 
 export interface TransitionOrderServiceInput {
   by: number;
@@ -276,10 +275,10 @@ export interface TransitionOrderServiceInput {
 
 // Without the Order rollup, so cancelling six lines at once recomputes the Order
 // once at the end.
-async function applyServiceTransition(
+const applyServiceTransition = async (
   executor: DbExecutor,
   input: TransitionOrderServiceInput
-): Promise<{ from: OrderServiceStatus; to: OrderServiceStatus }> {
+): Promise<{ from: OrderServiceStatus; to: OrderServiceStatus }> => {
   const { orderId, serviceId, to, by, note, cancelReason, cancelNote } = input;
 
   if (to === "picked_up") {
@@ -365,21 +364,21 @@ async function applyServiceTransition(
   });
 
   return { from, to };
-}
+};
 
-export async function transitionOrderService(
+export const transitionOrderService = async (
   executor: DbExecutor,
   input: TransitionOrderServiceInput
-): Promise<{ from: OrderServiceStatus; to: OrderServiceStatus }> {
+): Promise<{ from: OrderServiceStatus; to: OrderServiceStatus }> => {
   const moved = await applyServiceTransition(executor, input);
 
   await recomputeOrderRollup(executor, input.orderId, input.by);
 
   return moved;
-}
+};
 
 // A free round on the rack for a Complaint (ADR-0013), ahead of the queue.
-export async function queueReworkLine(
+export const queueReworkLine = async (
   executor: DbExecutor,
   {
     by,
@@ -394,7 +393,7 @@ export async function queueReworkLine(
     orderId: number;
     serviceId: number | null;
   }
-) {
+) => {
   const [line] = await executor
     .insert(ordersServicesTable)
     .values({
@@ -422,13 +421,13 @@ export async function queueReworkLine(
   await recomputeOrderRollup(executor, orderId, by);
 
   return line;
-}
+};
 
 // The pair's original was cancelled or refunded, so its free re-clean stops
 // too, even on a paid Order (ADR-0013, 2026-09-24). A pair that went home and
 // came back is put on the shelf as is rather than cancelled, or it could never
 // be handed back (ADR-0013, 2026-10-06).
-async function stopLiveReworks(
+const stopLiveReworks = async (
   executor: DbExecutor,
   {
     by,
@@ -441,7 +440,7 @@ async function stopLiveReworks(
     originalIds: number[];
     to: "cancelled" | "ready_for_pickup";
   }
-): Promise<number[]> {
+): Promise<number[]> => {
   if (originalIds.length === 0) {
     return [];
   }
@@ -485,7 +484,7 @@ async function stopLiveReworks(
     }))
   );
   return reworkIds;
-}
+};
 
 export interface CancelOrderServiceLine {
   note?: string;
@@ -495,14 +494,14 @@ export interface CancelOrderServiceLine {
 
 // The counter cancels several lines on one Order in a single tap; the Order is
 // worked out once at the end so the Customer's bill does not jump six times.
-export async function cancelOrderServices(
+export const cancelOrderServices = async (
   executor: DbExecutor,
   {
     by,
     lines,
     orderId,
   }: { by: number; lines: CancelOrderServiceLine[]; orderId: number }
-): Promise<{ reworkIds: number[] }> {
+): Promise<{ reworkIds: number[] }> => {
   for (const line of lines) {
     await applyServiceTransition(executor, {
       by,
@@ -525,7 +524,7 @@ export async function cancelOrderServices(
   await recomputeOrderRollup(executor, orderId, by);
 
   return { reworkIds };
-}
+};
 
 export interface CompletePickupInput {
   by: number;
@@ -540,10 +539,10 @@ export interface CompletePickupInput {
 // caller and a Rework queued a moment earlier cannot slip past.
 // Finished lines flip to picked_up; lines refunded before the Customer came back
 // only get the pickup stamp.
-export async function completePickup(
+export const completePickup = async (
   executor: DbExecutor,
   input: CompletePickupInput
-): Promise<{ handedOverIds: number[]; requestedIds: number[] }> {
+): Promise<{ handedOverIds: number[]; requestedIds: number[] }> => {
   const { orderId, itemIds, pickupEventId, by, note } = input;
 
   // Another cashier may be opening a counter complaint on this pair right now;
@@ -654,7 +653,7 @@ export async function completePickup(
   await recomputeOrderRollup(executor, orderId, by);
 
   return { handedOverIds, requestedIds };
-}
+};
 
 export interface RefundTransitionItem {
   // The admin lets the Rework run on: money back plus a free re-clean.
@@ -669,10 +668,13 @@ export interface ApplyRefundTransitionInput {
   orderId: number;
 }
 
-export async function applyRefundTransition(
+const wentHome = (service: { status: OrderServiceStatus }) =>
+  service.status === "picked_up";
+
+export const applyRefundTransition = async (
   executor: DbExecutor,
   input: ApplyRefundTransitionInput
-): Promise<void> {
+): Promise<void> => {
   const { orderId, items, by } = input;
   const serviceIds = items.map((item) => item.serviceId);
 
@@ -734,8 +736,6 @@ export async function applyRefundTransition(
     items.filter((item) => item.keepRework).map((item) => item.serviceId)
   );
   const stopped = services.filter((service) => !keptIds.has(service.id));
-  const wentHome = (service: { status: OrderServiceStatus }) =>
-    service.status === "picked_up";
 
   await stopLiveReworks(executor, {
     by,
@@ -753,4 +753,4 @@ export async function applyRefundTransition(
   });
 
   await recomputeOrderRollup(executor, orderId, by);
-}
+};

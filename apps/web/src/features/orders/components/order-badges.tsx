@@ -1,9 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import type { Order } from "@/features/orders/api";
-import {
-  getPaymentBadges,
-  type PaymentBadgeOrder,
-} from "@/features/orders/lib/payment-badges";
+import { getPaymentBadges } from "@/features/orders/lib/payment-badges";
+import type { PaymentBadgeOrder } from "@/features/orders/lib/payment-badges";
 import { formatOrderStatus, getOrderStatusBadgeVariant } from "@/lib/status";
 
 interface PaymentBadgesProps {

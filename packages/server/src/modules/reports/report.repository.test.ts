@@ -57,9 +57,7 @@ describe("reading rupiah back out of Postgres", () => {
   });
 
   it("takes a store's refunds off that store's own takings", async () => {
-    rowQueue.push([[1, "600000", 4]]);
-    rowQueue.push([[1, "100000"]]);
-    rowQueue.push([[1, "KEM", "Kemang"]]);
+    rowQueue.push([[1, "600000", 4]], [[1, "100000"]], [[1, "KEM", "Kemang"]]);
 
     expect(await perStoreForRange({ range: SATURDAY })).toEqual([
       {
@@ -75,15 +73,17 @@ describe("reading rupiah back out of Postgres", () => {
 
   // Same order as Financial's Store leaderboard, so the two tabs agree.
   it("lists the Store that took the most first", async () => {
-    rowQueue.push([
-      [1, "100000", 1],
-      [2, "300000", 2],
-    ]);
-    rowQueue.push([]);
-    rowQueue.push([
-      [1, "BSD", "BSD"],
-      [2, "KEM", "Kemang"],
-    ]);
+    rowQueue.push(
+      [
+        [1, "100000", 1],
+        [2, "300000", 2],
+      ],
+      [],
+      [
+        [1, "BSD", "BSD"],
+        [2, "KEM", "Kemang"],
+      ]
+    );
 
     const rows = await perStoreForRange({ range: SATURDAY });
 

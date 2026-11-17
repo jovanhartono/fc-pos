@@ -112,7 +112,7 @@ export const buildLineTimeline = (line: TimelineLine): TimelineEntry[] => {
   }
 
   // Stable, so an undated round stays right after the complaint it follows.
-  return entries.sort(
+  return entries.toSorted(
     (a, b) => new Date(a.sortAt).getTime() - new Date(b.sortAt).getTime()
   );
 };

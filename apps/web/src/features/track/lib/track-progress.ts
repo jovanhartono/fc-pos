@@ -1,8 +1,5 @@
-import {
-  type DerivedItemStatus,
-  isCollectableItemStatus,
-  isWaitingQcOnly,
-} from "@fresclean/api/rules";
+import { isCollectableItemStatus, isWaitingQcOnly } from "@fresclean/api/rules";
+import type { DerivedItemStatus } from "@fresclean/api/rules";
 
 import type { PublicTrackedOrder, TrackCharge } from "@/features/track/api";
 import { hasQris } from "@/lib/qris";

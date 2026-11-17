@@ -14,7 +14,7 @@ interface CustomerFilters {
   search?: string;
 }
 
-function buildRelationalWhere(filters: CustomerFilters) {
+const buildRelationalWhere = (filters: CustomerFilters) => {
   if (filters.search) {
     return {
       OR: [
@@ -28,9 +28,9 @@ function buildRelationalWhere(filters: CustomerFilters) {
     };
   }
   return EmptyFilter;
-}
+};
 
-function buildCountWhere(filters: CustomerFilters) {
+const buildCountWhere = (filters: CustomerFilters) => {
   if (filters.search) {
     return or(
       ilike(customersTable.name, `%${filters.search}%`),
@@ -40,9 +40,9 @@ function buildCountWhere(filters: CustomerFilters) {
       )
     );
   }
-}
+};
 
-export function listCustomers({
+export const listCustomers = ({
   limit,
   offset,
   filters,
@@ -50,8 +50,8 @@ export function listCustomers({
   limit: number;
   offset: number;
   filters: CustomerFilters;
-}) {
-  return db.query.customersTable.findMany({
+}) =>
+  db.query.customersTable.findMany({
     orderBy: { id: "asc" },
     limit,
     offset,
@@ -64,20 +64,17 @@ export function listCustomers({
       },
     },
   });
-}
 
-export function countCustomers(filters: CustomerFilters) {
-  return db.$count(customersTable, buildCountWhere(filters));
-}
+export const countCustomers = (filters: CustomerFilters) =>
+  db.$count(customersTable, buildCountWhere(filters));
 
-export function findCustomerById(id: number) {
-  return db.query.customersTable.findFirst({
+export const findCustomerById = (id: number) =>
+  db.query.customersTable.findFirst({
     where: { id },
     with: {
       originStore: true,
     },
   });
-}
 
 export interface CustomerSummary {
   complaints: number;
@@ -89,8 +86,8 @@ export interface CustomerSummary {
 // Lifetime spend is never bucketed by period the way Revenue is: the question
 // is what this person is worth today, so a refund just lowers it. Last visit
 // counts every Order, including the ones they never paid for.
-function findCustomerOrderStats(customerId: number) {
-  return db.query.ordersTable.findMany({
+const findCustomerOrderStats = (customerId: number) =>
+  db.query.ordersTable.findMany({
     where: { customer_id: customerId },
     columns: { id: true },
     extras: {
@@ -112,20 +109,18 @@ function findCustomerOrderStats(customerId: number) {
     },
     limit: 1,
   });
-}
 
-function findCustomerComplaintCount(customerId: number) {
-  return db.query.complaintsTable.findMany({
+const findCustomerComplaintCount = (customerId: number) =>
+  db.query.complaintsTable.findMany({
     where: { orderService: { order: { customer_id: customerId } } },
     columns: { id: true },
     extras: { total: sql<number>`(COUNT(*) OVER ())::int`.as("total") },
     limit: 1,
   });
-}
 
-export async function findCustomerSummary(
+export const findCustomerSummary = async (
   customerId: number
-): Promise<CustomerSummary> {
+): Promise<CustomerSummary> => {
   const [orders, complaints] = await Promise.all([
     findCustomerOrderStats(customerId),
     findCustomerComplaintCount(customerId),
@@ -140,31 +135,27 @@ export async function findCustomerSummary(
     lifetime_spend: stats?.lifetime_spend ?? "0",
     paid_orders: stats?.paid_orders ?? 0,
   };
-}
+};
 
-export function findCustomerByPhone(
+export const findCustomerByPhone = (
   phone_number: string,
   executor: CustomerExecutor = db
-) {
-  return executor.query.customersTable.findFirst({
+) =>
+  executor.query.customersTable.findFirst({
     where: { phone_number },
   });
-}
 
-export function insertCustomer(
+export const insertCustomer = (
   values: InferInsertModel<typeof customersTable>,
   executor: CustomerExecutor = db
-) {
-  return executor.insert(customersTable).values(values).returning();
-}
+) => executor.insert(customersTable).values(values).returning();
 
-export function updateCustomerById(
+export const updateCustomerById = (
   id: number,
   values: Partial<InferInsertModel<typeof customersTable>>
-) {
-  return db
+) =>
+  db
     .update(customersTable)
     .set(values)
     .where(eq(customersTable.id, id))
     .returning();
-}

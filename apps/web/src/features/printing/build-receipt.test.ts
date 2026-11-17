@@ -91,9 +91,9 @@ const decodeText = (bytes: Uint8Array): string =>
 
 // Printer mode commands, as they read in the decoded receipt — prefix a row
 // with one to assert the mode that governs it.
-const EMPHASIS_ON = "\x1bE\x01";
-const EMPHASIS_OFF = "\x1bE\x00";
-const ALIGN_LEFT = "\x1ba\x00";
+const EMPHASIS_ON = "\u001BE\u0001";
+const EMPHASIS_OFF = "\u001BE\u0000";
+const ALIGN_LEFT = "\u001Ba\u0000";
 
 const RASTER_HEADER = [0x1d, 0x76, 0x30, 0x00];
 
@@ -117,7 +117,7 @@ describe("buildReceiptEscPos", () => {
 
     // ESC @ init first, cut last.
     expect([bytes[0], bytes[1]]).toEqual([0x1b, 0x40]);
-    expect([...bytes.slice(-4)]).toEqual([0x1d, 0x56, 0x42, 0x00]);
+    expect(bytes.slice(-4)).toEqual(Uint8Array.of(0x1d, 0x56, 0x42, 0x00));
 
     // The wordmark carries the brand; the Store name would collide with it.
     expect(text).not.toContain("Fresclean Kemang");
@@ -234,9 +234,9 @@ describe("buildReceiptEscPos", () => {
     expect(text.split("Nike - AF1 - Putih - 42").length - 1).toBe(1);
     expect(text.split("#JKT/06072026/12-S001").length - 1).toBe(1);
     // Each Service still prices on its own line: the cashier sold three.
-    expect(text).toMatch(/ {2}Deep Clean +Rp75\.000/);
-    expect(text).toMatch(/ {2}Repaint +Rp150\.000/);
-    expect(text).toMatch(/ {2}Leather Care +Rp35\.000/);
+    expect(text).toMatch(/ {2}Deep Clean +Rp75\.000/u);
+    expect(text).toMatch(/ {2}Repaint +Rp150\.000/u);
+    expect(text).toMatch(/ {2}Leather Care +Rp35\.000/u);
   });
 
   test("a second Item is set off by a blank line, and each is named in bold", () => {
@@ -331,7 +331,7 @@ describe("buildReceiptEscPos", () => {
 
     expect(start).toBeGreaterThan(-1);
     // Continuation stays indented under the Service, not flush at column 0.
-    expect(lines[start + 1]).toMatch(/^ {4}\S/);
+    expect(lines[start + 1]).toMatch(/^ {4}\S/u);
     for (const line of [lines[start], lines[start + 1]]) {
       expect(line.length).toBeLessThanOrEqual(48);
     }
@@ -349,7 +349,7 @@ describe("buildReceiptEscPos", () => {
 
     expect(start).toBeGreaterThan(-1);
     // Continuation stays indented, and no line exceeds the printer width.
-    expect(lines[start + 1]).toMatch(/^ {4}\S/);
+    expect(lines[start + 1]).toMatch(/^ {4}\S/u);
     for (const line of [lines[start], lines[start + 1]]) {
       expect(line.length).toBeLessThanOrEqual(48);
     }

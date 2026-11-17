@@ -1,17 +1,18 @@
-import { createContext, type ReactNode, use, useEffect, useState } from "react";
+import { createContext, use, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 
 type Theme = "dark" | "light" | "system";
 
-type ThemeProviderProps = {
+interface ThemeProviderProps {
   children: ReactNode;
   defaultTheme?: Theme;
   storageKey?: string;
-};
+}
 
-type ThemeProviderState = {
+interface ThemeProviderState {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-};
+}
 
 const ThemeProviderContext = createContext<ThemeProviderState | null>(null);
 
@@ -34,12 +35,12 @@ const writeStoredTheme = (storageKey: string, theme: Theme) => {
   }
 };
 
-export function ThemeProvider({
+export const ThemeProvider = ({
   children,
   defaultTheme = "system",
   storageKey = "vite-ui-theme",
   ...props
-}: ThemeProviderProps) {
+}: ThemeProviderProps) => {
   const [theme, setTheme] = useState<Theme>(
     () => readStoredTheme(storageKey) || defaultTheme
   );
@@ -75,7 +76,7 @@ export function ThemeProvider({
       {children}
     </ThemeProviderContext>
   );
-}
+};
 
 export const useTheme = () => {
   const context = use(ThemeProviderContext);

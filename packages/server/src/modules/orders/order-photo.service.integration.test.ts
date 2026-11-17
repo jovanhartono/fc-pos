@@ -1,8 +1,9 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it, mock } from "bun:test";
 
+import "@/test-support/pglite";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 import { newPhotoKey } from "@/utils/photo-key";
 

@@ -7,14 +7,8 @@ import {
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  lazy,
-  type ReactElement,
-  type ReactNode,
-  Suspense,
-  useEffect,
-  useState,
-} from "react";
+import { lazy, Suspense, useEffect, useEffectEvent, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { DateRange, Matcher } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
@@ -32,15 +26,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useIsCoarsePointer, useIsMobile } from "@/hooks/use-mobile";
+import { useMountValue } from "@/hooks/use-mount-value";
 import dayjs from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
-import {
-  type DatePreset,
-  getPresets,
-  jakartaToday,
-  matchPreset,
-  type RangePreset,
-} from "@/shared/date-presets";
+import { getPresets, jakartaToday, matchPreset } from "@/shared/date-presets";
+import type { DatePreset, RangePreset } from "@/shared/date-presets";
 
 const DISPLAY_FORMAT = "MMM D, YYYY";
 const WIRE_FORMAT = "YYYY-MM-DD";
@@ -143,7 +133,6 @@ export const DatePicker = ({
         }
       >
         <span className="truncate">
-          {/* biome-ignore lint/suspicious/noLeakedRender: placeholder is a string prop, so no 0 or NaN can reach the DOM */}
           {value ? dayjs(value).format(displayFormat) : placeholder}
         </span>
       </PopoverTrigger>
@@ -402,6 +391,7 @@ const DateRangePopover = ({
   );
 };
 
+// oxlint-disable-next-line eslint/complexity -- one picker covering presets, draft range and clear
 export const DateRangePicker = ({
   id,
   from,
@@ -433,15 +423,20 @@ export const DateRangePicker = ({
   const [isOpen, setIsOpen] = useState(false);
   const isCoarsePointer = useIsCoarsePointer();
 
+  const resetDraftRange = useEffectEvent(() =>
+    setDraftRange(selectedFromProps)
+  );
   useEffect(() => {
-    setDraftRange(selectedFromProps);
-  }, [selectedFromProps]);
+    // oxlint-disable-next-line react/set-state-in-effect -- the draft resets when the chosen range changes from outside
+    resetDraftRange();
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- a new from or to is what triggers the reset
+  }, [from, to]);
 
   const displayRange = draftRange ?? selectedFromProps;
   const hasValue = Boolean(from || to);
   const showClear = Boolean(onClear) && hasValue;
 
-  const [presets] = useState(getPresets);
+  const presets = useMountValue(getPresets);
   const matchedPreset =
     displayRange?.from && displayRange?.to
       ? matchPreset(

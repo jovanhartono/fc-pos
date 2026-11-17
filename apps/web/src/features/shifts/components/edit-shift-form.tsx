@@ -7,7 +7,8 @@ import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { StoreSelect } from "@/features/orders/components/store-select";
-import { type Shift, shiftsKeys, updateShift } from "@/features/shifts/api";
+import { shiftsKeys, updateShift } from "@/features/shifts/api";
+import type { Shift } from "@/features/shifts/api";
 import {
   checkClockOutAfterClockIn,
   ShiftTimeFields,
@@ -81,7 +82,7 @@ export const EditShiftForm = ({ shift, onDone }: EditShiftFormProps) => {
       queryClient.invalidateQueries({ queryKey: shiftsKeys.all }),
   });
 
-  const isSubmitting = form.formState.isSubmitting;
+  const { isSubmitting } = form.formState;
 
   const onSubmit = async (values: EditShiftValues) => {
     await updateMutation.mutateAsync(values);
@@ -103,7 +104,7 @@ export const EditShiftForm = ({ shift, onDone }: EditShiftFormProps) => {
                 allowedStoreIds={[...workerStoreIds, shift.store_id]}
                 disabled={isSubmitting}
                 value={field.value}
-                onValueChange={field.onChange}
+                onValueChange={(value) => field.onChange(value)}
                 error={fieldState.error}
               />
             )}

@@ -2,11 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { DebouncedSearchInput } from "@/components/debounced-search-input";
-import {
-  dateRangeLabel,
-  type FilterChip,
-  FilterChips,
-} from "@/components/filter-chips";
+import { dateRangeLabel, FilterChips } from "@/components/filter-chips";
+import type { FilterChip } from "@/components/filter-chips";
 import { FilterPanel } from "@/components/filter-panel";
 import { SelectField } from "@/components/form/select-field";
 import { SegmentedFilter } from "@/components/segmented-filter";

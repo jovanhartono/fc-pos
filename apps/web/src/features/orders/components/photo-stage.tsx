@@ -15,13 +15,15 @@ import {
   doubleTapZoom,
   fittedSize,
   MIN_SCALE,
-  type Point,
   panBy,
   pinchZoom,
   resetTransform,
-  type Size,
   toCssTransform,
-  type ZoomTransform,
+} from "@/features/orders/lib/photo-zoom";
+import type {
+  Point,
+  Size,
+  ZoomTransform,
 } from "@/features/orders/lib/photo-zoom";
 import { cn } from "@/lib/utils";
 
@@ -262,7 +264,7 @@ export const PhotoStage = ({
         gesture.startX = event.clientX;
         gesture.startY = event.clientY;
       }
-      const stage = gesture.stage;
+      const { stage } = gesture;
       if (!stage) {
         return;
       }
@@ -320,7 +322,7 @@ export const PhotoStage = ({
 
     const handleMove = (event: PointerEvent) => {
       const previous = pointers.get(event.pointerId);
-      const stage = gesture.stage;
+      const { stage } = gesture;
       if (!(previous && stage)) {
         return;
       }
@@ -424,8 +426,8 @@ export const PhotoStage = ({
       if (!pointers.delete(event.pointerId)) {
         return;
       }
-      const stage = gesture.stage;
-      const pinched = gesture.pinched;
+      const { stage } = gesture;
+      const { pinched } = gesture;
 
       if (pointers.size >= 2) {
         rebasePinch(stage);
@@ -568,7 +570,7 @@ export const PhotoStage = ({
       return;
     }
     const observer = new ResizeObserver(() => {
-      const current = transformRef.current;
+      const { current } = transformRef;
       const rect = stageRef.current?.getBoundingClientRect();
       const loaded = naturalRef.current;
       if (current.scale === MIN_SCALE || !rect || !loaded) {

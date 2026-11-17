@@ -5,15 +5,14 @@ import { rpc } from "@/lib/rpc";
 
 type LoginSuccessResponse = InferResponseType<typeof rpc.api.auth.login.$post>;
 
-export type LoginPayload = {
+export interface LoginPayload {
   username: string;
   password: string;
-};
+}
 
-export async function login(payload: LoginPayload) {
-  return parseSuccessData<LoginSuccessResponse["data"]>(
+export const login = (payload: LoginPayload) =>
+  parseSuccessData<LoginSuccessResponse["data"]>(
     rpc.api.auth.login.$post({ json: payload })
   );
-}
 
 export const logout = () => rpc.api.auth.logout.$post();

@@ -7,7 +7,7 @@ import { CartMiniBar } from "@/features/transactions/components/cart-mini-bar";
 import { TransactionsCatalog } from "@/features/transactions/components/transactions-catalog";
 import { TransactionsCheckout } from "@/features/transactions/components/transactions-checkout";
 
-export function TransactionsWorkspace() {
+export const TransactionsWorkspace = () => {
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const form = useFormContext<TransactionDraftValues>();
   const selectedStoreId =
@@ -19,7 +19,7 @@ export function TransactionsWorkspace() {
     if (!selectedStoreId) {
       void form.trigger("selectedStoreId");
       document
-        .getElementById("order-store")
+        .querySelector("#order-store")
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
@@ -46,4 +46,4 @@ export function TransactionsWorkspace() {
       </Sheet>
     </>
   );
-}
+};

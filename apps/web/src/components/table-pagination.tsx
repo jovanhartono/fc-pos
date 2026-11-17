@@ -12,25 +12,26 @@ import {
 } from "@/components/ui/select";
 import type { PaginationMeta } from "@/lib/http";
 import { isListKeyBlocked } from "@/lib/list-keys";
-import { PAGE_SIZES, type PageSize } from "@/lib/page-size";
+import { PAGE_SIZES } from "@/lib/page-size";
+import type { PageSize } from "@/lib/page-size";
 
 const formatCount = (count: number) => count.toLocaleString("en-ID");
 
-type TablePaginationProps = {
+interface TablePaginationProps {
   meta?: PaginationMeta;
   isLoading?: boolean;
   onPageChange: (page: number) => void;
   pageSize?: PageSize;
   onPageSizeChange?: (pageSize: PageSize) => void;
-};
+}
 
-export function TablePagination({
+export const TablePagination = ({
   meta,
   isLoading,
   onPageChange,
   pageSize,
   onPageSizeChange,
-}: TablePaginationProps) {
+}: TablePaginationProps) => {
   const currentPage = meta ? Math.floor(meta.offset / meta.limit) + 1 : 1;
   const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.limit)) : 1;
   const canGoBack = !isLoading && meta !== undefined && currentPage > 1;
@@ -128,4 +129,4 @@ export function TablePagination({
       </div>
     </div>
   );
-}
+};

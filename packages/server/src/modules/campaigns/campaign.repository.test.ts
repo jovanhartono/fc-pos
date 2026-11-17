@@ -7,7 +7,7 @@ import {
 import type { OrderTx } from "@/modules/orders/order.repository";
 import { captureRejection } from "@/test-support/capture-rejection";
 
-const CROCKFORD = /^[23456789ABCDEFGHJKMNPQRSTVWXYZ]{8}$/;
+const CROCKFORD = /^[23456789ABCDEFGHJKMNPQRSTVWXYZ]{8}$/u;
 
 describe("generateCrockfordCode", () => {
   it("returns an 8-character code", () => {
@@ -34,7 +34,7 @@ describe("generateCrockfordCode", () => {
 // real database error.
 type InsertBehavior = number | "boom";
 
-function makeTx(behaviors: InsertBehavior[]) {
+const makeTx = (behaviors: InsertBehavior[]) => {
   const requested: number[] = [];
   let call = 0;
   const tx = {
@@ -48,7 +48,11 @@ function makeTx(behaviors: InsertBehavior[]) {
           onConflictDoNothing: () => ({
             returning: () => {
               if (behavior === "boom") {
-                return Promise.reject({ code: "42P01" });
+                return Promise.reject(
+                  Object.assign(new Error("relation does not exist"), {
+                    code: "42P01",
+                  })
+                );
               }
               const insertedCount = Math.min(behavior, requestedCount);
               return Promise.resolve(
@@ -63,7 +67,7 @@ function makeTx(behaviors: InsertBehavior[]) {
     }),
   };
   return { tx: tx as unknown as OrderTx, requested };
-}
+};
 
 describe("mintCampaignCodes", () => {
   it("inserts the whole batch in one attempt on success", async () => {

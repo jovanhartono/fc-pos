@@ -53,6 +53,61 @@ const MethodRow = ({
   );
 };
 
+interface SlipGroupProps {
+  group: ReturnType<typeof groupBySlip>[number];
+  onOpen: (list: string) => void;
+}
+
+const SlipGroup = ({ group, onOpen }: SlipGroupProps) => {
+  if (group.isSingle) {
+    return (
+      <MethodRow
+        amount={group.amount}
+        isLine={false}
+        label={group.slip}
+        onClick={() => onOpen(`method:${group.slip}`)}
+        payments={group.payments}
+      />
+    );
+  }
+  if (group.lines.length === 1) {
+    // The slip's total would only repeat its one line's.
+    return (
+      <MethodRow
+        amount={group.amount}
+        isLine={false}
+        label={`${group.slip} · ${group.lines[0].line}`}
+        onClick={() => onOpen(`method:${group.lines[0].name}`)}
+        payments={group.payments}
+      />
+    );
+  }
+  return (
+    <>
+      <GroupLabel
+        end={
+          <>
+            {formatMoney(group.amount)}
+            <OpenArrow />
+          </>
+        }
+        onClick={() => onOpen(`method:${group.slip}`)}
+        title={group.slip}
+      />
+      {group.lines.map((line) => (
+        <MethodRow
+          amount={line.amount}
+          isLine
+          key={line.payment_method_id ?? "none"}
+          label={line.line}
+          onClick={() => onOpen(`method:${line.name}`)}
+          payments={line.payments}
+        />
+      ))}
+    </>
+  );
+};
+
 interface MethodsSectionProps {
   data: DayClose;
   dayWord: string;
@@ -82,47 +137,7 @@ export const MethodsSection = ({
             className="border-t border-border first:border-t-0"
             key={group.slip}
           >
-            {group.isSingle ? (
-              <MethodRow
-                amount={group.amount}
-                isLine={false}
-                label={group.slip}
-                onClick={() => onOpen(`method:${group.slip}`)}
-                payments={group.payments}
-              />
-            ) : group.lines.length === 1 ? (
-              // The slip's total would only repeat its one line's.
-              <MethodRow
-                amount={group.amount}
-                isLine={false}
-                label={`${group.slip} · ${group.lines[0].line}`}
-                onClick={() => onOpen(`method:${group.lines[0].name}`)}
-                payments={group.payments}
-              />
-            ) : (
-              <>
-                <GroupLabel
-                  end={
-                    <>
-                      {formatMoney(group.amount)}
-                      <OpenArrow />
-                    </>
-                  }
-                  onClick={() => onOpen(`method:${group.slip}`)}
-                  title={group.slip}
-                />
-                {group.lines.map((line) => (
-                  <MethodRow
-                    amount={line.amount}
-                    isLine
-                    key={line.payment_method_id ?? "none"}
-                    label={line.line}
-                    onClick={() => onOpen(`method:${line.name}`)}
-                    payments={line.payments}
-                  />
-                ))}
-              </>
-            )}
+            <SlipGroup group={group} onOpen={onOpen} />
           </div>
         ))}
       </div>

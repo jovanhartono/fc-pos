@@ -1,10 +1,8 @@
 import { Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import {
-  CHECKOUT_STEPS,
-  type CheckoutStep,
-} from "@/features/transactions/lib/checkout-steps";
+import { CHECKOUT_STEPS } from "@/features/transactions/lib/checkout-steps";
+import type { CheckoutStep } from "@/features/transactions/lib/checkout-steps";
 import { cn } from "@/lib/utils";
 
 interface CheckoutStepperProps {

@@ -98,46 +98,46 @@ const SERVER_FAILURE_RULES: {
   action: string;
 }[] = [
   {
-    pattern: /not enough stock/i,
+    pattern: /not enough stock/iu,
     target: "items",
     action: "Lower the quantity or remove the line.",
   },
   {
-    pattern: /campaign can only be applied once/i,
+    pattern: /campaign can only be applied once/iu,
     target: "payment",
     action: "Remove the duplicate campaign.",
   },
   {
     pattern:
-      /campaign (not found|.* (is not active|has not started yet|has ended|doesn't run at|has reached its usage limit))|order total does not meet minimum/i,
+      /campaign (?:not found|.* (?:is not active|has not started yet|has ended|doesn't run at|has reached its usage limit))|order total does not meet minimum/iu,
     target: "payment",
     action: "Remove the campaign or code, or pick another.",
   },
   {
-    pattern: /voucher/i,
+    pattern: /voucher/iu,
     target: "payment",
     action: "Remove the code or enter another.",
   },
   {
-    pattern: /(product|service) (is not active|not found)/i,
+    pattern: /(?:product|service) (?:is not active|not found)/iu,
     target: "items",
     action: "Remove the line and re-add it.",
   },
   {
-    pattern: /courier isn't active/i,
+    pattern: /courier isn't active/iu,
     target: "customer",
     action: "Pick another courier, or Walk-in.",
   },
   {
     // A typed 0 on a Repair: zero means free on purpose (a Rework), never
     // "not priced yet", which is a blank (ADR-0018).
-    pattern: /price must be greater than zero/i,
+    pattern: /price must be greater than zero/iu,
     target: "items",
     action:
       "Enter the agreed price on the Repair line, or leave it blank until inspection.",
   },
   {
-    pattern: /unpriced line/i,
+    pattern: /unpriced line/iu,
     target: "payment",
     action: "Choose Pay Later.",
   },
@@ -152,6 +152,6 @@ export const describeServerFailure = (message: string): CheckoutIssue => {
     // the cashier to the wrong place.
     return { target: null, message };
   }
-  const reason = /[!.?]$/.test(message) ? message : `${message}.`;
+  const reason = /[!.?]$/u.test(message) ? message : `${message}.`;
   return { target: rule.target, message: `${reason} ${rule.action}` };
 };

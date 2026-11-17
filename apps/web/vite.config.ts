@@ -87,7 +87,7 @@ export default defineConfig({
         globIgnores: ["**/apple-splash-*.png"],
         // Orders and payments must always come from the server: a cached
         // /api response at the counter would show a settled order as unpaid.
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//u],
       },
     }),
   ],
@@ -96,7 +96,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
 });

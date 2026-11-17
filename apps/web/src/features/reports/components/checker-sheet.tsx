@@ -27,6 +27,7 @@ export const useOpenCheckerSheet = () => {
       title: target.row.user_name,
       description: `Checker · ${rangeLabel(target.from, target.to)}`,
       content: () => (
+        // oxlint-disable-next-line no-use-before-define -- the sheet and its opener call each other, so one has to come first
         <CheckerSheetContent target={target} qcOffset={qcOffset} />
       ),
     });

@@ -1,6 +1,7 @@
 import type { POSTServiceSchema } from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 import type { z } from "zod";
 
 import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
@@ -20,10 +21,10 @@ export const servicesKeys = {
   list: () => [...servicesKeys.all, "list"] as const,
 };
 
-async function fetchServices() {
+const fetchServices = async () => {
   const response = await parseResponse(rpc.api.admin.services.$get());
   return response.data;
-}
+};
 
 export const servicesQueries = {
   list: () =>
@@ -34,15 +35,13 @@ export const servicesQueries = {
     }),
 };
 
-export function createService(payload: CreateServicePayload) {
-  return parseResponse(rpc.api.admin.services.$post({ json: payload }));
-}
+export const createService = (payload: CreateServicePayload) =>
+  parseResponse(rpc.api.admin.services.$post({ json: payload }));
 
-export function updateService(id: number, payload: UpdateServicePayload) {
-  return parseResponse(
+export const updateService = (id: number, payload: UpdateServicePayload) =>
+  parseResponse(
     rpc.api.admin.services[":id"].$put({
       param: { id: String(id) },
       json: payload,
     })
   );
-}

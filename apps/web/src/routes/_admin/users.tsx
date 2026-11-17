@@ -29,17 +29,15 @@ import { Button } from "@/components/ui/button";
 import { storesQueries } from "@/features/stores/api";
 import {
   createUser,
-  type User,
   updateUser,
   updateUserStores,
   usersKeys,
   usersQueries,
 } from "@/features/users/api";
+import type { User } from "@/features/users/api";
 import { ResetPasswordForm } from "@/features/users/components/reset-password-form";
-import {
-  UserForm,
-  type UserFormState,
-} from "@/features/users/components/user-form";
+import { UserForm } from "@/features/users/components/user-form";
+import type { UserFormState } from "@/features/users/components/user-form";
 import {
   DEFAULT_PAGE_SIZE,
   pageSizeChange,
@@ -52,31 +50,6 @@ const usersSearchSchema = z.object({
   page: z.coerce.number().int().positive().catch(1),
   limit: pageSizeSearch,
   search: z.string().trim().min(1).max(100).optional(),
-});
-
-export const Route = createFileRoute("/_admin/users")({
-  validateSearch: (search) => usersSearchSchema.parse(search),
-  loaderDeps: ({ search }) => search,
-  loader: async ({ context, deps, cause }) => {
-    // Typing a search or paging keeps the page up, the search box focused,
-    // and swaps the rows in place.
-    if (cause === "stay") {
-      return;
-    }
-    await Promise.all([
-      context.queryClient.ensureQueryData(
-        usersQueries.list({
-          limit: deps.limit ?? DEFAULT_PAGE_SIZE,
-          offset: (deps.page - 1) * (deps.limit ?? DEFAULT_PAGE_SIZE),
-          ...(deps.search ? { search: deps.search } : {}),
-        })
-      ),
-      context.queryClient.ensureQueryData(storesQueries.list()),
-    ]);
-  },
-  component: UsersPage,
-  // Past a second, the page itself draws with skeleton rows.
-  pendingComponent: UsersPage,
 });
 
 const userFormFields = {
@@ -106,7 +79,61 @@ const defaultForm: UserFormState = {
   store_ids: [],
 };
 
-function UsersPage() {
+const columnsFor = (
+  storeMap: ReadonlyMap<number, { code: string }>
+): DataTableColumnDef<User>[] => [
+  {
+    accessorKey: "username",
+    header: "Username",
+    meta: {
+      kind: "code",
+      width: { percent: 16, minRem: 7 },
+      mobileCard: { slot: "subtitle" },
+    },
+  },
+  {
+    accessorKey: "name",
+    header: "Name",
+    meta: { kind: "name", width: { percent: 30, minRem: 9 } },
+  },
+  {
+    accessorKey: "role",
+    header: "Role",
+    meta: {
+      width: { percent: 11, minRem: 4.5 },
+      mobileCard: { slot: "subtitle" },
+    },
+    cell: ({ row }) => <span className="capitalize">{row.original.role}</span>,
+  },
+  {
+    id: "stores",
+    header: "Stores",
+    meta: {
+      width: { percent: 21, minRem: 9.5 },
+      mobileCard: { slot: "subtitle" },
+    },
+    cell: ({ row }) =>
+      row.original.userStores.length > 0
+        ? row.original.userStores
+            .map(
+              (item) =>
+                storeMap.get(item.store_id)?.code ?? String(item.store_id)
+            )
+            .join(", ")
+        : "—",
+  },
+  {
+    id: "status",
+    header: "Status",
+    meta: {
+      width: { percent: 11, minRem: 4.5 },
+      mobileCard: { slot: "status" },
+    },
+    cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
+  },
+];
+
+const UsersPage = () => {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
   const pageSize = search.limit ?? DEFAULT_PAGE_SIZE;
@@ -177,7 +204,7 @@ function UsersPage() {
     mutationFn: ({ id, store_ids }: { id: number; store_ids: number[] }) =>
       updateUserStores(id, { store_ids }),
     // Saving a User already toasts once; its Stores ride along silently.
-    onSuccess: () => undefined,
+    onSuccess: () => null,
   });
 
   // The sheet keeps the handler it opened with, so the edited User travels with
@@ -282,57 +309,7 @@ function UsersPage() {
   };
 
   const columns: DataTableColumnDef<User>[] = [
-    {
-      accessorKey: "username",
-      header: "Username",
-      meta: {
-        kind: "code",
-        width: { percent: 16, minRem: 7 },
-        mobileCard: { slot: "subtitle" },
-      },
-    },
-    {
-      accessorKey: "name",
-      header: "Name",
-      meta: { kind: "name", width: { percent: 30, minRem: 9 } },
-    },
-    {
-      accessorKey: "role",
-      header: "Role",
-      meta: {
-        width: { percent: 11, minRem: 4.5 },
-        mobileCard: { slot: "subtitle" },
-      },
-      cell: ({ row }) => (
-        <span className="capitalize">{row.original.role}</span>
-      ),
-    },
-    {
-      id: "stores",
-      header: "Stores",
-      meta: {
-        width: { percent: 21, minRem: 9.5 },
-        mobileCard: { slot: "subtitle" },
-      },
-      cell: ({ row }) =>
-        row.original.userStores.length > 0
-          ? row.original.userStores
-              .map(
-                (item) =>
-                  storeMap.get(item.store_id)?.code ?? String(item.store_id)
-              )
-              .join(", ")
-          : "—",
-    },
-    {
-      id: "status",
-      header: "Status",
-      meta: {
-        width: { percent: 11, minRem: 4.5 },
-        mobileCard: { slot: "status" },
-      },
-      cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
-    },
+    ...columnsFor(storeMap),
     {
       id: "actions",
       header: "Actions",
@@ -425,4 +402,29 @@ function UsersPage() {
       </ListPanel>
     </>
   );
-}
+};
+
+export const Route = createFileRoute("/_admin/users")({
+  validateSearch: (search) => usersSearchSchema.parse(search),
+  loaderDeps: ({ search }) => search,
+  loader: async ({ context, deps, cause }) => {
+    // Typing a search or paging keeps the page up, the search box focused,
+    // and swaps the rows in place.
+    if (cause === "stay") {
+      return;
+    }
+    await Promise.all([
+      context.queryClient.ensureQueryData(
+        usersQueries.list({
+          limit: deps.limit ?? DEFAULT_PAGE_SIZE,
+          offset: (deps.page - 1) * (deps.limit ?? DEFAULT_PAGE_SIZE),
+          ...(deps.search ? { search: deps.search } : {}),
+        })
+      ),
+      context.queryClient.ensureQueryData(storesQueries.list()),
+    ]);
+  },
+  component: UsersPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: UsersPage,
+});

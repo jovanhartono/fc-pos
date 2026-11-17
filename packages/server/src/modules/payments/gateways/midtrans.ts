@@ -97,19 +97,25 @@ const toAmount = (grossAmount: unknown): number | null => {
 // on our side, so they map to pending and change nothing.
 const mapStatus = (body: MidtransStatusBody): GatewayChargeStatus => {
   switch (body.transaction_status) {
-    case "settlement":
+    case "settlement": {
       return "paid";
-    case "capture":
+    }
+    case "capture": {
       return body.fraud_status === "accept" ? "paid" : "pending";
-    case "expire":
+    }
+    case "expire": {
       return "expired";
-    case "cancel":
+    }
+    case "cancel": {
       return "cancelled";
+    }
     case "deny":
-    case "failure":
+    case "failure": {
       return "failed";
-    default:
+    }
+    default: {
       return "pending";
+    }
   }
 };
 

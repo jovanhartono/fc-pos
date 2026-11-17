@@ -304,15 +304,15 @@ describe("this stretch against the one before it", () => {
   });
 });
 
-describe("splitting the takings between stores", () => {
-  const store = (
-    id: number,
-    name: string,
-    code: string,
-    collected: number,
-    orders: number
-  ) => [id, name, code, String(collected), orders];
+const store = (
+  id: number,
+  name: string,
+  code: string,
+  collected: number,
+  orders: number
+) => [id, name, code, String(collected), orders];
 
+describe("splitting the takings between stores", () => {
   it("gives each store its share of the takings, biggest first", async () => {
     answers.storeCollected.now = [
       store(2, "Bintaro", "BIN", 300_000, 4),

@@ -1,9 +1,10 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
 
+import "@/test-support/pglite";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // Staff key a Repair's agreed price after inspection, or fix a typo while the
@@ -92,7 +93,8 @@ describe("pricing a Repair after inspection", () => {
 
     await price(order.id, repair.id, 150_000);
 
-    expect((await readOrder(order.id))?.total).toBe("250000");
+    const priced = await readOrder(order.id);
+    expect(priced?.total).toBe("250000");
   });
 
   it("corrects a priced line while unpaid, keeping the from→to trail", async () => {
@@ -106,7 +108,8 @@ describe("pricing a Repair after inspection", () => {
       { from_price: null, to_price: "150000" },
       { from_price: "150000", to_price: "180000" },
     ]);
-    expect((await readOrder(order.id))?.total).toBe("280000");
+    const corrected = await readOrder(order.id);
+    expect(corrected?.total).toBe("280000");
   });
 
   it("refuses any price change once the Order is paid", async () => {
@@ -130,7 +133,8 @@ describe("pricing a Repair after inspection", () => {
     expect((error as Error).message).toBe(
       "Order has been paid — its prices are frozen"
     );
-    expect((await repairLineOf(order.id)).price).toBe("150000");
+    const frozen = await repairLineOf(order.id);
+    expect(frozen.price).toBe("150000");
   });
 
   it("refuses to price a cancelled line, since nobody owes its number", async () => {
@@ -199,7 +203,8 @@ describe("pricing a Repair after inspection", () => {
     const error = await captureRejection(price(order.id, repair.id, 0));
 
     expect((error as Error).message).toBe("Price must be greater than zero");
-    expect((await repairLineOf(order.id)).price).toBeNull();
+    const unpriced = await repairLineOf(order.id);
+    expect(unpriced.price).toBeNull();
   });
 
   it("refuses a line that belongs to another Order", async () => {
@@ -212,6 +217,7 @@ describe("pricing a Repair after inspection", () => {
     expect((error as Error).message).toBe(
       "Order service not found for this order"
     );
-    expect((await repairLineOf(other.id)).price).toBeNull();
+    const untouched = await repairLineOf(other.id);
+    expect(untouched.price).toBeNull();
   });
 });

@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useSheet } from "@/stores/sheet-store";
 
-export function GlobalSheet() {
+export const GlobalSheet = () => {
   const {
     open,
     title,
@@ -95,7 +95,7 @@ export function GlobalSheet() {
                   {back ? (
                     <button
                       type="button"
-                      onClick={back.onClick}
+                      onClick={() => back.onClick()}
                       className="-my-1.5 -ml-1 flex h-9 shrink-0 items-center gap-0.5 text-left text-body text-link hover:opacity-80 pointer-coarse:h-11"
                     >
                       <HugeiconsIcon
@@ -167,4 +167,4 @@ export function GlobalSheet() {
       </Dialog>
     </>
   );
-}
+};

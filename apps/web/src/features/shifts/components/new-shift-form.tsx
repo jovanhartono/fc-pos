@@ -73,7 +73,7 @@ export const NewShiftForm = ({ onDone }: NewShiftFormProps) => {
       queryClient.invalidateQueries({ queryKey: shiftsKeys.all }),
   });
 
-  const isSubmitting = form.formState.isSubmitting;
+  const { isSubmitting } = form.formState;
 
   const onSubmit = async (values: NewShiftValues) => {
     await createMutation.mutateAsync(values);
@@ -127,7 +127,7 @@ export const NewShiftForm = ({ onDone }: NewShiftFormProps) => {
                 allowedStoreIds={workerStoreIds}
                 disabled={isSubmitting || !userId}
                 value={field.value}
-                onValueChange={field.onChange}
+                onValueChange={(value) => field.onChange(value)}
                 error={fieldState.error}
               />
             )}

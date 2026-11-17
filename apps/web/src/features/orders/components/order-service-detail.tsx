@@ -13,7 +13,7 @@ import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
 import { findOrderLine } from "@/features/orders/lib/order-lines";
 import { orderServiceActions } from "@/features/orders/lib/order-service-actions";
-import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
+import { useLeaveSheetLink } from "@/hooks/use-leave-sheet-link";
 import { formatOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import {
   formatCancelReason,
@@ -22,6 +22,76 @@ import {
   getOrderServiceStatusBadgeVariant,
 } from "@/lib/status";
 import { formatMoney } from "@/shared/money";
+
+interface ServicePriceSectionProps {
+  orderId: number;
+  serviceId: number;
+  price: string | null;
+  status: string;
+  isOrderPaid: boolean;
+  isRework: boolean;
+}
+
+// ADR-0018: blank until agreed with the Customer, open to any staff while the
+// Order is unpaid, frozen once paid, and 0 on a Rework.
+const ServicePriceSection = ({
+  orderId,
+  serviceId,
+  price,
+  status,
+  isOrderPaid,
+  isRework,
+}: ServicePriceSectionProps) => {
+  const [isCorrecting, setIsCorrecting] = useState(false);
+
+  if (status === "cancelled") {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-3 rounded-md border border-border/70 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-footnote text-muted-foreground">Price</p>
+          <p className="mt-0.5 font-medium tabular-nums">
+            {price === null ? "Not set" : formatMoney(price)}
+          </p>
+        </div>
+        {price !== null && !(isOrderPaid || isRework || isCorrecting) && (
+          <Button
+            onClick={() => setIsCorrecting(true)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            Correct Price
+          </Button>
+        )}
+      </div>
+      {price === null ? (
+        <>
+          <p className="text-footnote text-muted-foreground">
+            Agree the price with the customer, then set it here — the order
+            can&apos;t be paid until every line is priced.
+          </p>
+          <OrderServicePriceForm
+            currentPrice={null}
+            orderId={orderId}
+            serviceId={serviceId}
+          />
+        </>
+      ) : null}
+      {price !== null && isCorrecting && !isOrderPaid ? (
+        <OrderServicePriceForm
+          currentPrice={price}
+          onSuccess={() => setIsCorrecting(false)}
+          orderId={orderId}
+          serviceId={serviceId}
+        />
+      ) : null}
+    </div>
+  );
+};
 
 interface OrderServiceDetailProps {
   orderId: number;
@@ -155,76 +225,6 @@ export const OrderServiceDetail = ({
       ) : null}
 
       <StatusTimeline defaultOpen line={service} />
-    </div>
-  );
-};
-
-interface ServicePriceSectionProps {
-  orderId: number;
-  serviceId: number;
-  price: string | null;
-  status: string;
-  isOrderPaid: boolean;
-  isRework: boolean;
-}
-
-// ADR-0018: blank until agreed with the Customer, open to any staff while the
-// Order is unpaid, frozen once paid, and 0 on a Rework.
-const ServicePriceSection = ({
-  orderId,
-  serviceId,
-  price,
-  status,
-  isOrderPaid,
-  isRework,
-}: ServicePriceSectionProps) => {
-  const [isCorrecting, setIsCorrecting] = useState(false);
-
-  if (status === "cancelled") {
-    return null;
-  }
-
-  return (
-    <div className="grid gap-3 rounded-md border border-border/70 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-footnote text-muted-foreground">Price</p>
-          <p className="mt-0.5 font-medium tabular-nums">
-            {price === null ? "Not set" : formatMoney(price)}
-          </p>
-        </div>
-        {price !== null && !(isOrderPaid || isRework || isCorrecting) && (
-          <Button
-            onClick={() => setIsCorrecting(true)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            Correct Price
-          </Button>
-        )}
-      </div>
-      {price === null ? (
-        <>
-          <p className="text-footnote text-muted-foreground">
-            Agree the price with the customer, then set it here — the order
-            can't be paid until every line is priced.
-          </p>
-          <OrderServicePriceForm
-            currentPrice={null}
-            orderId={orderId}
-            serviceId={serviceId}
-          />
-        </>
-      ) : null}
-      {price !== null && isCorrecting && !isOrderPaid ? (
-        <OrderServicePriceForm
-          currentPrice={price}
-          onSuccess={() => setIsCorrecting(false)}
-          orderId={orderId}
-          serviceId={serviceId}
-        />
-      ) : null}
     </div>
   );
 };

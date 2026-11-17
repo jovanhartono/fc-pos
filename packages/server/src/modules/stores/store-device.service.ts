@@ -4,19 +4,17 @@ import {
   listStoreDevices,
 } from "@/modules/stores/store-device.repository";
 
-export function getStoreDevices(storeId: number) {
-  return listStoreDevices(storeId);
-}
+export const getStoreDevices = (storeId: number) => listStoreDevices(storeId);
 
-export async function registerStoreDevice(
+export const registerStoreDevice = async (
   storeId: number,
   payload: { name: string; label?: string }
-) {
+) => {
   const [device] = await insertStoreDevice({ store_id: storeId, ...payload });
   return device;
-}
+};
 
-export async function removeStoreDevice(storeId: number, deviceId: number) {
+export const removeStoreDevice = async (storeId: number, deviceId: number) => {
   const [device] = await deleteStoreDevice(storeId, deviceId);
   return device ?? null;
-}
+};

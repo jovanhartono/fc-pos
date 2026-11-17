@@ -1,5 +1,6 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
 
 import { eq } from "drizzle-orm";
 
@@ -7,7 +8,8 @@ import { campaignsTable, ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { jakartaDayOf } from "@/modules/reports/report-range.util";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // ADR-0029 on real rows: a Customer far away pays Rp 25.000 for the Courier or
@@ -159,11 +161,13 @@ describe("checkout", () => {
 
   it("collects the fee with the Lines when the Order is paid later", async () => {
     const order = await placeOrder({ payment_status: "unpaid" });
-    expect((await readOrder(order.id)).paid_amount).toBe("0");
+    const unpaid = await readOrder(order.id);
+    expect(unpaid.paid_amount).toBe("0");
 
     await collect(order.id);
 
-    expect((await readOrder(order.id)).paid_amount).toBe("175000");
+    const paid = await readOrder(order.id);
+    expect(paid.paid_amount).toBe("175000");
   });
 });
 
@@ -197,6 +201,15 @@ describe("Campaigns never see the fee", () => {
   });
 });
 
+const listByRefundStatus = (refund_status: "partial" | "full") =>
+  findOrders({
+    limit: 10,
+    offset: 0,
+    refund_status,
+    sort_by: "created_at",
+    sort_order: "desc",
+  });
+
 describe("Refunds never return the fee", () => {
   it("hands back every Line but keeps the fee, and calls it a full refund", async () => {
     const order = await placeOrder();
@@ -207,24 +220,18 @@ describe("Refunds never return the fee", () => {
     expect(refund.total_refund_amount).toBe(150_000);
     expect(row.refunded_amount).toBe("150000");
     expect(Number(row.paid_amount) - Number(row.refunded_amount)).toBe(FEE);
-    expect((await getOrderDetailById(order.id))?.refund_status).toBe("full");
+    const detail = await getOrderDetailById(order.id);
+    expect(detail?.refund_status).toBe("full");
   });
 
   it("lists the fully refunded delivered Order under Full, not Partial", async () => {
     const order = await placeOrder();
     await refundEveryLine(order.id);
 
-    const list = (refund_status: "partial" | "full") =>
-      findOrders({
-        limit: 10,
-        offset: 0,
-        refund_status,
-        sort_by: "created_at",
-        sort_order: "desc",
-      });
-
-    expect((await list("full")).items.map((o) => o.id)).toEqual([order.id]);
-    expect((await list("partial")).items).toEqual([]);
+    const full = await listByRefundStatus("full");
+    expect(full.items.map((o) => o.id)).toEqual([order.id]);
+    const partial = await listByRefundStatus("partial");
+    expect(partial.items).toEqual([]);
   });
 
   it("calls one Line refunded a partial refund", async () => {
@@ -240,7 +247,8 @@ describe("Refunds never return the fee", () => {
       user: shop.admin,
     });
 
-    expect((await getOrderDetailById(order.id))?.refund_status).toBe("partial");
+    const detail = await getOrderDetailById(order.id);
+    expect(detail?.refund_status).toBe("partial");
   });
 
   it("leaves the fee in the Customer's Lifetime spend", async () => {
@@ -269,7 +277,8 @@ describe("changing the fee after drop-off", () => {
 
     expect(updated?.delivery_fee).toBe("40000");
     await collect(order.id);
-    expect((await readOrder(order.id)).paid_amount).toBe("190000");
+    const paid = await readOrder(order.id);
+    expect(paid.paid_amount).toBe("190000");
   });
 
   it("clears it back to nothing", async () => {
@@ -281,7 +290,8 @@ describe("changing the fee after drop-off", () => {
       user: shop.cashier,
     });
 
-    expect((await readOrder(order.id)).delivery_fee).toBe("0");
+    const cleared = await readOrder(order.id);
+    expect(cleared.delivery_fee).toBe("0");
   });
 
   it("freezes it once the Order is paid", async () => {
@@ -299,7 +309,8 @@ describe("changing the fee after drop-off", () => {
     expect((error as Error).message).toBe(
       "Order has been paid — its Delivery fee is frozen"
     );
-    expect((await readOrder(order.id)).delivery_fee).toBe("25000");
+    const frozen = await readOrder(order.id);
+    expect(frozen.delivery_fee).toBe("25000");
   });
 
   it("refuses a cancelled Order", async () => {
@@ -340,7 +351,8 @@ describe("changing the fee after drop-off", () => {
     expect((error as Error).message).toBe(
       "Cannot set a Delivery fee on a cancelled order"
     );
-    expect((await readOrder(order.id)).delivery_fee).toBe("0");
+    const cancelled = await readOrder(order.id);
+    expect(cancelled.delivery_fee).toBe("0");
   });
 
   it("answers nothing for an Order that doesn't exist", async () => {

@@ -13,7 +13,7 @@ import {
 } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
-function formatElapsedDuration(ms: number): string {
+const formatElapsedDuration = (ms: number): string => {
   const totalMinutes = Math.floor(ms / 60_000);
   if (totalMinutes < 60) {
     return `${Math.max(totalMinutes, 0)}m`;
@@ -23,7 +23,7 @@ function formatElapsedDuration(ms: number): string {
     return `${totalHours}h`;
   }
   return `${Math.floor(totalHours / 24)}d`;
-}
+};
 
 interface QueueJobButtonProps {
   service: QueueItemService;

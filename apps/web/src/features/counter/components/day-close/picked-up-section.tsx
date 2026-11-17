@@ -1,7 +1,7 @@
 import { Section } from "@/components/section";
 import type { DayClose } from "@/features/counter/api";
 import { OpenArrow } from "@/features/counter/components/day-close/open-arrow";
-import { useMinuteClock } from "@/hooks/useMinuteClock";
+import { useMinuteClock } from "@/hooks/use-minute-clock";
 import dayjs, { formatClock, JAKARTA_TZ } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
 import { pluralize } from "@/shared/utils";
@@ -29,7 +29,7 @@ interface Pickup {
 // The hour with the most pickups, the earlier one on a tie; a day with no two
 // in one hour names its last pickup instead.
 const busiestLine = (pickups: Pickup[]) => {
-  const perHour = Array<number>(24).fill(0);
+  const perHour = Array.from({ length: 24 }, () => 0);
   for (const { minutes } of pickups) {
     perHour[Math.floor(minutes / 60)] += 1;
   }
@@ -65,7 +65,7 @@ export const PickedUpSection = ({
       minutes: minutesOf(order.picked_up_at),
       time: formatClock(order.picked_up_at),
     }))
-    .sort((a, b) => a.minutes - b.minutes);
+    .toSorted((a, b) => a.minutes - b.minutes);
   const isEmpty = pickups.length === 0;
 
   const hours = pickups.map((pickup) => Math.floor(pickup.minutes / 60));
@@ -106,6 +106,7 @@ export const PickedUpSection = ({
                 : `Picked up at ${pickups.map((pickup) => pickup.time).join(", ")}`
             }
             className="relative h-8"
+            // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a drawn timeline whose dots are child elements; an <img> can't hold them
             role="img"
           >
             <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-soft-bar-track" />

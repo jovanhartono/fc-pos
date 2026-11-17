@@ -4,7 +4,7 @@ import type { CountryCode } from "libphonenumber-js";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-type PhoneNumberFieldProps = {
+interface PhoneNumberFieldProps {
   id: string;
   label: string;
   value: string;
@@ -16,9 +16,9 @@ type PhoneNumberFieldProps = {
   defaultCountry?: CountryCode;
   inputClassName?: string;
   autoComplete?: string;
-};
+}
 
-export function PhoneNumberField({
+export const PhoneNumberField = ({
   id,
   label,
   value,
@@ -30,31 +30,29 @@ export function PhoneNumberField({
   defaultCountry = "ID",
   inputClassName,
   autoComplete = "tel",
-}: PhoneNumberFieldProps) {
-  return (
-    <Field data-invalid={!!error}>
-      <FieldLabel htmlFor={id} asterisk={required}>
-        {label}
-      </FieldLabel>
-      <Input
-        id={id}
-        type="tel"
-        inputMode="tel"
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        value={value}
-        onChange={(event) => onValueChange(event.target.value)}
-        onBlur={() => {
-          const normalized = normalizePhoneNumber(value, defaultCountry);
-          if (normalized !== value) {
-            onValueChange(normalized);
-          }
-        }}
-        aria-invalid={!!error}
-        disabled={disabled}
-        className={inputClassName}
-      />
-      <FieldError errors={[error]} />
-    </Field>
-  );
-}
+}: PhoneNumberFieldProps) => (
+  <Field data-invalid={!!error}>
+    <FieldLabel htmlFor={id} asterisk={required}>
+      {label}
+    </FieldLabel>
+    <Input
+      id={id}
+      type="tel"
+      inputMode="tel"
+      autoComplete={autoComplete}
+      placeholder={placeholder}
+      value={value}
+      onChange={(event) => onValueChange(event.target.value)}
+      onBlur={() => {
+        const normalized = normalizePhoneNumber(value, defaultCountry);
+        if (normalized !== value) {
+          onValueChange(normalized);
+        }
+      }}
+      aria-invalid={!!error}
+      disabled={disabled}
+      className={inputClassName}
+    />
+    <FieldError errors={[error]} />
+  </Field>
+);

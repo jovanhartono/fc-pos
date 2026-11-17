@@ -35,6 +35,7 @@
 - `components/ui/` — shadcn (Base UI style) only, add via `bunx shadcn@latest add <component>`
 - `features/<domain>/` — `api.ts`, `components/`, `hooks/`; `routes/` stay thin orchestrators
 - `stores/` — Zustand stores, one `<name>-store.ts` each
+- Every file is kebab-case, hooks included: `use-order-sheet.tsx` exports `useOrderSheet`.
 - "Transactions" (`features/transactions/`, `/transactions`, `transactions-store.ts`) is the POS's legacy name: say Order or POS in new code, and rename when work touches these files.
 
 ## Forms
@@ -42,7 +43,7 @@
 react-hook-form + zodResolver + useMutation for every form.
 
 - Wrap with `FormProvider`; children use `useFormContext()`. Never prop-drill `control`/`errors`/`isSubmitting`.
-- The global `QueryClient` shows success/error toasts. Add `onSuccess`/`onError` only to invalidate, close a sheet, navigate, or silence the toast where the form already reports it (`onError: () => undefined`) — a mutation's own callback replaces the global one, it doesn't add to it.
+- The global `QueryClient` shows success/error toasts. Add `onSuccess`/`onError` only to invalidate, close a sheet, navigate, or silence the toast where the form already reports it (`onError: () => null`) — a mutation's own callback replaces the global one, it doesn't add to it.
 - Fields use `Field`, `FieldLabel`, `FieldError` from `@/components/ui/field`.
 - Schemas from `@fresclean/api/schema` or local to the feature. Do not re-implement the server's field builders.
 - `StoreSelect` (`features/orders/components/`) reused across features. For filter UIs pass `allOptionLabel="All stores"` — prepends `{ value: "", label }` sentinel so `""` = unscoped.

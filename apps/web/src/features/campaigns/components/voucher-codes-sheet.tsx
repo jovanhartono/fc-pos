@@ -7,7 +7,8 @@ import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { campaignsQueries, type VoucherCode } from "@/features/campaigns/api";
+import { campaignsQueries } from "@/features/campaigns/api";
+import type { VoucherCode } from "@/features/campaigns/api";
 import dayjs from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +69,9 @@ export const VoucherCodesSheet = ({ campaignId }: VoucherCodesSheetProps) => {
 
   if (isError || !data) {
     return (
-      <p className="text-body text-muted-foreground">Couldn't load codes.</p>
+      <p className="text-body text-muted-foreground">
+        Couldn&apos;t load codes.
+      </p>
     );
   }
 

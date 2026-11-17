@@ -17,15 +17,12 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { CategoryAutocomplete } from "@/features/orders/components/category-autocomplete";
-import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
+import { useSheetDirtyGuard } from "@/hooks/use-sheet-dirty-guard";
 
 const serviceFormResolverSchema = z
   .object({
     ...POSTServiceSchema.shape,
-    category_id: z.preprocess(
-      (value) => Number(value),
-      POSTServiceSchema.shape.category_id
-    ),
+    category_id: z.preprocess(Number, POSTServiceSchema.shape.category_id),
     // The server parses money into a number for itself, but the API still takes
     // the digit string the currency field types out — keep the form in that shape.
     cogs: POSTServiceSchema.shape.cogs.transform(String),
@@ -72,17 +69,17 @@ interface ServiceFormProps {
   onReset: () => void;
 }
 
-export function ServiceForm({
+export const ServiceForm = ({
   defaultValues,
   handleOnSubmit,
   isEditing,
   onReset,
-}: ServiceFormProps) {
+}: ServiceFormProps) => {
   const form = useForm({
     resolver: zodResolver(serviceFormResolverSchema),
     defaultValues: defaultValues ?? defaultForm,
   });
-  const isSubmitting = form.formState.isSubmitting;
+  const { isSubmitting } = form.formState;
   useSheetDirtyGuard(form.formState.isDirty);
   const noListPrice = useWatch({
     control: form.control,
@@ -182,7 +179,7 @@ export function ServiceForm({
               <CurrencyInput
                 disabled={isSubmitting}
                 id="service-cogs"
-                onValueChange={field.onChange}
+                onValueChange={(value) => field.onChange(value)}
                 placeholder="Rp0"
                 required
                 value={field.value}
@@ -204,7 +201,7 @@ export function ServiceForm({
                 <CurrencyInput
                   disabled={isSubmitting}
                   id="service-price"
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => field.onChange(value)}
                   placeholder="Rp0"
                   required
                   value={field.value}
@@ -244,7 +241,7 @@ export function ServiceForm({
                 description="New lines of this Service start as Priority."
                 disabled={isSubmitting}
                 id="service-priority"
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => field.onChange(checked)}
                 title="Priority by default"
               />
             )}
@@ -258,7 +255,7 @@ export function ServiceForm({
                 description="Only Active Services show in the POS."
                 disabled={isSubmitting}
                 id="service-active"
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => field.onChange(checked)}
                 title="Active"
               />
             )}
@@ -274,4 +271,4 @@ export function ServiceForm({
       </FieldGroup>
     </form>
   );
-}
+};

@@ -56,7 +56,7 @@ mock.module("@/modules/users/user-performance.service", () => ({
   getOwnPerformance: () => Promise.resolve({ role: "admin" }),
 }));
 
-const userRoutes = (await import("@/routes/admin/users")).default;
+const { default: userRoutes } = await import("@/routes/admin/users");
 
 const buAdmin: AuthUser = {
   id: 8,

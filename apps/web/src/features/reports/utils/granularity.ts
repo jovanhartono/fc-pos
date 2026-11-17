@@ -1,10 +1,10 @@
 import type { ReportGranularity } from "@/features/reports/api";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
-export function bucketToLabel(
+export const bucketToLabel = (
   bucket: string,
   granularity: ReportGranularity
-): string {
+): string => {
   if (granularity === "day") {
     return dayjs.tz(bucket, JAKARTA_TZ).format("DD MMM");
   }
@@ -16,12 +16,12 @@ export function bucketToLabel(
   }
   const [, week] = bucket.split("-");
   return `W${week}`;
-}
+};
 
-export function bucketToTooltipLabel(
+export const bucketToTooltipLabel = (
   bucket: string,
   granularity: ReportGranularity
-): string {
+): string => {
   if (granularity === "day") {
     return dayjs.tz(bucket, JAKARTA_TZ).format("ddd, DD MMM YYYY");
   }
@@ -33,4 +33,4 @@ export function bucketToTooltipLabel(
   }
   const [year, week] = bucket.split("-");
   return `Week ${week}, ${year}`;
-}
+};

@@ -1,10 +1,12 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
 
 import { eq } from "drizzle-orm";
 
 import { categoriesTable, servicesTable } from "@/db/schema";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // The artisan reads the Queue as "Repair only", the cleaners as "everything
@@ -63,7 +65,7 @@ const rack = async (category_mode: "only" | "except") => {
     store_id: shop.store.id,
   });
   return {
-    brands: page.items.map((item) => item.brand).sort(),
+    brands: page.items.map((item) => item.brand).toSorted(),
     total: page.meta.total,
   };
 };
@@ -90,10 +92,9 @@ it("still lists every live Service on a card that qualified for the rack", async
   });
   const both = page.items.find((item) => item.brand === "clean and repair");
 
-  expect(both?.services.map((service) => service.service_name).sort()).toEqual([
-    "Deep Clean",
-    "Repair",
-  ]);
+  expect(
+    both?.services.map((service) => service.service_name).toSorted()
+  ).toEqual(["Deep Clean", "Repair"]);
 });
 
 it("counts the chips over the same rack the list shows", async () => {

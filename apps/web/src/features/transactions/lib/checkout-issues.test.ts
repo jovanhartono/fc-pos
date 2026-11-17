@@ -5,11 +5,11 @@ import type { FieldErrors } from "react-hook-form";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
 
 import {
-  type CheckoutIssue,
   collectCheckoutIssues,
   describeServerFailure,
   summarizeCheckoutIssues,
 } from "./checkout-issues";
+import type { CheckoutIssue } from "./checkout-issues";
 
 const errors = (
   shape: Record<string, unknown>

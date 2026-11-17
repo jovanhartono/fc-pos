@@ -1,13 +1,10 @@
 import type { ClockInCoordinates } from "@fresclean/api/rules";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 
-import {
-  type PaginatedData,
-  parseSuccessData,
-  toPaginated,
-  toSearchParams,
-} from "@/lib/http";
+import { parseSuccessData, toPaginated, toSearchParams } from "@/lib/http";
+import type { PaginatedData } from "@/lib/http";
 import { REPORT_STALE_TIME } from "@/lib/query-defaults";
 import { rpc } from "@/lib/rpc";
 
@@ -19,14 +16,14 @@ export type CurrentShift = InferResponseType<
   typeof rpc.api.admin.shifts.current.$get
 >["data"];
 
-export type FetchShiftsQuery = {
+export interface FetchShiftsQuery {
   user_id?: number;
   store_id?: number;
   from?: string;
   to?: string;
   limit?: number;
   offset?: number;
-};
+}
 
 export type ShiftsOverview = InferResponseType<
   typeof rpc.api.admin.shifts.overview.$get
@@ -36,18 +33,18 @@ export type ShiftPerson = ShiftsOverview["people"][number];
 export type ShiftDay = ShiftsOverview["days"][number];
 
 // Types, not interfaces: toSearchParams needs them to index by string.
-export type FetchShiftsOverviewQuery = {
+export interface FetchShiftsOverviewQuery {
   from: string;
   to: string;
   store_id?: number;
-};
+}
 
-export type FetchWorkerShiftsQuery = {
+export interface FetchWorkerShiftsQuery {
   user_id: number;
   store_id: number;
   from: string;
   to: string;
-};
+}
 
 export const shiftsKeys = {
   all: ["shifts"] as const,
@@ -61,19 +58,33 @@ export const shiftsKeys = {
     [...shiftsKeys.all, "worker", query] as const,
 };
 
-function fetchShiftsOverview(query: FetchShiftsOverviewQuery) {
-  return parseSuccessData<ShiftsOverview>(
+const fetchShiftsOverview = (query: FetchShiftsOverviewQuery) =>
+  parseSuccessData<ShiftsOverview>(
     rpc.api.admin.shifts.overview.$get({
       query: { ...toSearchParams(query), from: query.from, to: query.to },
     })
   );
-}
 
 const WORKER_PAGE_SIZE = 100;
 
+const fetchShifts = async (
+  query?: FetchShiftsQuery
+): Promise<PaginatedData<Shift>> => {
+  const response = await parseResponse(
+    rpc.api.admin.shifts.$get({
+      query:
+        query && Object.keys(query).length > 0
+          ? toSearchParams(query)
+          : undefined,
+    })
+  );
+
+  return toPaginated(response);
+};
+
 // Ninety days of someone doubling up can run past one page, and the sheet
 // lists every Shift the meal fee is counted from.
-async function fetchWorkerShifts(query: FetchWorkerShiftsQuery) {
+const fetchWorkerShifts = async (query: FetchWorkerShiftsQuery) => {
   const shifts: Shift[] = [];
   for (;;) {
     const page = await fetchShifts({
@@ -86,26 +97,10 @@ async function fetchWorkerShifts(query: FetchWorkerShiftsQuery) {
       return shifts;
     }
   }
-}
+};
 
-async function fetchShifts(
-  query?: FetchShiftsQuery
-): Promise<PaginatedData<Shift>> {
-  const response = await parseResponse(
-    rpc.api.admin.shifts.$get({
-      query:
-        query && Object.keys(query).length > 0
-          ? toSearchParams(query)
-          : undefined,
-    })
-  );
-
-  return toPaginated(response);
-}
-
-function fetchCurrentShift() {
-  return parseSuccessData<CurrentShift>(rpc.api.admin.shifts.current.$get());
-}
+const fetchCurrentShift = () =>
+  parseSuccessData<CurrentShift>(rpc.api.admin.shifts.current.$get());
 
 export const shiftsQueries = {
   list: (query?: FetchShiftsQuery) =>
@@ -131,18 +126,13 @@ export const shiftsQueries = {
     }),
 };
 
-export function clockInShift(payload: {
+export const clockInShift = (payload: {
   store_id: number;
   coordinates?: ClockInCoordinates;
-}) {
-  return parseResponse(
-    rpc.api.admin.shifts["clock-in"].$post({ json: payload })
-  );
-}
+}) => parseResponse(rpc.api.admin.shifts["clock-in"].$post({ json: payload }));
 
-export function clockOutShift() {
-  return parseResponse(rpc.api.admin.shifts["clock-out"].$post());
-}
+export const clockOutShift = () =>
+  parseResponse(rpc.api.admin.shifts["clock-out"].$post());
 
 export interface UpdateShiftPayload {
   clock_in_at: string;
@@ -154,23 +144,20 @@ export interface CreateShiftPayload extends Required<UpdateShiftPayload> {
   user_id: number;
 }
 
-export function createShift(payload: CreateShiftPayload) {
-  return parseResponse(rpc.api.admin.shifts.$post({ json: payload }));
-}
+export const createShift = (payload: CreateShiftPayload) =>
+  parseResponse(rpc.api.admin.shifts.$post({ json: payload }));
 
-export function updateShift(id: number, payload: UpdateShiftPayload) {
-  return parseResponse(
+export const updateShift = (id: number, payload: UpdateShiftPayload) =>
+  parseResponse(
     rpc.api.admin.shifts[":id"].$patch({
       param: { id: String(id) },
       json: payload,
     })
   );
-}
 
-export function deleteShift(id: number) {
-  return parseResponse(
+export const deleteShift = (id: number) =>
+  parseResponse(
     rpc.api.admin.shifts[":id"].$delete({
       param: { id: String(id) },
     })
   );
-}

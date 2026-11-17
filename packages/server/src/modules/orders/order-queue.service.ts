@@ -107,18 +107,16 @@ const getOrderServiceByIdPrepared = db.query.ordersServicesTable
   })
   .prepare("get_order_service_by_id");
 
-export function getItemByItemCode(item_code: string) {
-  return getItemByItemCodePrepared.execute({ item_code });
-}
+export const getItemByItemCode = (item_code: string) =>
+  getItemByItemCodePrepared.execute({ item_code });
 
-export function getOrderServiceById(serviceId: number) {
-  return getOrderServiceByIdPrepared.execute({ id: serviceId });
-}
+export const getOrderServiceById = (serviceId: number) =>
+  getOrderServiceByIdPrepared.execute({ id: serviceId });
 
-export async function getMyOrderServices(
+export const getMyOrderServices = async (
   user: AuthUser,
   query: GetMyOrderServicesQuery
-) {
+) => {
   const conditions = [eq(ordersServicesTable.handler_id, user.id)];
 
   if (!query.include_terminal) {
@@ -132,19 +130,24 @@ export async function getMyOrderServices(
   const scope = await resolveStoreScope(user, query.store_id);
 
   switch (scope.kind) {
-    case "one":
+    case "one": {
       conditions.push(eq(ordersTable.store_id, scope.storeId));
       break;
-    case "some":
+    }
+    case "some": {
       conditions.push(inArray(ordersTable.store_id, scope.storeIds));
       break;
-    case "none":
+    }
+    case "none": {
       return [];
+    }
     // An admin who picked no Store sees their own lines across every Store.
-    case "all":
+    case "all": {
       break;
-    default:
+    }
+    default: {
       return unhandledStoreScope(scope);
+    }
   }
 
   // One row per line, not per Item: these are the lines one worker is holding
@@ -180,13 +183,13 @@ export async function getMyOrderServices(
     )
     .where(and(...conditions))
     .orderBy(asc(ordersServicesTable.id));
-}
+};
 
 // The repairer reads "Repair only", the cleaners "everything except Repair".
 // Checked per line, so a shoe in for both shows on both Queues.
-function queueCategoryCondition(
+const queueCategoryCondition = (
   query?: Pick<GetOrderServiceQueueQuery, "category_id" | "category_mode">
-) {
+) => {
   if (query?.category_id === undefined) {
     return;
   }
@@ -199,30 +202,35 @@ function queueCategoryCondition(
   return query.category_mode === "except"
     ? notInArray(ordersServicesTable.service_id, servicesInCategory)
     : inArray(ordersServicesTable.service_id, servicesInCategory);
-}
+};
 
 // Null means "no Store assigned": an empty Queue, not every Store's.
-async function resolveQueueStoreCondition(user: AuthUser, storeId?: number) {
+const resolveQueueStoreCondition = async (user: AuthUser, storeId?: number) => {
   const scope = await resolveStoreScope(user, storeId);
 
   switch (scope.kind) {
-    case "one":
+    case "one": {
       return eq(ordersTable.store_id, scope.storeId);
-    case "some":
+    }
+    case "some": {
       return inArray(ordersTable.store_id, scope.storeIds);
-    case "none":
+    }
+    case "none": {
       return null;
-    case "all":
+    }
+    case "all": {
       throw new BadRequestException("Store is required for admin queue access");
-    default:
+    }
+    default: {
       return unhandledStoreScope(scope);
+    }
   }
-}
+};
 
-export async function getOrderServiceQueue(
+export const getOrderServiceQueue = async (
   user: AuthUser,
   query?: GetOrderServiceQueueQuery
-) {
+) => {
   const normalized = normalizeOrderServiceQueueQuery(query);
   const storeCondition = await resolveQueueStoreCondition(
     user,
@@ -259,8 +267,10 @@ export async function getOrderServiceQueue(
     if (isNumericSearch(search)) {
       const numericSearch = Number(search);
 
-      searchConditions.push(eq(ordersTable.id, numericSearch));
-      searchConditions.push(eq(ordersServicesTable.id, numericSearch));
+      searchConditions.push(
+        eq(ordersTable.id, numericSearch),
+        eq(ordersServicesTable.id, numericSearch)
+      );
     }
 
     conditions.push(sql`(${sql.join(searchConditions, sql` OR `)})`);
@@ -424,14 +434,20 @@ export async function getOrderServiceQueue(
     })),
     meta: buildPaginationMeta(Number(countRows[0]?.total ?? 0), normalized),
   };
-}
+};
+
+// Counts Items, so a chip reading 12 opens onto 12 cards. A shoe with a clean
+// queued and a repaint in progress counts under both, so chips can sum past `all`.
+// Named by hand so a new workshop status gets a chip on purpose.
+const chip = (status: OrderService["status"]) =>
+  sql<number>`count(DISTINCT ${ordersServicesTable.item_id}) FILTER (WHERE ${ordersServicesTable.status} = ${status})`;
 
 // Store and Category only: the date range would just count what is already on
 // screen, while the Category is the Queue the worker is standing at.
-export async function getOrderServiceQueueCounts(
+export const getOrderServiceQueueCounts = async (
   user: AuthUser,
   query?: GetOrderServiceQueueCountsQuery
-) {
+) => {
   const storeCondition = await resolveQueueStoreCondition(
     user,
     query?.store_id
@@ -446,12 +462,6 @@ export async function getOrderServiceQueueCounts(
       qc_reject: 0,
     };
   }
-
-  // Counts Items, so a chip reading 12 opens onto 12 cards. A shoe with a clean
-  // queued and a repaint in progress counts under both, so chips can sum past `all`.
-  // Named by hand so a new workshop status gets a chip on purpose.
-  const chip = (status: OrderService["status"]) =>
-    sql<number>`count(DISTINCT ${ordersServicesTable.item_id}) FILTER (WHERE ${ordersServicesTable.status} = ${status})`;
 
   const [row] = await db
     .select({
@@ -478,7 +488,7 @@ export async function getOrderServiceQueueCounts(
     waiting_qc: Number(row?.waiting_qc ?? 0),
     qc_reject: Number(row?.qc_reject ?? 0),
   };
-}
+};
 
 interface ClaimHandlerInput {
   lockedOrderService: OrderService;
@@ -487,11 +497,11 @@ interface ClaimHandlerInput {
 }
 
 // Two workers can scan the same tag at once; only one may end up holding the Item.
-async function lockOrderServiceOrThrow(
+const lockOrderServiceOrThrow = async (
   tx: OrderTx,
   orderId: number,
   serviceId: number
-) {
+) => {
   const [locked] = await tx
     .select()
     .from(ordersServicesTable)
@@ -508,14 +518,14 @@ async function lockOrderServiceOrThrow(
   }
 
   return locked;
-}
+};
 
 // The shop reads the hand-off log when an Item goes missing, so taking one you
 // already hold must not log a hand-off that never happened.
-async function claimHandler(
+const claimHandler = async (
   tx: OrderTx,
   { lockedOrderService, note, user }: ClaimHandlerInput
-) {
+) => {
   if (lockedOrderService.handler_id === user.id) {
     return;
   }
@@ -532,9 +542,9 @@ async function claimHandler(
     changed_by: user.id,
     note,
   });
-}
+};
 
-export async function startOrderServiceWork({
+export const startOrderServiceWork = async ({
   orderId,
   serviceId,
   user,
@@ -542,7 +552,7 @@ export async function startOrderServiceWork({
   orderId: number;
   serviceId: number;
   user: JWTPayload;
-}) {
+}) => {
   const result = await db.transaction(async (tx) => {
     const locked = await lockOrderServiceOrThrow(tx, orderId, serviceId);
 
@@ -579,9 +589,9 @@ export async function startOrderServiceWork({
     order_service_id: serviceId,
     to_status: "processing" as const,
   };
-}
+};
 
-export async function updateOrderServiceHandler({
+export const updateOrderServiceHandler = async ({
   orderId,
   serviceId,
   body,
@@ -591,7 +601,7 @@ export async function updateOrderServiceHandler({
   serviceId: number;
   body: PatchOrderServiceHandlerInput;
   user: JWTPayload;
-}) {
+}) => {
   assertCanReassignHandler(user);
 
   await db.transaction(async (tx) => {
@@ -617,9 +627,9 @@ export async function updateOrderServiceHandler({
     order_service_id: serviceId,
     handler_id: body.handler_id,
   };
-}
+};
 
-export async function updateOrderServiceStatus({
+export const updateOrderServiceStatus = async ({
   orderId,
   serviceId,
   body,
@@ -629,7 +639,7 @@ export async function updateOrderServiceStatus({
   serviceId: number;
   body: PatchOrderServiceStatusInput;
   user: JWTPayload;
-}) {
+}) => {
   if (isTerminalOrderServiceStatus(body.status)) {
     throw new ForbiddenException(
       body.status === "picked_up"
@@ -673,4 +683,4 @@ export async function updateOrderServiceStatus({
     order_service_id: serviceId,
     to_status: body.status,
   };
-}
+};

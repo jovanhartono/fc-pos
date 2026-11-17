@@ -17,8 +17,8 @@ import { itemNameColumns } from "@/modules/orders/order-read.repository";
 import { WORKSHOP_SERVICE_STATUSES } from "@/schema/order-status";
 import type { NormalizedPagination } from "@/utils/pagination";
 
-export function listWaitingLines(storeId: number) {
-  return db
+export const listWaitingLines = (storeId: number) =>
+  db
     .select({
       category_id: categoriesTable.id,
       category_name: categoriesTable.name,
@@ -46,11 +46,10 @@ export function listWaitingLines(storeId: number) {
         inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES])
       )
     );
-}
 
 // The latest QC reject on each line: when, and the note the checker left.
-export function listLatestQcRejects(lineIds: number[]) {
-  return db
+export const listLatestQcRejects = (lineIds: number[]) =>
+  db
     .selectDistinctOn([orderServiceStatusLogsTable.order_service_id], {
       created_at: orderServiceStatusLogsTable.created_at,
       line_id: orderServiceStatusLogsTable.order_service_id,
@@ -67,12 +66,11 @@ export function listLatestQcRejects(lineIds: number[]) {
       orderServiceStatusLogsTable.order_service_id,
       desc(orderServiceStatusLogsTable.created_at)
     );
-}
 
 // A Complaint is undecided while its line is still live and no Rework round
 // that was not cancelled exists (ADR-0013 amendment).
-export function listUndecidedComplaints(storeId: number) {
-  return db
+export const listUndecidedComplaints = (storeId: number) =>
+  db
     .select({
       category_name: categoriesTable.name,
       complaint_id: complaintsTable.id,
@@ -103,7 +101,6 @@ export function listUndecidedComplaints(storeId: number) {
       )
     )
     .orderBy(asc(complaintsTable.created_at));
-}
 
 // Only Items still on the shelf count: one the Customer already took home
 // from a part pickup, or one cancelled or refunded, is not there.
@@ -118,8 +115,8 @@ const onShelfAt = (storeId: number) =>
     eq(ordersTable.status, "ready_for_pickup")
   );
 
-export function sumPickupShelf(storeId: number) {
-  return db
+export const sumPickupShelf = (storeId: number) =>
+  db
     .select({
       items: sql<number>`COUNT(DISTINCT ${ordersServicesTable.item_id})::int`,
       orders: sql<number>`COUNT(DISTINCT ${ordersTable.id})::int`,
@@ -128,10 +125,9 @@ export function sumPickupShelf(storeId: number) {
     .leftJoin(ordersServicesTable, shelfLineOfOrder)
     .where(onShelfAt(storeId))
     .then((rows) => rows[0] ?? { items: 0, orders: 0 });
-}
 
-export function listPickupShelf(storeId: number, page: NormalizedPagination) {
-  return db
+export const listPickupShelf = (storeId: number, page: NormalizedPagination) =>
+  db
     .select({
       customer_name: customersTable.name,
       customer_phone: customersTable.phone_number,
@@ -148,4 +144,3 @@ export function listPickupShelf(storeId: number, page: NormalizedPagination) {
     .orderBy(asc(ordersTable.ready_at), asc(ordersTable.id))
     .limit(page.limit)
     .offset(page.offset);
-}

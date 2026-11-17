@@ -1,11 +1,8 @@
 import { hasUnpricedLine, isComplainableLine } from "@fresclean/api/rules";
 
 import type { Order, OrderDetail } from "@/features/orders/api";
-import {
-  flattenOrderLines,
-  type OrderItem,
-  type OrderLine,
-} from "@/features/orders/lib/order-lines";
+import { flattenOrderLines } from "@/features/orders/lib/order-lines";
+import type { OrderItem, OrderLine } from "@/features/orders/lib/order-lines";
 import type { Me } from "@/features/users/api";
 
 export interface OrderPaymentState {
@@ -60,6 +57,7 @@ export const startPhotoBlocker = (
 
 // `me` must come from /admin/users/me: an admin can change roles mid-session
 // and the login token would still carry the old ones.
+// oxlint-disable-next-line complexity -- every Order action's gate is worked out in one place so the page and sheet agree
 export const getOrderActionGates = (
   me: Me | undefined,
   detail: OrderDetail
@@ -109,12 +107,12 @@ export const getOrderActionGates = (
   const hasUnpriced = hasUnpricedLine(services);
   // ADR-0009: Items are ready but the Order is unpaid — explain why pickup is
   // blocked, and to whom (a pickup-only worker must fetch a cashier to collect).
-  const pickupDisabledReason =
-    collectableItems.length > 0 && !isPaid
-      ? isPaymentAllowed
-        ? "Order must be paid before pickup."
-        : "A cashier must collect payment before pickup."
-      : undefined;
+  let pickupDisabledReason: string | undefined;
+  if (collectableItems.length > 0 && !isPaid) {
+    pickupDisabledReason = isPaymentAllowed
+      ? "Order must be paid before pickup."
+      : "A cashier must collect payment before pickup.";
+  }
 
   return {
     isAdmin,

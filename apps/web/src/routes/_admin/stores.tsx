@@ -12,26 +12,59 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
   createStore,
-  type Store,
   storesKeys,
   storesQueries,
   updateStore,
 } from "@/features/stores/api";
-import {
-  StoreForm,
-  type StoreFormState,
-} from "@/features/stores/components/store-form";
+import type { Store } from "@/features/stores/api";
+import { StoreForm } from "@/features/stores/components/store-form";
+import type { StoreFormState } from "@/features/stores/components/store-form";
 import { useSheet } from "@/stores/sheet-store";
 
-export const Route = createFileRoute("/_admin/stores")({
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(storesQueries.list()),
-  component: StoresPage,
-  // Past a second, the page itself draws with skeleton rows.
-  pendingComponent: StoresPage,
-});
+const columnsFor = (
+  onEdit: (store: Store) => void
+): DataTableColumnDef<Store>[] => [
+  {
+    accessorKey: "code",
+    header: "Code",
+    meta: { kind: "code", width: { percent: 14, minRem: 4.5 } },
+  },
+  {
+    accessorKey: "name",
+    header: "Store",
+    meta: { kind: "name", width: { percent: 40, minRem: 8.5 } },
+  },
+  {
+    accessorKey: "phone_number",
+    header: "Phone",
+    meta: { width: { percent: 22, minRem: 7 } },
+  },
+  {
+    id: "status",
+    header: "Status",
+    meta: {
+      width: { percent: 12, minRem: 4.5 },
+      mobileCard: { slot: "status" },
+    },
+    cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    meta: {
+      width: { percent: 12, minRem: 4.5 },
+      mobileCard: { slot: "title-end" },
+    },
+    cell: ({ row }) => (
+      <EditRowButton
+        label={`Edit ${row.original.name}`}
+        onClick={() => onEdit(row.original)}
+      />
+    ),
+  },
+];
 
-function StoresPage() {
+const StoresPage = () => {
   const queryClient = useQueryClient();
   const { openSheet, closeSheet } = useSheet();
 
@@ -103,46 +136,7 @@ function StoresPage() {
     });
   };
 
-  const columns: DataTableColumnDef<Store>[] = [
-    {
-      accessorKey: "code",
-      header: "Code",
-      meta: { kind: "code", width: { percent: 14, minRem: 4.5 } },
-    },
-    {
-      accessorKey: "name",
-      header: "Store",
-      meta: { kind: "name", width: { percent: 40, minRem: 8.5 } },
-    },
-    {
-      accessorKey: "phone_number",
-      header: "Phone",
-      meta: { width: { percent: 22, minRem: 7 } },
-    },
-    {
-      id: "status",
-      header: "Status",
-      meta: {
-        width: { percent: 12, minRem: 4.5 },
-        mobileCard: { slot: "status" },
-      },
-      cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      meta: {
-        width: { percent: 12, minRem: 4.5 },
-        mobileCard: { slot: "title-end" },
-      },
-      cell: ({ row }) => (
-        <EditRowButton
-          label={`Edit ${row.original.name}`}
-          onClick={() => handleOpenEditSheet(row.original)}
-        />
-      ),
-    },
-  ];
+  const columns = columnsFor(handleOpenEditSheet);
 
   return (
     <>
@@ -174,4 +168,12 @@ function StoresPage() {
       </ListPanel>
     </>
   );
-}
+};
+
+export const Route = createFileRoute("/_admin/stores")({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(storesQueries.list()),
+  component: StoresPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: StoresPage,
+});

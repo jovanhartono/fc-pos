@@ -4,8 +4,8 @@ import {
   complaintTone,
   qcText,
   qcTone,
-  type Tone,
 } from "@/features/reports/utils/workers-report";
+import type { Tone } from "@/features/reports/utils/workers-report";
 
 const TONE_VARIANT = {
   neutral: "secondary",

@@ -4,7 +4,7 @@ import { useWatch } from "react-hook-form";
 
 import { campaignsQueries } from "@/features/campaigns/api";
 import type { TransactionDraftValues } from "@/features/transactions/cart/cart";
-import { useCart } from "@/features/transactions/cart/useCart";
+import { useCart } from "@/features/transactions/cart/use-cart";
 import { filterEligibleCampaigns } from "@/features/transactions/lib/campaign-eligibility";
 import { previewDiscounts } from "@/features/transactions/lib/discount-preview";
 import { parseMoney } from "@/shared/money";
@@ -35,7 +35,7 @@ export const useAvailableCampaigns = (
 
 // Used by both the payment step and the footer's total; the Campaign fetch is
 // shared, so two callers cost nothing extra.
-export function useCheckoutPricing() {
+export const useCheckoutPricing = () => {
   const { subtotal, serviceRows } = useCart();
   const selectedStoreId = useWatch<TransactionDraftValues, "selectedStoreId">({
     name: "selectedStoreId",
@@ -97,4 +97,4 @@ export function useCheckoutPricing() {
     rows: preview.rows,
     amountDue: preview.amountDue,
   };
-}
+};

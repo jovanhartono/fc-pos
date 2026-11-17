@@ -1,4 +1,4 @@
-import { useCart } from "@/features/transactions/cart/useCart";
+import { useCart } from "@/features/transactions/cart/use-cart";
 import { RemoveLineButton } from "@/features/transactions/components/remove-line-button";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 

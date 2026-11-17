@@ -6,7 +6,7 @@ import { CurrencyInput } from "@/components/form/currency-input";
 import { DialogFormActions } from "@/components/form/dialog-form-actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { useUpdateOrderDeliveryFeeMutation } from "@/features/orders/hooks/useOrderMutations";
+import { useUpdateOrderDeliveryFeeMutation } from "@/features/orders/hooks/use-order-mutations";
 
 const deliveryFeeSchema = z.object({ deliveryFee: z.string() });
 
@@ -45,7 +45,7 @@ export const OrderDeliveryFeeForm = ({
             <CurrencyInput
               disabled={mutation.isPending}
               id="order-delivery-fee"
-              onValueChange={field.onChange}
+              onValueChange={(value) => field.onChange(value)}
               value={field.value}
             />
             <FieldError errors={[fieldState.error]} />

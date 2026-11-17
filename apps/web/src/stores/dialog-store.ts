@@ -7,7 +7,7 @@ type RenderNode = () => ReactNode;
 // that list an Order's Items (Pickup, Refund, Complaint) and the Cmd+K search.
 type DialogSize = "form" | "wide";
 
-type DialogState = {
+interface DialogState {
   open: boolean;
   title: string | null;
   description: string | null;
@@ -15,23 +15,23 @@ type DialogState = {
   footer: RenderNode | null;
   size: DialogSize;
   contentClassName: string | null;
-};
+}
 
-type OpenDialogPayload = {
+interface OpenDialogPayload {
   title?: string | null;
   description?: string | null;
   content?: RenderNode | null;
   footer?: RenderNode | null;
   size?: DialogSize;
   contentClassName?: string | null;
-};
+}
 
-type DialogStore = {
+interface DialogStore {
   dialogState: DialogState;
   setOpen: (open: boolean) => void;
   openDialog: (payload: OpenDialogPayload) => void;
   closeDialog: () => void;
-};
+}
 
 const defaultState: DialogState = {
   open: false,

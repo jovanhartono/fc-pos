@@ -1,18 +1,16 @@
-import {
-  CampaignPayloadSchema,
-  type CampaignRedemptionMode,
-} from "@fresclean/api/schema";
+import { CampaignPayloadSchema } from "@fresclean/api/schema";
+import type { CampaignRedemptionMode } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Controller,
   FormProvider,
-  type Resolver,
   useForm,
   useFormContext,
   useWatch,
 } from "react-hook-form";
+import type { Resolver } from "react-hook-form";
 import type { z } from "zod";
 
 import { CurrencyInput } from "@/components/form/currency-input";
@@ -35,7 +33,7 @@ import { Input } from "@/components/ui/input";
 import type { CampaignPayload } from "@/features/campaigns/api";
 import { ServicesMultiAutocomplete } from "@/features/orders/components/services-multi-autocomplete";
 import { StoreChecklist } from "@/features/stores/components/store-checklist";
-import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
+import { useSheetDirtyGuard } from "@/hooks/use-sheet-dirty-guard";
 import { cn } from "@/lib/utils";
 
 type CampaignDiscountType = CampaignPayload["discount_type"];
@@ -63,7 +61,7 @@ export interface CampaignFormInput {
 
 interface CampaignFormProps {
   defaultValues: CampaignFormInput;
-  stores: Array<{ id: number; name: string; code: string }>;
+  stores: { id: number; name: string; code: string }[];
   handleOnSubmit: (values: CampaignPayload) => Promise<void> | void;
   isEditing: boolean;
   onReset: () => void;
@@ -98,8 +96,6 @@ const campaignFieldMessages: z.core.$ZodErrorMap = (issue) => {
     const label = REQUIRED_FIELD_LABELS[field];
     return label ? `${label} is required` : undefined;
   }
-
-  return undefined;
 };
 
 const DISCOUNT_TYPE_OPTIONS: { value: CampaignDiscountType; label: string }[] =
@@ -264,7 +260,7 @@ const FixedDiscountFields = () => {
               id="campaign-discount-value"
               placeholder="Rp0"
               value={field.value}
-              onValueChange={field.onChange}
+              onValueChange={(value) => field.onChange(value)}
               required
             />
             <FieldError errors={[fieldState.error]} />
@@ -401,14 +397,18 @@ const BogoDiscountFields = () => {
         control={control}
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid} className="col-span-full">
-            <FieldLabel htmlFor="campaign-eligible-services" asterisk>
+            <FieldLabel
+              id="campaign-eligible-services-label"
+              htmlFor="campaign-eligible-services"
+              asterisk
+            >
               Eligible services
             </FieldLabel>
             <ServicesMultiAutocomplete
               id="campaign-eligible-services"
               placeholder="Select eligible services"
               values={field.value}
-              onValuesChange={field.onChange}
+              onValuesChange={(values) => field.onChange(values)}
               error={fieldState.error}
             />
           </Field>
@@ -436,7 +436,11 @@ export const CampaignForm = ({
 }: CampaignFormProps) => {
   // A Campaign keeps the redemption mode and the batch of Voucher codes it was
   // created with, so an edit leaves both out of the form entirely.
-  const { redemption_mode, code_count, ...editableDefaults } = defaultValues;
+  const {
+    redemption_mode,
+    code_count: _codeCount,
+    ...editableDefaults
+  } = defaultValues;
   const form = useForm<CampaignFormInput, unknown, CampaignPayload>({
     // The schema reads a payload off the wire, where dates and numbers arrive
     // as text; the sheet already holds them typed.
@@ -445,7 +449,7 @@ export const CampaignForm = ({
     }) as Resolver<CampaignFormInput, unknown, CampaignPayload>,
     defaultValues: isEditing ? editableDefaults : defaultValues,
   });
-  const isSubmitting = form.formState.isSubmitting;
+  const { isSubmitting } = form.formState;
   useSheetDirtyGuard(form.formState.isDirty);
   const discountType = useWatch({
     control: form.control,
@@ -589,7 +593,7 @@ export const CampaignForm = ({
                   id="campaign-min-order"
                   placeholder="Rp0"
                   value={field.value}
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => field.onChange(value)}
                   disabled={isSubmitting}
                   required
                 />
@@ -612,7 +616,7 @@ export const CampaignForm = ({
               <StoreChecklist
                 disabled={isSubmitting}
                 idPrefix="campaign-store"
-                onChange={field.onChange}
+                onChange={(value) => field.onChange(value)}
                 stores={stores}
                 value={field.value}
               />
@@ -629,7 +633,7 @@ export const CampaignForm = ({
                   description="Only Active Campaigns show in the POS."
                   disabled={isSubmitting}
                   id="campaign-active"
-                  onCheckedChange={field.onChange}
+                  onCheckedChange={(checked) => field.onChange(checked)}
                   title="Active"
                 />
               )}

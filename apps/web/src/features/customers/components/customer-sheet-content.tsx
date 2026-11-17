@@ -4,20 +4,19 @@ import {
 } from "@fresclean/api/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FormProvider, type SubmitHandler, useForm } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
+import type { SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 
 import {
-  type Customer,
   createCustomer,
   customersKeys,
   updateCustomer,
 } from "@/features/customers/api";
-import {
-  CustomerForm,
-  type CustomerFormState,
-} from "@/features/customers/components/customer-form";
-import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
+import type { Customer } from "@/features/customers/api";
+import { CustomerForm } from "@/features/customers/components/customer-form";
+import type { CustomerFormState } from "@/features/customers/components/customer-form";
+import { useSheetDirtyGuard } from "@/hooks/use-sheet-dirty-guard";
 import { useSheet } from "@/stores/sheet-store";
 
 const defaultForm: CustomerFormState = {
@@ -36,15 +35,15 @@ const customerFormResolverSchema = POSTCustomerSchema.omit({
   origin_store_id: z.number().int().optional(),
 });
 
-export type CustomerSheetContentProps = {
+export interface CustomerSheetContentProps {
   editingCustomer?: Customer;
   onSuccess?: (customer: { id: number }) => void;
-};
+}
 
-export function CustomerSheetContent({
+export const CustomerSheetContent = ({
   editingCustomer,
   onSuccess,
-}: CustomerSheetContentProps) {
+}: CustomerSheetContentProps) => {
   const queryClient = useQueryClient();
   const { closeSheet } = useSheet();
 
@@ -136,4 +135,4 @@ export function CustomerSheetContent({
       />
     </FormProvider>
   );
-}
+};

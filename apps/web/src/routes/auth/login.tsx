@@ -6,10 +6,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { login } from "@/features/auth/api";
-import {
-  LoginForm,
-  type LoginFormValues,
-} from "@/features/auth/components/login-form";
+import { LoginForm } from "@/features/auth/components/login-form";
+import type { LoginFormValues } from "@/features/auth/components/login-form";
 import { useAuthStore } from "@/stores/auth-store";
 
 const loginSchema = z.object({
@@ -17,16 +15,7 @@ const loginSchema = z.object({
   password: z.string().trim().min(1, "Password is required"),
 });
 
-export const Route = createFileRoute("/auth/login")({
-  beforeLoad: () => {
-    if (useAuthStore.getState().user) {
-      throw redirect({ to: "/" });
-    }
-  },
-  component: LoginPage,
-});
-
-function LoginPage() {
+const LoginPage = () => {
   const navigate = useNavigate();
   const setUser = useAuthStore((state) => state.setUser);
 
@@ -68,4 +57,13 @@ function LoginPage() {
       isSubmitting={loginMutation.isPending}
     />
   );
-}
+};
+
+export const Route = createFileRoute("/auth/login")({
+  beforeLoad: () => {
+    if (useAuthStore.getState().user) {
+      throw redirect({ to: "/" });
+    }
+  },
+  component: LoginPage,
+});

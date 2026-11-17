@@ -16,7 +16,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useSheetDirtyGuard } from "@/hooks/useSheetDirtyGuard";
+import { useSheetDirtyGuard } from "@/hooks/use-sheet-dirty-guard";
 
 export type PaymentMethodFormState = z.infer<typeof POSTPaymentMethodSchema>;
 
@@ -37,24 +37,24 @@ const GATEWAY_ITEMS = [
   })),
 ];
 
-type PaymentMethodFormProps = {
+interface PaymentMethodFormProps {
   defaultValues?: PaymentMethodFormState;
   handleOnSubmit: (values: PaymentMethodFormState) => Promise<void> | void;
   isEditing: boolean;
   onReset: () => void;
-};
+}
 
-export function PaymentMethodForm({
+export const PaymentMethodForm = ({
   defaultValues,
   handleOnSubmit,
   isEditing,
   onReset,
-}: PaymentMethodFormProps) {
+}: PaymentMethodFormProps) => {
   const form = useForm({
     resolver: zodResolver(POSTPaymentMethodSchema),
     defaultValues: defaultValues ?? defaultForm,
   });
-  const isSubmitting = form.formState.isSubmitting;
+  const { isSubmitting } = form.formState;
   useSheetDirtyGuard(form.formState.isDirty);
 
   return (
@@ -131,7 +131,7 @@ export function PaymentMethodForm({
                 description="Only Active payment methods show in the POS."
                 disabled={isSubmitting}
                 id="payment-method-active"
-                onCheckedChange={field.onChange}
+                onCheckedChange={(checked) => field.onChange(checked)}
                 title="Active"
               />
             )}
@@ -147,4 +147,4 @@ export function PaymentMethodForm({
       </FieldGroup>
     </form>
   );
-}
+};

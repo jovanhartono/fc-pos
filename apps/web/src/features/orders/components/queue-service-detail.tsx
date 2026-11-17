@@ -22,17 +22,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { CustomerLink } from "@/features/customers/components/customer-link";
-import {
-  type OrderServiceDetail,
-  ordersQueries,
-  type UpdateOrderServiceStatusPayload,
+import { ordersQueries } from "@/features/orders/api";
+import type {
+  OrderServiceDetail,
+  UpdateOrderServiceStatusPayload,
 } from "@/features/orders/api";
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
 import { ItemPhotoStrip } from "@/features/orders/components/item-photo-strip";
 import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-callout";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
-import { useNotifyCustomer } from "@/features/orders/hooks/useNotifyCustomer";
-import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/useOrderMutations";
+import { useNotifyCustomer } from "@/features/orders/hooks/use-notify-customer";
+import { useUpdateServiceStatusMutation } from "@/features/orders/hooks/use-order-mutations";
 import { formatOrderDateTime } from "@/features/orders/lib/format";
 import { getFirstPickupAt } from "@/features/orders/lib/line-timeline";
 import { orderServiceActions } from "@/features/orders/lib/order-service-actions";
@@ -158,21 +158,19 @@ const ReadyNote = ({ order }: ReadyNoteProps) => {
   );
 };
 
-function QueueServiceDetailSkeleton() {
-  return (
-    <div className="grid gap-5">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-12 w-full" />
-      <div className="grid gap-3">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
+const QueueServiceDetailSkeleton = () => (
+  <div className="grid gap-5">
+    <Skeleton className="h-8 w-48" />
+    <Skeleton className="h-12 w-full" />
+    <div className="grid gap-3">
+      <Skeleton className="h-5 w-40" />
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-24 w-full" />
     </div>
-  );
-}
+  </div>
+);
 
-export function QueueServiceDetailMessage({
+export const QueueServiceDetailMessage = ({
   description,
   title,
   tone,
@@ -182,40 +180,39 @@ export function QueueServiceDetailMessage({
   title: string;
   tone: "error" | "muted";
   onRetry?: () => void;
-}) {
-  return (
-    <EmptyState
-      action={
-        onRetry ? (
-          <Button type="button" variant="outline" onClick={onRetry}>
-            Retry
-          </Button>
-        ) : undefined
-      }
-      icon={tone === "error" ? AlertCircleIcon : Search01Icon}
+}) => (
+  <EmptyState
+    action={
+      onRetry ? (
+        <Button type="button" variant="outline" onClick={onRetry}>
+          Retry
+        </Button>
+      ) : undefined
+    }
+    icon={tone === "error" ? AlertCircleIcon : Search01Icon}
+  >
+    <p
+      className={cn(
+        "font-medium text-foreground",
+        tone === "error" && "text-destructive"
+      )}
     >
-      <p
-        className={cn(
-          "font-medium text-foreground",
-          tone === "error" && "text-destructive"
-        )}
-      >
-        {title}
-      </p>
-      <p>{description}</p>
-    </EmptyState>
-  );
-}
+      {title}
+    </p>
+    <p>{description}</p>
+  </EmptyState>
+);
 
-type QueueServiceDetailProps = {
+interface QueueServiceDetailProps {
   orderId: number;
   serviceId: number;
-};
+}
 
-export function QueueServiceDetail({
+// oxlint-disable-next-line complexity -- one screen for every state an Item's line can be in on the queue
+export const QueueServiceDetail = ({
   orderId,
   serviceId,
-}: QueueServiceDetailProps) {
+}: QueueServiceDetailProps) => {
   const currentUser = getCurrentUser();
 
   const [statusNote, setStatusNote] = useState("");
@@ -241,11 +238,12 @@ export function QueueServiceDetail({
   const { moves, start, photoBlocker } = actions;
 
   const itemDescriptors = getOrderServiceItemDescriptors(selectedService.item);
-  const handlerLabel = actions.isHeldByMe
-    ? "You"
-    : actions.isHeldByOther
-      ? (selectedService.handler?.name ?? "Another worker")
-      : "Unassigned";
+  let handlerLabel = "Unassigned";
+  if (actions.isHeldByMe) {
+    handlerLabel = "You";
+  } else if (actions.isHeldByOther) {
+    handlerLabel = selectedService.handler?.name ?? "Another worker";
+  }
   const isReady = selectedService.status === "ready_for_pickup";
   // Turned down at the counter: the Item left the pickup shelf for its Rework.
   const runningRework = selectedService.complaints
@@ -522,4 +520,4 @@ export function QueueServiceDetail({
       )}
     </>
   );
-}
+};

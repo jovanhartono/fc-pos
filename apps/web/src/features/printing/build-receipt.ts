@@ -34,7 +34,7 @@ const wrap = (text: string, indent = ""): string[] => {
   const lines: string[] = [];
   const limit = WIDTH - indent.length;
   let current = "";
-  for (const word of toPrintableAscii(text).split(/\s+/)) {
+  for (const word of toPrintableAscii(text).split(/\s+/u)) {
     // A URL or long code in a note has no space to break on, so it is cut
     // to fit, or it would run past the paper edge and lose its indent.
     let piece = word;
@@ -67,6 +67,17 @@ const wrap = (text: string, indent = ""): string[] => {
 const infoRow = (label: string, value: string): string =>
   `${label.padEnd(9)} : ${value}`;
 
+const voidMark = (isCancelled: boolean, isRefunded: boolean): string => {
+  if (isCancelled) {
+    return " (BATAL)";
+  }
+  if (isRefunded) {
+    return " (REFUND)";
+  }
+  return "";
+};
+
+// oxlint-disable-next-line complexity -- the Receipt is laid out top to bottom in one pass, one branch per optional section
 export const buildReceiptEscPos = (
   receipt: OrderReceipt,
   trackingUrl: string
@@ -127,12 +138,10 @@ export const buildReceiptEscPos = (
       for (const line of item.services) {
         // A reprint can come after a line is cancelled or refunded (ADR-0016);
         // unmarked, it would read as work still owed to the Customer.
-        const voided =
-          line.status === "cancelled"
-            ? " (BATAL)"
-            : line.status === "refunded"
-              ? " (REFUND)"
-              : "";
+        const voided = voidMark(
+          line.status === "cancelled",
+          line.status === "refunded"
+        );
         b.line(
           row(
             `  ${line.service?.name ?? "Layanan"}${voided}`,
@@ -151,11 +160,10 @@ export const buildReceiptEscPos = (
     }
     b.bold(true).line("PRODUK").bold(false);
     for (const line of receipt.products) {
-      const voided = line.cancelled_at
-        ? " (BATAL)"
-        : line.refunded_at
-          ? " (REFUND)"
-          : "";
+      const voided = voidMark(
+        Boolean(line.cancelled_at),
+        Boolean(line.refunded_at)
+      );
       b.bold(true)
         .line(`${line.product?.name ?? "Produk"}${voided}`)
         .bold(false);

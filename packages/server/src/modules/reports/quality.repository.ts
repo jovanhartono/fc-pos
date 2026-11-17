@@ -24,11 +24,8 @@ import {
 } from "@/db/schema";
 import { hasLiveRework } from "@/modules/complaints/complaint.repository";
 import { itemNameColumns } from "@/modules/orders/order-read.repository";
-import {
-  type RangeArgs,
-  storeScope,
-  timeWindow,
-} from "@/modules/reports/money-basis";
+import { storeScope, timeWindow } from "@/modules/reports/money-basis";
+import type { RangeArgs } from "@/modules/reports/money-basis";
 import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
 import { listServicesProcessed } from "@/modules/reports/services-processed";
 import { WORKSHOP_SERVICE_STATUSES } from "@/schema/order-status";
@@ -61,7 +58,7 @@ export const cleanerOfRound = (check: StatusLog) =>
 
 // Services processed in the stretch, Rework lines left out: a free re-clean
 // for a Complaint is not first-time work and would count the same mistake twice.
-export async function listQualityCohort({ range, storeId }: RangeArgs) {
+export const listQualityCohort = async ({ range, storeId }: RangeArgs) => {
   const processed = listServicesProcessed({ range, storeId }).as("processed");
 
   return await db
@@ -102,23 +99,22 @@ export async function listQualityCohort({ range, storeId }: RangeArgs) {
       eq(complaintsTable.order_service_id, ordersServicesTable.id)
     )
     .where(isNull(ordersServicesTable.complaint_id));
-}
+};
 
 // One check is an inspector passing or sending back an Item. The caller joins
 // the log through to the Order, which carries the Store.
-export function qualityCheckInRange(
+export const qualityCheckInRange = (
   log: StatusLog,
   { range, storeId }: RangeArgs
-) {
-  return and(
+) =>
+  and(
     eq(log.from_status, "waiting_qc"),
     inArray(log.to_status, ["ready_for_pickup", "qc_reject"]),
     ...timeWindow(log.created_at, range),
     storeScope(ordersTable.store_id, storeId)
   );
-}
 
-export async function listQualityChecksByChecker(args: RangeArgs) {
+export const listQualityChecksByChecker = async (args: RangeArgs) => {
   const passed = eq(qcLog.to_status, "ready_for_pickup");
   const checks = db
     .select({
@@ -158,11 +154,11 @@ export async function listQualityChecksByChecker(args: RangeArgs) {
     .innerJoin(checker, eq(checks.checker_id, checker.id))
     .groupBy(checks.checker_id, checker.name)
     .orderBy(desc(sql`COUNT(*)`), asc(checker.name));
-}
+};
 
 // Every landing on the QC shelf, a redo after a QC reject included: each one
 // needs a check.
-export function listQcArrivalsByDay({ range, storeId }: RangeArgs) {
+export const listQcArrivalsByDay = ({ range, storeId }: RangeArgs) => {
   const day = jakartaBucketExpr(qcLog.created_at, "day");
   return db
     .select({ day, arrived: sql<number>`COUNT(*)::int` })
@@ -180,9 +176,9 @@ export function listQcArrivalsByDay({ range, storeId }: RangeArgs) {
       )
     )
     .groupBy(day);
-}
+};
 
-export function listQualityChecksByCheckerDay(args: RangeArgs) {
+export const listQualityChecksByCheckerDay = (args: RangeArgs) => {
   const day = jakartaBucketExpr(qcLog.created_at, "day");
   return db
     .select({
@@ -199,11 +195,11 @@ export function listQualityChecksByCheckerDay(args: RangeArgs) {
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
     .where(qualityCheckInRange(qcLog, args))
     .groupBy(qcLog.changed_by, day);
-}
+};
 
 // Items on the QC shelf now, by the Counter's isWaitingQcOnly: Stores check an
 // Item once, after its last Service, so a cleaned Item due a Whitening isn't there.
-export async function findWaitingQcNow(storeId: number | undefined) {
+export const findWaitingQcNow = async (storeId: number | undefined) => {
   const shelf = db
     .select({
       landed_at: sql<Date | null>`MAX(${qcLog.created_at})`.as("landed_at"),
@@ -236,7 +232,7 @@ export async function findWaitingQcNow(storeId: number | undefined) {
     })
     .from(shelf);
   return { count: row?.count ?? 0, oldest_at: row?.oldest_at ?? null };
-}
+};
 
 // A QC reject always passes through qc_reject, never straight back to
 // processing. The caller joins the log through to the Order.
@@ -244,20 +240,19 @@ interface QcRejectArgs extends RangeArgs {
   checkerId?: number;
 }
 
-export function qcRejectInRange(
+export const qcRejectInRange = (
   log: StatusLog,
   { range, storeId, checkerId }: QcRejectArgs
-) {
-  return and(
+) =>
+  and(
     eq(log.to_status, "qc_reject"),
     ...timeWindow(log.created_at, range),
     storeScope(ordersTable.store_id, storeId),
     checkerId === undefined ? undefined : eq(log.changed_by, checkerId)
   );
-}
 
-export function countQcRejectsByService(args: RangeArgs) {
-  return db
+export const countQcRejectsByService = (args: RangeArgs) =>
+  db
     .select({
       service_id: ordersServicesTable.service_id,
       service_name: servicesTable.name,
@@ -275,9 +270,8 @@ export function countQcRejectsByService(args: RangeArgs) {
     )
     .where(qcRejectInRange(qcLog, args))
     .groupBy(ordersServicesTable.service_id, servicesTable.name);
-}
 
-export async function countQcRejects(args: QcRejectArgs) {
+export const countQcRejects = async (args: QcRejectArgs) => {
   const [row] = await db
     .select({ total: sql<number>`COUNT(*)::int` })
     .from(qcLog)
@@ -289,14 +283,14 @@ export async function countQcRejects(args: QcRejectArgs) {
     .where(qcRejectInRange(qcLog, args));
 
   return row?.total ?? 0;
-}
+};
 
-export function listQcRejects({
+export const listQcRejects = ({
   limit,
   offset,
   ...args
-}: QcRejectArgs & { limit: number; offset: number }) {
-  return db
+}: QcRejectArgs & { limit: number; offset: number }) =>
+  db
     .select({
       id: qcLog.id,
       rejected_at: qcLog.created_at,
@@ -331,4 +325,3 @@ export function listQcRejects({
     .orderBy(desc(qcLog.created_at), desc(qcLog.id))
     .limit(limit)
     .offset(offset);
-}

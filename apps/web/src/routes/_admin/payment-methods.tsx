@@ -12,26 +12,54 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
   createPaymentMethod,
-  type PaymentMethod,
   paymentMethodsKeys,
   paymentMethodsQueries,
   updatePaymentMethod,
 } from "@/features/payment-methods/api";
-import {
-  PaymentMethodForm,
-  type PaymentMethodFormState,
-} from "@/features/payment-methods/components/payment-method-form";
+import type { PaymentMethod } from "@/features/payment-methods/api";
+import { PaymentMethodForm } from "@/features/payment-methods/components/payment-method-form";
+import type { PaymentMethodFormState } from "@/features/payment-methods/components/payment-method-form";
 import { useSheet } from "@/stores/sheet-store";
 
-export const Route = createFileRoute("/_admin/payment-methods")({
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
-  component: PaymentMethodsPage,
-  // Past a second, the page itself draws with skeleton rows.
-  pendingComponent: PaymentMethodsPage,
-});
+const columnsFor = (
+  onEdit: (paymentMethod: PaymentMethod) => void
+): DataTableColumnDef<PaymentMethod>[] => [
+  {
+    accessorKey: "name",
+    header: "Payment method",
+    meta: { kind: "name", width: { percent: 50, minRem: 9 } },
+  },
+  {
+    accessorKey: "code",
+    header: "Code",
+    meta: { kind: "code", width: { percent: 26, minRem: 4.5 } },
+  },
+  {
+    id: "status",
+    header: "Status",
+    meta: {
+      width: { percent: 12, minRem: 4.5 },
+      mobileCard: { slot: "status" },
+    },
+    cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    meta: {
+      width: { percent: 12, minRem: 4.5 },
+      mobileCard: { slot: "title-end" },
+    },
+    cell: ({ row }) => (
+      <EditRowButton
+        label={`Edit ${row.original.name}`}
+        onClick={() => onEdit(row.original)}
+      />
+    ),
+  },
+];
 
-function PaymentMethodsPage() {
+const PaymentMethodsPage = () => {
   const queryClient = useQueryClient();
   const { openSheet, closeSheet } = useSheet();
 
@@ -106,41 +134,7 @@ function PaymentMethodsPage() {
     });
   };
 
-  const columns: DataTableColumnDef<PaymentMethod>[] = [
-    {
-      accessorKey: "name",
-      header: "Payment method",
-      meta: { kind: "name", width: { percent: 50, minRem: 9 } },
-    },
-    {
-      accessorKey: "code",
-      header: "Code",
-      meta: { kind: "code", width: { percent: 26, minRem: 4.5 } },
-    },
-    {
-      id: "status",
-      header: "Status",
-      meta: {
-        width: { percent: 12, minRem: 4.5 },
-        mobileCard: { slot: "status" },
-      },
-      cell: ({ row }) => <ActiveBadge isActive={row.original.is_active} />,
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      meta: {
-        width: { percent: 12, minRem: 4.5 },
-        mobileCard: { slot: "title-end" },
-      },
-      cell: ({ row }) => (
-        <EditRowButton
-          label={`Edit ${row.original.name}`}
-          onClick={() => handleOpenEditSheet(row.original)}
-        />
-      ),
-    },
-  ];
+  const columns = columnsFor(handleOpenEditSheet);
 
   return (
     <>
@@ -171,4 +165,12 @@ function PaymentMethodsPage() {
       </ListPanel>
     </>
   );
-}
+};
+
+export const Route = createFileRoute("/_admin/payment-methods")({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(paymentMethodsQueries.list()),
+  component: PaymentMethodsPage,
+  // Past a second, the page itself draws with skeleton rows.
+  pendingComponent: PaymentMethodsPage,
+});

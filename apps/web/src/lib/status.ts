@@ -19,9 +19,8 @@ const cancelReasonLabels: Record<OrderCancelReason, string> = {
   other: "Other",
 };
 
-export function formatCancelReason(reason: OrderCancelReason) {
-  return cancelReasonLabels[reason];
-}
+export const formatCancelReason = (reason: OrderCancelReason) =>
+  cancelReasonLabels[reason];
 
 const refundReasonLabels: Record<OrderRefundReason, string> = {
   damaged: "Damaged",
@@ -31,9 +30,8 @@ const refundReasonLabels: Record<OrderRefundReason, string> = {
   customer_cancelled: "Customer Cancelled",
 };
 
-export function formatRefundReason(reason: OrderRefundReason) {
-  return refundReasonLabels[reason];
-}
+export const formatRefundReason = (reason: OrderRefundReason) =>
+  refundReasonLabels[reason];
 
 export const CANCEL_REASONS = [
   "customer_request",
@@ -81,81 +79,91 @@ const orderServiceStatusLabels = {
   waiting_qc: "Waiting QC",
 } as const;
 
-export function getPaymentStatusBadgeVariant(
+export const getPaymentStatusBadgeVariant = (
   status: keyof typeof paymentStatusLabels
-): BadgeVariant {
-  return status === "paid" ? "success" : "danger";
-}
+): BadgeVariant => (status === "paid" ? "success" : "danger");
 
-export function formatPaymentStatus(status: keyof typeof paymentStatusLabels) {
-  return paymentStatusLabels[status];
-}
+export const formatPaymentStatus = (status: keyof typeof paymentStatusLabels) =>
+  paymentStatusLabels[status];
 
 export const getRefundStatusBadgeVariant = (
   status: keyof typeof refundStatusLabels
 ): BadgeVariant => {
   switch (status) {
-    case "full":
+    case "full": {
       return "danger";
-    case "partial":
+    }
+    case "partial": {
       return "warning";
-    default:
+    }
+    default: {
       return "outline";
+    }
   }
 };
 
 export const formatRefundStatus = (status: keyof typeof refundStatusLabels) =>
   refundStatusLabels[status];
 
-export function getOrderStatusBadgeVariant(
+export const getOrderStatusBadgeVariant = (
   status: keyof typeof orderStatusLabels
-): BadgeVariant {
+): BadgeVariant => {
   switch (status) {
-    case "completed":
+    case "completed": {
       return "success";
-    case "ready_for_pickup":
+    }
+    case "ready_for_pickup": {
       return "success";
-    case "processing":
+    }
+    case "processing": {
       return "info";
-    case "cancelled":
+    }
+    case "cancelled": {
       return "danger";
-    default:
+    }
+    default: {
       return "warning";
+    }
   }
-}
+};
 
-export function formatOrderStatus(status: keyof typeof orderStatusLabels) {
-  return orderStatusLabels[status];
-}
+export const formatOrderStatus = (status: keyof typeof orderStatusLabels) =>
+  orderStatusLabels[status];
 
-export function getOrderServiceStatusBadgeVariant(
+export const getOrderServiceStatusBadgeVariant = (
   status: string
-): BadgeVariant {
+): BadgeVariant => {
   switch (status) {
-    case "queued":
+    case "queued": {
       return "warning";
-    case "processing":
+    }
+    case "processing": {
       return "info";
-    case "waiting_qc":
+    }
+    case "waiting_qc": {
       return "warning";
-    case "qc_reject":
+    }
+    case "qc_reject": {
       return "danger";
-    case "ready_for_pickup":
+    }
+    case "ready_for_pickup": {
       return "success";
-    case "picked_up":
+    }
+    case "picked_up": {
       return "success";
-    case "refunded":
+    }
+    case "refunded": {
       return "danger";
-    case "cancelled":
+    }
+    case "cancelled": {
       return "danger";
-    default:
+    }
+    default: {
       return "outline";
+    }
   }
-}
+};
 
-export function formatOrderServiceStatus(status: string) {
-  return (
-    orderServiceStatusLabels[status as keyof typeof orderServiceStatusLabels] ??
-    status
-  );
-}
+export const formatOrderServiceStatus = (status: string) =>
+  orderServiceStatusLabels[status as keyof typeof orderServiceStatusLabels] ??
+  status;

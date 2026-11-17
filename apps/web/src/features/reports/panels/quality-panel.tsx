@@ -7,33 +7,32 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   keepPreviousData,
-  type QueryClient,
   useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  type FetchQcRejectsQuery,
-  QC_REJECTS_PAGE_SIZE,
-  type QcRejectItem,
-  type QualityReport,
-  reportsQueries,
+import { QC_REJECTS_PAGE_SIZE, reportsQueries } from "@/features/reports/api";
+import type {
+  FetchQcRejectsQuery,
+  QcRejectItem,
+  QualityReport,
 } from "@/features/reports/api";
 import { useOpenCheckerSheet } from "@/features/reports/components/checker-sheet";
 import { useOpenComplaintsSheet } from "@/features/reports/components/complaints-sheet";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import {
-  type NeedsALookItem,
   NeedsALookList,
   NeedsALookPlaceholder,
 } from "@/features/reports/components/needs-a-look";
+import type { NeedsALookItem } from "@/features/reports/components/needs-a-look";
 import { Pace, PersonName } from "@/features/reports/components/person-cells";
 import { QcPerDayChart } from "@/features/reports/components/qc-per-day-chart";
 import { useOpenQcRejectsSheet } from "@/features/reports/components/qc-rejects-sheet";
@@ -55,18 +54,20 @@ import {
 } from "@/features/reports/utils/format";
 import { QC_COLORS } from "@/features/reports/utils/palette";
 import {
-  type CheckerCounts,
   outlierFlags,
   QUALITY_RATES,
-  type QualityRate,
   rateOf,
   teamOf,
   teamPace,
 } from "@/features/reports/utils/quality-report";
+import type {
+  CheckerCounts,
+  QualityRate,
+} from "@/features/reports/utils/quality-report";
 import { longDuration } from "@/features/reports/utils/turnaround";
 import { outOf } from "@/features/reports/utils/workers-report";
+import { useMinuteClock } from "@/hooks/use-minute-clock";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useMinuteClock } from "@/hooks/useMinuteClock";
 import { staleFade } from "@/lib/content-fade";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
@@ -634,6 +635,11 @@ const SUMMARY_ROWS: [keyof QualitySummary, string][] = [
   ["self_check_rate", "Self-pass rate"],
 ];
 
+const ratio = (part: number, whole: number) =>
+  (whole === 0 ? 0 : part / whole).toFixed(4);
+const checkerLine = (name: string, c: CheckerCounts, perDay: number | null) =>
+  `Checkers,${escapeCsv(name)},${c.checks},${c.days_checked},${perDay ?? ""},${ratio(c.passes, c.checks)},${c.rejects},${ratio(c.self_checks, c.passes)},${c.self_checks},${ratio(c.complaints_after, c.passes)},${c.complaints_after}`;
+
 const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
   const { current, previous } = data.summary;
   const lines = ["Summary,Metric,Current,Previous"];
@@ -643,9 +649,10 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
   lines.push(
     "",
     "Mistakes,QC rejects,Complaints,Total",
-    `Mistakes,${data.mistakes.qc_rejects},${data.mistakes.complaints},${data.mistakes.total}`
+    `Mistakes,${data.mistakes.qc_rejects},${data.mistakes.complaints},${data.mistakes.total}`,
+    "",
+    "Complaint outcomes,Outcome,Complaints"
   );
-  lines.push("", "Complaint outcomes,Outcome,Complaints");
   for (const key of OUTCOMES) {
     lines.push(`Complaint outcomes,${key},${data.complaint_outcomes[key]}`);
   }
@@ -668,16 +675,12 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
     "",
     "Checkers,Checked by,Checks,Days checked,Per day,Pass rate,Rejects,Self-pass rate,Self-passed,Complaint rate,Complaints"
   );
-  const ratio = (part: number, whole: number) =>
-    (whole === 0 ? 0 : part / whole).toFixed(4);
-  const checkerLine = (name: string, c: CheckerCounts, perDay: number | null) =>
-    `Checkers,${escapeCsv(name)},${c.checks},${c.days_checked},${perDay ?? ""},${ratio(c.passes, c.checks)},${c.rejects},${ratio(c.self_checks, c.passes)},${c.self_checks},${ratio(c.complaints_after, c.passes)},${c.complaints_after}`;
   for (const c of data.by_checker) {
     lines.push(checkerLine(c.user_name, c, c.per_day));
   }
   const team = teamOf(data.by_checker);
-  lines.push(checkerLine("Team", team, teamPace(team)));
   lines.push(
+    checkerLine("Team", team, teamPace(team)),
     "",
     "QC rejects,When,Order,Item code,Service,Store,Cleaned by,Rejected by,Reason"
   );
@@ -689,6 +692,7 @@ const buildQualityCsv = (data: QualityReport, rejects: QcRejectItem[]) => {
   return lines.join("\n");
 };
 
+// oxlint-disable-next-line eslint/complexity -- one flat panel; the count is its `??` fallbacks for a report still loading
 export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
   const range = { from, to, store_id: storeId };
   const queryClient = useQueryClient();
@@ -697,7 +701,7 @@ export const QualityPanel = ({ from, to, storeId }: QualityPanelProps) => {
     ...reportsQueries.quality(range),
     placeholderData: keepPreviousData,
   });
-  const data = query.data;
+  const { data } = query;
   const exportMutation = useMutation({
     mutationFn: async (report: QualityReport) => ({
       report,

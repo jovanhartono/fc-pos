@@ -1,7 +1,7 @@
-import { PHOTO_THUMBNAIL_SUFFIX, PHOTO_TILE_SIZE } from "@fresclean/api/rules";
+import { PHOTO_THUMBNAIL_SUFFIX } from "@fresclean/api/rules";
 import type { SyntheticEvent } from "react";
 
-export { PHOTO_TILE_SIZE };
+export { PHOTO_TILE_SIZE } from "@fresclean/api/rules";
 
 // The small copy the server files beside each photo when it's saved.
 export const photoTileUrl = (url: string) => {

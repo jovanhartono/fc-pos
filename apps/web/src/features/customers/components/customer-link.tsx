@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
 import { usersQueries } from "@/features/users/api";
-import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
+import { useLeaveSheetLink } from "@/hooks/use-leave-sheet-link";
 import { cn } from "@/lib/utils";
 
 interface CustomerLinkProps {

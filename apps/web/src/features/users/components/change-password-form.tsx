@@ -13,10 +13,8 @@ import {
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
-import {
-  type ChangeOwnPasswordPayload,
-  changeOwnPassword,
-} from "@/features/users/api";
+import { changeOwnPassword } from "@/features/users/api";
+import type { ChangeOwnPasswordPayload } from "@/features/users/api";
 import { PasswordInput } from "@/features/users/components/password-input";
 import { readServerErrorMessage } from "@/lib/server-error";
 

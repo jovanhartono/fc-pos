@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 
-export function GlobalDialog() {
+export const GlobalDialog = () => {
   const { open, title, description, content, footer, size, contentClassName } =
     useDialog((state) => state.dialogState);
   const closeDialog = useDialog((state) => state.closeDialog);
@@ -59,4 +59,4 @@ export function GlobalDialog() {
       </DialogContent>
     </Dialog>
   );
-}
+};

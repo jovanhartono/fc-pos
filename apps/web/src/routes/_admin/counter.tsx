@@ -12,7 +12,7 @@ const counterSearchSchema = z.object({
   // The Summary's day; today when absent.
   date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .regex(/^\d{4}-\d{2}-\d{2}$/u)
     .refine((date) =>
       new Date(`${date}T00:00:00Z`).toISOString().startsWith(date)
     )

@@ -1,9 +1,9 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
-import {
-  type FetchOrderServiceQueueQuery,
-  type FetchOrdersQuery,
-  ordersQueries,
+import { ordersQueries } from "@/features/orders/api";
+import type {
+  FetchOrderServiceQueueQuery,
+  FetchOrdersQuery,
 } from "@/features/orders/api";
 import { pluralize } from "@/shared/utils";
 

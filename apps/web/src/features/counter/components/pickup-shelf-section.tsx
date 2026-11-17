@@ -8,16 +8,16 @@ import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
-import {
-  type CounterPickupShelf,
-  counterQueries,
-  type CounterShelfOrder as ShelfOrder,
+import { counterQueries } from "@/features/counter/api";
+import type {
+  CounterPickupShelf,
+  CounterShelfOrder as ShelfOrder,
 } from "@/features/counter/api";
 import { formatDays } from "@/features/counter/lib/format";
 import { NotifiedLabel } from "@/features/orders/components/notified-label";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
-import { useNotifyCustomer } from "@/features/orders/hooks/useNotifyCustomer";
-import { useLoadMore } from "@/hooks/useLoadMore";
+import { useNotifyCustomer } from "@/features/orders/hooks/use-notify-customer";
+import { useLoadMore } from "@/hooks/use-load-more";
 import { pluralize } from "@/shared/utils";
 
 const SHELF_VISIBLE_ROWS = 9;

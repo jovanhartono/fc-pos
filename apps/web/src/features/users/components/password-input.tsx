@@ -1,6 +1,7 @@
 import { ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type ComponentProps, useState } from "react";
+import { useState } from "react";
+import type { ComponentProps } from "react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";

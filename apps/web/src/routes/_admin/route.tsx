@@ -1,11 +1,7 @@
 import { Loading03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  createFileRoute,
-  type ErrorComponentProps,
-  Outlet,
-  useLocation,
-} from "@tanstack/react-router";
+import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 
 import { pageTitleFor } from "@/components/app-navigation";
 import { AppShell } from "@/components/app-shell";
@@ -25,6 +21,24 @@ const AdminPendingComponent = () => (
   </output>
 );
 
+const AdminErrorComponent = (props: ErrorComponentProps) => (
+  <AppShell title="Application Error">
+    <div className="grid place-items-center py-10">
+      <ErrorCard {...props} />
+    </div>
+  </AppShell>
+);
+
+const AdminLayout = () => {
+  const { pathname } = useLocation();
+
+  return (
+    <AppShell title={pageTitleFor(pathname)}>
+      <Outlet />
+    </AppShell>
+  );
+};
+
 export const Route = createFileRoute("/_admin")({
   beforeLoad: async ({ context }) => {
     requireAuth();
@@ -36,23 +50,3 @@ export const Route = createFileRoute("/_admin")({
   errorComponent: AdminErrorComponent,
   pendingComponent: AdminPendingComponent,
 });
-
-function AdminErrorComponent(props: ErrorComponentProps) {
-  return (
-    <AppShell title="Application Error">
-      <div className="grid place-items-center py-10">
-        <ErrorCard {...props} />
-      </div>
-    </AppShell>
-  );
-}
-
-function AdminLayout() {
-  const { pathname } = useLocation();
-
-  return (
-    <AppShell title={pageTitleFor(pathname)}>
-      <Outlet />
-    </AppShell>
-  );
-}

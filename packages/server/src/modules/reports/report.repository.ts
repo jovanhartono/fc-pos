@@ -21,19 +21,17 @@ import {
   storeScope,
   timeWindow,
 } from "@/modules/reports/money-basis";
-import {
-  type DateRange,
-  jakartaBucketExpr,
-} from "@/modules/reports/report-range.util";
+import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
+import type { DateRange } from "@/modules/reports/report-range.util";
 import { ORDER_TERMINAL_SERVICE_STATUSES } from "@/schema/order-status";
 
-export async function sumDailyPaid({
+export const sumDailyPaid = async ({
   range,
   storeId,
 }: {
   range: DateRange;
   storeId?: number;
-}) {
+}) => {
   const [row] = await db
     .select({ paid: collected() })
     .from(ordersTable)
@@ -45,15 +43,15 @@ export async function sumDailyPaid({
     );
 
   return Number(row?.paid ?? 0);
-}
+};
 
-export async function sumDailyRefunds({
+export const sumDailyRefunds = async ({
   range,
   storeId,
 }: {
   range: DateRange;
   storeId?: number;
-}) {
+}) => {
   const [row] = await db
     .select({ refunded: refunded() })
     .from(orderRefundsTable)
@@ -66,15 +64,15 @@ export async function sumDailyRefunds({
     );
 
   return Number(row?.refunded ?? 0);
-}
+};
 
-export async function countDailyOrdersIn({
+export const countDailyOrdersIn = async ({
   range,
   storeId,
 }: {
   range: DateRange;
   storeId?: number;
-}) {
+}) => {
   const conditions = [
     gte(ordersTable.created_at, range.start),
     lt(ordersTable.created_at, range.end),
@@ -91,15 +89,15 @@ export async function countDailyOrdersIn({
     .where(and(...conditions));
 
   return Number(row?.count ?? 0);
-}
+};
 
-export async function countDailyOrdersOut({
+export const countDailyOrdersOut = async ({
   range,
   storeId,
 }: {
   range: DateRange;
   storeId?: number;
-}) {
+}) => {
   const conditions = [
     gte(orderPickupEventsTable.picked_up_at, range.start),
     lt(orderPickupEventsTable.picked_up_at, range.end),
@@ -117,15 +115,15 @@ export async function countDailyOrdersOut({
     .where(and(...conditions));
 
   return Number(row?.count ?? 0);
-}
+};
 
-export async function ordersInTrendSeries({
+export const ordersInTrendSeries = async ({
   range,
   storeId,
 }: {
   range: DateRange;
   storeId?: number;
-}) {
+}) => {
   const conditions = [
     gte(ordersTable.created_at, range.start),
     lt(ordersTable.created_at, range.end),
@@ -149,15 +147,15 @@ export async function ordersInTrendSeries({
     day: row.day,
     orders_in: Number(row.orders_in),
   }));
-}
+};
 
-export async function paidTrendSeries({
+export const paidTrendSeries = async ({
   range,
   storeId,
 }: {
   range: DateRange;
   storeId?: number;
-}) {
+}) => {
   const conditions = [
     gte(ordersTable.paid_at, range.start),
     lt(ordersTable.paid_at, range.end),
@@ -181,15 +179,15 @@ export async function paidTrendSeries({
     day: row.day,
     paid: Number(row.paid),
   }));
-}
+};
 
-export async function refundsTrendSeries({
+export const refundsTrendSeries = async ({
   range,
   storeId,
 }: {
   range: DateRange;
   storeId?: number;
-}) {
+}) => {
   const conditions = [
     gte(orderRefundsTable.created_at, range.start),
     lt(orderRefundsTable.created_at, range.end),
@@ -214,15 +212,15 @@ export async function refundsTrendSeries({
     day: row.day,
     refunded: Number(row.refunded),
   }));
-}
+};
 
-export async function ordersOutTrendSeries({
+export const ordersOutTrendSeries = async ({
   range,
   storeId,
 }: {
   range: DateRange;
   storeId?: number;
-}) {
+}) => {
   const conditions = [
     gte(orderPickupEventsTable.picked_up_at, range.start),
     lt(orderPickupEventsTable.picked_up_at, range.end),
@@ -247,17 +245,17 @@ export async function ordersOutTrendSeries({
     day: row.day,
     orders_out: Number(row.orders_out),
   }));
-}
+};
 
 // Counted on the day the money was taken: by Order date, a line the Customer
 // pays for tomorrow landed in today's panel.
-export async function categoryGrossSalesForRange({
+export const categoryGrossSalesForRange = async ({
   range,
   storeId,
 }: {
   range: DateRange;
   storeId?: number;
-}) {
+}) => {
   const rows = await db
     .select({
       category_id: categoriesTable.id,
@@ -285,9 +283,9 @@ export async function categoryGrossSalesForRange({
     gross_sales: Number(row.gross_sales),
     count: Number(row.count),
   }));
-}
+};
 
-export async function perStoreForRange({ range }: { range: DateRange }) {
+export const perStoreForRange = async ({ range }: { range: DateRange }) => {
   const paidRows = await db
     .select({
       store_id: ordersTable.store_id,
@@ -339,14 +337,14 @@ export async function perStoreForRange({ range }: { range: DateRange }) {
   // Ranked like Financial's Store leaderboard.
   return rows
     .map((row) => ({ ...row, share: total > 0 ? row.revenue / total : 0 }))
-    .sort((a, b) => b.revenue - a.revenue);
-}
+    .toSorted((a, b) => b.revenue - a.revenue);
+};
 
 interface AgingQueueFilters {
   storeId?: number;
 }
 
-function buildAgingQueueWhere(filters: AgingQueueFilters) {
+const buildAgingQueueWhere = (filters: AgingQueueFilters) => {
   const conditions = [
     notInArray(ordersServicesTable.status, [
       ...ORDER_TERMINAL_SERVICE_STATUSES,
@@ -356,9 +354,9 @@ function buildAgingQueueWhere(filters: AgingQueueFilters) {
     conditions.push(eq(ordersTable.store_id, filters.storeId));
   }
   return and(...conditions);
-}
+};
 
-export async function listAgingQueue({
+export const listAgingQueue = async ({
   filters,
   limit,
   offset,
@@ -366,7 +364,7 @@ export async function listAgingQueue({
   filters: AgingQueueFilters;
   limit: number;
   offset: number;
-}) {
+}) => {
   const rows = await db
     .select({
       id: ordersServicesTable.id,
@@ -402,9 +400,9 @@ export async function listAgingQueue({
     ...row,
     days_waiting: Number(row.days_waiting),
   }));
-}
+};
 
-export async function countAgingQueue(filters: AgingQueueFilters) {
+export const countAgingQueue = async (filters: AgingQueueFilters) => {
   const [row] = await db
     .select({ total: sql<string>`COUNT(*)` })
     .from(ordersServicesTable)
@@ -412,4 +410,4 @@ export async function countAgingQueue(filters: AgingQueueFilters) {
     .where(buildAgingQueueWhere(filters));
 
   return Number(row?.total ?? 0);
-}
+};

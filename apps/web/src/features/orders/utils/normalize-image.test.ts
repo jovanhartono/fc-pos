@@ -30,39 +30,39 @@ const onCounterPhone = async (
     document: globals.document,
   };
 
-  globals.createImageBitmap = async (
+  globals.createImageBitmap = (
     _source: unknown,
     options?: { imageOrientation?: string }
   ) => {
     phone.decodedWith = options?.imageOrientation;
     if (!phone.decodes) {
-      throw new Error("undecodable");
+      return Promise.reject(new Error("undecodable"));
     }
-    return { close: () => undefined, ...phone.decodes };
+    return Promise.resolve({ close: () => {}, ...phone.decodes });
   };
   globals.document = {
     createElement: () => {
       const canvas = {
-        getContext: () => ({ drawImage: () => undefined }),
+        getContext: () => ({ drawImage: () => {} }),
         height: 0,
-        toBlob: (callback: (blob: Blob | null) => void, type: string) => {
+        toBlob: (done: (blob: Blob | null) => void, type: string) => {
           // A 1px canvas is the WebP support probe, not the photo — only a real encode
           // counts as having spent a lossy generation on the evidence.
           const isSupportProbe = canvas.width === 1 && canvas.height === 1;
 
           if (!phone.encodes.includes(type)) {
             // A real canvas quietly answers in PNG rather than refusing the type.
-            callback(new Blob(["png"], { type: "image/png" }));
+            done(new Blob(["png"], { type: "image/png" }));
             return;
           }
           if (!isSupportProbe) {
             phone.encodedAs = type;
             if (phone.canvasGivesUp) {
-              callback(null);
+              done(null);
               return;
             }
           }
-          callback(new Blob(["re-encoded"], { type }));
+          done(new Blob(["re-encoded"], { type }));
         },
         width: 0,
       };

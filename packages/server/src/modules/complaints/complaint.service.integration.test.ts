@@ -1,5 +1,6 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
+import "@/test-support/pglite";
 
 import { eq, isNull } from "drizzle-orm";
 
@@ -12,7 +13,8 @@ import {
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // The cashier shows the Customer the finished pair before handing it over; a
@@ -58,6 +60,17 @@ beforeEach(async () => {
   shop = await seedShop();
 });
 
+const walkToShelf = async (orderId: number, serviceId: number) => {
+  for (const to of ["processing", "waiting_qc", "ready_for_pickup"] as const) {
+    await transitionOrderService(db, {
+      by: shop.cashier.id,
+      orderId,
+      serviceId,
+      to,
+    });
+  }
+};
+
 // One pair in for a deep clean, walked through the workshop to the shelf.
 const pairOnTheShelf = async (paymentStatus: "paid" | "unpaid") => {
   const order = await createOrder(shop.admin.id, shop.store, {
@@ -92,17 +105,6 @@ const pairOnTheShelf = async (paymentStatus: "paid" | "unpaid") => {
     orderId: order.id,
     pickupCode: stored.pickup_code,
   };
-};
-
-const walkToShelf = async (orderId: number, serviceId: number) => {
-  for (const to of ["processing", "waiting_qc", "ready_for_pickup"] as const) {
-    await transitionOrderService(db, {
-      by: shop.cashier.id,
-      orderId,
-      serviceId,
-      to,
-    });
-  }
 };
 
 const turnDown = (lineId: number, startRework: boolean) =>
@@ -399,10 +401,10 @@ describe("a pair turned down at the counter", () => {
   });
 });
 
-describe("the original line cancelled or refunded while its rework is on the rack", () => {
-  const rackFor = () =>
-    getOrderServiceQueue(shop.cashier, { store_id: shop.store.id });
+const rackFor = () =>
+  getOrderServiceQueue(shop.cashier, { store_id: shop.store.id });
 
+describe("the original line cancelled or refunded while its rework is on the rack", () => {
   it("cancels the rework with the original on an unpaid Order", async () => {
     const pair = await pairOnTheShelf("unpaid");
     const { rework } = await turnDown(pair.lineId, true);
@@ -435,7 +437,8 @@ describe("the original line cancelled or refunded while its rework is on the rac
         note: "Original line cancelled",
       },
     ]);
-    expect((await rackFor()).items).toEqual([]);
+    const rack = await rackFor();
+    expect(rack.items).toEqual([]);
     const detail = await getOrderDetailById(pair.orderId);
     expect(detail?.status).toBe("cancelled");
     expect(detail?.items[0].is_collectable).toBe(false);
@@ -466,7 +469,8 @@ describe("the original line cancelled or refunded while its rework is on the rac
       ["refunded", null],
       ["cancelled", "Original line refunded"],
     ]);
-    expect((await rackFor()).items).toEqual([]);
+    const rack = await rackFor();
+    expect(rack.items).toEqual([]);
     const detail = await getOrderDetailById(pair.orderId);
     expect(detail?.items[0].is_collectable).toBe(true);
   });
@@ -494,7 +498,8 @@ describe("the original line cancelled or refunded while its rework is on the rac
 
     const lines = await readLines(pair.orderId);
     expect(lines.map((line) => line.status)).toEqual(["refunded", "queued"]);
-    expect((await rackFor()).items).toHaveLength(1);
+    const rack = await rackFor();
+    expect(rack.items).toHaveLength(1);
   });
 
   it("puts the rework of a pair brought back after pickup on the shelf as is, and the next pickup takes it home", async () => {
@@ -523,7 +528,8 @@ describe("the original line cancelled or refunded while its rework is on the rac
         note: "Original line refunded",
       },
     ]);
-    expect((await rackFor()).items).toEqual([]);
+    const rack = await rackFor();
+    expect(rack.items).toEqual([]);
     const detail = await getOrderDetailById(pair.orderId);
     expect(detail?.status).toBe("ready_for_pickup");
     expect(detail?.ready_at).not.toBeNull();
@@ -621,10 +627,10 @@ describe("the original line cancelled or refunded while its rework is on the rac
   });
 });
 
-describe("one rework round at a time", () => {
-  const addRound = (complaintId: number) =>
-    addRework({ user: shop.cashier, complaintId });
+const addRound = (complaintId: number) =>
+  addRework({ user: shop.cashier, complaintId });
 
+describe("one rework round at a time", () => {
   it("refuses a second round while the first is in the workshop", async () => {
     const pair = await pairOnTheShelf("paid");
     const { complaint, rework } = await turnDown(pair.lineId, true);
@@ -677,34 +683,34 @@ describe("one rework round at a time", () => {
   });
 });
 
-describe("a pair with another treatment still in the workshop", () => {
-  // Deep clean done, the repair on the same pair still queued: the customer
-  // has not been shown the pair yet.
-  const halfDonePair = async () => {
-    const order = await createOrder(shop.admin.id, shop.store, {
-      campaign_ids: [],
-      customer: { name: "Budi Santoso", phone_number: "+628111222333" },
-      discount: 0,
-      delivery_fee: 0,
-      items: [
-        {
-          services: [
-            { id: shop.serviceId },
-            { id: shop.repairServiceId, price: 50_000 },
-          ],
-        },
-      ],
-      payment_method_id: shop.paymentMethodId,
-      payment_status: "paid",
-      store_id: shop.store.id,
-      voucher_codes: [],
-    });
-    const [clean, repair] = await readLines(order.id);
-    await addItemPhoto(clean.item_id, shop.cashier.id);
-    await walkToShelf(order.id, clean.id);
-    return { clean, orderId: order.id, repair };
-  };
+// Deep clean done, the repair on the same pair still queued: the customer
+// has not been shown the pair yet.
+const halfDonePair = async () => {
+  const order = await createOrder(shop.admin.id, shop.store, {
+    campaign_ids: [],
+    customer: { name: "Budi Santoso", phone_number: "+628111222333" },
+    discount: 0,
+    delivery_fee: 0,
+    items: [
+      {
+        services: [
+          { id: shop.serviceId },
+          { id: shop.repairServiceId, price: 50_000 },
+        ],
+      },
+    ],
+    payment_method_id: shop.paymentMethodId,
+    payment_status: "paid",
+    store_id: shop.store.id,
+    voucher_codes: [],
+  });
+  const [clean, repair] = await readLines(order.id);
+  await addItemPhoto(clean.item_id, shop.cashier.id);
+  await walkToShelf(order.id, clean.id);
+  return { clean, orderId: order.id, repair };
+};
 
+describe("a pair with another treatment still in the workshop", () => {
   it("takes no complaint on the finished treatment until the whole pair is ready", async () => {
     const { clean, orderId, repair } = await halfDonePair();
 
@@ -733,32 +739,32 @@ describe("a pair with another treatment still in the workshop", () => {
   });
 });
 
-describe("the photo that starts a rework round", () => {
-  // Puts the complaint, and its first round if it has one, an hour back, so a
-  // photo can be dated between them and a round started now.
-  const openedAnHourAgo = async (complaintId: number, reworkId?: number) => {
-    const anHourAgo = new Date(Date.now() - 3_600_000);
+// Puts the complaint, and its first round if it has one, an hour back, so a
+// photo can be dated between them and a round started now.
+const openedAnHourAgo = async (complaintId: number, reworkId?: number) => {
+  const anHourAgo = new Date(Date.now() - 3_600_000);
+  await testDb
+    .update(complaintsTable)
+    .set({ created_at: anHourAgo })
+    .where(eq(complaintsTable.id, complaintId));
+  if (reworkId) {
     await testDb
-      .update(complaintsTable)
+      .update(orderServiceStatusLogsTable)
       .set({ created_at: anHourAgo })
-      .where(eq(complaintsTable.id, complaintId));
-    if (reworkId) {
-      await testDb
-        .update(orderServiceStatusLogsTable)
-        .set({ created_at: anHourAgo })
-        .where(eq(orderServiceStatusLogsTable.order_service_id, reworkId));
-    }
-    return anHourAgo;
-  };
+      .where(eq(orderServiceStatusLogsTable.order_service_id, reworkId));
+  }
+  return anHourAgo;
+};
 
-  const startRound = (orderId: number, serviceId: number) =>
-    transitionOrderService(db, {
-      by: shop.cashier.id,
-      orderId,
-      serviceId,
-      to: "processing",
-    });
+const startRound = (orderId: number, serviceId: number) =>
+  transitionOrderService(db, {
+    by: shop.cashier.id,
+    orderId,
+    serviceId,
+    to: "processing",
+  });
 
+describe("the photo that starts a rework round", () => {
   it("does not take the counter photo for a round started after the pair went home", async () => {
     const pair = await pairOnTheShelf("paid");
     const { complaint } = await turnDown(pair.lineId, false);

@@ -112,7 +112,7 @@ export const TurnaroundSectionPlaceholder = () => {
 
 export const TurnaroundSection = ({ report }: TurnaroundSectionProps) => {
   const [picked, setPicked] = useState<string | null>(null);
-  const all = report.rows[0];
+  const [all] = report.rows;
   // A filter change can drop the picked Category; All Items takes over.
   const row = rowOrAll(report.rows, picked);
   const rowName = row?.name;

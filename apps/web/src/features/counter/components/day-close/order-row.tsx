@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { EmptyState } from "@/components/empty-state";
 import { OrderListRow } from "@/features/orders/components/order-list-row";
-import { useOpenNestedOrder } from "@/features/orders/hooks/useOpenNestedOrder";
+import { useOpenNestedOrder } from "@/features/orders/hooks/use-open-nested-order";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/shared/money";
 

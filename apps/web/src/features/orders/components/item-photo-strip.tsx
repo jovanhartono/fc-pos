@@ -12,7 +12,7 @@ import {
 } from "@/features/orders/components/order-detail-parts";
 import { PhotoLightbox } from "@/features/orders/components/photo-lightbox";
 import { PhotoUploadDialog } from "@/features/orders/components/photo-upload-dialog";
-import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
+import { useRefreshOrder } from "@/features/orders/hooks/use-order-mutations";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
 import {
   handleTileError,

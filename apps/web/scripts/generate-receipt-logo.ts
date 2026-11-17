@@ -7,7 +7,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 
 const SOURCE_IMAGE = "public/receipt-logo.webp";
 const OUTPUT_TS = "src/features/printing/receipt-logo.ts";
@@ -28,7 +28,7 @@ interface Bitmap {
 }
 
 const rasterizeToBmp = (imagePath: string, width: number): Buffer => {
-  const bmpPath = join(tmpdir(), `receipt-logo-${width}.bmp`);
+  const bmpPath = path.join(tmpdir(), `receipt-logo-${width}.bmp`);
   // sips ships with macOS and reads WebP; -Z fits the long edge to `width`.
   execFileSync("sips", [
     "-s",
@@ -120,6 +120,7 @@ const packOneBitPerDot = ({ width, height, ink }: Bitmap) => {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       if (ink[y * width + x]) {
+        // oxlint-disable-next-line eslint/no-bitwise -- packing dots into bytes is bit work by nature
         data[y * widthBytes + (x >> 3)] |= 0x80 >> (x & 7);
       }
     }
@@ -143,12 +144,25 @@ const DATA_BASE64 =
 export const RECEIPT_LOGO: RasterBitmap | null = {
 	widthBytes: WIDTH_BYTES,
 	height: HEIGHT,
-	data: Uint8Array.from(atob(DATA_BASE64), (char) => char.charCodeAt(0)),
+	data: Uint8Array.from(atob(DATA_BASE64), (char) => char.codePointAt(0) ?? 0),
 };
 `;
 
 // Prints the packed bitmap at 1 char per 2x4 dots so the mark can be eyeballed
 // before it costs paper.
+const previewChar = (lit: number) => {
+  if (lit > 5) {
+    return "#";
+  }
+  if (lit > 2) {
+    return "+";
+  }
+  if (lit > 0) {
+    return ".";
+  }
+  return " ";
+};
+
 const preview = ({ width, height, ink }: Bitmap) => {
   const rows: string[] = [];
   for (let y = 0; y < height; y += 4) {
@@ -162,7 +176,7 @@ const preview = ({ width, height, ink }: Bitmap) => {
           }
         }
       }
-      row += lit > 5 ? "#" : lit > 2 ? "+" : lit > 0 ? "." : " ";
+      row += previewChar(lit);
     }
     rows.push(row);
   }

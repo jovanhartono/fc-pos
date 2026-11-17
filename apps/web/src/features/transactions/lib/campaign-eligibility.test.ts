@@ -13,11 +13,11 @@ const buy4Get1 = {
   stores: [],
 };
 
+const lines = (count: number) =>
+  Array.from({ length: count }, () => ({ service_id: 21 }));
+
 describe("filterEligibleCampaigns", () => {
   test("hides buy 4 get 1 until five eligible Services are in the Cart", () => {
-    const lines = (count: number) =>
-      Array.from({ length: count }, () => ({ service_id: 21 }));
-
     expect(
       filterEligibleCampaigns([buy4Get1], {
         grossTotal: 300_000,

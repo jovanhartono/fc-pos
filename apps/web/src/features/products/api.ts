@@ -1,6 +1,7 @@
 import type { POSTProductSchema } from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 import type { z } from "zod";
 
 import { REFERENCE_DATA_STALE_TIME } from "@/lib/query-defaults";
@@ -20,10 +21,10 @@ export const productsKeys = {
   list: () => [...productsKeys.all, "list"] as const,
 };
 
-async function fetchProducts() {
+const fetchProducts = async () => {
   const response = await parseResponse(rpc.api.admin.products.$get());
   return response.data;
-}
+};
 
 export const productsQueries = {
   list: () =>
@@ -34,15 +35,13 @@ export const productsQueries = {
     }),
 };
 
-export function createProduct(payload: CreateProductPayload) {
-  return parseResponse(rpc.api.admin.products.$post({ json: payload }));
-}
+export const createProduct = (payload: CreateProductPayload) =>
+  parseResponse(rpc.api.admin.products.$post({ json: payload }));
 
-export function updateProduct(id: number, payload: UpdateProductPayload) {
-  return parseResponse(
+export const updateProduct = (id: number, payload: UpdateProductPayload) =>
+  parseResponse(
     rpc.api.admin.products[":id"].$put({
       param: { id: String(id) },
       json: payload,
     })
   );
-}

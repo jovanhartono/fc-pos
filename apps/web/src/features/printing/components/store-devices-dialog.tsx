@@ -18,6 +18,51 @@ import {
 import { cn } from "@/lib/utils";
 import { useDialog } from "@/stores/dialog-store";
 
+interface RemoveDeviceActionsProps {
+  storeId: number;
+  deviceId: number;
+  onDone: () => void;
+}
+
+const RemoveDeviceActions = ({
+  storeId,
+  deviceId,
+  onDone,
+}: RemoveDeviceActionsProps) => {
+  const queryClient = useQueryClient();
+  const removeMutation = useMutation({
+    mutationFn: () => deleteStoreDevice(storeId, deviceId),
+    onSuccess: async () => {
+      // The list is closed behind this confirm, so refetch it anyway, or it
+      // reopens still showing the printer just removed.
+      await queryClient.invalidateQueries({
+        queryKey: storesKeys.devices(storeId),
+        refetchType: "all",
+      });
+      onDone();
+    },
+  });
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        onClick={onDone}
+        disabled={removeMutation.isPending}
+      >
+        Cancel
+      </Button>
+      <Button
+        variant="destructive"
+        loading={removeMutation.isPending}
+        onClick={() => removeMutation.mutate()}
+      >
+        Remove
+      </Button>
+    </>
+  );
+};
+
 interface StoreDevicesDialogProps {
   storeId: number;
 }
@@ -159,50 +204,5 @@ export const StoreDevicesDialog = ({ storeId }: StoreDevicesDialogProps) => {
         </form>
       )}
     </div>
-  );
-};
-
-interface RemoveDeviceActionsProps {
-  storeId: number;
-  deviceId: number;
-  onDone: () => void;
-}
-
-const RemoveDeviceActions = ({
-  storeId,
-  deviceId,
-  onDone,
-}: RemoveDeviceActionsProps) => {
-  const queryClient = useQueryClient();
-  const removeMutation = useMutation({
-    mutationFn: () => deleteStoreDevice(storeId, deviceId),
-    onSuccess: async () => {
-      // The list is closed behind this confirm, so refetch it anyway, or it
-      // reopens still showing the printer just removed.
-      await queryClient.invalidateQueries({
-        queryKey: storesKeys.devices(storeId),
-        refetchType: "all",
-      });
-      onDone();
-    },
-  });
-
-  return (
-    <>
-      <Button
-        variant="outline"
-        onClick={onDone}
-        disabled={removeMutation.isPending}
-      >
-        Cancel
-      </Button>
-      <Button
-        variant="destructive"
-        loading={removeMutation.isPending}
-        onClick={() => removeMutation.mutate()}
-      >
-        Remove
-      </Button>
-    </>
   );
 };

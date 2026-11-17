@@ -4,11 +4,8 @@ import type {
   ShiftsOverview,
 } from "@/features/shifts/api";
 import dayjs from "@/lib/dayjs";
-import {
-  type DatePreset,
-  jakartaToday,
-  WIRE_FORMAT,
-} from "@/shared/date-presets";
+import { jakartaToday, WIRE_FORMAT } from "@/shared/date-presets";
+import type { DatePreset } from "@/shared/date-presets";
 
 export interface ShiftsRange {
   from: string;
@@ -95,7 +92,7 @@ export const stepRange = (
       to: start.add(6, "day").format(WIRE_FORMAT),
     });
   }
-  const length = listDays(range).length;
+  const { length } = listDays(range);
   const to = dayjs(range.to).add(direction * length, "day");
   // Stepping forward into today keeps the length, so Last 30 days stays 30.
   const end = to.format(WIRE_FORMAT) > today ? dayjs(today) : to;
@@ -219,7 +216,7 @@ export const buildStoreGroups = (
     return { store, rows };
   });
   // Stores where someone worked come first; the empty ones sink to the end.
-  return groups.sort(
+  return groups.toSorted(
     (a, b) => Number(b.rows.length > 0) - Number(a.rows.length > 0)
   );
 };
@@ -227,7 +224,7 @@ export const buildStoreGroups = (
 // An admin opening today's Shifts looks for who is in, so those still on shift
 // lead, then who has left; names stay A–Z within each.
 export const sortByStatus = (rows: PersonRow[]) =>
-  [...rows].sort((a, b) => Number(b.isOpen) - Number(a.isOpen));
+  rows.toSorted((a, b) => Number(b.isOpen) - Number(a.isOpen));
 
 // "Last 30 days · 23 Sep – 22 Oct", or just the dates for a picked range; the
 // year shows once the range reaches outside this one.

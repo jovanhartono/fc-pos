@@ -2,10 +2,10 @@ import type { Dayjs } from "dayjs";
 
 import { getOwnWorkerFacts } from "@/modules/reports/report-range.service";
 import {
-  type DateRange,
   derivePreviousRange,
   getJakartaRange,
 } from "@/modules/reports/report-range.util";
+import type { DateRange } from "@/modules/reports/report-range.util";
 import {
   countCollectedBy,
   countOrdersCreatedBy,
@@ -32,7 +32,7 @@ const windowOf = (from: Dayjs, to: Dayjs): Window => ({
 
 // Each period is set against the one before it. This Month so far meets the same
 // days of last month, so the 12th isn't judged against a whole month.
-export function performanceWindows(period: PerformancePeriod, today: Dayjs) {
+export const performanceWindows = (period: PerformancePeriod, today: Dayjs) => {
   if (period === "last_7_days") {
     const current = windowOf(today.subtract(6, "day"), today);
     return {
@@ -60,11 +60,11 @@ export function performanceWindows(period: PerformancePeriod, today: Dayjs) {
     current: windowOf(lastMonth, lastMonth.endOf("month")),
     previous: windowOf(monthBefore, monthBefore.endOf("month")),
   };
-}
+};
 
 const rangeOf = ({ from, to }: Window) => getJakartaRange(from, to);
 
-async function cashierFacts(userId: number, range: DateRange) {
+const cashierFacts = async (userId: number, range: DateRange) => {
   const [ordersCreated, pickups, pickupNotices, shiftDays, qcChecksDone] =
     await Promise.all([
       countOrdersCreatedBy(userId, range),
@@ -80,20 +80,20 @@ async function cashierFacts(userId: number, range: DateRange) {
     shift_days: shiftDays,
     qc_checks_done: qcChecksDone,
   };
-}
+};
 
-async function courierFacts(userId: number, range: DateRange) {
+const courierFacts = async (userId: number, range: DateRange) => {
   const collected = await countCollectedBy(userId, range);
   return {
     orders_collected: collected.orders,
     items_collected: collected.items,
   };
-}
+};
 
-async function compare<T>(
+const compare = async <T>(
   windows: { current: Window; previous: Window },
   facts: (range: DateRange) => Promise<T>
-) {
+) => {
   const [current, previous] = await Promise.all([
     facts(rangeOf(windows.current)),
     facts(rangeOf(windows.previous)),
@@ -103,10 +103,10 @@ async function compare<T>(
     current,
     previous,
   };
-}
+};
 
 // The signed-in person's own figures. Admins have Reports, so they get none.
-export async function getOwnPerformance({
+export const getOwnPerformance = async ({
   userId,
   role,
   period,
@@ -114,7 +114,7 @@ export async function getOwnPerformance({
   userId: number;
   role: AuthUser["role"];
   period: PerformancePeriod;
-}) {
+}) => {
   const windows = performanceWindows(period, jakartaNow());
 
   if (role === "worker") {
@@ -136,4 +136,4 @@ export async function getOwnPerformance({
     };
   }
   return { role: "admin" as const };
-}
+};

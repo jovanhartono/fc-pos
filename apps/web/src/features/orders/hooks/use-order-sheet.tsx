@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useEffectEvent } from "react";
 
 import { ordersQueries } from "@/features/orders/api";
 import { OrderDetailSkeleton } from "@/features/orders/components/order-detail-skeleton";
@@ -56,20 +56,22 @@ export const useOrderSheet = ({
   // Re-opening an open sheet only swaps what it shows, so walking doesn't
   // slide it out and in. A list refetch must not, or it would throw away a
   // payment form opened over the Order.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: only another Order or the list arriving re-points the sheet
-  useEffect(() => {
-    if (openId === undefined || !isReady) {
-      return;
-    }
-    const code = orders.find((order) => order.id === openId)?.code ?? "Order";
+  const openOrderSheet = useEffectEvent((orderId: number) => {
+    const code = orders.find((order) => order.id === orderId)?.code ?? "Order";
     useSheet.getState().openSheet({
-      ...orderSheetPayload(openId, code),
+      ...orderSheetPayload(orderId, code),
       actions: (
-        <OrderWalk onClose={onClose} onSelect={onSelect} openId={openId} />
+        <OrderWalk onClose={onClose} onSelect={onSelect} openId={orderId} />
       ),
       isRestoredOnBack: true,
       onClose,
     });
+  });
+  useEffect(() => {
+    if (openId === undefined || !isReady) {
+      return;
+    }
+    openOrderSheet(openId);
   }, [openId, isReady]);
 
   // The Orders either side of the open one are fetched ahead, so a cashier
@@ -81,7 +83,7 @@ export const useOrderSheet = ({
     }
     const index = orders.findIndex((order) => order.id === openId);
     for (const neighbour of [orders[index - 1], orders[index + 1]]) {
-      if (index >= 0 && neighbour) {
+      if (index !== -1 && neighbour) {
         void queryClient.prefetchQuery({
           ...ordersQueries.detail(neighbour.id),
           staleTime: NEIGHBOUR_STALE_TIME,

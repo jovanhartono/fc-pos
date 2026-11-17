@@ -3,15 +3,12 @@ import type {
   PUTCustomerSchema,
 } from "@fresclean/api/schema";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 import type { z } from "zod";
 
-import {
-  type PaginatedData,
-  parseSuccessData,
-  toPaginated,
-  toSearchParams,
-} from "@/lib/http";
+import { parseSuccessData, toPaginated, toSearchParams } from "@/lib/http";
+import type { PaginatedData } from "@/lib/http";
 import { rpc } from "@/lib/rpc";
 
 export type Customer = InferResponseType<
@@ -27,11 +24,11 @@ export type CustomerDetail = InferResponseType<
   (typeof rpc.api.admin.customers)[":id"]["$get"]
 >["data"];
 
-export type FetchCustomersQuery = {
+export interface FetchCustomersQuery {
   limit?: number;
   offset?: number;
   search?: string;
-};
+}
 
 export type CreateCustomerPayload = Omit<
   z.infer<typeof POSTCustomerSchema>,
@@ -55,9 +52,9 @@ export const customersKeys = {
   detail: (id: number) => [...customersKeys.all, "detail", id] as const,
 };
 
-async function fetchCustomersPage(
+const fetchCustomersPage = async (
   query?: FetchCustomersQuery
-): Promise<PaginatedData<Customer>> {
+): Promise<PaginatedData<Customer>> => {
   const response = await parseResponse(
     rpc.api.admin.customers.$get({
       query:
@@ -68,23 +65,21 @@ async function fetchCustomersPage(
   );
 
   return toPaginated(response);
-}
+};
 
 // The cashier types a phone at the POS and the name fills in. A convenience only:
 // checkout still finds or creates the Customer by phone (ADR-0011).
-function fetchCustomerByPhone(phone: string): Promise<CustomerLookup> {
-  return parseSuccessData<CustomerLookup>(
+const fetchCustomerByPhone = (phone: string): Promise<CustomerLookup> =>
+  parseSuccessData<CustomerLookup>(
     rpc.api.admin.customers.lookup.$get({ query: { phone } })
   );
-}
 
-function fetchCustomerDetail(id: number): Promise<CustomerDetail> {
-  return parseSuccessData<CustomerDetail>(
+const fetchCustomerDetail = (id: number): Promise<CustomerDetail> =>
+  parseSuccessData<CustomerDetail>(
     rpc.api.admin.customers[":id"].$get({
       param: { id: String(id) },
     })
   );
-}
 
 export const customersQueries = {
   list: (query?: FetchCustomersQuery) =>
@@ -107,19 +102,17 @@ export const customersQueries = {
     }),
 };
 
-export function createCustomer(payload: CreateCustomerPayload) {
-  return parseResponse(
+export const createCustomer = (payload: CreateCustomerPayload) =>
+  parseResponse(
     rpc.api.admin.customers.$post({
       json: payload as z.infer<typeof POSTCustomerSchema>,
     })
   );
-}
 
-export function updateCustomer(id: number, payload: UpdateCustomerPayload) {
-  return parseResponse(
+export const updateCustomer = (id: number, payload: UpdateCustomerPayload) =>
+  parseResponse(
     rpc.api.admin.customers[":id"].$put({
       param: { id: String(id) },
       json: payload,
     })
   );
-}

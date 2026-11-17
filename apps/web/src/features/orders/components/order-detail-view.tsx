@@ -15,7 +15,7 @@ import { OrderDetailSkeleton } from "@/features/orders/components/order-detail-s
 import { OrderIdentityStrip } from "@/features/orders/components/order-identity-strip";
 import { OrderLineItemsCard } from "@/features/orders/components/order-line-items-card";
 import { OrderPaymentSection } from "@/features/orders/components/order-payment-section";
-import { useRefreshOrder } from "@/features/orders/hooks/useOrderMutations";
+import { useRefreshOrder } from "@/features/orders/hooks/use-order-mutations";
 import { getOrderActionGates } from "@/features/orders/lib/order-action-gates";
 import { usersQueries } from "@/features/users/api";
 import { CONTENT_FADE } from "@/lib/content-fade";

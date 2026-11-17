@@ -1,10 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import {
-  addComplaintRework,
-  type OpenComplaintPayload,
-  openComplaint,
-} from "@/features/complaints/api";
+import { addComplaintRework, openComplaint } from "@/features/complaints/api";
+import type { OpenComplaintPayload } from "@/features/complaints/api";
 import { onOrderMoved } from "@/lib/cache-events";
 
 export const useOpenComplaintMutation = () => {

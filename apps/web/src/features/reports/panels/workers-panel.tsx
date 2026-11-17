@@ -4,7 +4,8 @@ import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { reportsQueries, type WorkerRow } from "@/features/reports/api";
+import { reportsQueries } from "@/features/reports/api";
+import type { WorkerRow } from "@/features/reports/api";
 import { AllStoresButton } from "@/features/reports/components/all-stores-button";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -34,6 +35,7 @@ interface WorkersPanelProps {
   onStoreChange: (storeId: number | undefined) => void;
 }
 
+// oxlint-disable-next-line eslint/complexity -- one flat panel; the count is its `??` fallbacks for a report still loading
 export const WorkersPanel = ({
   from,
   to,
@@ -49,7 +51,7 @@ export const WorkersPanel = ({
     placeholderData: keepPreviousData,
   });
   const openWorkerSheet = useOpenWorkerSheet();
-  const data = query.data;
+  const { data } = query;
   const workers = data ? withLive(data.workers, liveQuery.data) : [];
   // A failed live view still shows the range, just with nobody on the floor.
   const isReady = data && !liveQuery.isPending;
@@ -57,7 +59,7 @@ export const WorkersPanel = ({
   if (!query.isPending && !data) {
     return (
       <div className="flex items-center gap-3 text-body text-muted-foreground">
-        Couldn't load the Workers report.
+        Couldn&apos;t load the Workers report.
         <Button variant="outline" size="sm" onClick={() => query.refetch()}>
           Retry
         </Button>

@@ -32,4 +32,4 @@ export const formatMoneyParts = (value: string | number | null | undefined) => {
 // Formats a currency input's raw digit string as the cashier types, so an
 // empty field stays empty instead of showing "Rp0" before anything is keyed.
 export const formatMoneyInput = (digits: string): string =>
-  digits ? IDR.format(Number.parseInt(digits, 10)) : "";
+  digits ? IDR.format(Math.trunc(Number(digits))) : "";

@@ -3,14 +3,14 @@ import {
   ArrowUp01Icon,
   UnfoldMoreIcon,
 } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import { Link, type LinkProps } from "@tanstack/react-router";
-import {
-  flexRender,
-  type RowData,
-  type Table as TanstackTable,
-} from "@tanstack/react-table";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import type { IconSvgElement } from "@hugeicons/react";
+import { Link } from "@tanstack/react-router";
+import type { LinkProps } from "@tanstack/react-router";
+import { flexRender } from "@tanstack/react-table";
+import type { RowData, Table as TanstackTable } from "@tanstack/react-table";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 import type { DataTableFeatures } from "@/components/data-table-features";
 import type { ColumnWidth } from "@/components/data-table-meta";
@@ -58,11 +58,53 @@ const SKELETON_ROW_COUNT = 10;
 // column hits its minimum the table scrolls sideways, so a 1024px screen with the
 // sidebar open never squeezes a column away.
 const tableMinWidthRem = (widths: (ColumnWidth | undefined)[]) =>
-  widths.reduce(
-    (widest, width) =>
-      width ? Math.max(widest, (width.minRem * 100) / width.percent) : widest,
-    0
+  Math.max(
+    0,
+    ...widths.map((width) => (width ? (width.minRem * 100) / width.percent : 0))
   );
+
+const ARIA_SORT = { asc: "ascending", desc: "descending" } as const;
+
+interface SortIconProps {
+  sortState: false | "asc" | "desc";
+}
+
+const SORT_ICON = { asc: ArrowUp01Icon, desc: ArrowDown01Icon } as const;
+
+const SortIcon = ({ sortState }: SortIconProps) => (
+  <HugeiconsIcon
+    icon={sortState ? SORT_ICON[sortState] : UnfoldMoreIcon}
+    aria-hidden="true"
+    className={cn("size-3", !sortState && "opacity-50")}
+    strokeWidth={2}
+  />
+);
+
+interface SkeletonLinesProps {
+  lines: 1 | 2 | "wrapped";
+}
+
+const SkeletonLines = ({ lines }: SkeletonLinesProps) => {
+  // Two lines, the height of a code over its store or a name over its phone.
+  if (lines === 2) {
+    return (
+      <div className="grid gap-0.5">
+        <Skeleton className="my-0.5 h-3.5 w-3/4" />
+        <Skeleton className="my-0.5 h-2.5 w-1/2" />
+      </div>
+    );
+  }
+  // An Item code wrapped over two lines of the table's text.
+  if (lines === "wrapped") {
+    return (
+      <div className="grid">
+        <Skeleton className="my-0.75 h-3 w-3/4" />
+        <Skeleton className="my-0.75 h-3 w-1/2" />
+      </div>
+    );
+  }
+  return <Skeleton className="my-0.5 h-5 w-3/4" />;
+};
 
 export const DataTableGrid = <TData extends RowData>({
   table,
@@ -85,7 +127,7 @@ export const DataTableGrid = <TData extends RowData>({
   const frameRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const rows = table.getRowModel().rows;
+  const { rows } = table.getRowModel();
   const rowCount = rows.length;
 
   // While a row is open in the sheet over the list, its fill is the only marker; on
@@ -96,12 +138,15 @@ export const DataTableGrid = <TData extends RowData>({
 
   // A new page or filter is a new list; the ring starts over above it, or on
   // the open row when a payment in the sheet refreshed the same list.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on new rows
+  const resetFocus = useEffectEvent(() => setFocusedIndex(activeIndex));
   useEffect(() => {
-    setFocusedIndex(activeIndex);
+    // oxlint-disable-next-line react/set-state-in-effect -- reset on new rows only
+    resetFocus();
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- new rows are what triggers the reset
   }, [rows]);
   useEffect(() => {
     if (activeIndex >= 0) {
+      // oxlint-disable-next-line react/set-state-in-effect -- the ring follows the row opened in the sheet
       setFocusedIndex(activeIndex);
     }
   }, [activeIndex]);
@@ -208,13 +253,7 @@ export const DataTableGrid = <TData extends RowData>({
                 return (
                   <TableHead
                     key={header.id}
-                    aria-sort={
-                      sortState === "asc"
-                        ? "ascending"
-                        : sortState === "desc"
-                          ? "descending"
-                          : undefined
-                    }
+                    aria-sort={sortState ? ARIA_SORT[sortState] : undefined}
                     style={width ? { width: `${width.percent}%` } : undefined}
                     className={cn(
                       "sticky top-0 z-10 h-9 bg-card text-subhead font-medium text-muted-foreground shadow-[inset_0_-1px_0_var(--border)] first:pl-3 last:pr-3",
@@ -222,49 +261,29 @@ export const DataTableGrid = <TData extends RowData>({
                       header.column.columnDef.meta?.headerClassName
                     )}
                   >
-                    {header.isPlaceholder ? null : canSort ? (
-                      <button
-                        type="button"
-                        onClick={header.column.getToggleSortingHandler()}
-                        className={cn(
-                          "flex items-center gap-1 transition-colors hover:text-foreground",
-                          isRight && "ml-auto",
-                          sortState && "text-foreground"
-                        )}
-                      >
-                        {flexRender(
+                    {!header.isPlaceholder &&
+                      (canSort ? (
+                        <button
+                          type="button"
+                          onClick={header.column.getToggleSortingHandler()}
+                          className={cn(
+                            "flex items-center gap-1 transition-colors hover:text-foreground",
+                            isRight && "ml-auto",
+                            sortState && "text-foreground"
+                          )}
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                          <SortIcon sortState={sortState} />
+                        </button>
+                      ) : (
+                        flexRender(
                           header.column.columnDef.header,
                           header.getContext()
-                        )}
-                        {sortState === "asc" ? (
-                          <HugeiconsIcon
-                            icon={ArrowUp01Icon}
-                            aria-hidden="true"
-                            className="size-3"
-                            strokeWidth={2}
-                          />
-                        ) : sortState === "desc" ? (
-                          <HugeiconsIcon
-                            icon={ArrowDown01Icon}
-                            aria-hidden="true"
-                            className="size-3"
-                            strokeWidth={2}
-                          />
-                        ) : (
-                          <HugeiconsIcon
-                            icon={UnfoldMoreIcon}
-                            aria-hidden="true"
-                            className="size-3 opacity-50"
-                            strokeWidth={2}
-                          />
-                        )}
-                      </button>
-                    ) : (
-                      flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )
-                    )}
+                        )
+                      ))}
                   </TableHead>
                 );
               })}
@@ -276,102 +295,92 @@ export const DataTableGrid = <TData extends RowData>({
           ref={bodyRef}
           className={cn(!isLoading && CONTENT_FADE, staleFade(isStale))}
         >
-          {isLoading ? (
-            Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
+          {isLoading &&
+            Array.from({ length: skeletonRowCount }, (_row, rowIndex) => (
               <TableRow
                 key={rowIndex}
                 aria-hidden
                 className="border-border/60 hover:bg-transparent"
               >
-                {Array.from({ length: columnCount }, (_, cellIndex) => (
+                {Array.from({ length: columnCount }, (_cell, cellIndex) => (
                   <TableCell
                     key={cellIndex}
                     className="py-3 first:pl-3 last:pr-3"
                   >
-                    {/* Two lines, the height of a code over its store or a name over its phone. */}
-                    {skeletonLines === 2 ? (
-                      <div className="grid gap-0.5">
-                        <Skeleton className="my-0.5 h-3.5 w-3/4" />
-                        <Skeleton className="my-0.5 h-2.5 w-1/2" />
-                      </div>
-                    ) : skeletonLines === "wrapped" ? (
-                      // An Item code wrapped over two lines of the table's text.
-                      <div className="grid">
-                        <Skeleton className="my-0.75 h-3 w-3/4" />
-                        <Skeleton className="my-0.75 h-3 w-1/2" />
-                      </div>
-                    ) : (
-                      <Skeleton className="my-0.5 h-5 w-3/4" />
-                    )}
+                    <SkeletonLines lines={skeletonLines} />
                   </TableCell>
                 ))}
               </TableRow>
-            ))
-          ) : rows.length ? (
-            rows.map((row, index) => (
-              <TableRow
-                key={row.id}
-                data-focused={
-                  (activeIndex < 0 && index === focusedIndex) || undefined
-                }
-                data-state={index === activeIndex ? "selected" : undefined}
-                className={cn(
-                  "scroll-mt-9 border-border/60 data-focused:bg-muted/60 data-focused:outline-2 data-focused:-outline-offset-2 data-focused:outline-primary data-[state=selected]:bg-primary/10",
-                  // iPhone Safari ignores `relative` on a row: every row's tap area
-                  // covered the whole table and each tap opened the last Order.
-                  isRowOpenable && "[transform:translate(0)] cursor-pointer"
-                )}
-              >
-                {row.getAllCells().map((cell, cellIndex) => (
-                  <TableCell
-                    key={cell.id}
-                    className={cn(
-                      "py-3 wrap-break-word whitespace-normal first:pl-3 last:pr-3",
-                      cell.column.columnDef.meta?.align === "right" &&
-                        "text-right tabular-nums",
-                      isRowOpenable && RAISED_CONTROLS,
-                      cell.column.columnDef.meta?.cellClassName
-                    )}
-                  >
-                    {getRowLink && cellIndex === 0 ? (
-                      <Link
-                        {...getRowLink(row.original)}
-                        aria-hidden
-                        tabIndex={-1}
-                        preload={false}
-                        data-row-link
-                        className="absolute inset-0"
-                      />
-                    ) : null}
-                    {onRowOpen && !getRowLink && cellIndex === 0 ? (
-                      <button
-                        type="button"
-                        aria-hidden
-                        tabIndex={-1}
-                        data-row-link
-                        onClick={() => onRowOpen(row.original)}
-                        className="absolute inset-0"
-                      />
-                    ) : null}
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+            ))}
+          {!isLoading &&
+            (rows.length ? (
+              rows.map((row, index) => (
+                <TableRow
+                  key={row.id}
+                  data-focused={
+                    (activeIndex < 0 && index === focusedIndex) || undefined
+                  }
+                  data-state={index === activeIndex ? "selected" : undefined}
+                  className={cn(
+                    "scroll-mt-9 border-border/60 data-focused:bg-muted/60 data-focused:outline-2 data-focused:-outline-offset-2 data-focused:outline-primary data-[state=selected]:bg-primary/10",
+                    // iPhone Safari ignores `relative` on a row: every row's tap area
+                    // covered the whole table and each tap opened the last Order.
+                    isRowOpenable && "[transform:translate(0)] cursor-pointer"
+                  )}
+                >
+                  {row.getAllCells().map((cell, cellIndex) => (
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        "py-3 wrap-break-word whitespace-normal first:pl-3 last:pr-3",
+                        cell.column.columnDef.meta?.align === "right" &&
+                          "text-right tabular-nums",
+                        isRowOpenable && RAISED_CONTROLS,
+                        cell.column.columnDef.meta?.cellClassName
+                      )}
+                    >
+                      {getRowLink && cellIndex === 0 ? (
+                        <Link
+                          {...getRowLink(row.original)}
+                          aria-hidden
+                          tabIndex={-1}
+                          preload={false}
+                          data-row-link
+                          className="absolute inset-0"
+                        />
+                      ) : null}
+                      {onRowOpen && !getRowLink && cellIndex === 0 ? (
+                        <button
+                          type="button"
+                          aria-hidden
+                          tabIndex={-1}
+                          data-row-link
+                          onClick={() => onRowOpen(row.original)}
+                          className="absolute inset-0"
+                        />
+                      ) : null}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={columnCount}
+                  className="p-0 whitespace-normal"
+                >
+                  {noMatch ?? (
+                    <EmptyState icon={emptyIcon} isInset>
+                      {emptyMessage}
+                    </EmptyState>
+                  )}
+                </TableCell>
               </TableRow>
-            ))
-          ) : (
-            <TableRow className="hover:bg-transparent">
-              <TableCell
-                colSpan={columnCount}
-                className="p-0 whitespace-normal"
-              >
-                {noMatch ?? (
-                  <EmptyState icon={emptyIcon} isInset>
-                    {emptyMessage}
-                  </EmptyState>
-                )}
-              </TableCell>
-            </TableRow>
-          )}
+            ))}
         </TableBody>
         {!isLoading &&
         rows.length > 0 &&

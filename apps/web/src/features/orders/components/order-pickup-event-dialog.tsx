@@ -29,7 +29,7 @@ import { readServerErrorMessage } from "@/lib/server-error";
 import { formatOrderServiceStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
-type PickupDialogContextValue = {
+interface PickupDialogContextValue {
   orderId: number;
   // The cashier hands back whole Items, never one OrderService on one
   // (ADR-0017); the server takes the same unit, so half a shoe can't leave.
@@ -43,12 +43,12 @@ type PickupDialogContextValue = {
   setFile: (file: File | null) => void;
   submit: () => Promise<void>;
   isPending: boolean;
-};
+}
 
-type PickupCodeContextValue = {
+interface PickupCodeContextValue {
   pickupCode: string;
   setPickupCode: (value: string) => void;
-};
+}
 
 const PickupDialogContext = createContext<PickupDialogContextValue | null>(
   null
@@ -72,127 +72,6 @@ const usePickupCode = () => {
     throw new Error("usePickupCode must be used within OrderPickupEventDialog");
   }
   return context;
-};
-
-type OrderPickupEventDialogProps = {
-  closeDialog: () => void;
-  orderId: number;
-  collectableItems: OrderItem[];
-};
-
-export const OrderPickupEventDialog = ({
-  closeDialog,
-  orderId,
-  collectableItems,
-}: OrderPickupEventDialogProps) => {
-  const queryClient = useQueryClient();
-  const [selectedIds, setSelectedIds] = useState<number[]>(
-    // Only ready Items start ticked. A refunded Item is Collectable too, but
-    // ticking it by default let a Customer collecting one pair leave with two.
-    () =>
-      collectableItems
-        .filter((item) => item.status === "ready_for_pickup")
-        .map((item) => item.id)
-  );
-  const [file, setFileState] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [pickupCode, setPickupCode] = useState("");
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
-
-  const setFile = (nextFile: File | null) => {
-    setFileState(nextFile);
-    setPreviewUrl((previous) => {
-      if (previous) {
-        URL.revokeObjectURL(previous);
-      }
-      return nextFile ? URL.createObjectURL(nextFile) : null;
-    });
-  };
-
-  const selectAll = () => {
-    setSelectedIds(collectableItems.map((item) => item.id));
-  };
-
-  const clearSelection = () => {
-    setSelectedIds([]);
-  };
-
-  const pickupMutation = useMutation({
-    mutationFn: async () => {
-      if (!file) {
-        throw new Error("A pickup photo is required");
-      }
-      if (!isAcceptedImage(file.type)) {
-        throw new Error("Unsupported image type");
-      }
-      if (!/^\d{6}$/.test(pickupCode)) {
-        throw new Error("Enter the 6-digit pickup code");
-      }
-      if (selectedIds.length === 0) {
-        throw new Error("Select at least one item to pick up");
-      }
-
-      const presigned = await presignOrderPickupEvent(orderId, {
-        content_type: file.type,
-      });
-      await uploadFileToPresignedUrl(presigned.upload_url, file, file.type);
-      return createOrderPickupEvent(orderId, {
-        image_path: presigned.key,
-        pickup_code: pickupCode,
-        item_ids: selectedIds,
-      });
-    },
-    onSuccess: async () => {
-      toast.success("Pickup recorded");
-      // A collected Item changes the counts on both /queue and /orders.
-      await onOrderMoved(queryClient);
-      closeDialog();
-    },
-    onError: (error: Error) => {
-      toast.error(readServerErrorMessage(error, "Couldn't record pickup"));
-    },
-  });
-
-  const { mutateAsync: mutatePickup, isPending } = pickupMutation;
-  const submit = async () => {
-    await mutatePickup();
-  };
-
-  const dialogValue: PickupDialogContextValue = {
-    clearSelection,
-    file,
-    isPending,
-    orderId,
-    previewUrl,
-    collectableItems,
-    selectAll,
-    selectedIds,
-    setFile,
-    setSelectedIds,
-    submit,
-  };
-
-  const codeValue: PickupCodeContextValue = { pickupCode, setPickupCode };
-
-  return (
-    <PickupDialogContext.Provider value={dialogValue}>
-      <PickupCodeContext.Provider value={codeValue}>
-        <div className="flex flex-col gap-5">
-          <PickupServiceList />
-          <PickupCodeField />
-          <PickupPhotoField />
-          <PickupActions onCancel={closeDialog} />
-        </div>
-      </PickupCodeContext.Provider>
-    </PickupDialogContext.Provider>
-  );
 };
 
 const PickupCodeField = () => {
@@ -222,6 +101,53 @@ const PickupCodeField = () => {
         </InputOTPGroup>
       </InputOTP>
     </div>
+  );
+};
+
+interface PickupItemRowProps {
+  item: OrderItem;
+}
+
+const PickupItemRow = ({ item }: PickupItemRowProps) => {
+  const id = `pickup-item-${item.id}`;
+  const details = getOrderServiceItemDetails(item);
+  return (
+    <li>
+      <label
+        htmlFor={id}
+        className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border bg-card px-3 py-2.5 text-body"
+      >
+        <Checkbox id={id} value={String(item.id)} />
+        <div className="min-w-0 flex-1">
+          {/* What the cashier says out loud leads; the Item code reads second. */}
+          <span className="block leading-snug font-medium">
+            {details ?? item.item_code}
+          </span>
+          {details ? (
+            <p className="text-caption text-muted-foreground tabular-nums">
+              {item.item_code}
+            </p>
+          ) : null}
+          {/* Same rule the server uses for what a pickup covers. A refunded
+					    line keeps its red badge: it changes what the cashier hands over. */}
+          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-footnote text-muted-foreground">
+            {item.services.filter(isHandedOverByPickup).map((treatment) => (
+              <span
+                className="inline-flex items-center gap-1"
+                key={treatment.id}
+              >
+                {treatment.service?.name ?? "Service"}
+                {treatment.status === "refunded" ? (
+                  <Badge variant="danger">
+                    {formatOrderServiceStatus(treatment.status)}
+                  </Badge>
+                ) : null}
+              </span>
+            ))}
+          </p>
+        </div>
+      </label>
+    </li>
   );
 };
 
@@ -275,53 +201,6 @@ const PickupServiceList = () => {
         ))}
       </ul>
     </CheckboxGroup>
-  );
-};
-
-type PickupItemRowProps = {
-  item: OrderItem;
-};
-
-const PickupItemRow = ({ item }: PickupItemRowProps) => {
-  const id = `pickup-item-${item.id}`;
-  const details = getOrderServiceItemDetails(item);
-  return (
-    <li>
-      <label
-        htmlFor={id}
-        className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border bg-card px-3 py-2.5 text-body"
-      >
-        <Checkbox id={id} value={String(item.id)} />
-        <div className="min-w-0 flex-1">
-          {/* What the cashier says out loud leads; the Item code reads second. */}
-          <span className="block leading-snug font-medium">
-            {details ?? item.item_code}
-          </span>
-          {details ? (
-            <p className="text-caption text-muted-foreground tabular-nums">
-              {item.item_code}
-            </p>
-          ) : null}
-          {/* Same rule the server uses for what a pickup covers. A refunded
-					    line keeps its red badge: it changes what the cashier hands over. */}
-          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-footnote text-muted-foreground">
-            {item.services.filter(isHandedOverByPickup).map((treatment) => (
-              <span
-                className="inline-flex items-center gap-1"
-                key={treatment.id}
-              >
-                {treatment.service?.name ?? "Service"}
-                {treatment.status === "refunded" ? (
-                  <Badge variant="danger">
-                    {formatOrderServiceStatus(treatment.status)}
-                  </Badge>
-                ) : null}
-              </span>
-            ))}
-          </p>
-        </div>
-      </label>
-    </li>
   );
 };
 
@@ -398,5 +277,127 @@ const PickupActions = ({ onCancel }: { onCancel: () => void }) => {
       }
       onCancel={onCancel}
     />
+  );
+};
+
+interface OrderPickupEventDialogProps {
+  closeDialog: () => void;
+  orderId: number;
+  collectableItems: OrderItem[];
+}
+
+export const OrderPickupEventDialog = ({
+  closeDialog,
+  orderId,
+  collectableItems,
+}: OrderPickupEventDialogProps) => {
+  const queryClient = useQueryClient();
+  const [selectedIds, setSelectedIds] = useState<number[]>(
+    // Only ready Items start ticked. A refunded Item is Collectable too, but
+    // ticking it by default let a Customer collecting one pair leave with two.
+    () =>
+      collectableItems
+        .filter((item) => item.status === "ready_for_pickup")
+        .map((item) => item.id)
+  );
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [pickupCode, setPickupCode] = useState("");
+
+  useEffect(
+    () => () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    },
+    [previewUrl]
+  );
+
+  const changeFile = (nextFile: File | null) => {
+    setFile(nextFile);
+    setPreviewUrl((previous) => {
+      if (previous) {
+        URL.revokeObjectURL(previous);
+      }
+      return nextFile ? URL.createObjectURL(nextFile) : null;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(collectableItems.map((item) => item.id));
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const pickupMutation = useMutation({
+    mutationFn: async () => {
+      if (!file) {
+        throw new Error("A pickup photo is required");
+      }
+      if (!isAcceptedImage(file.type)) {
+        throw new Error("Unsupported image type");
+      }
+      if (!/^\d{6}$/u.test(pickupCode)) {
+        throw new Error("Enter the 6-digit pickup code");
+      }
+      if (selectedIds.length === 0) {
+        throw new Error("Select at least one item to pick up");
+      }
+
+      const presigned = await presignOrderPickupEvent(orderId, {
+        content_type: file.type,
+      });
+      await uploadFileToPresignedUrl(presigned.upload_url, file, file.type);
+      return createOrderPickupEvent(orderId, {
+        image_path: presigned.key,
+        pickup_code: pickupCode,
+        item_ids: selectedIds,
+      });
+    },
+    onSuccess: async () => {
+      toast.success("Pickup recorded");
+      // A collected Item changes the counts on both /queue and /orders.
+      await onOrderMoved(queryClient);
+      closeDialog();
+    },
+    onError: (error: Error) => {
+      toast.error(readServerErrorMessage(error, "Couldn't record pickup"));
+    },
+  });
+
+  const { mutateAsync: mutatePickup, isPending } = pickupMutation;
+  const submit = async () => {
+    await mutatePickup();
+  };
+
+  const dialogValue: PickupDialogContextValue = {
+    clearSelection,
+    file,
+    isPending,
+    orderId,
+    previewUrl,
+    collectableItems,
+    selectAll,
+    selectedIds,
+    setFile: changeFile,
+    setSelectedIds,
+    submit,
+  };
+
+  const codeValue: PickupCodeContextValue = { pickupCode, setPickupCode };
+
+  return (
+    <PickupDialogContext.Provider value={dialogValue}>
+      <PickupCodeContext.Provider value={codeValue}>
+        <div className="flex flex-col gap-5">
+          <PickupServiceList />
+          <PickupCodeField />
+          <PickupPhotoField />
+          <PickupActions onCancel={closeDialog} />
+        </div>
+      </PickupCodeContext.Provider>
+    </PickupDialogContext.Provider>
   );
 };

@@ -4,7 +4,8 @@ import dayjs from "dayjs";
 
 import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type ReportOverview, reportsQueries } from "@/features/reports/api";
+import { reportsQueries } from "@/features/reports/api";
+import type { ReportOverview } from "@/features/reports/api";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
 import { StoreRevenueRows } from "@/features/reports/components/store-revenue-rows";
 import { numberFormatter } from "@/features/reports/utils/format";
@@ -27,7 +28,7 @@ const CategoryBars = ({
 }: {
   categories: ReportOverview["categories"];
 }) => {
-  const max = categories.reduce((m, row) => Math.max(m, row.gross_sales), 0);
+  const max = Math.max(0, ...categories.map((row) => row.gross_sales));
   if (categories.length === 0) {
     return <EmptyState icon={GridViewIcon}>No sales today</EmptyState>;
   }

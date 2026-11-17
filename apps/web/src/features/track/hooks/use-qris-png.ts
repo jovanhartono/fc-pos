@@ -21,9 +21,10 @@ const toPngFile = async (src: string, fileName: string) => {
   context.imageSmoothingEnabled = false;
   context.drawImage(image, QUIET_ZONE, QUIET_ZONE, QR_SIZE, QR_SIZE);
 
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/png")
-  );
+  // oxlint-disable-next-line promise/avoid-new -- canvas.toBlob only takes a callback
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, "image/png");
+  });
   return blob ? new File([blob], fileName, { type: "image/png" }) : null;
 };
 
@@ -37,17 +38,20 @@ export const useQrisPng = (src: string, fileName: string) => {
   useEffect(() => {
     let url: string | null = null;
     let isCurrent = true;
-    toPngFile(src, fileName)
-      .then((file) => {
+    const makePng = async () => {
+      try {
+        const file = await toPngFile(src, fileName);
         if (!(file && isCurrent)) {
           return;
         }
         url = URL.createObjectURL(file);
         setPng({ file, url });
-      })
-      // The gateway's own image may refuse to be copied; the page then keeps
-      // showing it as it came.
-      .catch(() => undefined);
+      } catch {
+        // The gateway's own image may refuse to be copied; the page then keeps
+        // showing it as it came.
+      }
+    };
+    makePng();
     return () => {
       isCurrent = false;
       setPng(null);

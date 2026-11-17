@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 interface BarcodeDetectorLike {
-  detect: (input: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
+  detect: (input: ImageBitmapSource) => Promise<{ rawValue?: string }[]>;
 }
 
 type WindowWithBarcodeDetector = typeof window & {

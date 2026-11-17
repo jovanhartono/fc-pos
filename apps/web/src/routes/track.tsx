@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { z } from "zod";
 
 import { BrandLogo } from "@/components/brand-logo";
@@ -16,14 +17,9 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { WaitingLabel } from "@/components/waiting-label";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
-import {
-  type PublicTrackedOrder,
-  payTrackedOrder,
-  type TrackCharge,
-  trackKeys,
-  trackQueries,
-} from "@/features/track/api";
-import { useQrisPng } from "@/features/track/hooks/useQrisPng";
+import { payTrackedOrder, trackKeys, trackQueries } from "@/features/track/api";
+import type { PublicTrackedOrder, TrackCharge } from "@/features/track/api";
+import { useQrisPng } from "@/features/track/hooks/use-qris-png";
 import {
   STAGES,
   trackPayment,
@@ -72,6 +68,52 @@ interface StatusCardProps {
   pickupCode: string | null;
 }
 
+interface StatusHeadlineProps {
+  isAllDone: boolean;
+  isAllReady: boolean;
+  readyCount: number;
+  pendingCount: number;
+  pickupCode: string | null;
+}
+
+const StatusHeadline = ({
+  isAllDone,
+  isAllReady,
+  readyCount,
+  pendingCount,
+  pickupCode,
+}: StatusHeadlineProps) => {
+  if (isAllDone) {
+    return <p className="text-headline">Everything has been collected.</p>;
+  }
+  if (isAllReady) {
+    return <p className="text-headline">Show this code at the counter.</p>;
+  }
+  if (readyCount > 0) {
+    return (
+      <p className="text-headline">
+        <span className="tabular-nums">
+          {readyCount} of {pendingCount}
+        </span>{" "}
+        Items done. Collect them now with code{" "}
+        <span className="font-medium tabular-nums">{pickupCode}</span>.
+      </p>
+    );
+  }
+  return (
+    <p className="text-headline">
+      {pluralize(pendingCount, "Item")} in progress.
+    </p>
+  );
+};
+
+const stageBarClass = (isActive: boolean, isAllReady: boolean) => {
+  if (!isActive) {
+    return "bg-soft-bar-track";
+  }
+  return isAllReady ? "bg-success" : "bg-primary";
+};
+
 const StatusCard = ({
   stageIndex,
   isCancelled,
@@ -94,23 +136,13 @@ const StatusCard = ({
 
   return (
     <section className={cn(CARD_CLASS, "p-4")}>
-      {isAllDone ? (
-        <p className="text-headline">Everything has been collected.</p>
-      ) : isAllReady ? (
-        <p className="text-headline">Show this code at the counter.</p>
-      ) : readyCount > 0 ? (
-        <p className="text-headline">
-          <span className="tabular-nums">
-            {readyCount} of {pendingCount}
-          </span>{" "}
-          Items done. Collect them now with code{" "}
-          <span className="font-medium tabular-nums">{pickupCode}</span>.
-        </p>
-      ) : (
-        <p className="text-headline">
-          {pluralize(pendingCount, "Item")} in progress.
-        </p>
-      )}
+      <StatusHeadline
+        isAllDone={isAllDone}
+        isAllReady={isAllReady}
+        readyCount={readyCount}
+        pendingCount={pendingCount}
+        pickupCode={pickupCode}
+      />
       {isAllReady && pickupCode ? (
         <p className="mt-2.5 mb-0.5 text-large-title font-medium tracking-[0.12em] tabular-nums">
           {pickupCode}
@@ -124,11 +156,7 @@ const StatusCard = ({
               <span
                 className={cn(
                   "h-1.5 rounded-full",
-                  isActive
-                    ? isAllReady
-                      ? "bg-success"
-                      : "bg-primary"
-                    : "bg-soft-bar-track"
+                  stageBarClass(isActive, isAllReady)
                 )}
               />
               <span
@@ -184,13 +212,14 @@ interface QrisPanelProps {
 }
 
 const QrisPanel = ({ charge, code, src }: QrisPanelProps) => {
-  const fileName = `QRIS ${code.replace(/[^A-Za-z0-9-]+/g, "-")}.png`;
+  const fileName = `QRIS ${code.replaceAll(/[^A-Za-z0-9-]+/gu, "-")}.png`;
   const png = useQrisPng(src, fileName);
 
   const handleSave = async () => {
     if (png && navigator.canShare?.({ files: [png.file] })) {
-      // Cancelling the share sheet is fine; the QR is still on screen.
-      await navigator.share({ files: [png.file] }).catch(() => undefined);
+      await navigator.share({ files: [png.file] }).catch(() => {
+        // Cancelling the share sheet is fine; the QR is still on screen.
+      });
       return;
     }
     triggerDownload(png?.url ?? src, fileName);
@@ -256,7 +285,7 @@ const PaymentCard = ({
       payMutation.reset();
     },
     // Said under the button instead.
-    onError: () => undefined,
+    onError: () => null,
   });
   const resetPay = payMutation.reset;
 
@@ -392,6 +421,210 @@ const StatusPlaceholder = () => (
   </div>
 );
 
+interface TrackedOrderProps {
+  order: PublicTrackedOrder;
+  submitted: { code: string; phone: string } | null;
+  payment: ReturnType<typeof trackPayment>;
+  shownCharge: TrackCharge | null;
+  openCharge: TrackCharge | null;
+  onReset: () => void;
+}
+
+const TrackedOrder = ({
+  order,
+  submitted,
+  payment,
+  shownCharge,
+  openCharge,
+  onReset,
+}: TrackedOrderProps) => {
+  const { items } = order;
+  const { stageIndex, readyCount, pendingCount } = trackProgress(items);
+  const storePhoneE164 = order.store.phone_number?.replaceAll(/\D/gu, "");
+
+  return (
+    <div className="grid gap-5">
+      <div className="px-1 pt-1">
+        <h1 className="text-title-1 leading-tight font-bold tabular-nums">
+          {order.code}
+        </h1>
+        <p className="mt-0.5 text-headline">
+          {order.customer.name} ·{" "}
+          <span className="tabular-nums">{submitted?.phone}</span>
+        </p>
+      </div>
+
+      <StatusCard
+        stageIndex={stageIndex}
+        isCancelled={order.status === "cancelled"}
+        readyCount={readyCount}
+        pendingCount={pendingCount}
+        pickupCode={order.pickup_code}
+      />
+
+      {payment === "paid-here" && shownCharge ? (
+        <PaidCard amount={shownCharge.amount} />
+      ) : null}
+      {order.can_pay_online && submitted ? (
+        <PaymentCard
+          code={submitted.code}
+          hasExpired={payment === "expired"}
+          netDue={order.net_due}
+          deliveryFee={parseMoney(order.delivery_fee)}
+          openCharge={openCharge}
+          phone={submitted.phone}
+        />
+      ) : null}
+
+      <h2 className={SECTION_LABEL_CLASS}>Items · {items.length}</h2>
+      {/* One block per Item handed over, its Services beneath
+			    (ADR-0017): "your shoe: clean done, repaint in progress",
+			    never the same shoe listed three times. */}
+      <ul className={CARD_CLASS}>
+        {items.map((item) => (
+          <li
+            key={item.id}
+            className="ml-4 grid gap-1.5 border-border py-3 pr-4 not-first:border-t"
+          >
+            <p className="text-headline font-medium">
+              {formatOrderServiceItemDetails(item)}
+            </p>
+            <ul className="grid gap-1.5 text-body">
+              {item.services.map((service) => (
+                <li key={service.id} className="flex justify-between gap-3">
+                  <span className="min-w-0 text-balance">
+                    {service.service?.name ?? "Service"}
+                  </span>
+                  <span
+                    className={cn(
+                      "shrink-0 font-medium",
+                      SERVICE_STATUS_TEXT[
+                        getOrderServiceStatusBadgeVariant(service.status)
+                      ] ?? "text-muted-foreground"
+                    )}
+                  >
+                    {formatOrderServiceStatus(service.status)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className={SECTION_LABEL_CLASS}>Store</h2>
+      <section className={cn(CARD_CLASS, "grid gap-3.5 p-4")}>
+        <p className="font-medium">{order.store.name}</p>
+        <a
+          href={
+            storePhoneE164 ? `https://wa.me/${storePhoneE164}` : HELP_WHATSAPP
+          }
+          target="_blank"
+          rel="noreferrer"
+          className="flex h-12 items-center justify-center gap-2 rounded-full bg-whatsapp text-headline font-semibold text-white"
+        >
+          <HugeiconsIcon icon={WhatsappIcon} className="size-[18px]" />
+          WhatsApp
+        </a>
+      </section>
+
+      <button
+        type="button"
+        onClick={onReset}
+        className="justify-self-center p-2 text-headline text-link"
+      >
+        Track Another Order
+      </button>
+    </div>
+  );
+};
+
+interface TrackFormProps {
+  code: string;
+  phone: string;
+  codeError: string | null;
+  phoneError: string | null;
+  lookupError: string | null;
+  isLoading: boolean;
+  onCodeChange: (code: string) => void;
+  onPhoneChange: (phone: string) => void;
+  onTrack: () => void;
+}
+
+const TrackForm = ({
+  code,
+  phone,
+  codeError,
+  phoneError,
+  lookupError,
+  isLoading,
+  onCodeChange,
+  onPhoneChange,
+  onTrack,
+}: TrackFormProps) => (
+  <form
+    className="grid gap-5"
+    onSubmit={(event) => {
+      event.preventDefault();
+      onTrack();
+    }}
+  >
+    <h1 className="mx-1 mt-1 text-title-1 leading-tight font-bold">
+      Track Order
+    </h1>
+    <div className={cn(CARD_CLASS, "overflow-hidden")}>
+      <Field
+        data-invalid={!!codeError}
+        className="ml-4 w-auto gap-0.5 py-2.5 pr-4"
+      >
+        <FieldLabel
+          htmlFor="track-code"
+          className="text-footnote text-muted-foreground"
+        >
+          Order code
+        </FieldLabel>
+        <Input
+          id="track-code"
+          placeholder="#KMG/19102026/2"
+          value={code}
+          onChange={(event) => onCodeChange(event.target.value)}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          className={cn(FIELD_INPUT_CLASS, "uppercase")}
+        />
+        {codeError ? <FieldError errors={[{ message: codeError }]} /> : null}
+      </Field>
+      <Field
+        data-invalid={!!phoneError}
+        className="ml-4 w-auto gap-0.5 border-t border-border py-2.5 pr-4"
+      >
+        <FieldLabel
+          htmlFor="track-phone"
+          className="text-footnote text-muted-foreground"
+        >
+          WhatsApp number
+        </FieldLabel>
+        <Input
+          id="track-phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="0812 3456 789"
+          value={phone}
+          onChange={(event) => onPhoneChange(event.target.value)}
+          className={FIELD_INPUT_CLASS}
+        />
+        {phoneError ? <FieldError errors={[{ message: phoneError }]} /> : null}
+      </Field>
+    </div>
+    {lookupError ? <FieldError errors={[{ message: lookupError }]} /> : null}
+    <Button type="submit" disabled={isLoading} className={PRIMARY_BUTTON_CLASS}>
+      {isLoading ? "Searching…" : "Track"}
+    </Button>
+  </form>
+);
+
 const TrackOrderPage = () => {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -442,7 +675,6 @@ const TrackOrderPage = () => {
   };
 
   const trackData = trackQuery.data;
-  const isLoading = trackQuery.isFetching;
 
   // The last QR this phone showed, so the card can still say Paid or Expired
   // once the server stops sending it.
@@ -461,9 +693,36 @@ const TrackOrderPage = () => {
       ? `${trackData.code} · Order Tracking | Fresclean`
       : "Order Tracking | Fresclean";
   }, [trackData]);
-  const items = trackData?.items ?? [];
-  const { stageIndex, readyCount, pendingCount } = trackProgress(items);
-  const storePhoneE164 = trackData?.store.phone_number?.replace(/\D/g, "");
+
+  let main: ReactNode;
+  if (submitted && trackQuery.isPending) {
+    main = <StatusPlaceholder />;
+  } else if (trackData) {
+    main = (
+      <TrackedOrder
+        order={trackData}
+        submitted={submitted}
+        payment={payment}
+        shownCharge={shownCharge}
+        openCharge={openCharge}
+        onReset={handleReset}
+      />
+    );
+  } else {
+    main = (
+      <TrackForm
+        code={code}
+        phone={phone}
+        codeError={codeError}
+        phoneError={phoneError}
+        lookupError={lookupError}
+        isLoading={trackQuery.isFetching}
+        onCodeChange={setCode}
+        onPhoneChange={setPhone}
+        onTrack={handleTrack}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col bg-muted text-foreground">
@@ -476,180 +735,7 @@ const TrackOrderPage = () => {
       </header>
 
       <main className="mx-auto w-full max-w-md flex-1 px-4 pt-5 pb-8">
-        {submitted && trackQuery.isPending ? (
-          <StatusPlaceholder />
-        ) : trackData ? (
-          <div className="grid gap-5">
-            <div className="px-1 pt-1">
-              <h1 className="text-title-1 leading-tight font-bold tabular-nums">
-                {trackData.code}
-              </h1>
-              <p className="mt-0.5 text-headline">
-                {trackData.customer.name} ·{" "}
-                <span className="tabular-nums">{submitted?.phone}</span>
-              </p>
-            </div>
-
-            <StatusCard
-              stageIndex={stageIndex}
-              isCancelled={trackData.status === "cancelled"}
-              readyCount={readyCount}
-              pendingCount={pendingCount}
-              pickupCode={trackData.pickup_code}
-            />
-
-            {payment === "paid-here" && shownCharge ? (
-              <PaidCard amount={shownCharge.amount} />
-            ) : null}
-            {trackData.can_pay_online && submitted ? (
-              <PaymentCard
-                code={submitted.code}
-                hasExpired={payment === "expired"}
-                netDue={trackData.net_due}
-                deliveryFee={parseMoney(trackData.delivery_fee)}
-                openCharge={openCharge}
-                phone={submitted.phone}
-              />
-            ) : null}
-
-            <h2 className={SECTION_LABEL_CLASS}>Items · {items.length}</h2>
-            {/* One block per Item handed over, its Services beneath
-						    (ADR-0017): "your shoe: clean done, repaint in progress",
-						    never the same shoe listed three times. */}
-            <ul className={CARD_CLASS}>
-              {items.map((item) => (
-                <li
-                  key={item.id}
-                  className="ml-4 grid gap-1.5 border-border py-3 pr-4 not-first:border-t"
-                >
-                  <p className="text-headline font-medium">
-                    {formatOrderServiceItemDetails(item)}
-                  </p>
-                  <ul className="grid gap-1.5 text-body">
-                    {item.services.map((service) => (
-                      <li
-                        key={service.id}
-                        className="flex justify-between gap-3"
-                      >
-                        <span className="min-w-0 text-balance">
-                          {service.service?.name ?? "Service"}
-                        </span>
-                        <span
-                          className={cn(
-                            "shrink-0 font-medium",
-                            SERVICE_STATUS_TEXT[
-                              getOrderServiceStatusBadgeVariant(service.status)
-                            ] ?? "text-muted-foreground"
-                          )}
-                        >
-                          {formatOrderServiceStatus(service.status)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-
-            <h2 className={SECTION_LABEL_CLASS}>Store</h2>
-            <section className={cn(CARD_CLASS, "grid gap-3.5 p-4")}>
-              <p className="font-medium">{trackData.store.name}</p>
-              <a
-                href={
-                  storePhoneE164
-                    ? `https://wa.me/${storePhoneE164}`
-                    : HELP_WHATSAPP
-                }
-                target="_blank"
-                rel="noreferrer"
-                className="flex h-12 items-center justify-center gap-2 rounded-full bg-whatsapp text-headline font-semibold text-white"
-              >
-                <HugeiconsIcon icon={WhatsappIcon} className="size-[18px]" />
-                WhatsApp
-              </a>
-            </section>
-
-            <button
-              type="button"
-              onClick={handleReset}
-              className="justify-self-center p-2 text-headline text-link"
-            >
-              Track Another Order
-            </button>
-          </div>
-        ) : (
-          <form
-            className="grid gap-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              handleTrack();
-            }}
-          >
-            <h1 className="mx-1 mt-1 text-title-1 leading-tight font-bold">
-              Track Order
-            </h1>
-            <div className={cn(CARD_CLASS, "overflow-hidden")}>
-              <Field
-                data-invalid={!!codeError}
-                className="ml-4 w-auto gap-0.5 py-2.5 pr-4"
-              >
-                <FieldLabel
-                  htmlFor="track-code"
-                  className="text-footnote text-muted-foreground"
-                >
-                  Order code
-                </FieldLabel>
-                <Input
-                  id="track-code"
-                  placeholder="#KMG/19102026/2"
-                  value={code}
-                  onChange={(event) => setCode(event.target.value)}
-                  autoCapitalize="characters"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  className={cn(FIELD_INPUT_CLASS, "uppercase")}
-                />
-                {codeError ? (
-                  <FieldError errors={[{ message: codeError }]} />
-                ) : null}
-              </Field>
-              <Field
-                data-invalid={!!phoneError}
-                className="ml-4 w-auto gap-0.5 border-t border-border py-2.5 pr-4"
-              >
-                <FieldLabel
-                  htmlFor="track-phone"
-                  className="text-footnote text-muted-foreground"
-                >
-                  WhatsApp number
-                </FieldLabel>
-                <Input
-                  id="track-phone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="0812 3456 789"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                  className={FIELD_INPUT_CLASS}
-                />
-                {phoneError ? (
-                  <FieldError errors={[{ message: phoneError }]} />
-                ) : null}
-              </Field>
-            </div>
-            {lookupError ? (
-              <FieldError errors={[{ message: lookupError }]} />
-            ) : null}
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className={PRIMARY_BUTTON_CLASS}
-            >
-              {isLoading ? "Searching…" : "Track"}
-            </Button>
-          </form>
-        )}
+        {main}
       </main>
     </div>
   );

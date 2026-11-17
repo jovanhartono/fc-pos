@@ -8,7 +8,8 @@ import { EmptyState } from "@/components/empty-state";
 import { TablePagination } from "@/components/table-pagination";
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Badge } from "@/components/ui/badge";
-import { type AgingQueueItem, reportsQueries } from "@/features/reports/api";
+import { reportsQueries } from "@/features/reports/api";
+import type { AgingQueueItem } from "@/features/reports/api";
 import { ItemCodeLink } from "@/features/reports/components/item-code-link";
 import { CONTENT_FADE } from "@/lib/content-fade";
 import {

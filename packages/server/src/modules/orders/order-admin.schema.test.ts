@@ -5,16 +5,16 @@ import {
   POSTItemPhotoPresignSchema,
 } from "@/modules/orders/order-admin.schema";
 
-describe("PATCHOrderServiceStatusSchema", () => {
-  // The owner reads each QC reject's note on the Quality report, so a reject
-  // with no note is refused.
-  const refusal = (body: Record<string, unknown>) => {
-    const result = PATCHOrderServiceStatusSchema.safeParse(body);
-    return result.success
-      ? null
-      : result.error.issues.map((issue) => [issue.path, issue.message]);
-  };
+// The owner reads each QC reject's note on the Quality report, so a reject
+// with no note is refused.
+const refusal = (body: Record<string, unknown>) => {
+  const result = PATCHOrderServiceStatusSchema.safeParse(body);
+  return result.success
+    ? null
+    : result.error.issues.map((issue) => [issue.path, issue.message]);
+};
 
+describe("PATCHOrderServiceStatusSchema", () => {
   it("refuses a QC reject with no note", () => {
     expect(refusal({ status: "qc_reject" })).toEqual([
       [["note"], "Write reject reason"],

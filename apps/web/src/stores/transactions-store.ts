@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 import type { CategoryFilter } from "@/features/transactions/lib/transactions";
 
-type TransactionsPageUiState = {
+interface TransactionsPageUiState {
   searchTerm: string;
   activeCategory: CategoryFilter;
   submitError: string;
@@ -14,16 +14,16 @@ type TransactionsPageUiState = {
   // Item at a time — put the shoe down, sell it a clean, upsell a repaint — so
   // taps follow the Item on the counter. Never reaches the server.
   activeItemId: string | null;
-};
+}
 
-type TransactionsPageUiActions = {
+interface TransactionsPageUiActions {
   setSearchTerm: (value: string) => void;
   setActiveCategory: (category: CategoryFilter) => void;
   setSubmitError: (message: string) => void;
   setDropoffPhoto: (file: File | null) => void;
   setActiveItemId: (itemId: string | null) => void;
   resetUi: () => void;
-};
+}
 
 export type TransactionsPageStore = TransactionsPageUiState &
   TransactionsPageUiActions;

@@ -1,5 +1,5 @@
-import type { InferInsertModel } from "drizzle-orm";
-import { and, EmptyFilter, eq, like, or, type SQL, sql } from "drizzle-orm";
+import type { InferInsertModel, SQL } from "drizzle-orm";
+import { and, EmptyFilter, eq, like, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { userStoresTable, usersTable } from "@/db/schema";
@@ -10,9 +10,8 @@ const findUserByIdPrepared = db.query.usersTable
   })
   .prepare("find_user_by_id");
 
-export function findUserById(userId: number) {
-  return findUserByIdPrepared.execute({ id: userId });
-}
+export const findUserById = (userId: number) =>
+  findUserByIdPrepared.execute({ id: userId });
 
 interface UserFilters {
   is_active?: boolean;
@@ -20,7 +19,7 @@ interface UserFilters {
   search?: string;
 }
 
-function buildRelationalWhere(filters: UserFilters) {
+const buildRelationalWhere = (filters: UserFilters) => {
   const conditions: Record<string, unknown>[] = [];
 
   if (filters.is_active !== undefined) {
@@ -48,9 +47,9 @@ function buildRelationalWhere(filters: UserFilters) {
     return conditions[0];
   }
   return { AND: conditions };
-}
+};
 
-function buildCountWhere(filters: UserFilters) {
+const buildCountWhere = (filters: UserFilters) => {
   const conditions: SQL[] = [];
 
   if (filters.is_active !== undefined) {
@@ -72,9 +71,9 @@ function buildCountWhere(filters: UserFilters) {
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;
-}
+};
 
-export function listUsers({
+export const listUsers = ({
   filters,
   limit,
   offset,
@@ -82,8 +81,8 @@ export function listUsers({
   filters: UserFilters;
   limit: number;
   offset: number;
-}) {
-  return db.query.usersTable.findMany({
+}) =>
+  db.query.usersTable.findMany({
     columns: { password: false },
     with: {
       userStores: {
@@ -95,22 +94,19 @@ export function listUsers({
     limit,
     offset,
   });
-}
 
-export function listActiveCouriers() {
-  return db.query.usersTable.findMany({
+export const listActiveCouriers = () =>
+  db.query.usersTable.findMany({
     columns: { id: true, name: true },
     where: { role: "courier", is_active: true },
     orderBy: { name: "asc" },
   });
-}
 
-export function countUsers(filters: UserFilters) {
-  return db.$count(usersTable, buildCountWhere(filters));
-}
+export const countUsers = (filters: UserFilters) =>
+  db.$count(usersTable, buildCountWhere(filters));
 
-export function findUserDetailById(id: number) {
-  return db.query.usersTable.findFirst({
+export const findUserDetailById = (id: number) =>
+  db.query.usersTable.findFirst({
     where: { id },
     with: {
       userStores: {
@@ -118,10 +114,9 @@ export function findUserDetailById(id: number) {
       },
     },
   });
-}
 
-export function insertUser(values: InferInsertModel<typeof usersTable>) {
-  return db.insert(usersTable).values(values).returning({
+export const insertUser = (values: InferInsertModel<typeof usersTable>) =>
+  db.insert(usersTable).values(values).returning({
     id: usersTable.id,
     name: usersTable.name,
     username: usersTable.username,
@@ -130,29 +125,21 @@ export function insertUser(values: InferInsertModel<typeof usersTable>) {
     created_at: usersTable.created_at,
     updated_at: usersTable.updated_at,
   });
-}
 
-export function updateUserById(
+export const updateUserById = (
   id: number,
   values: Partial<InferInsertModel<typeof usersTable>>
-) {
-  return db
-    .update(usersTable)
-    .set(values)
-    .where(eq(usersTable.id, id))
-    .returning();
-}
+) => db.update(usersTable).set(values).where(eq(usersTable.id, id)).returning();
 
-export function updateUserPasswordById(id: number, password: string) {
-  return db
+export const updateUserPasswordById = (id: number, password: string) =>
+  db
     .update(usersTable)
     .set({ password })
     .where(eq(usersTable.id, id))
     .returning({ id: usersTable.id, name: usersTable.name });
-}
 
-export function replaceUserStores(id: number, storeIds: number[]) {
-  return db.transaction(async (tx) => {
+export const replaceUserStores = (id: number, storeIds: number[]) =>
+  db.transaction(async (tx) => {
     await tx.delete(userStoresTable).where(eq(userStoresTable.user_id, id));
 
     const uniqueStoreIds = [...new Set(storeIds)];
@@ -167,4 +154,3 @@ export function replaceUserStores(id: number, storeIds: number[]) {
 
     return uniqueStoreIds;
   });
-}

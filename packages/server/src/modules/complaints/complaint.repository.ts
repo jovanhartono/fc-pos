@@ -12,10 +12,8 @@ import {
   storesTable,
   usersTable,
 } from "@/db/schema";
-import {
-  type NormalizedComplaintListQuery,
-  REWORKED_ROUND_STATUSES,
-} from "@/modules/complaints/complaint.schema";
+import { REWORKED_ROUND_STATUSES } from "@/modules/complaints/complaint.schema";
+import type { NormalizedComplaintListQuery } from "@/modules/complaints/complaint.schema";
 import {
   itemNameColumns,
   orderRefColumns,
@@ -40,46 +38,43 @@ export const hasLiveRework = sql<boolean>`${exists(
     )
 )}`;
 
-export async function insertComplaint(
+export const insertComplaint = async (
   executor: DbExecutor,
   values: ComplaintInsert
-) {
+) => {
   const [created] = await executor
     .insert(complaintsTable)
     .values(values)
     .returning();
   return created;
-}
+};
 
 // One complaint per original line, lifetime (ADR-0013 amendment).
-export function findComplaintForService(
+export const findComplaintForService = (
   executor: DbExecutor,
   serviceId: number
-) {
-  return executor.query.complaintsTable.findFirst({
+) =>
+  executor.query.complaintsTable.findFirst({
     where: { order_service_id: serviceId },
   });
-}
 
-export function findComplaintById(id: number) {
-  return db.query.complaintsTable.findFirst({
+export const findComplaintById = (id: number) =>
+  db.query.complaintsTable.findFirst({
     where: { id },
   });
-}
 
-export function findComplaintSubjectService(serviceId: number) {
-  return db.query.ordersServicesTable.findFirst({
+export const findComplaintSubjectService = (serviceId: number) =>
+  db.query.ordersServicesTable.findFirst({
     where: { id: serviceId },
     with: { order: { columns: orderRefColumns } },
   });
-}
 
 // Another cashier may hand over, cancel or refund this Item meanwhile. The Order
 // is held first, as a refund holds it, so the two never wait on each other.
-export async function lockOrderServiceState(
+export const lockOrderServiceState = async (
   executor: DbExecutor,
   { orderId, serviceId }: { orderId: number; serviceId: number }
-) {
+) => {
   await executor
     .select({ id: ordersTable.id })
     .from(ordersTable)
@@ -95,18 +90,17 @@ export async function lockOrderServiceState(
     .where(eq(ordersServicesTable.id, serviceId))
     .for("update");
   return locked;
-}
+};
 
 // Every OrderService on the Item, Rework lines included.
-export function findItemLines(executor: DbExecutor, itemId: number) {
-  return executor.query.ordersServicesTable.findMany({
+export const findItemLines = (executor: DbExecutor, itemId: number) =>
+  executor.query.ordersServicesTable.findMany({
     where: { item_id: itemId },
     columns: { complaint_id: true, status: true },
   });
-}
 
-export function findComplaintDetailById(id: number) {
-  return db.query.complaintsTable.findFirst({
+export const findComplaintDetailById = (id: number) =>
+  db.query.complaintsTable.findFirst({
     where: { id },
     with: {
       orderService: {
@@ -155,12 +149,11 @@ export function findComplaintDetailById(id: number) {
       openedBy: { columns: { id: true, name: true } },
     },
   });
-}
 
-function buildComplaintListFilters(
+const buildComplaintListFilters = (
   normalized: NormalizedComplaintListQuery,
   scopedStoreIds?: number[]
-) {
+) => {
   const { search } = normalized;
   return and(
     normalized.store_id
@@ -175,12 +168,12 @@ function buildComplaintListFilters(
         )
       : undefined
   );
-}
+};
 
-export async function findComplaints(
+export const findComplaints = async (
   normalized: NormalizedComplaintListQuery,
   scopedStoreIds?: number[]
-) {
+) => {
   const filters = buildComplaintListFilters(normalized, scopedStoreIds);
 
   const [items, [counted]] = await Promise.all([
@@ -234,4 +227,4 @@ export async function findComplaints(
   ]);
 
   return { items, total: counted?.count ?? 0 };
-}
+};

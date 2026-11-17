@@ -1,13 +1,16 @@
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import { Link, type LinkProps } from "@tanstack/react-router";
-import {
-  type Cell,
-  flexRender,
-  type RowData,
-  type Table as TanstackTable,
+import { HugeiconsIcon } from "@hugeicons/react";
+import type { IconSvgElement } from "@hugeicons/react";
+import { Link } from "@tanstack/react-router";
+import type { LinkProps } from "@tanstack/react-router";
+import { flexRender } from "@tanstack/react-table";
+import type {
+  Cell,
+  RowData,
+  Table as TanstackTable,
 } from "@tanstack/react-table";
-import { Fragment, type ReactNode } from "react";
+import { Fragment } from "react";
+import type { ReactNode } from "react";
 
 import type { DataTableFeatures } from "@/components/data-table-features";
 import "@/components/data-table-meta";
@@ -194,7 +197,7 @@ export const DataTableCards = <TData extends RowData>({
     );
   }
 
-  const rows = table.getRowModel().rows;
+  const { rows } = table.getRowModel();
 
   if (rows.length === 0 && noMatch) {
     return <div className={cn("lg:hidden", CONTENT_FADE)}>{noMatch}</div>;
@@ -236,7 +239,7 @@ export const DataTableCards = <TData extends RowData>({
   );
   const primaryColumnKey =
     cardPrimaryColumnId ?? (titleColumn ?? leafColumns[0])?.id ?? "";
-  const hiddenIds = new Set(cardHiddenColumnIds ?? []);
+  const hiddenIds = new Set(cardHiddenColumnIds);
   // Links and buttons inside the card sit above the whole-card link, so the
   // customer name on an order card still opens the Customer.
   const raisedControls =
@@ -257,6 +260,7 @@ export const DataTableCards = <TData extends RowData>({
         staleFade(isStale)
       )}
     >
+      {/* oxlint-disable-next-line eslint/complexity -- one card's slot layout reads top to bottom */}
       {rows.map((row) => {
         const {
           primaryCell,

@@ -2,9 +2,8 @@ import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
 export const WIRE_FORMAT = "YYYY-MM-DD";
 
-export function jakartaToday(): string {
-  return dayjs().tz(JAKARTA_TZ).format(WIRE_FORMAT);
-}
+export const jakartaToday = (): string =>
+  dayjs().tz(JAKARTA_TZ).format(WIRE_FORMAT);
 
 export const DATE_PRESETS = [
   "today",
@@ -27,7 +26,7 @@ export interface RangePreset {
   to: string;
 }
 
-export function getPresets(): RangePreset[] {
+export const getPresets = (): RangePreset[] => {
   const today = dayjs(jakartaToday());
   const yesterday = today.subtract(1, "day");
   // dayjs runs without the isoWeek plugin, so Monday is stepped back to by hand.
@@ -91,20 +90,19 @@ export function getPresets(): RangePreset[] {
       to: today.format(WIRE_FORMAT),
     },
   ];
-}
+};
 
-export function getPreset(id: DatePreset): RangePreset {
-  return getPresets().find((preset) => preset.id === id) as RangePreset;
-}
+export const getPreset = (id: DatePreset): RangePreset =>
+  getPresets().find((preset) => preset.id === id) as RangePreset;
 
 // Two presets can share dates (This month and Today on the 1st), so the one
 // the user tapped names the range when it still fits.
-export function matchPreset(
+export const matchPreset = (
   presets: RangePreset[],
   from: string,
   to: string,
   tapped?: DatePreset
-): RangePreset | undefined {
+): RangePreset | undefined => {
   const matches = presets.filter((p) => p.from === from && p.to === to);
   return matches.find((p) => p.id === tapped) ?? matches[0];
-}
+};

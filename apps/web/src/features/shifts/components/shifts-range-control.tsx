@@ -3,10 +3,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-picker";
-import {
-  type ShiftsRange,
-  stepRange,
-} from "@/features/shifts/lib/shifts-overview";
+import { stepRange } from "@/features/shifts/lib/shifts-overview";
+import type { ShiftsRange } from "@/features/shifts/lib/shifts-overview";
 import type { DatePreset } from "@/shared/date-presets";
 
 // Same white box as the dates between them, so the three read as one control.

@@ -59,7 +59,7 @@ export const CustomerSummaryStrip = ({
   customer,
 }: CustomerSummaryStripProps) => {
   const openSheet = useSheet((s) => s.openSheet);
-  const summary = customer.summary;
+  const { summary } = customer;
   const lastVisit = summary.last_visit_at ? dayjs(summary.last_visit_at) : null;
 
   const handleEdit = () => {

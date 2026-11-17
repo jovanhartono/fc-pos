@@ -1,8 +1,5 @@
-import {
-  Controller,
-  type SubmitHandler,
-  useFormContext,
-} from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
+import type { SubmitHandler } from "react-hook-form";
 
 import { PhoneNumberField } from "@/components/form/phone-number-field";
 import { SheetFormActions } from "@/components/form/sheet-form-actions";
@@ -16,13 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StoreSelect } from "@/features/orders/components/store-select";
 
-export type CustomerFormState = {
+export interface CustomerFormState {
   name: string;
   phone_number: string;
   email: string;
   address: string;
   origin_store_id?: number;
-};
+}
 
 interface CustomerFormProps {
   onSubmit: SubmitHandler<CustomerFormState>;
@@ -70,7 +67,7 @@ export const CustomerForm = ({
               id="customer-phone"
               label="Phone"
               value={field.value}
-              onValueChange={field.onChange}
+              onValueChange={(value) => field.onChange(value)}
               placeholder="e.g. +628123456789"
               disabled={isSubmitting}
               required

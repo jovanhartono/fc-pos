@@ -19,7 +19,7 @@ const StageSurface = () => {
         autoPlay
         muted
         playsInline
-        onLoadedMetadata={state.camera.markReady}
+        onLoadedMetadata={() => state.camera.markReady()}
         className="size-full object-contain"
       />
     );
@@ -30,7 +30,7 @@ const StageSurface = () => {
       <PhotoStage
         activeIndex={state.activeIndex}
         items={state.stageItems}
-        onIndexChange={actions.selectPhotoAt}
+        onIndexChange={(index) => actions.selectPhotoAt(index)}
       />
     );
   }
@@ -61,6 +61,7 @@ export const PhotoCaptureStage = () => {
         <div
           aria-live="polite"
           className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 text-body text-white"
+          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- the overlay holds a paragraph, which <output> may not contain
           role="status"
         >
           <HugeiconsIcon icon={Loading03Icon} className="size-7 animate-spin" />

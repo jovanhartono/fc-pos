@@ -5,14 +5,14 @@ import {
   listWaitingLines,
   sumPickupShelf,
 } from "@/modules/counter/counter.repository";
-import {
-  type Counter,
-  type CounterCategory,
-  type CounterEstimate,
-  type CounterShelfOrder,
-  type CounterWorkshop,
-  type GetPickupShelfQuery,
-  SHELF_PAGE_SIZE,
+import { SHELF_PAGE_SIZE } from "@/modules/counter/counter.schema";
+import type {
+  Counter,
+  CounterCategory,
+  CounterEstimate,
+  CounterShelfOrder,
+  CounterWorkshop,
+  GetPickupShelfQuery,
 } from "@/modules/counter/counter.schema";
 import { pickItemName } from "@/modules/orders/order-read.repository";
 import {
@@ -23,11 +23,8 @@ import {
 import { listTurnaroundLines } from "@/modules/reports/turnaround.repository";
 import { groupItems, percentiles } from "@/modules/reports/turnaround.service";
 import { isWaitingQcOnly } from "@/schema/order-status";
-import {
-  buildPaginationMeta,
-  normalizePagination,
-  type PaginationMeta,
-} from "@/utils/pagination";
+import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
+import type { PaginationMeta } from "@/utils/pagination";
 
 const RECENT_DAYS = 14;
 const WIDER_DAYS = 28;
@@ -38,7 +35,7 @@ const daysSince = (at: Date, now: Date) =>
   Math.max(0, daysBetween(jakartaDayOf(at), jakartaDayOf(now)) - 1);
 
 // ADR-0027: the cashier promises a date 9 in 10 recent shoes made.
-async function getReadyEstimates(storeId: number, now: Date) {
+const getReadyEstimates = async (storeId: number, now: Date) => {
   const wider = {
     end: now,
     start: new Date(now.getTime() - WIDER_DAYS * DAY_MS),
@@ -72,7 +69,7 @@ async function getReadyEstimates(storeId: number, now: Date) {
     estimates.set(categoryId, { days: Math.max(1, Math.ceil(p90 / 24)) });
   }
   return estimates;
-}
+};
 
 // Each Item once: a cleaned shoe whose Repaint still waits is in progress; it
 // is Waiting QC only when nothing is left but the check.
@@ -90,11 +87,11 @@ const countStages = (lines: WaitingLine[]): CounterWorkshop => {
   return stages;
 };
 
-function buildCategories(
+const buildCategories = (
   lines: WaitingLine[],
   estimates: Map<number, CounterEstimate>
-) {
-  return [...Map.groupBy(lines, (line) => line.category_id).entries()]
+) =>
+  [...Map.groupBy(lines, (line) => line.category_id).entries()]
     .map(([categoryId, categoryLines]): CounterCategory => ({
       after_clean: categoryLines[0].starts_after_cleaning,
       category_id: categoryId,
@@ -103,22 +100,22 @@ function buildCategories(
       items_waiting: new Set(categoryLines.map((line) => line.item_id)).size,
       name: categoryLines[0].category_name,
     }))
-    .sort(
+    .toSorted(
       (a, b) =>
         b.items_waiting - a.items_waiting || a.name.localeCompare(b.name)
     );
-}
 
-async function buildQcRejects(lines: WaitingLine[], now: Date) {
+const buildQcRejects = async (lines: WaitingLine[], now: Date) => {
   const rejected = lines.filter((line) => line.status === "qc_reject");
   if (rejected.length === 0) {
     return [];
   }
 
+  const latestRejects = await listLatestQcRejects(
+    rejected.map((line) => line.line_id)
+  );
   const latest = new Map(
-    (await listLatestQcRejects(rejected.map((line) => line.line_id))).map(
-      (reject) => [reject.line_id, reject]
-    )
+    latestRejects.map((reject) => [reject.line_id, reject])
   );
 
   return rejected
@@ -133,14 +130,14 @@ async function buildQcRejects(lines: WaitingLine[], now: Date) {
         order_service_id: line.line_id,
       };
     })
-    .sort((a, b) => b.days - a.days);
-}
+    .toSorted((a, b) => b.days - a.days);
+};
 
 // What one Store looks like right now, for whoever stands at its Counter.
-export async function getCounter(
+export const getCounter = async (
   storeId: number,
   now = new Date()
-): Promise<Counter> {
+): Promise<Counter> => {
   const [estimates, lines, complaints, shelf] = await Promise.all([
     getReadyEstimates(storeId, now),
     listWaitingLines(storeId),
@@ -164,13 +161,13 @@ export async function getCounter(
     // Whole Items, so a shoe with a clean and a Repaint counts once.
     workshop: countStages(lines),
   };
-}
+};
 
 // The shelf Orders waiting longest first, a page at a time.
-export async function getPickupShelf(
+export const getPickupShelf = async (
   query: GetPickupShelfQuery,
   now = new Date()
-): Promise<{ items: CounterShelfOrder[]; meta: PaginationMeta }> {
+): Promise<{ items: CounterShelfOrder[]; meta: PaginationMeta }> => {
   const pagination = normalizePagination({
     limit: SHELF_PAGE_SIZE,
     offset: query.offset,
@@ -191,4 +188,4 @@ export async function getPickupShelf(
     })),
     meta: buildPaginationMeta(total, pagination),
   };
-}
+};

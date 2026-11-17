@@ -21,7 +21,7 @@ import { startPhotoBlocker } from "@/features/orders/lib/order-action-gates";
 import type { OrderItem } from "@/features/orders/lib/order-lines";
 import { getItemTotalRow } from "@/features/orders/lib/order-sheet";
 import { groupReworksUnderOriginals } from "@/features/orders/lib/rework-nesting";
-import { useLeaveSheetLink } from "@/hooks/useLeaveSheetLink";
+import { useLeaveSheetLink } from "@/hooks/use-leave-sheet-link";
 import { formatDay } from "@/lib/dayjs";
 import { getOrderServiceItemDetails } from "@/lib/order-service-item-details";
 import { formatCancelReason, formatRefundReason } from "@/lib/status";

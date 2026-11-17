@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { type ReportGranularity, reportsQueries } from "@/features/reports/api";
+import { reportsQueries } from "@/features/reports/api";
+import type { ReportGranularity } from "@/features/reports/api";
 import { ChartCard } from "@/features/reports/components/chart-card";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -34,6 +35,7 @@ interface OperationsPanelProps {
   granularity?: ReportGranularity;
 }
 
+// oxlint-disable-next-line eslint/complexity -- one flat panel; the count is its `??` fallbacks for a report still loading
 export const OperationsPanel = ({
   from,
   to,
@@ -49,7 +51,7 @@ export const OperationsPanel = ({
     placeholderData: keepPreviousData,
   });
   const turnaround = turnaroundQuery.data;
-  const data = query.data;
+  const { data } = query;
   const summary = data?.summary.current;
   const deltas = data?.summary.deltas;
   const readyWithin = turnaround?.rows[0]?.p75 ?? null;
@@ -79,16 +81,13 @@ export const OperationsPanel = ({
         `Orders flow,${escapeCsv(row.bucket)},${row.orders_in},${row.orders_out}`
       );
     }
-    lines.push("");
-    lines.push("Totals,Metric,Current,Previous");
+    lines.push("", "Totals,Metric,Current,Previous");
     const prev = data.summary.previous;
     lines.push(
-      `Totals,Orders in,${summary?.orders_in_total ?? 0},${prev.orders_in_total}`
+      `Totals,Orders in,${summary?.orders_in_total ?? 0},${prev.orders_in_total}`,
+      `Totals,Orders out,${summary?.orders_out_total ?? 0},${prev.orders_out_total}`,
+      `Totals,Net flow,${summary?.net_flow ?? 0},${prev.net_flow}`
     );
-    lines.push(
-      `Totals,Orders out,${summary?.orders_out_total ?? 0},${prev.orders_out_total}`
-    );
-    lines.push(`Totals,Net flow,${summary?.net_flow ?? 0},${prev.net_flow}`);
     downloadCsv(
       csvFilename("orders-flow", data.from, data.to, data.store_id),
       lines.join("\n")

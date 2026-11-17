@@ -34,6 +34,13 @@ const s3Calls = {
   optimized: [] as string[],
 };
 
+const readyServiceIds = () =>
+  state.items.flatMap((item) =>
+    item.services
+      .filter((service) => service.status === "ready_for_pickup")
+      .map((service) => service.id)
+  );
+
 // The real status machine runs on this, so the pickup and the event share one
 // transaction and roll back together.
 const TX = {
@@ -82,13 +89,6 @@ const TX = {
   }),
 };
 
-const readyServiceIds = () =>
-  state.items.flatMap((item) =>
-    item.services
-      .filter((service) => service.status === "ready_for_pickup")
-      .map((service) => service.id)
-  );
-
 mock.module("@/db", () => ({
   db: {
     query: {
@@ -105,9 +105,9 @@ mock.module("@/db", () => ({
         },
       },
     },
-    transaction: async (cb: (tx: unknown) => Promise<unknown>) => {
+    transaction: async (work: (tx: unknown) => Promise<unknown>) => {
       try {
-        const result = await cb(TX);
+        const result = await work(TX);
         state.transactionOutcome = "committed";
         return result;
       } catch (error) {

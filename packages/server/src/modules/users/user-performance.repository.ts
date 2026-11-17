@@ -12,15 +12,13 @@ import {
 } from "@/db/schema";
 import { timeWindow } from "@/modules/reports/money-basis";
 import { qualityCheckInRange } from "@/modules/reports/quality.repository";
-import {
-  type DateRange,
-  jakartaBucketExpr,
-} from "@/modules/reports/report-range.util";
+import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
+import type { DateRange } from "@/modules/reports/report-range.util";
 
 const notCancelled = ne(ordersTable.status, "cancelled");
 
-export function countOrdersCreatedBy(userId: number, range: DateRange) {
-  return db.$count(
+export const countOrdersCreatedBy = (userId: number, range: DateRange) =>
+  db.$count(
     ordersTable,
     and(
       eq(ordersTable.created_by, userId),
@@ -28,29 +26,26 @@ export function countOrdersCreatedBy(userId: number, range: DateRange) {
       ...timeWindow(ordersTable.created_at, range)
     )
   );
-}
 
-export function countPickupsHandedOverBy(userId: number, range: DateRange) {
-  return db.$count(
+export const countPickupsHandedOverBy = (userId: number, range: DateRange) =>
+  db.$count(
     orderPickupEventsTable,
     and(
       eq(orderPickupEventsTable.picked_up_by, userId),
       ...timeWindow(orderPickupEventsTable.picked_up_at, range)
     )
   );
-}
 
-export function countPickupNoticesSentBy(userId: number, range: DateRange) {
-  return db.$count(
+export const countPickupNoticesSentBy = (userId: number, range: DateRange) =>
+  db.$count(
     orderPickupNoticesTable,
     and(
       eq(orderPickupNoticesTable.sent_by, userId),
       ...timeWindow(orderPickupNoticesTable.sent_at, range)
     )
   );
-}
 
-export async function countShiftDays(userId: number, range: DateRange) {
+export const countShiftDays = async (userId: number, range: DateRange) => {
   const [row] = await db
     .select({
       days: sql<number>`COUNT(DISTINCT ${jakartaBucketExpr(shiftsTable.clock_in_at, "day")})::int`,
@@ -63,11 +58,11 @@ export async function countShiftDays(userId: number, range: DateRange) {
       )
     );
   return row?.days ?? 0;
-}
+};
 
 const qcLog = alias(orderServiceStatusLogsTable, "qc_log");
 
-export async function countQcChecksDoneBy(userId: number, range: DateRange) {
+export const countQcChecksDoneBy = async (userId: number, range: DateRange) => {
   const [row] = await db
     .select({ checks: count() })
     .from(qcLog)
@@ -75,9 +70,9 @@ export async function countQcChecksDoneBy(userId: number, range: DateRange) {
       and(eq(qcLog.changed_by, userId), qualityCheckInRange(qcLog, { range }))
     );
   return row?.checks ?? 0;
-}
+};
 
-export async function countCollectedBy(userId: number, range: DateRange) {
+export const countCollectedBy = async (userId: number, range: DateRange) => {
   const [row] = await db
     .select({
       orders: sql<number>`COUNT(DISTINCT ${ordersTable.id})::int`,
@@ -93,4 +88,4 @@ export async function countCollectedBy(userId: number, range: DateRange) {
       )
     );
   return { orders: row?.orders ?? 0, items: row?.items ?? 0 };
-}
+};

@@ -30,7 +30,7 @@ import {
 
 // Keyed by Item (ADR-0019). Older photos keep their `services/{serviceId}/` keys;
 // the sweep protects whatever path the database holds, so nothing is moved.
-export async function createItemPhotoPresign({
+export const createItemPhotoPresign = async ({
   orderId,
   itemId,
   body,
@@ -38,22 +38,22 @@ export async function createItemPhotoPresign({
   orderId: number;
   itemId: number;
   body: PostItemPhotoPresignInput;
-}) {
+}) => {
   await getItemOrThrow(orderId, itemId);
 
   return presignPhotoUpload(
     { itemId, kind: "item", orderId },
     body.content_type
   );
-}
+};
 
-export async function createOrderDropoffPhotoPresign({
+export const createOrderDropoffPhotoPresign = async ({
   orderId,
   body,
 }: {
   orderId: number;
   body: PostOrderDropoffPhotoPresignInput;
-}) {
+}) => {
   const order = await db.query.ordersTable.findFirst({
     where: { id: orderId },
     columns: { id: true },
@@ -64,9 +64,9 @@ export async function createOrderDropoffPhotoPresign({
   }
 
   return presignPhotoUpload({ kind: "dropoff", orderId }, body.content_type);
-}
+};
 
-export async function saveItemPhoto({
+export const saveItemPhoto = async ({
   orderId,
   itemId,
   body,
@@ -76,7 +76,7 @@ export async function saveItemPhoto({
   itemId: number;
   body: PostItemPhotoInput;
   user: JWTPayload;
-}) {
+}) => {
   await getItemOrThrow(orderId, itemId);
 
   await acceptPhotoUpload({ itemId, kind: "item", orderId }, body.image_path);
@@ -95,9 +95,9 @@ export async function saveItemPhoto({
     ...photo,
     image_url: buildMediaUrl(photo.image_path),
   };
-}
+};
 
-export async function deleteItemPhoto({
+export const deleteItemPhoto = async ({
   orderId,
   itemId,
   photoId,
@@ -107,7 +107,7 @@ export async function deleteItemPhoto({
   itemId: number;
   photoId: number;
   user: JWTPayload;
-}) {
+}) => {
   await getItemOrThrow(orderId, itemId);
 
   const photo = await db.query.itemImagesTable.findFirst({
@@ -135,9 +135,9 @@ export async function deleteItemPhoto({
   }
 
   return { id: deleted.id };
-}
+};
 
-export async function saveOrderDropoffPhoto({
+export const saveOrderDropoffPhoto = async ({
   orderId,
   body,
   user,
@@ -145,7 +145,7 @@ export async function saveOrderDropoffPhoto({
   orderId: number;
   body: PutOrderDropoffPhotoInput;
   user: JWTPayload;
-}) {
+}) => {
   await acceptPhotoUpload({ kind: "dropoff", orderId }, body.image_path);
 
   const [order] = await db
@@ -172,32 +172,30 @@ export async function saveOrderDropoffPhoto({
     dropoff_photo_uploaded_at: order.dropoff_photo_uploaded_at,
     dropoff_photo_url: buildMediaUrl(order.dropoff_photo_path),
   };
-}
+};
 
 // Codes like `#JKT/20260907/12-I001` break as filenames (`/` is a folder, `#` a
 // fragment), so they are flattened to safe characters.
-const UNSAFE_FILENAME_CHARS = /[^A-Za-z0-9._-]+/g;
+const UNSAFE_FILENAME_CHARS = /[^A-Za-z0-9._-]+/gu;
 
-function toFilenameSlug(code: string) {
-  return code.replace(UNSAFE_FILENAME_CHARS, "-").replace(/^-+|-+$/g, "");
-}
+const toFilenameSlug = (code: string) =>
+  code.replaceAll(UNSAFE_FILENAME_CHARS, "-").replaceAll(/^-+|-+$/gu, "");
 
-const KEY_EXTENSION = /\.([A-Za-z0-9]{1,5})$/;
+const KEY_EXTENSION = /\.(?<extension>[A-Za-z0-9]{1,5})$/u;
 
 // Uploads have no extension and are always WebP; seed photos keep their `.jpg`.
-function extensionOf(key: string) {
-  return KEY_EXTENSION.exec(key)?.[1].toLowerCase() ?? "webp";
-}
+const extensionOf = (key: string) =>
+  KEY_EXTENSION.exec(key)?.[1].toLowerCase() ?? "webp";
 
 // For staff saving photos for a dispute. Same rule as opening the Order: they must
 // work at that Store.
-export async function createPhotoDownloadUrl({
+export const createPhotoDownloadUrl = async ({
   body,
   user,
 }: {
   body: PostPhotoDownloadUrlInput;
   user: AuthUser;
-}) {
+}) => {
   const photo = await findPhotoById(body);
   if (!photo) {
     throw new NotFoundException("Photo not found");
@@ -205,10 +203,11 @@ export async function createPhotoDownloadUrl({
   await assertStoreAccess(user, photo.store_id);
 
   const key = photo.image_path;
-  if (!(await isStoredObjectReadable(key))) {
+  const readable = await isStoredObjectReadable(key);
+  if (!readable) {
     throw new NotFoundException("The photo file is no longer in storage");
   }
 
   const filename = `${toFilenameSlug(photo.code)}-${photo.suffix}.${extensionOf(key)}`;
   return { url: createPresignedDownloadUrl({ key, filename }) };
-}
+};

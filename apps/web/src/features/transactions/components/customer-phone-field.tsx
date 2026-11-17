@@ -38,7 +38,7 @@ export const CustomerPhoneField = ({
     caretDigitsRef.current = null;
     let position = 0;
     for (let seen = 0; position < display.length && seen < caretDigits;) {
-      if (/[\d+]/.test(display[position] ?? "")) {
+      if (/[\d+]/u.test(display[position] ?? "")) {
         seen++;
       }
       position++;

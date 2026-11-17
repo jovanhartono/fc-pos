@@ -2,7 +2,6 @@ import type { InferInsertModel } from "drizzle-orm";
 
 import type { customersTable } from "@/db/schema";
 import {
-  type CustomerExecutor,
   countCustomers,
   findCustomerById,
   findCustomerByPhone,
@@ -11,12 +10,13 @@ import {
   listCustomers,
   updateCustomerById,
 } from "@/modules/customers/customer.repository";
+import type { CustomerExecutor } from "@/modules/customers/customer.repository";
 import type { GetCustomersQuery } from "@/modules/customers/customer.schema";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 import { isUniqueViolation } from "@/utils/pg-error";
 import { toTitleCase } from "@/utils/string";
 
-export async function getCustomers(query?: GetCustomersQuery) {
+export const getCustomers = async (query?: GetCustomersQuery) => {
   const pagination = normalizePagination(query, { maxPageSize: 100 });
   const filters = { search: query?.search };
 
@@ -33,10 +33,10 @@ export async function getCustomers(query?: GetCustomersQuery) {
     items,
     meta: buildPaginationMeta(total, pagination),
   };
-}
+};
 
 // Admin-only (ADR-0021).
-export async function getCustomerDetail(id: number) {
+export const getCustomerDetail = async (id: number) => {
   const [customer, summary] = await Promise.all([
     findCustomerById(id),
     findCustomerSummary(id),
@@ -47,15 +47,14 @@ export async function getCustomerDetail(id: number) {
   }
 
   return { ...customer, summary };
-}
+};
 
 // Only prefills the name in the POS; checkout still finds or creates the
 // Customer by phone itself (ADR-0011).
-export async function getCustomerByPhone(phone_number: string) {
-  return (await findCustomerByPhone(phone_number)) ?? null;
-}
+export const getCustomerByPhone = async (phone_number: string) =>
+  (await findCustomerByPhone(phone_number)) ?? null;
 
-export async function createCustomer({
+export const createCustomer = async ({
   actorId,
   payload,
 }: {
@@ -64,7 +63,7 @@ export async function createCustomer({
     InferInsertModel<typeof customersTable>,
     "created_by" | "updated_by"
   >;
-}) {
+}) => {
   const existing = await findCustomerByPhone(payload.phone_number);
   if (existing) {
     return { customer: existing, existed: true as const };
@@ -88,11 +87,11 @@ export async function createCustomer({
     }
     throw error;
   }
-}
+};
 
 // Runs inside the Order transaction so a failed checkout leaves no Customer
 // behind (ADR-0011).
-export async function resolveOrCreateCustomer({
+export const resolveOrCreateCustomer = async ({
   executor,
   actorId,
   name,
@@ -104,7 +103,7 @@ export async function resolveOrCreateCustomer({
   name: string;
   phone_number: string;
   origin_store_id: number;
-}): Promise<number> {
+}): Promise<number> => {
   const existing = await findCustomerByPhone(phone_number, executor);
   if (existing) {
     return existing.id;
@@ -127,9 +126,9 @@ export async function resolveOrCreateCustomer({
     throw new Error("Failed to create customer");
   }
   return customer.id;
-}
+};
 
-export async function updateCustomer({
+export const updateCustomer = async ({
   id,
   actorId,
   payload,
@@ -137,11 +136,11 @@ export async function updateCustomer({
   id: number;
   actorId: number;
   payload: Partial<InferInsertModel<typeof customersTable>>;
-}) {
+}) => {
   const [customer] = await updateCustomerById(id, {
     ...payload,
     updated_by: actorId,
   });
 
   return customer ?? null;
-}
+};
