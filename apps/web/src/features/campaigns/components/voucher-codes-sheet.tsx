@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { campaignsQueries } from "@/features/campaigns/api";
 import type { VoucherCode } from "@/features/campaigns/api";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
+import { downloadBlob } from "@/lib/download";
 import { cn } from "@/lib/utils";
 
 interface VoucherCodesSheetProps {
@@ -39,24 +40,20 @@ const handleCopyCode = async (code: string) => {
 // text: a CSV would let Excel read a code like 234E5678 as a number.
 const downloadCodes = async (campaignCode: string, codes: VoucherCode[]) => {
   try {
-    const { default: writeExcelFile } =
-      await import("write-excel-file/browser");
-    await writeExcelFile(codes, {
-      columns: [
-        {
-          cell: (code) => code.code,
-          header: { fontWeight: "bold", value: "Code" },
-          width: 14,
-        },
-        {
-          cell: (code) =>
-            code.redeemed_at &&
-            dayjs(code.redeemed_at).tz(JAKARTA_TZ).format("D MMM YYYY"),
-          header: { fontWeight: "bold", value: "Redeemed" },
-          width: 14,
-        },
+    const { buildXlsx } = await import("@/lib/xlsx");
+    const file = buildXlsx(
+      [
+        ["Code", "Redeemed"],
+        ...codes.map((code) => [
+          code.code,
+          code.redeemed_at === null
+            ? ""
+            : dayjs(code.redeemed_at).tz(JAKARTA_TZ).format("D MMM YYYY"),
+        ]),
       ],
-    }).toFile(`voucher-codes-${campaignCode}.xlsx`);
+      [14, 14]
+    );
+    downloadBlob(file, `voucher-codes-${campaignCode}.xlsx`);
   } catch {
     toast.error("Couldn't download codes");
   }

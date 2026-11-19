@@ -1,4 +1,4 @@
-import { triggerDownload } from "@/lib/download";
+import { downloadBlob } from "@/lib/download";
 
 const FORMULA_PREFIX = /^[=+\-@\t\r]/u;
 const QUOTE_REQUIRED = /[",\n]/u;
@@ -20,10 +20,7 @@ export const escapeCsv = (
 };
 
 export const downloadCsv = (filename: string, csv: string): void => {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  triggerDownload(url, filename);
-  URL.revokeObjectURL(url);
+  downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), filename);
 };
 
 export const csvFilename = (
