@@ -31,6 +31,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.23",
+    "fflate": "0.8.3",
     "hono": "catalog:",
     "libphonenumber-js": "catalog:",
     "react": "^19.3.1",
