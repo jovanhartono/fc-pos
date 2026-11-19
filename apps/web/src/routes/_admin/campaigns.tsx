@@ -404,7 +404,12 @@ const CampaignsPage = () => {
   const handleOpenVoucherDetail = (campaign: Campaign) => {
     openSheet({
       title: `Voucher Codes · ${campaign.code}`,
-      content: () => <VoucherCodesSheet campaignId={campaign.id} />,
+      content: () => (
+        <VoucherCodesSheet
+          campaignCode={campaign.code}
+          campaignId={campaign.id}
+        />
+      ),
     });
   };
 

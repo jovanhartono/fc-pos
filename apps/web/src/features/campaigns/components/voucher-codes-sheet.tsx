@@ -1,6 +1,11 @@
-import { Copy01Icon, Ticket01Icon } from "@hugeicons/core-free-icons";
+import {
+  Copy01Icon,
+  Download04Icon,
+  Ticket01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/empty-state";
@@ -9,10 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { campaignsQueries } from "@/features/campaigns/api";
 import type { VoucherCode } from "@/features/campaigns/api";
-import dayjs from "@/lib/dayjs";
+import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 import { cn } from "@/lib/utils";
 
 interface VoucherCodesSheetProps {
+  campaignCode: string;
   campaignId: number;
 }
 
@@ -26,6 +32,33 @@ const handleCopyCode = async (code: string) => {
     toast.success("Code copied", { description: code });
   } catch {
     toast.error("Couldn't copy code");
+  }
+};
+
+// The admin hands this file to a print shop. A real .xlsx keeps each code as
+// text: a CSV would let Excel read a code like 234E5678 as a number.
+const downloadCodes = async (campaignCode: string, codes: VoucherCode[]) => {
+  try {
+    const { default: writeExcelFile } =
+      await import("write-excel-file/browser");
+    await writeExcelFile(codes, {
+      columns: [
+        {
+          cell: (code) => code.code,
+          header: { fontWeight: "bold", value: "Code" },
+          width: 14,
+        },
+        {
+          cell: (code) =>
+            code.redeemed_at &&
+            dayjs(code.redeemed_at).tz(JAKARTA_TZ).format("D MMM YYYY"),
+          header: { fontWeight: "bold", value: "Redeemed" },
+          width: 14,
+        },
+      ],
+    }).toFile(`voucher-codes-${campaignCode}.xlsx`);
+  } catch {
+    toast.error("Couldn't download codes");
   }
 };
 
@@ -53,10 +86,20 @@ const VoucherCodeRow = ({ code }: VoucherCodeRowProps) => (
   </li>
 );
 
-export const VoucherCodesSheet = ({ campaignId }: VoucherCodesSheetProps) => {
+export const VoucherCodesSheet = ({
+  campaignCode,
+  campaignId,
+}: VoucherCodesSheetProps) => {
   const { data, isLoading, isError } = useQuery(
     campaignsQueries.voucherCodes(campaignId)
   );
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async (codes: VoucherCode[]) => {
+    setIsDownloading(true);
+    await downloadCodes(campaignCode, codes);
+    setIsDownloading(false);
+  };
 
   if (isLoading) {
     return (
@@ -84,9 +127,20 @@ export const VoucherCodesSheet = ({ campaignId }: VoucherCodesSheetProps) => {
   return (
     <div className="grid gap-4">
       <header className="grid gap-2">
-        <span className="text-body font-medium tabular-nums">
-          {data.redeemed}/{data.total} redeemed
-        </span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-body font-medium tabular-nums">
+            {data.redeemed}/{data.total} redeemed
+          </span>
+          <Button
+            icon={<HugeiconsIcon icon={Download04Icon} />}
+            loading={isDownloading}
+            onClick={() => handleDownload(data.codes)}
+            type="button"
+            variant="outline"
+          >
+            Download Excel
+          </Button>
+        </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-soft-bar-track">
           <div
             className={cn(
