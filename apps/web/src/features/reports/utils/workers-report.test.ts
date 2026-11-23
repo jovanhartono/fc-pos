@@ -2,15 +2,19 @@ import { describe, expect, it } from "bun:test";
 
 import type {
   WorkerLiveRow,
+  WorkerProductivityReport,
   WorkerRangeRow,
   WorkerRow,
 } from "@/features/reports/api";
 import {
   buildChartRows,
+  buildWorkersCsv,
+  cleanedBy,
   complaintTone,
   durationText,
   groupByStore,
   isMissingClockIn,
+  mergeByPerson,
   NEEDS_A_LOOK,
   needsALook,
   openShiftSince,
@@ -21,6 +25,7 @@ import {
   splitTopServices,
   totalsOf,
   withLive,
+  workedAt,
 } from "@/features/reports/utils/workers-report";
 import { formatShiftLength } from "@/lib/dayjs";
 
@@ -40,7 +45,9 @@ const worker = (overrides: Partial<WorkerRow>): WorkerRow =>
     role: "worker",
     store_id: 1,
     store_name: "Kemang",
+    clocked_in: false,
     days_worked: 0,
+    days: [],
     services_processed: 0,
     per_day_worked: null,
     qc_checks: 0,
@@ -415,5 +422,118 @@ describe("top Services and Other", () => {
     expect(rows[0].other).toBe(1);
     expect(rows[0].rest.map((s) => s.service_id)).toEqual([3]);
     expect(rows[1].other).toBe(0);
+  });
+});
+
+describe("By Worker", () => {
+  const GRH = 4;
+  const BSD = 1;
+  // Davi cleans at GRH for GRH and the BSD booth, clocked in only at GRH.
+  const davi = [
+    worker({
+      user_id: 7,
+      user_name: "Davi",
+      store_id: GRH,
+      clocked_in: true,
+      services_processed: 11,
+      days_worked: 1,
+      days: ["2026-11-17"],
+      qc_checks: 4,
+      qc_rejects: 1,
+    }),
+    worker({
+      user_id: 7,
+      user_name: "Davi",
+      store_id: BSD,
+      services_processed: 9,
+      days_worked: 1,
+      days: ["2026-11-17"],
+      qc_checks: 2,
+    }),
+  ];
+
+  it("counts a day at two Stores once and sums the rest", () => {
+    const [person] = mergeByPerson(davi);
+    expect(person.services_processed).toBe(20);
+    expect(person.days_worked).toBe(1);
+    expect(person.per_day_worked).toBe(20);
+    expect(person.qc_checks).toBe(6);
+    expect(person.qc_rejects).toBe(1);
+    expect(person.stores).toEqual([
+      { store_id: GRH, services: 11 },
+      { store_id: BSD, services: 9 },
+    ]);
+    expect(person.clock_in_store_ids).toEqual([GRH]);
+  });
+
+  it("paces every Service over their days, even one from a Store with no day worked", () => {
+    const [person] = mergeByPerson([
+      worker({ services_processed: 10, days_worked: 2, days: ["a", "b"] }),
+      worker({ store_id: 2, services_processed: 6, days: [] }),
+    ]);
+    expect(person.services_processed).toBe(16);
+    expect(person.per_day_worked).toBe(8);
+  });
+
+  it("keeps the open Shift, the latest move and every Item in hand", () => {
+    const [person] = mergeByPerson([
+      worker({
+        live: {
+          ...quiet,
+          clock_in_at: "2026-11-17T01:00:00Z",
+          clock_out_at: null,
+          in_hand: 2,
+          last_move_at: "2026-11-17T02:00:00Z",
+        },
+      }),
+      worker({
+        store_id: 2,
+        live: {
+          ...quiet,
+          clock_in_at: "2026-11-17T03:00:00Z",
+          clock_out_at: "2026-11-17T04:00:00Z",
+          in_hand: 3,
+          last_move_at: "2026-11-17T05:00:00Z",
+        },
+      }),
+    ]);
+    expect(person.live.clock_in_at).toBe("2026-11-17T01:00:00Z");
+    expect(person.live.clock_out_at).toBeNull();
+    expect(person.live.in_hand).toBe(5);
+    expect(person.live.last_move_at).toBe("2026-11-17T05:00:00Z");
+  });
+
+  it("shows at a Store who clocked in there, not who cleaned its Items elsewhere", () => {
+    expect(workedAt(davi, GRH).map((p) => p.user_name)).toEqual(["Davi"]);
+    expect(workedAt(davi, BSD)).toEqual([]);
+    expect(workedAt(davi, undefined).map((p) => p.user_name)).toEqual(["Davi"]);
+    expect(cleanedBy(davi, BSD)).toEqual(["Davi"]);
+  });
+
+  it("shows someone with no Shift anywhere at the Stores whose Items they cleaned", () => {
+    const neverClockedIn = davi.map((row) => ({ ...row, clocked_in: false }));
+    expect(workedAt(neverClockedIn, BSD).map((p) => p.user_name)).toEqual([
+      "Davi",
+    ]);
+  });
+
+  it("exports one row per person, their Services split by Store", () => {
+    const csv = buildWorkersCsv(
+      {
+        workers: davi,
+        services_matrix: { services: [], cells: [] },
+      } as unknown as WorkerProductivityReport,
+      {
+        people: workedAt(davi, GRH),
+        storeCodes: new Map([
+          [GRH, "GRH"],
+          [BSD, "BSD"],
+        ]),
+      }
+    );
+    expect(csv.split("\n").slice(0, 2)).toEqual([
+      "Workers,Worker,Role,Days worked,Services,Per day worked,QC rejects,QC checks,Complaints,Complaint cohort,Services by Store",
+      "Workers,Davi,worker,1,20,20,1,6,0,0,GRH 11 · BSD 9",
+    ]);
   });
 });

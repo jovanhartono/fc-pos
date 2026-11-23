@@ -27,6 +27,7 @@ import {
   withSavedReportFilters,
 } from "@/features/reports/utils/report-filters";
 import type { ReportFilterValues } from "@/features/reports/utils/report-filters";
+import type { WorkersView } from "@/features/reports/utils/workers-report";
 import { storesQueries } from "@/features/stores/api";
 import { DATE_PRESETS, jakartaToday } from "@/shared/date-presets";
 import { getCurrentUser } from "@/stores/auth-store";
@@ -70,6 +71,8 @@ const reportsSearchSchema = z
     to: z.string().regex(dateRegex).optional().catch(undefined),
     store_id: z.coerce.number().int().positive().optional().catch(undefined),
     granularity: granularitySchema.catch(undefined),
+    // Absent is By Worker.
+    view: z.enum(["store"]).optional().catch(undefined),
   })
   .transform((value) => {
     const range = withPresetRange(value);
@@ -125,13 +128,22 @@ const prefetchForTab = (queryClient: QueryClient, search: ReportsSearch) => {
       );
     }
     case "workers": {
-      return queryClient.ensureQueryData(
+      const dates = { from: search.from, to: search.to };
+      const productivity = queryClient.ensureQueryData(
         reportsQueries.workerProductivity({
-          from: search.from,
-          to: search.to,
+          ...dates,
           store_id: search.store_id,
         })
       );
+      if (search.view === "store" || search.store_id === undefined) {
+        return productivity;
+      }
+      // By Worker's table reads every Store.
+      void queryClient.prefetchQuery(reportsQueries.workerLive({}));
+      return Promise.all([
+        productivity,
+        queryClient.ensureQueryData(reportsQueries.workerProductivity(dates)),
+      ]);
     }
     case "campaigns": {
       return queryClient.ensureQueryData(
@@ -188,7 +200,7 @@ const ReportsPage = () => {
         if (currentUser) {
           setFilters(String(currentUser.id), filters);
         }
-        return { tab: prev.tab, ...filters };
+        return { tab: prev.tab, view: prev.view, ...filters };
       },
     });
   };
@@ -280,9 +292,20 @@ const ReportsPage = () => {
             from={search.from}
             to={search.to}
             storeId={search.store_id}
+            view={search.view ?? "worker"}
             onStoreChange={(storeId) =>
               handleFiltersChange({ store_id: storeId })
             }
+            onViewChange={(view) => {
+              void navigate({
+                replace: true,
+                resetScroll: false,
+                search: (prev) => ({
+                  ...prev,
+                  view: view === "worker" ? undefined : view,
+                }),
+              });
+            }}
           />
         )}
         {currentTab === "campaigns" && (
@@ -306,7 +329,10 @@ export const Route = createFileRoute("/_admin/reports")({
   // Restored before the loader runs, so an admin coming back from the sidebar
   // waits for their own range once instead of the 30-day default first.
   validateSearch: (
-    search: ReportFilterValues & { tab?: Tab } & SearchSchemaInput
+    search: ReportFilterValues & {
+      tab?: Tab;
+      view?: Exclude<WorkersView, "worker">;
+    } & SearchSchemaInput
   ) => {
     const currentUser = getCurrentUser();
     const saved = currentUser
