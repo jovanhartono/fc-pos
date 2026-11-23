@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { WorkerRow } from "@/features/reports/api";
+import type { PersonRow, WorkerRow } from "@/features/reports/api";
 import { Pace, PersonName } from "@/features/reports/components/person-cells";
 import { StoreGroup } from "@/features/reports/components/store-group";
 import { BadCount } from "@/features/reports/components/tone-chip";
@@ -22,14 +22,11 @@ import {
   pluralCount,
 } from "@/features/reports/utils/format";
 import {
-  cleanedBy,
   groupByStore,
   isMissingClockIn,
   openShiftSince,
   sinceText,
-  workedAt,
 } from "@/features/reports/utils/workers-report";
-import type { PersonRow } from "@/features/reports/utils/workers-report";
 import { storesQueries } from "@/features/stores/api";
 import { useMinuteClock } from "@/hooks/use-minute-clock";
 import { useMountValue } from "@/hooks/use-mount-value";
@@ -408,33 +405,31 @@ export const WorkersTable = ({
 };
 
 interface PeopleTableProps {
-  // Every Store's rows, to find who worked at the picked one.
-  workers: WorkerRow[];
+  people: PersonRow[];
+  // Who cleans the picked Store's Items, for a booth nobody clocked in at.
+  cleanedBy: string[];
   storeId?: number;
   onOpen: (row: PersonRow) => void;
 }
 
-export const PeopleTable = ({ workers, storeId, onOpen }: PeopleTableProps) => {
+export const PeopleTable = ({
+  people,
+  cleanedBy,
+  storeId,
+  onOpen,
+}: PeopleTableProps) => {
   const now = useMinuteClock();
   const storeCodes = useStoreCodes();
-  const shown = workedAt(workers, storeId);
-  if (shown.length > 0) {
-    return <WorkerList rows={shown} now={now} onOpen={onOpen} />;
+  if (people.length > 0) {
+    return <WorkerList rows={people} now={now} onOpen={onOpen} />;
   }
-  const noActivity = (
-    <EmptyState icon={UserGroupIcon}>No worker activity</EmptyState>
-  );
-  if (storeId === undefined) {
-    return noActivity;
-  }
-  const cleaners = cleanedBy(workers, storeId);
-  if (cleaners.length === 0) {
-    return noActivity;
+  if (storeId === undefined || cleanedBy.length === 0) {
+    return <EmptyState icon={UserGroupIcon}>No worker activity</EmptyState>;
   }
   // A booth has no bench: name who cleans its Items instead.
   return (
     <EmptyState icon={UserGroupIcon}>
-      {`${storeCodes.get(storeId) ?? "This Store's"} Items are cleaned by ${cleaners.join(", ")}`}
+      {`${storeCodes.get(storeId) ?? "This Store's"} Items are cleaned by ${cleanedBy.join(", ")}`}
     </EmptyState>
   );
 };

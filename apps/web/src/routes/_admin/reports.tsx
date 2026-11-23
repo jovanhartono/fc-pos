@@ -128,22 +128,13 @@ const prefetchForTab = (queryClient: QueryClient, search: ReportsSearch) => {
       );
     }
     case "workers": {
-      const dates = { from: search.from, to: search.to };
-      const productivity = queryClient.ensureQueryData(
+      return queryClient.ensureQueryData(
         reportsQueries.workerProductivity({
-          ...dates,
+          from: search.from,
+          to: search.to,
           store_id: search.store_id,
         })
       );
-      if (search.view === "store" || search.store_id === undefined) {
-        return productivity;
-      }
-      // By Worker's table reads every Store.
-      void queryClient.prefetchQuery(reportsQueries.workerLive({}));
-      return Promise.all([
-        productivity,
-        queryClient.ensureQueryData(reportsQueries.workerProductivity(dates)),
-      ]);
     }
     case "campaigns": {
       return queryClient.ensureQueryData(

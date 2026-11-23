@@ -52,7 +52,8 @@ export const GETWorkerDetailQuerySchema = z
   .object({
     from: dateStringSchema("from"),
     to: dateStringSchema("to"),
-    store_id: storeIdQuerySchema,
+    // Left off, the person across every Store (the By Worker sheet).
+    store_id: storeIdQuerySchema.optional(),
     user_id: z.coerce.number().int().positive(),
   })
   .refine(fromNotAfterTo, fromNotAfterToIssue);

@@ -1032,8 +1032,31 @@ const perDayWorked = (tallies: WorkerTally[]) => {
   return daysWorked > 0 ? round(services / daysWorked, 2) : null;
 };
 
+// One person across every Store: a day at two Stores is one Day worked, and
+// every Service they started counts toward the pace, even a booth's Item
+// finished on a day they spent at the main Store. The Profile page uses it too.
+const personFacts = (own: WorkerTally[]) => {
+  const days = new Set(own.flatMap((tally) => [...tally.days_worked]));
+  const services = sumBy(own, (tally) => tally.services_processed);
+  return {
+    services_processed: services,
+    days_worked: days.size,
+    per_day_worked: days.size > 0 ? round(services / days.size, 2) : null,
+    qc_checks: sumBy(own, (tally) => tally.qc_checks),
+    qc_rejects: sumBy(own, (tally) => tally.qc_rejects),
+    complaints: sumBy(own, (tally) => tally.complaints),
+    complaint_cohort: sumBy(own, (tally) => tally.complaint_cohort),
+  };
+};
+
+const scopeToStore = <T extends { store_id: number }>(
+  rows: T[],
+  storeId: number | undefined
+) =>
+  storeId === undefined ? rows : rows.filter((row) => row.store_id === storeId);
+
 const summariseWorkers = (
-  activity: WorkerSummaryActivity,
+  activity: Pick<WorkerSummaryActivity, "lines" | "qcChecks">,
   tallies: WorkerTally[]
 ): WorkerSummary => {
   const spread = dailySpread(tallies.flatMap(dailyCounts));
@@ -1131,6 +1154,122 @@ const buildServicesMatrix = (byService: ServiceGroup[]) => {
   };
 };
 
+type UserRow = Awaited<ReturnType<typeof listUserNames>>[number];
+
+const userNameOf = (user: UserRow | undefined) => user?.name ?? "Unknown";
+
+const identityOf = (userId: number, user: UserRow | undefined) => ({
+  user_id: userId,
+  user_name: userNameOf(user),
+  avatar_url: buildMediaUrl(user?.avatar_path),
+  role: user?.role ?? "unknown",
+});
+
+const byStoreName =
+  (storeName: Map<number, string>) =>
+  (a: { store_id: number }, b: { store_id: number }) =>
+    (storeName.get(a.store_id) ?? "").localeCompare(
+      storeName.get(b.store_id) ?? ""
+    );
+
+// A Store's people in By Worker are those who clocked in there, plus those who
+// never clocked in anywhere but did bench work on its Items. A GRH worker who
+// also cleans the BSD booth's Items shows under GRH, not BSD.
+const workedAt = (own: WorkerTally[], storeId: number) => {
+  const clockedIn = own.filter((tally) => tally.clocked_in);
+  const candidates = clockedIn.length > 0 ? clockedIn : own;
+  return candidates.some((tally) => tally.store_id === storeId);
+};
+
+const listPeople = (
+  tallies: WorkerTally[],
+  storeId: number | undefined,
+  userById: Map<number, UserRow>,
+  storeName: Map<number, string>
+) =>
+  [
+    ...Map.groupBy(
+      tallies.toSorted(byStoreName(storeName)),
+      (tally) => tally.user_id
+    ).values(),
+  ]
+    .filter((own) => storeId === undefined || workedAt(own, storeId))
+    .map((own) => {
+      const userId = own[0].user_id;
+      return {
+        ...identityOf(userId, userById.get(userId)),
+        ...personFacts(own),
+        stores: own
+          .filter((tally) => tally.services_processed > 0)
+          .map((tally) => ({
+            store_id: tally.store_id,
+            services: tally.services_processed,
+          }))
+          .toSorted((a, b) => b.services - a.services),
+        row_store_ids: own.map((tally) => tally.store_id),
+        clock_in_store_ids: own
+          .filter((tally) => tally.clocked_in)
+          .map((tally) => tally.store_id),
+      };
+    })
+    .toSorted(
+      (a, b) =>
+        b.services_processed - a.services_processed ||
+        a.user_name.localeCompare(b.user_name)
+    );
+
+const liveOf = (tally: WorkerTally) => ({
+  clock_in_at: tally.latest_shift?.clock_in_at ?? null,
+  clock_out_at: tally.latest_shift?.clock_out_at ?? null,
+  in_hand: tally.in_hand,
+  last_move_at: tally.last_move_at,
+  services_today: tally.services_today,
+});
+
+type LiveFigures = ReturnType<typeof liveOf>;
+
+const shiftOf = (a: LiveFigures, b: LiveFigures) => {
+  if (b.clock_in_at === null) {
+    return a;
+  }
+  if (a.clock_in_at === null) {
+    return b;
+  }
+  const aOpen = a.clock_out_at === null;
+  if (aOpen !== (b.clock_out_at === null)) {
+    return aOpen ? a : b;
+  }
+  return b.clock_in_at > a.clock_in_at ? b : a;
+};
+
+const laterOf = (a: Date | null, b: Date | null) => {
+  if (a === null || b === null) {
+    return a ?? b;
+  }
+  return a > b ? a : b;
+};
+
+// Someone on the GRH bench with a BSD booth pair in hand is one person on the
+// floor: one Shift, every Item in hand, their latest move anywhere.
+const mergeLive = (a: LiveFigures, b: LiveFigures): LiveFigures => {
+  const shift = shiftOf(a, b);
+  return {
+    clock_in_at: shift.clock_in_at,
+    clock_out_at: shift.clock_out_at,
+    in_hand: a.in_hand + b.in_hand,
+    last_move_at: laterOf(a.last_move_at, b.last_move_at),
+    services_today: a.services_today + b.services_today,
+  };
+};
+
+const liveAcross = (own: WorkerTally[]) => {
+  let live = liveOf(own[0]);
+  for (const tally of own.slice(1)) {
+    live = mergeLive(live, liveOf(tally));
+  }
+  return live;
+};
+
 export const getWorkerProductivityReport = async (
   query: GetReportRangeQuery
 ) => {
@@ -1140,10 +1279,12 @@ export const getWorkerProductivityReport = async (
   const today = jakartaNow().format("YYYY-MM-DD");
   const isToday = ctx.from === today && ctx.to === today;
 
+  // Every Store's activity even with one picked: By Worker shows each person's
+  // whole range.
   const [activity, prevActivity, inHand, users, stores] = await Promise.all([
-    listWorkerActivity({ range, storeId }),
+    listWorkerActivity({ range }),
     listWorkerSummaryActivity({ range: ctx.previous.range, storeId }),
-    isToday ? listItemsInHand({ storeId }) : [],
+    isToday ? listItemsInHand({}) : [],
     listUserNames(),
     listStoreNames(),
   ]);
@@ -1151,9 +1292,14 @@ export const getWorkerProductivityReport = async (
   const storeName = new Map(stores.map((store) => [store.id, store.name]));
   const roleOf = (userId: number) => userById.get(userId)?.role;
 
-  const tallies = tallyWorkers(activity, roleOf, inHand);
-  tallyComplaints(tallies, activity.lines);
-  const current = summariseWorkers(activity, tallies);
+  const everyTally = tallyWorkers(activity, roleOf, inHand);
+  tallyComplaints(everyTally, activity.lines);
+  const tallies = scopeToStore(everyTally, storeId);
+  const lines = scopeToStore(activity.lines, storeId);
+  const current = summariseWorkers(
+    { lines, qcChecks: scopeToStore(activity.qcChecks, storeId) },
+    tallies
+  );
   const previous = summariseWorkers(
     prevActivity,
     tallyWorkers(prevActivity, roleOf)
@@ -1170,9 +1316,7 @@ export const getWorkerProductivityReport = async (
         store_id: tally.store_id,
         store_name: storeName.get(tally.store_id) ?? "Unknown",
         services_processed: tally.services_processed,
-        clocked_in: tally.clocked_in,
         days_worked: tally.days_worked.size,
-        days: [...tally.days_worked].toSorted(),
         per_day_worked: perDayWorked([tally]),
         qc_checks: tally.qc_checks,
         qc_rejects: tally.qc_rejects,
@@ -1186,7 +1330,8 @@ export const getWorkerProductivityReport = async (
         b.services_processed - a.services_processed ||
         a.user_name.localeCompare(b.user_name)
     );
-  const byService = groupByService(activity.lines);
+  const byService = groupByService(lines);
+  const nameOf = (userId: number) => userNameOf(userById.get(userId));
 
   return {
     from: ctx.from,
@@ -1201,67 +1346,70 @@ export const getWorkerProductivityReport = async (
       deltas: buildDeltas(current, previous),
     } satisfies ComparableSummary<WorkerSummary>,
     workers,
+    people: listPeople(everyTally, storeId, userById, storeName),
+    // A booth with no bench of its own: who cleans its Items, busiest first.
+    cleaned_by:
+      storeId === undefined
+        ? []
+        : tallies
+            .filter((tally) => tally.services_processed > 0)
+            .toSorted(
+              (a, b) =>
+                b.services_processed - a.services_processed ||
+                nameOf(a.user_id).localeCompare(nameOf(b.user_id))
+            )
+            .map((tally) => nameOf(tally.user_id)),
     services_matrix: buildServicesMatrix(byService),
   };
 };
 
 // A worker's own Workers tab figures for their Profile page, matching their By
-// Worker row: added up across every Store, a day at two Stores counted once, and
-// every Service paced over those days, even a booth's Item finished on a GRH day.
+// Worker row.
 export const getOwnWorkerFacts = async (userId: number, range: DateRange) => {
   const activity = await listWorkerActivity({ range, userId });
   const tallies = tallyWorkers(activity, (id) =>
     id === userId ? "worker" : undefined
   );
   tallyComplaints(tallies, activity.lines);
-
-  const mine = tallies.filter((tally) => tally.user_id === userId);
-  const days = new Set(mine.flatMap((tally) => [...tally.days_worked]));
-  const services = sumBy(mine, (tally) => tally.services_processed);
-  return {
-    services_processed: services,
-    days_worked: days.size,
-    per_day_worked: days.size > 0 ? round(services / days.size, 2) : null,
-    qc_checks: sumBy(mine, (tally) => tally.qc_checks),
-    qc_rejects: sumBy(mine, (tally) => tally.qc_rejects),
-    complaints: sumBy(mine, (tally) => tally.complaints),
-    complaint_cohort: sumBy(mine, (tally) => tally.complaint_cohort),
-  };
+  return personFacts(tallies.filter((tally) => tally.user_id === userId));
 };
 
 // Who is on the floor right now, apart from the range report so the Workers tab
 // can ask every minute on Last 30 days without rescanning the month each time.
+// Every Store is read even with one picked, for the By Worker rows.
 export const getWorkerLiveReport = async ({ store_id }: GetWorkerLiveQuery) => {
   const today = jakartaNow().format("YYYY-MM-DD");
   const todayRange = getJakartaRange(today, today);
   const [live, linesToday, users, stores] = await Promise.all([
-    listWorkerLiveActivity({ range: todayRange, storeId: store_id }),
-    listProcessedLineStarts({ range: todayRange, storeId: store_id }),
+    listWorkerLiveActivity({ range: todayRange }),
+    listProcessedLineStarts({ range: todayRange }),
     listUserNames(),
     listStoreNames(),
   ]);
   const userById = new Map(users.map((user) => [user.id, user]));
   const storeName = new Map(stores.map((store) => [store.id, store.name]));
   const roleOf = (userId: number) => userById.get(userId)?.role;
+  const tallies = tallyLiveActivity(live, linesToday, roleOf);
 
-  return tallyLiveActivity(live, linesToday, roleOf).map((tally) => {
-    const user = userById.get(tally.user_id);
-    return {
-      user_id: tally.user_id,
-      user_name: user?.name ?? "Unknown",
-      avatar_url: buildMediaUrl(user?.avatar_path),
-      role: user?.role ?? "unknown",
+  return {
+    workers: scopeToStore(tallies, store_id).map((tally) => ({
+      ...identityOf(tally.user_id, userById.get(tally.user_id)),
       store_id: tally.store_id,
       store_name: storeName.get(tally.store_id) ?? "Unknown",
-      live: {
-        clock_in_at: tally.latest_shift?.clock_in_at ?? null,
-        clock_out_at: tally.latest_shift?.clock_out_at ?? null,
-        in_hand: tally.in_hand,
-        last_move_at: tally.last_move_at,
-        services_today: tally.services_today,
-      },
-    };
-  });
+      live: liveOf(tally),
+    })),
+    // One per person across every Store, for By Worker.
+    people: [
+      ...Map.groupBy(
+        tallies.toSorted(byStoreName(storeName)),
+        (tally) => tally.user_id
+      ).values(),
+    ].map((own) => ({
+      ...identityOf(own[0].user_id, userById.get(own[0].user_id)),
+      row_store_ids: own.map((tally) => tally.store_id),
+      live: liveAcross(own),
+    })),
+  };
 };
 
 interface ServiceCount {
@@ -1374,8 +1522,9 @@ const groupComplaintsByService = (
     );
 };
 
-// One Store, one person: the page behind a row of the Workers tab. Everything
-// is built from the same tallies as that row, so the two never disagree.
+// One person at one Store, or across every Store with none picked: the page
+// behind a row of the Workers tab. Everything is built from the same tallies as
+// that row, so the two never disagree.
 // oxlint-disable-next-line eslint/complexity -- one page's worth of figures built in one pass; splitting it would only move the branches
 export const getWorkerDetailReport = async (query: GetWorkerDetailQuery) => {
   const { from, to, store_id: storeId, user_id: userId } = query;
@@ -1385,7 +1534,11 @@ export const getWorkerDetailReport = async (query: GetWorkerDetailQuery) => {
   const isToday = from === today && to === today;
 
   const [activity, inHand, checks, users, stores] = await Promise.all([
-    listWorkerActivity({ range, storeId }),
+    // A Store's sheet needs the whole team for its average; one across every
+    // Store has none, so it reads only this person's work.
+    listWorkerActivity(
+      storeId === undefined ? { range, userId } : { range, storeId }
+    ),
     isToday ? listItemsInHand({ storeId }) : [],
     listQcChecksOfCleaner({ range, storeId, userId }),
     listUserNames(),
@@ -1401,7 +1554,10 @@ export const getWorkerDetailReport = async (query: GetWorkerDetailQuery) => {
 
   const tallies = tallyWorkers(activity, roleOf, inHand);
   tallyComplaints(tallies, activity.lines);
-  const tally = tallies.find((t) => t.user_id === userId);
+  const mine = tallies
+    .filter((t) => t.user_id === userId)
+    .toSorted(byStoreName(storeName));
+  const myStoreIds = new Set(mine.map((t) => t.store_id));
 
   const { bucket, bucketOf, labels } = dailyBuckets(from, to);
   const bucketTotals = (t: WorkerTally) => {
@@ -1413,10 +1569,14 @@ export const getWorkerDetailReport = async (query: GetWorkerDetailQuery) => {
     return { processed, worked: new Set([...t.days_worked].map(bucketOf)) };
   };
 
-  const myWorked = new Set([...(tally?.days_worked ?? [])].map(bucketOf));
-  const colleagues = tallies
-    .filter((t) => roleOf(t.user_id) === "worker")
-    .map(bucketTotals);
+  const myWorked = new Set(
+    mine.flatMap((t) => [...t.days_worked].map(bucketOf))
+  );
+  // A Store average means nothing across every Store.
+  const colleagues =
+    storeId === undefined
+      ? []
+      : tallies.filter((t) => roleOf(t.user_id) === "worker").map(bucketTotals);
   const myLines = activity.lines.filter((line) => line.started_by === userId);
   const myLinesByBucket = new Map<string, typeof myLines>();
   for (const line of myLines) {
@@ -1439,6 +1599,11 @@ export const getWorkerDetailReport = async (query: GetWorkerDetailQuery) => {
       worked,
       total: inBucket.length > 0 || worked ? inBucket.length : null,
       services: countByService(inBucket),
+      // By the Order's Store, so a day at GRH cleaning BSD Items shows both.
+      by_store: [...myStoreIds].flatMap((id) => {
+        const count = inBucket.filter((line) => line.store_id === id).length;
+        return count > 0 ? [{ store_id: id, count }] : [];
+      }),
       store_average:
         crew.length > 0
           ? round(
@@ -1455,11 +1620,12 @@ export const getWorkerDetailReport = async (query: GetWorkerDetailQuery) => {
   );
 
   // Same cohort and same guard as tallyComplaints: no row, no Complaints.
-  const cohort = tally
-    ? activity.lines.filter(
-        (line) => !line.is_rework && line.passed_cleaner_id === userId
-      )
-    : [];
+  const cohort = activity.lines.filter(
+    (line) =>
+      !line.is_rework &&
+      line.passed_cleaner_id === userId &&
+      myStoreIds.has(line.store_id)
+  );
   const complained = cohort.filter((line) => line.has_complaint);
   const complaintItems =
     complained.length > 0
@@ -1471,21 +1637,22 @@ export const getWorkerDetailReport = async (query: GetWorkerDetailQuery) => {
   return {
     from,
     to,
-    store_id: storeId,
-    store_name: storeName.get(storeId) ?? "Unknown",
+    store_id: storeId ?? null,
+    store_name:
+      storeId === undefined ? null : (storeName.get(storeId) ?? "Unknown"),
     user_id: userId,
     user_name: user.name,
     role: user.role,
     bucket,
-    facts: {
-      days_worked: tally?.days_worked.size ?? 0,
-      services_processed: tally?.services_processed ?? 0,
-      per_day_worked: tally ? perDayWorked([tally]) : null,
-      qc_checks: tally?.qc_checks ?? 0,
-      qc_rejects: tally?.qc_rejects ?? 0,
-      complaints: tally?.complaints ?? 0,
-      complaint_cohort: tally?.complaint_cohort ?? 0,
-    },
+    facts: personFacts(mine),
+    stores: mine
+      .filter((t) => t.services_processed > 0)
+      .map((t) => ({
+        store_id: t.store_id,
+        store_name: storeName.get(t.store_id) ?? "Unknown",
+        services: t.services_processed,
+      }))
+      .toSorted((a, b) => b.services - a.services),
     buckets,
     services: countByService(myLines),
     qc_rejects: qcRejects,
