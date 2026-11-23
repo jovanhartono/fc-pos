@@ -36,6 +36,8 @@ A multi-store shop that cleans, restores and repairs footwear, bags, hats and lu
 
 **Store**: A physical shop location. Every Order and every Shift belongs to one. _Avoid_: Branch, outlet
 
+**Pop-up booth**: A Store staffed only by cashiers. Its Items are cleaned at a main Store by that Store's workers: BSD at GRH, PIK at FMK, KMG at CR6. _Avoid_: Kiosk, satellite store
+
 **Customer**: The person who drops Items off and collects them, identified by their phone number.
 
 **User**: A staff member who signs in to the console, holding one role: admin, cashier, worker or courier.
@@ -48,7 +50,9 @@ A multi-store shop that cleans, restores and repairs footwear, bags, hats and lu
 
 **Auto-closed Shift**: A Shift still open after midnight, which nobody works to; it is closed for the User ten hours after clock-in, or at that midnight if sooner, until an admin enters the real time. _Avoid_: Forgotten clock-out, stale shift, open shift
 
-**Day worked**: One person doing bench work at one Store on one day: they clocked in there, or started, finished or checked an Item there. Two Shifts, or a Shift and a move, on the same day at the same Store are one Day worked. _Avoid_: Shift-day, man-day, workday, attendance day
+**Day worked**: One person doing bench work at one Store on one day: they clocked in there, or started, finished or checked an Item there. Two Shifts, or a Shift and a move, on the same day at the same Store are one Day worked. The Workers report's By Worker view counts a person's days across Stores, so a day at GRH spent also cleaning BSD Items is one day. _Avoid_: Shift-day, man-day, workday, attendance day
+
+**Per day worked**: Services processed ÷ Days worked. For one person (the Workers report's By Worker view, their Profile) it is all their Services over their days at any Store. For a Store (By Store rows, the KPI cards) it counts only Services by people who had a Day worked at that Store, over those days. _Avoid_: Pace, productivity rate, daily rate
 
 **Password reset**: An admin setting a new password for another User in person, the only way back for someone who forgot theirs. A User who still knows theirs can change it on the Profile page (ADR-0022). _Avoid_: Forgot password, recovery, reset link
 

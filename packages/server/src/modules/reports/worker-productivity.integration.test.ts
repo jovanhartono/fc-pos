@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import {
   getJakartaDayRange,
+  getJakartaRange,
   shiftDate,
 } from "@/modules/reports/report-range.util";
 import { seedShop } from "@/test-support/fixtures";
@@ -29,6 +30,7 @@ import { jakartaNow } from "@/utils/date";
 // database before the mock runs.
 const { createOrder } = await import("@/modules/orders/order.service");
 const {
+  getOwnWorkerFacts,
   getWorkerDetailReport,
   getWorkerLiveReport,
   getWorkerProductivityReport,
@@ -350,6 +352,9 @@ describe("the Workers report over August", () => {
         complaint_cohort: 1,
       })
     );
+    // The days themselves, so By Worker can count a day at two Stores once.
+    expect(row?.days).toEqual(["2026-08-03", "2026-08-04", "2026-08-05"]);
+    expect(row?.clocked_in).toBe(true);
     // Right now, not in August: the 4 August Shift he never closed.
     const live = await getWorkerLiveReport({ store_id: shop.store.id });
     expect(live.find((r) => r.user_id === adi)?.live).toEqual({
@@ -1028,6 +1033,42 @@ describe("days worked by people who rarely clock in", () => {
     // Six days, three of them 0 and three 1; three days alone would be too few.
     expect(full.summary.current).toEqual(
       expect.objectContaining({ daily_p25: 0, daily_p75: 1 })
+    );
+  });
+});
+
+describe("a worker's own figures on their Profile page", () => {
+  it("paces every Service over their days, even Bintaro's started before the range", async () => {
+    const atKemang = await placeOrder(
+      shop.store,
+      [..."abcdefghij"].map((brand) => ({ brand, serviceId: shop.serviceId }))
+    );
+    const atBintaro = await placeOrder(
+      bintaro,
+      [..."klmnop"].map((brand) => ({ brand, serviceId: shop.serviceId }))
+    );
+    for (const [index, line] of Object.values(atKemang).entries()) {
+      await startAndSend(line, bayu, index < 5 ? "2026-08-10" : "2026-08-11");
+    }
+    // Started in July, sent to QC in August by someone else: no Bintaro day.
+    for (const line of Object.values(atBintaro)) {
+      await log(line.lineId, [
+        ["queued", "processing", bayu, jkt("2026-07-31T09:00")],
+        ["processing", "waiting_qc", shop.admin.id, jkt("2026-08-05T10:00")],
+      ]);
+    }
+
+    const facts = await getOwnWorkerFacts(
+      bayu,
+      getJakartaRange(AUGUST.from, AUGUST.to)
+    );
+
+    expect(facts).toEqual(
+      expect.objectContaining({
+        services_processed: 16,
+        days_worked: 2,
+        per_day_worked: 8,
+      })
     );
   });
 });

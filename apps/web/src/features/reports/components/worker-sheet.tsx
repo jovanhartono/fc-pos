@@ -58,6 +58,74 @@ interface WorkerSheetTarget {
   role: string;
 }
 
+interface WorkerSheetTitleProps {
+  name: string;
+  avatarUrl: string | null;
+  role: string;
+}
+
+export const WorkerSheetTitle = ({
+  name,
+  avatarUrl,
+  role,
+}: WorkerSheetTitleProps) => (
+  <span className="flex items-center gap-2.5">
+    <UserAvatar name={name} url={avatarUrl} />
+    <span>
+      <WorkerName name={name} role={role} />
+    </span>
+  </span>
+);
+
+interface WorkerLoadErrorProps {
+  onRetry: () => void;
+}
+
+export const WorkerLoadError = ({ onRetry }: WorkerLoadErrorProps) => (
+  <div className="flex items-center gap-3 text-body text-muted-foreground">
+    Couldn&apos;t load this worker.
+    <Button variant="outline" size="sm" onClick={onRetry}>
+      Retry
+    </Button>
+  </div>
+);
+
+interface WorkerFactsProps {
+  facts: Pick<
+    WorkerDetailReport["facts"],
+    | "days_worked"
+    | "services_processed"
+    | "per_day_worked"
+    | "qc_rejects"
+    | "qc_checks"
+  >;
+}
+
+export const WorkerFacts = ({ facts }: WorkerFactsProps) => (
+  <KpiRow>
+    <KpiCard
+      label="Days worked"
+      value={numberFormatter.format(facts.days_worked)}
+    />
+    <KpiCard
+      label="Services"
+      value={numberFormatter.format(facts.services_processed)}
+    />
+    <KpiCard
+      label="Per day worked"
+      value={
+        facts.per_day_worked === null
+          ? "—"
+          : oneDecimalFormatter.format(facts.per_day_worked)
+      }
+    />
+    <KpiCard
+      label="QC rejects"
+      value={outOf(facts.qc_rejects, facts.qc_checks)}
+    />
+  </KpiRow>
+);
+
 // Both the worker sheet and the line sheet opened from it use this, so the
 // line sheet's back button can bring the worker sheet up again.
 export const useOpenWorkerSheet = () => {
@@ -65,12 +133,11 @@ export const useOpenWorkerSheet = () => {
   return (target: WorkerSheetTarget) =>
     openSheet({
       title: (
-        <span className="flex items-center gap-2.5">
-          <UserAvatar name={target.userName} url={target.avatarUrl} />
-          <span>
-            <WorkerName name={target.userName} role={target.role} />
-          </span>
-        </span>
+        <WorkerSheetTitle
+          name={target.userName}
+          avatarUrl={target.avatarUrl}
+          role={target.role}
+        />
       ),
       description: `${target.storeName} · ${rangeLabel(target.from, target.to)}`,
       content: () => <WorkerSheetContent target={target} />,
@@ -136,7 +203,7 @@ interface ServicesTableProps {
   topIds: number[];
 }
 
-const ServicesTable = ({ services, topIds }: ServicesTableProps) => {
+export const ServicesTable = ({ services, topIds }: ServicesTableProps) => {
   if (services.length === 0) {
     return (
       <EmptyState icon={ToolsIcon}>Nothing reached QC in range.</EmptyState>
@@ -211,13 +278,12 @@ const ServiceCard = ({ name, chip, children }: ServiceCardProps) => (
 );
 
 interface RejectCardsProps {
-  target: WorkerSheetTarget;
+  back: { label: string; onClick: () => void };
   rejects: WorkerDetailReport["qc_rejects"];
 }
 
-const RejectCards = ({ target, rejects }: RejectCardsProps) => {
+export const RejectCards = ({ back, rejects }: RejectCardsProps) => {
   const openLineSheet = useOpenLineSheet();
-  const openWorkerSheet = useOpenWorkerSheet();
   if (rejects.length === 0) {
     return (
       <EmptyState icon={CancelCircleIcon}>No QC rejects in range.</EmptyState>
@@ -238,10 +304,7 @@ const RejectCards = ({ target, rejects }: RejectCardsProps) => {
                 onClick={() =>
                   openLineSheet(
                     { ...item, service_name: service.service_name },
-                    {
-                      label: target.userName,
-                      onClick: () => openWorkerSheet(target),
-                    }
+                    back
                   )
                 }
                 className={ROW_TAP}
@@ -269,7 +332,7 @@ interface ComplaintCardsProps {
   complaints: WorkerDetailReport["complaints"];
 }
 
-const ComplaintCards = ({ complaints }: ComplaintCardsProps) => {
+export const ComplaintCards = ({ complaints }: ComplaintCardsProps) => {
   const leaveSheet = useLeaveSheetLink();
   if (complaints.length === 0) {
     return (
@@ -326,7 +389,26 @@ interface WorkerSheetContentProps {
 
 const FACT_LABELS = ["Days worked", "Services", "Per day worked", "QC rejects"];
 
+// The real tiles, headings and chart frame with bars for the numbers, so
+// nothing in the sheet moves when the worker's numbers land.
+export const WorkerSheetPlaceholder = () => (
+  <div aria-hidden className="grid gap-5">
+    <KpiRow isPending>
+      {FACT_LABELS.map((label) => (
+        <KpiCard key={label} label={label} value={null} />
+      ))}
+    </KpiRow>
+    <Section title="Services Each Day">
+      <Skeleton className="h-69 w-full" />
+    </Section>
+    <Section title="Services Worked">
+      <Skeleton className="h-40 w-full rounded-lg" />
+    </Section>
+  </div>
+);
+
 const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
+  const openWorkerSheet = useOpenWorkerSheet();
   const query = useQuery(
     reportsQueries.workerDetail({
       from: target.from,
@@ -337,34 +419,11 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
   );
   const { data } = query;
 
-  // The real tiles, headings and chart frame with bars for the numbers, so
-  // nothing in the sheet moves when the worker's numbers land.
   if (query.isPending) {
-    return (
-      <div aria-hidden className="grid gap-5">
-        <KpiRow isPending>
-          {FACT_LABELS.map((label) => (
-            <KpiCard key={label} label={label} value={null} />
-          ))}
-        </KpiRow>
-        <Section title="Services Each Day">
-          <Skeleton className="h-69 w-full" />
-        </Section>
-        <Section title="Services Worked">
-          <Skeleton className="h-40 w-full rounded-lg" />
-        </Section>
-      </div>
-    );
+    return <WorkerSheetPlaceholder />;
   }
   if (!data) {
-    return (
-      <div className="flex items-center gap-3 text-body text-muted-foreground">
-        Couldn&apos;t load this worker.
-        <Button variant="outline" size="sm" onClick={() => query.refetch()}>
-          Retry
-        </Button>
-      </div>
-    );
+    return <WorkerLoadError onRetry={() => query.refetch()} />;
   }
 
   const { facts } = data;
@@ -373,28 +432,7 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
 
   return (
     <div className={cn("grid gap-5", CONTENT_FADE)}>
-      <KpiRow>
-        <KpiCard
-          label="Days worked"
-          value={numberFormatter.format(facts.days_worked)}
-        />
-        <KpiCard
-          label="Services"
-          value={numberFormatter.format(facts.services_processed)}
-        />
-        <KpiCard
-          label="Per day worked"
-          value={
-            facts.per_day_worked === null
-              ? "—"
-              : oneDecimalFormatter.format(facts.per_day_worked)
-          }
-        />
-        <KpiCard
-          label="QC rejects"
-          value={outOf(facts.qc_rejects, facts.qc_checks)}
-        />
-      </KpiRow>
+      <WorkerFacts facts={facts} />
 
       <Section title="Services Each Day">
         <WorkerServicesChart data={data} topIds={topIds} />
@@ -408,7 +446,13 @@ const WorkerSheetContent = ({ target }: WorkerSheetContentProps) => {
         title="QC Rejects by Service"
         count={numberFormatter.format(facts.qc_rejects)}
       >
-        <RejectCards target={target} rejects={data.qc_rejects} />
+        <RejectCards
+          back={{
+            label: target.userName,
+            onClick: () => openWorkerSheet(target),
+          }}
+          rejects={data.qc_rejects}
+        />
       </Section>
 
       <Section

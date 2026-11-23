@@ -803,6 +803,8 @@ interface ShiftTimes {
 }
 
 interface WorkerTally {
+  // A bench Shift at this Store in the range.
+  clocked_in: boolean;
   complaint_cohort: number;
   complaints: number;
   // Jakarta days they clocked in or moved an Item through the bench.
@@ -849,6 +851,7 @@ const tallyLookup =
       return existing;
     }
     const created: WorkerTally = {
+      clocked_in: false,
       complaint_cohort: 0,
       complaints: 0,
       days_worked: new Set(),
@@ -925,9 +928,9 @@ const tallyWorkers = (
       tally.services_processed > 0 || tally.qc_checks > 0 || tally.in_hand > 0
   );
   for (const shift of shifts.filter(didBenchWork)) {
-    tallyFor(shift.user_id, shift.store_id).days_worked.add(
-      jakartaDayOf(shift.clock_in_at)
-    );
+    const tally = tallyFor(shift.user_id, shift.store_id);
+    tally.clocked_in = true;
+    tally.days_worked.add(jakartaDayOf(shift.clock_in_at));
   }
   // Workers who rarely clock in still have days at the bench.
   for (const move of moveDays.filter(didBenchWork)) {
@@ -1167,7 +1170,9 @@ export const getWorkerProductivityReport = async (
         store_id: tally.store_id,
         store_name: storeName.get(tally.store_id) ?? "Unknown",
         services_processed: tally.services_processed,
+        clocked_in: tally.clocked_in,
         days_worked: tally.days_worked.size,
+        days: [...tally.days_worked].toSorted(),
         per_day_worked: perDayWorked([tally]),
         qc_checks: tally.qc_checks,
         qc_rejects: tally.qc_rejects,
@@ -1200,8 +1205,9 @@ export const getWorkerProductivityReport = async (
   };
 };
 
-// A worker's own Workers tab figures for their Profile page: the same tallies,
-// added up across every Store they worked at, with a day at two Stores counted once.
+// A worker's own Workers tab figures for their Profile page, matching their By
+// Worker row: added up across every Store, a day at two Stores counted once, and
+// every Service paced over those days, even a booth's Item finished on a GRH day.
 export const getOwnWorkerFacts = async (userId: number, range: DateRange) => {
   const activity = await listWorkerActivity({ range, userId });
   const tallies = tallyWorkers(activity, (id) =>
@@ -1210,14 +1216,12 @@ export const getOwnWorkerFacts = async (userId: number, range: DateRange) => {
   tallyComplaints(tallies, activity.lines);
 
   const mine = tallies.filter((tally) => tally.user_id === userId);
-  const staffed = mine.filter((tally) => tally.days_worked.size > 0);
-  const days = new Set(staffed.flatMap((tally) => [...tally.days_worked]));
-  const staffedServices = sumBy(staffed, (tally) => tally.services_processed);
+  const days = new Set(mine.flatMap((tally) => [...tally.days_worked]));
+  const services = sumBy(mine, (tally) => tally.services_processed);
   return {
-    services_processed: sumBy(mine, (tally) => tally.services_processed),
+    services_processed: services,
     days_worked: days.size,
-    per_day_worked:
-      days.size > 0 ? round(staffedServices / days.size, 2) : null,
+    per_day_worked: days.size > 0 ? round(services / days.size, 2) : null,
     qc_checks: sumBy(mine, (tally) => tally.qc_checks),
     qc_rejects: sumBy(mine, (tally) => tally.qc_rejects),
     complaints: sumBy(mine, (tally) => tally.complaints),

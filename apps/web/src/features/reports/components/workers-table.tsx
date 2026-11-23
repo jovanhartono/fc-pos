@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DataTable } from "@/components/data-table";
 import type { DataTableColumnDef } from "@/components/data-table-features";
 import { EmptyState } from "@/components/empty-state";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -21,17 +22,22 @@ import {
   pluralCount,
 } from "@/features/reports/utils/format";
 import {
+  cleanedBy,
   groupByStore,
   isMissingClockIn,
   openShiftSince,
   sinceText,
+  workedAt,
 } from "@/features/reports/utils/workers-report";
+import type { PersonRow } from "@/features/reports/utils/workers-report";
 import { storesQueries } from "@/features/stores/api";
 import { useMinuteClock } from "@/hooks/use-minute-clock";
 import { useMountValue } from "@/hooks/use-mount-value";
 import dayjs, { JAKARTA_TZ } from "@/lib/dayjs";
 
 type Live = WorkerRow["live"];
+type TableRow = WorkerRow | PersonRow;
+type StoreCodes = Map<number, string>;
 
 const n = (value: number) => numberFormatter.format(value);
 
@@ -113,6 +119,56 @@ const LiveLine = ({ live, now }: LiveLineProps) => {
   );
 };
 
+const storeSplit = (person: PersonRow | undefined, storeCodes: StoreCodes) =>
+  person && person.stores.length > 1
+    ? person.stores
+        .map(
+          (part) =>
+            `${storeCodes.get(part.store_id) ?? "?"} ${n(part.services)}`
+        )
+        .join(" · ")
+    : undefined;
+
+interface RowNameProps {
+  row: TableRow;
+  now: number;
+  storeCodes: StoreCodes;
+}
+
+// In By Worker the chips name the Stores the person clocked in at, and a
+// line of its own splits their Services by the Order's Store.
+const RowName = ({ row, now, storeCodes }: RowNameProps) => {
+  const person = "stores" in row ? row : undefined;
+  const split = storeSplit(person, storeCodes);
+  return (
+    <PersonName
+      avatarUrl={row.avatar_url}
+      name={row.user_name}
+      detail={
+        <>
+          <LiveLine live={row.live} now={now} />
+          {split && (
+            <span className="text-subhead text-muted-foreground tabular-nums">
+              {split}
+            </span>
+          )}
+        </>
+      }
+    >
+      <WorkerName name={row.user_name} role={row.role} />
+      {person?.clock_in_store_ids.map((storeId) => (
+        <Badge
+          key={storeId}
+          variant="secondary"
+          className="ml-1.5 align-text-bottom font-normal"
+        >
+          {storeCodes.get(storeId) ?? "?"}
+        </Badge>
+      ))}
+    </PersonName>
+  );
+};
+
 interface HelpHeaderProps {
   label: string;
   help: string;
@@ -135,19 +191,16 @@ export const OpenArrow = () => (
   />
 );
 
-const columnsFor = (now: number): DataTableColumnDef<WorkerRow>[] => [
+const columnsFor = <T extends TableRow>(
+  now: number,
+  storeCodes: StoreCodes
+): DataTableColumnDef<T>[] => [
   {
-    accessorKey: "user_name",
+    id: "user_name",
     header: "Worker",
     meta: { width: { percent: 40, minRem: 14 } },
     cell: ({ row }) => (
-      <PersonName
-        avatarUrl={row.original.avatar_url}
-        name={row.original.user_name}
-        detail={<LiveLine live={row.original.live} now={now} />}
-      >
-        <WorkerName name={row.original.user_name} role={row.original.role} />
-      </PersonName>
+      <RowName row={row.original} now={now} storeCodes={storeCodes} />
     ),
   },
   {
@@ -206,13 +259,19 @@ const columnsFor = (now: number): DataTableColumnDef<WorkerRow>[] => [
   },
 ];
 
-interface WorkerCardProps {
-  row: WorkerRow;
+interface WorkerCardProps<T extends TableRow> {
+  row: T;
   now: number;
-  onOpen: (row: WorkerRow) => void;
+  storeCodes: StoreCodes;
+  onOpen: (row: T) => void;
 }
 
-const WorkerCard = ({ row, now, onOpen }: WorkerCardProps) => (
+const WorkerCard = <T extends TableRow>({
+  row,
+  now,
+  storeCodes,
+  onOpen,
+}: WorkerCardProps<T>) => (
   <button
     type="button"
     onClick={() => onOpen(row)}
@@ -220,13 +279,7 @@ const WorkerCard = ({ row, now, onOpen }: WorkerCardProps) => (
   >
     <span className="flex items-center gap-2">
       <span className="min-w-0 flex-1">
-        <PersonName
-          avatarUrl={row.avatar_url}
-          name={row.user_name}
-          detail={<LiveLine live={row.live} now={now} />}
-        >
-          <WorkerName name={row.user_name} role={row.role} />
-        </PersonName>
+        <RowName row={row} now={now} storeCodes={storeCodes} />
       </span>
       <span>
         <span className="font-medium">{n(row.services_processed)}</span>
@@ -252,15 +305,21 @@ const WorkerCard = ({ row, now, onOpen }: WorkerCardProps) => (
   </button>
 );
 
-interface WorkerListProps {
-  rows: WorkerRow[];
+interface WorkerListProps<T extends TableRow> {
+  rows: T[];
   now: number;
-  onOpen: (row: WorkerRow) => void;
+  onOpen: (row: T) => void;
   isInsideCard?: boolean;
 }
 
-const WorkerList = ({ rows, now, onOpen, isInsideCard }: WorkerListProps) => {
-  const columns = columnsFor(now);
+const WorkerList = <T extends TableRow>({
+  rows,
+  now,
+  onOpen,
+  isInsideCard,
+}: WorkerListProps<T>) => {
+  const storeCodes = useStoreCodes();
+  const columns = columnsFor<T>(now, storeCodes);
   return (
     <DataTable
       emptyIcon={UserGroupIcon}
@@ -268,7 +327,14 @@ const WorkerList = ({ rows, now, onOpen, isInsideCard }: WorkerListProps) => {
       data={rows}
       onRowOpen={onOpen}
       isInsideCard={isInsideCard}
-      renderCard={(row) => <WorkerCard now={now} onOpen={onOpen} row={row} />}
+      renderCard={(row) => (
+        <WorkerCard
+          now={now}
+          onOpen={onOpen}
+          row={row}
+          storeCodes={storeCodes}
+        />
+      )}
     />
   );
 };
@@ -338,5 +404,37 @@ export const WorkersTable = ({
       ))}
       <QuietStores workers={workers} isToday={isToday} />
     </div>
+  );
+};
+
+interface PeopleTableProps {
+  // Every Store's rows, to find who worked at the picked one.
+  workers: WorkerRow[];
+  storeId?: number;
+  onOpen: (row: PersonRow) => void;
+}
+
+export const PeopleTable = ({ workers, storeId, onOpen }: PeopleTableProps) => {
+  const now = useMinuteClock();
+  const storeCodes = useStoreCodes();
+  const shown = workedAt(workers, storeId);
+  if (shown.length > 0) {
+    return <WorkerList rows={shown} now={now} onOpen={onOpen} />;
+  }
+  const noActivity = (
+    <EmptyState icon={UserGroupIcon}>No worker activity</EmptyState>
+  );
+  if (storeId === undefined) {
+    return noActivity;
+  }
+  const cleaners = cleanedBy(workers, storeId);
+  if (cleaners.length === 0) {
+    return noActivity;
+  }
+  // A booth has no bench: name who cleans its Items instead.
+  return (
+    <EmptyState icon={UserGroupIcon}>
+      {`${storeCodes.get(storeId) ?? "This Store's"} Items are cleaned by ${cleaners.join(", ")}`}
+    </EmptyState>
   );
 };
