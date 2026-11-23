@@ -57,7 +57,7 @@ const ROUND_BUTTON = cn(
 
 // Everything but the photo fades as it's pulled down, so the Order shows through.
 const DISMISS_FADE_CLASS =
-  "opacity-[calc(1-var(--dismiss,0))] transition-opacity duration-200 group-data-dragging/lightbox:transition-none";
+  "transition-opacity duration-200 group-data-dragging/lightbox:transition-none";
 
 interface DeleteConfirmProps {
   isDeleting: boolean;
@@ -261,17 +261,26 @@ export const PhotoLightbox = ({
     setIsSaving(false);
   };
 
-  // Written straight to the node: a React render per frame of the pull drops frames.
+  // Written straight to the nodes: a React render per frame of the pull drops frames.
   const handleDismissProgress = (progress: number) => {
     const popup = popupRef.current;
-    popup?.style.setProperty("--dismiss", String(progress));
-    popup?.toggleAttribute("data-dragging", progress > 0);
+    if (!popup) {
+      return;
+    }
+    popup.toggleAttribute("data-dragging", progress > 0);
+    for (const node of popup.querySelectorAll<HTMLElement>(
+      "[data-dismiss-fade]"
+    )) {
+      node.style.opacity = String(1 - progress);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="group/lightbox inset-0 z-[60] flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-transparent p-0 text-white ring-0 sm:max-w-none"
+        // Full-screen and see-through, so the dialog's zoom-in would show the page
+        // around its edges.
+        className="group/lightbox inset-0 z-[60] flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-transparent p-0 text-white ring-0 sm:max-w-none data-open:zoom-in-100! data-closed:zoom-out-100!"
         overlayClassName="z-[60] bg-transparent"
         overlayForceRender
         ref={popupRef}
@@ -287,6 +296,7 @@ export const PhotoLightbox = ({
         <div
           aria-hidden="true"
           className={cn(DISMISS_FADE_CLASS, "absolute inset-0 bg-black")}
+          data-dismiss-fade
         />
         {/* The controls sit beside the stage, not inside it: the stage blocks the
 				    browser's own panning, which would freeze a long filmstrip on iPad. */}
@@ -317,6 +327,7 @@ export const PhotoLightbox = ({
               DISMISS_FADE_CLASS,
               "pointer-events-none absolute inset-x-0 top-0 grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)_+_1rem)]"
             )}
+            data-dismiss-fade
           >
             <button
               aria-label="Close"
@@ -352,6 +363,7 @@ export const PhotoLightbox = ({
                 DISMISS_FADE_CLASS,
                 "pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)]"
               )}
+              data-dismiss-fade
             >
               {isConfirmingDelete ? (
                 <DeleteActionSheet
