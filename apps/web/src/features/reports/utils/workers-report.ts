@@ -1,4 +1,7 @@
 import type {
+  PersonLiveRow,
+  PersonRangeRow,
+  PersonRow,
   WorkerDetailReport,
   WorkerLiveRow,
   WorkerProductivityReport,
@@ -138,10 +141,8 @@ const OFF_THE_FLOOR: Live = {
 };
 
 const NOTHING_IN_RANGE = {
-  clocked_in: false,
   services_processed: 0,
   days_worked: 0,
-  days: [],
   per_day_worked: null,
   qc_checks: 0,
   qc_rejects: 0,
@@ -177,139 +178,38 @@ export const withLive = (
 
 export type WorkersView = "worker" | "store";
 
-interface StorePart {
-  store_id: number;
-  services: number;
-}
-
-export interface PersonRow extends Omit<
-  WorkerRow,
-  "store_id" | "store_name" | "days" | "clocked_in"
-> {
-  // Services by the Order's Store, biggest first.
-  stores: StorePart[];
-  row_store_ids: number[];
-  clock_in_store_ids: number[];
-}
-
-const laterOf = (a: string | null, b: string | null) => {
-  if (a === null || b === null) {
-    return a ?? b;
+// The server picks who shows under a Store; this only adds what they are doing
+// now. With All stores someone busy only today still gets a row, as By Store.
+export const withLivePeople = (
+  people: PersonRangeRow[],
+  livePeople: PersonLiveRow[] | undefined,
+  isAllStores: boolean
+): PersonRow[] => {
+  const liveById = new Map((livePeople ?? []).map((row) => [row.user_id, row]));
+  const rows: PersonRow[] = people.map((person) => ({
+    ...person,
+    live: liveById.get(person.user_id)?.live ?? OFF_THE_FLOOR,
+  }));
+  if (!isAllStores) {
+    return rows;
   }
-  return dayjs(a).isAfter(dayjs(b)) ? a : b;
-};
-
-// The open Shift wins, else the latest clock-in.
-const shiftOf = (a: Live, b: Live) => {
-  if (b.clock_in_at === null) {
-    return a;
-  }
-  if (a.clock_in_at === null) {
-    return b;
-  }
-  const aOpen = a.clock_out_at === null;
-  const bOpen = b.clock_out_at === null;
-  if (aOpen !== bOpen) {
-    return aOpen ? a : b;
-  }
-  return dayjs(b.clock_in_at).isAfter(dayjs(a.clock_in_at)) ? b : a;
-};
-
-const mergeLive = (a: Live, b: Live): Live => {
-  const shift = shiftOf(a, b);
-  return {
-    clock_in_at: shift.clock_in_at,
-    clock_out_at: shift.clock_out_at,
-    in_hand: a.in_hand + b.in_hand,
-    last_move_at: laterOf(a.last_move_at, b.last_move_at),
-    services_today: a.services_today + b.services_today,
-  };
-};
-
-const byServicesThenName = (a: PersonRow, b: PersonRow) =>
-  b.services_processed - a.services_processed ||
-  a.user_name.localeCompare(b.user_name);
-
-// One row per person across every Store: a day at two Stores is one day worked,
-// and the pace divides all their Services, so a BSD Item another worker
-// finished on a day they spent only at GRH still counts toward it.
-export const mergeByPerson = (rows: WorkerRow[]): PersonRow[] => {
-  const byUser = new Map<number, WorkerRow[]>();
-  for (const row of rows) {
-    const own = byUser.get(row.user_id);
-    if (own) {
-      own.push(row);
-    } else {
-      byUser.set(row.user_id, [row]);
+  const inRange = new Set(people.map((person) => person.user_id));
+  for (const row of liveById.values()) {
+    if (!inRange.has(row.user_id)) {
+      rows.push({
+        ...row,
+        ...NOTHING_IN_RANGE,
+        stores: [],
+        clock_in_store_ids: [],
+      });
     }
   }
-  return [...byUser.values()]
-    .map((own) => {
-      const [first] = own;
-      const days = new Set(own.flatMap((row) => row.days));
-      const totals = totalsOf(own);
-      let { live } = first;
-      for (const row of own.slice(1)) {
-        live = mergeLive(live, row.live);
-      }
-      return {
-        user_id: first.user_id,
-        user_name: first.user_name,
-        avatar_url: first.avatar_url,
-        role: first.role,
-        services_processed: totals.services,
-        days_worked: days.size,
-        per_day_worked: days.size > 0 ? totals.services / days.size : null,
-        qc_checks: totals.qcChecks,
-        qc_rejects: totals.qcRejects,
-        complaints: totals.complaints,
-        complaint_cohort: totals.complaintCohort,
-        live,
-        stores: own
-          .filter((row) => row.services_processed > 0)
-          .map((row) => ({
-            store_id: row.store_id,
-            services: row.services_processed,
-          }))
-          .toSorted((a, b) => b.services - a.services),
-        row_store_ids: own.map((row) => row.store_id),
-        clock_in_store_ids: own
-          .filter((row) => row.clocked_in)
-          .map((row) => row.store_id),
-      };
-    })
-    .toSorted(byServicesThenName);
-};
-
-// A Store's people in By Worker are those who clocked in there, plus those who
-// never clocked in anywhere but cleaned its Items; each shows their whole range.
-export const workedAt = (rows: WorkerRow[], storeId: number | undefined) => {
-  const people = mergeByPerson(rows);
-  if (storeId === undefined) {
-    return people;
-  }
-  const benchAt = new Set(
-    rows
-      .filter(
-        (row) =>
-          row.store_id === storeId &&
-          (row.services_processed > 0 || row.qc_checks > 0)
-      )
-      .map((row) => row.user_id)
-  );
-  return people.filter((person) =>
-    person.clock_in_store_ids.length > 0
-      ? person.clock_in_store_ids.includes(storeId)
-      : benchAt.has(person.user_id)
+  return rows.toSorted(
+    (a, b) =>
+      b.services_processed - a.services_processed ||
+      a.user_name.localeCompare(b.user_name)
   );
 };
-
-// A booth with no bench of its own: who cleans its Items, biggest first.
-export const cleanedBy = (rows: WorkerRow[], storeId: number) =>
-  rows
-    .filter((row) => row.store_id === storeId && row.services_processed > 0)
-    .toSorted((a, b) => b.services_processed - a.services_processed)
-    .map((row) => row.user_name);
 
 // How long since a last move: "5m", "1h", "5h 55m", "9d 3h".
 export const durationText = (minutes: number) => {
@@ -472,7 +372,7 @@ export const buildChartRows = (
   });
 
 interface ByWorkerCsv {
-  people: PersonRow[];
+  people: PersonRangeRow[];
   storeCodes: Map<number, string>;
 }
 
@@ -531,14 +431,21 @@ export const buildWorkersCsv = (
     ? personRowLines(byWorker)
     : storeRowLines(data.workers);
 
+  // The person rows above add up every Store; say so when this part doesn't.
+  const section =
+    byWorker && data.store_id !== null
+      ? escapeCsv(
+          `Services by worker on ${byWorker.storeCodes.get(data.store_id) ?? "this Store's"} Orders`
+        )
+      : "Services by worker";
   const { count } = buildCountIndex(data.services_matrix.cells);
-  lines.push("", "Services by worker,Store,Worker,Service,Count,Avg/day");
+  lines.push("", `${section},Store,Worker,Service,Count,Avg/day`);
   for (const w of data.workers) {
     for (const service of data.services_matrix.services) {
       const n = count(w.user_id, w.store_id, service.service_id);
       if (n > 0) {
         lines.push(
-          `Services by worker,${escapeCsv(w.store_name)},${escapeCsv(w.user_name)},${escapeCsv(service.service_name)},${n},${escapeCsv(avgPerDay(n, w.days_worked))}`
+          `${section},${escapeCsv(w.store_name)},${escapeCsv(w.user_name)},${escapeCsv(service.service_name)},${n},${escapeCsv(avgPerDay(n, w.days_worked))}`
         );
       }
     }

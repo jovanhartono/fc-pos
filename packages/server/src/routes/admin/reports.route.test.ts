@@ -205,7 +205,6 @@ describe("paging through the QC rejects", () => {
 describe("a worker's detail page", () => {
   const dated = "from=2026-08-01&to=2026-08-05";
   const refused = [
-    `${dated}&user_id=7`,
     `${dated}&store_id=1`,
     `${dated}&store_id=1&user_id=0`,
     `${dated}&store_id=1&user_id=abc`,
@@ -226,6 +225,13 @@ describe("a worker's detail page", () => {
 
     expect(res.status).toBe(200);
     expect(produced).toEqual([{ report: "worker-detail", storeId: KEMANG }]);
+  });
+
+  it("reports on the person across every Store when none is named", async () => {
+    const res = await call("/worker-detail", `${dated}&user_id=7`);
+
+    expect(res.status).toBe(200);
+    expect(produced).toEqual([{ report: "worker-detail", storeId: undefined }]);
   });
 });
 

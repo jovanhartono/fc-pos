@@ -52,13 +52,24 @@ export type WorkerProductivityReport = InferResponseType<
 
 export type WorkerRangeRow = WorkerProductivityReport["workers"][number];
 
-export type WorkerLiveRow = InferResponseType<
+export type WorkerLiveReport = InferResponseType<
   (typeof rpc.api.admin.reports)["worker-live"]["$get"]
->["data"][number];
+>["data"];
+
+export type WorkerLiveRow = WorkerLiveReport["workers"][number];
+
+export type PersonLiveRow = WorkerLiveReport["people"][number];
 
 // One person at one Store; someone who works at two Stores has two rows.
 export interface WorkerRow extends WorkerRangeRow {
   live: WorkerLiveRow["live"];
+}
+
+export type PersonRangeRow = WorkerProductivityReport["people"][number];
+
+// One person across every Store, for By Worker.
+export interface PersonRow extends PersonRangeRow {
+  live: PersonLiveRow["live"];
 }
 
 export type WorkerDetailReport = InferResponseType<
@@ -89,7 +100,8 @@ export interface FetchReportRangeQuery {
 export interface FetchWorkerDetailQuery {
   from: string;
   to: string;
-  store_id: number;
+  // Left off, the person across every Store.
+  store_id?: number;
   user_id: number;
 }
 
@@ -298,7 +310,7 @@ export const reportsQueries = {
     queryOptions({
       queryKey: reportsKeys.workerLive(query),
       queryFn: () =>
-        parseSuccessData<WorkerLiveRow[]>(
+        parseSuccessData<WorkerLiveReport>(
           rpc.api.admin.reports["worker-live"].$get({
             query: toSearchParams({ store_id: query.store_id }),
           })
@@ -316,7 +328,7 @@ export const reportsQueries = {
             query: {
               from: query.from,
               to: query.to,
-              store_id: String(query.store_id),
+              store_id: query.store_id?.toString(),
               user_id: String(query.user_id),
             },
           })

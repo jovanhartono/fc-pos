@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { reportsQueries } from "@/features/reports/api";
-import type { WorkerRow } from "@/features/reports/api";
+import type { PersonRow, WorkerRow } from "@/features/reports/api";
 import { AllStoresButton } from "@/features/reports/components/all-stores-button";
 import { ExportButton } from "@/features/reports/components/export-button";
 import { KpiCard, KpiRow } from "@/features/reports/components/kpi-card";
@@ -29,12 +29,9 @@ import {
   buildWorkersCsv,
   outOf,
   withLive,
-  workedAt,
+  withLivePeople,
 } from "@/features/reports/utils/workers-report";
-import type {
-  PersonRow,
-  WorkersView,
-} from "@/features/reports/utils/workers-report";
+import type { WorkersView } from "@/features/reports/utils/workers-report";
 import { staleFade } from "@/lib/content-fade";
 import { cn } from "@/lib/utils";
 
@@ -65,33 +62,19 @@ export const WorkersPanel = ({
     ...reportsQueries.workerLive({ store_id: storeId }),
     placeholderData: keepPreviousData,
   });
-  // By Worker shows each person's whole range, wherever the Store filter points.
   const isByWorker = view === "worker";
-  const needsAllStores = isByWorker && storeId !== undefined;
-  const allStoresQuery = useQuery({
-    ...reportsQueries.workerProductivity({ from, to }),
-    enabled: needsAllStores,
-    placeholderData: keepPreviousData,
-  });
-  const allStoresLiveQuery = useQuery({
-    ...reportsQueries.workerLive({}),
-    enabled: needsAllStores,
-  });
   const openWorkerSheet = useOpenWorkerSheet();
   const openPersonSheet = useOpenPersonSheet();
   const storeCodes = useStoreCodes();
   const { data } = query;
-  const workers = data ? withLive(data.workers, liveQuery.data) : [];
-  const allStores = allStoresQuery.data;
-  // Undefined while every Store's rows are on their way, so one Store's rows
-  // never pass for a person's whole range.
-  let peopleWorkers: WorkerRow[] | undefined = workers;
-  if (needsAllStores) {
-    peopleWorkers =
-      allStores?.store_id === null && !allStoresLiveQuery.isPending
-        ? withLive(allStores.workers, allStoresLiveQuery.data)
-        : undefined;
-  }
+  const workers = data ? withLive(data.workers, liveQuery.data?.workers) : [];
+  const people = data
+    ? withLivePeople(
+        data.people,
+        liveQuery.data?.people,
+        data.store_id === null
+      )
+    : [];
   // A failed live view still shows the range, just with nobody on the floor.
   const isReady = data && !liveQuery.isPending;
 
@@ -111,19 +94,13 @@ export const WorkersPanel = ({
   const hasDaysWorked = (current?.days_worked ?? 0) > 0;
   // Part of today against all of yesterday would read as a drop every morning.
   const shownDeltas = data?.is_today ? null : data?.summary.deltas;
-  const canExport = data && (!isByWorker || peopleWorkers);
   const handleExport = () => {
-    if (!canExport) {
+    if (!data) {
       return;
     }
     downloadCsv(
       csvFilename("worker-productivity", data.from, data.to, data.store_id),
-      buildWorkersCsv(
-        data,
-        isByWorker && peopleWorkers
-          ? { people: workedAt(peopleWorkers, storeId), storeCodes }
-          : undefined
-      )
+      buildWorkersCsv(data, isByWorker ? { people, storeCodes } : undefined)
     );
   };
   const allStoresLink = isAllStores ? null : (
@@ -155,14 +132,10 @@ export const WorkersPanel = ({
     <div
       className={cn(
         "grid gap-6",
-        staleFade(
-          query.isPlaceholderData ||
-            liveQuery.isPlaceholderData ||
-            (needsAllStores && allStoresQuery.isPlaceholderData)
-        )
+        staleFade(query.isPlaceholderData || liveQuery.isPlaceholderData)
       )}
     >
-      <ExportButton disabled={!canExport} onClick={handleExport} />
+      <ExportButton disabled={!data} onClick={handleExport} />
       <KpiRow isPending={!data}>
         <KpiCard
           label="Services processed"
@@ -231,17 +204,14 @@ export const WorkersPanel = ({
               </span>
             }
           >
-            {isByWorker && !peopleWorkers && (
-              <Skeleton className="h-80 rounded-lg" />
-            )}
-            {isByWorker && peopleWorkers && (
+            {isByWorker ? (
               <PeopleTable
-                workers={peopleWorkers}
+                people={people}
+                cleanedBy={data.cleaned_by}
                 storeId={storeId}
                 onOpen={handleOpenPerson}
               />
-            )}
-            {!isByWorker && (
+            ) : (
               <WorkersTable
                 // A new range opens its own busiest Store.
                 key={`${data.from}:${data.to}:${workers.length > 0}`}
