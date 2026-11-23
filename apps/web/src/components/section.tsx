@@ -1,53 +1,50 @@
 import type { ReactNode } from "react";
 
 interface SectionTitleProps {
-	id?: string;
-	title: ReactNode;
-	count?: ReactNode;
-	as?: "h2" | "h3" | "span";
+  id?: string;
+  title: ReactNode;
+  count?: ReactNode;
+  as?: "h2" | "h3" | "span";
 }
 
 export const SectionTitle = ({
-	id,
-	title,
-	count,
-	as: Heading = "h2",
+  id,
+  title,
+  count,
+  as: Heading = "h2",
 }: SectionTitleProps) => (
-	<Heading id={id} className="font-semibold text-headline text-foreground">
-		{title}
-		{count ? (
-			<span className="font-normal text-muted-foreground tabular-nums">
-				{" "}
-				· {count}
-			</span>
-		) : null}
-	</Heading>
+  <Heading id={id} className="text-headline font-semibold text-foreground">
+    {title}
+    {count ? (
+      <span className="font-normal text-muted-foreground tabular-nums">
+        {" "}
+        · {count}
+      </span>
+    ) : null}
+  </Heading>
 );
 
 interface SectionProps {
-	id?: string;
-	title: ReactNode;
-	count?: ReactNode;
-	aside?: ReactNode;
-	empty?: string;
-	children?: ReactNode;
+  id?: string;
+  title: ReactNode;
+  count?: ReactNode;
+  aside?: ReactNode;
+  children?: ReactNode;
 }
 
 export const Section = ({
-	id,
-	title,
-	count,
-	aside,
-	empty,
-	children,
+  id,
+  title,
+  count,
+  aside,
+  children,
 }: SectionProps) => (
-	<section aria-labelledby={id} className="grid min-w-0 gap-2.5">
-		{/* As tall as a small button, so a "Show all" that comes and goes never moves the rows below. */}
-		<div className="flex min-h-7 items-center justify-between gap-3">
-			<SectionTitle count={count} id={id} title={title} />
-			{aside}
-		</div>
-		{children ||
-			(empty ? <p className="text-muted-foreground">{empty}</p> : null)}
-	</section>
+  <section aria-labelledby={id} className="grid min-w-0 gap-2.5">
+    {/* As tall as a small button, so a "Show all" that comes and goes never moves the rows below. */}
+    <div className="flex min-h-7 items-center justify-between gap-3">
+      <SectionTitle count={count} id={id} title={title} />
+      {aside}
+    </div>
+    {children}
+  </section>
 );

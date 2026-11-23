@@ -1,4 +1,3 @@
-import "@/test-support/pglite";
 import {
   afterAll,
   beforeAll,
@@ -8,7 +7,11 @@ import {
   it,
   setSystemTime,
 } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { eq, sql } from "drizzle-orm";
+
 import {
   shiftsTable,
   storesTable,
@@ -18,7 +21,8 @@ import {
 import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import { PATCHShiftSchema } from "@/modules/shifts/shift.schema";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 import type { AuthUser } from "@/types";
 
@@ -31,6 +35,7 @@ const {
   clockOut,
   closeForgottenShifts,
   createShift,
+  deleteShift,
   getShiftsOverview,
   updateShift,
 } = await import("@/modules/shifts/shift.service");
@@ -67,6 +72,8 @@ const reload = async (id: number) => {
 // seedShop rosters both the cashier and the admin at Kemang.
 const asUser = (id: number, role: AuthUser["role"] = "cashier") =>
   ({ id, role, store_ids: [shop.store.id] }) as AuthUser;
+
+const admin = () => asUser(shop.admin.id, "admin");
 
 const AT_KEMANG = { accuracy_m: 10, latitude: -6.26, longitude: 106.81 };
 
@@ -105,9 +112,8 @@ describe("an Auto-closed Shift", () => {
 
     await clockOut(asUser(shop.cashier.id));
 
-    expect((await reload(shift.id)).clock_out_at).toEqual(
-      jkt("2026-10-12T00:00")
-    );
+    const closed = await reload(shift.id);
+    expect(closed.clock_out_at).toEqual(jkt("2026-10-12T00:00"));
   });
 
   it("keeps the real time on a Shift opened today, however long", async () => {
@@ -133,12 +139,10 @@ describe("closeForgottenShifts", () => {
     const { closed } = await closeForgottenShifts();
 
     expect(closed).toBe(2);
-    expect((await reload(lastNight.id)).clock_out_at).toEqual(
-      jkt("2026-10-11T18:29")
-    );
-    expect((await reload(daysAgo.id)).clock_out_at).toEqual(
-      jkt("2026-10-09T19:00")
-    );
+    const lastNightRow = await reload(lastNight.id);
+    expect(lastNightRow.clock_out_at).toEqual(jkt("2026-10-11T18:29"));
+    const daysAgoRow = await reload(daysAgo.id);
+    expect(daysAgoRow.clock_out_at).toEqual(jkt("2026-10-09T19:00"));
   });
 
   it("leaves a Shift opened after midnight alone", async () => {
@@ -148,18 +152,19 @@ describe("closeForgottenShifts", () => {
     const { closed } = await closeForgottenShifts();
 
     expect(closed).toBe(0);
-    expect((await reload(early.id)).clock_out_at).toBeNull();
+    const earlyRow = await reload(early.id);
+    expect(earlyRow.clock_out_at).toBeNull();
   });
 });
 
-describe("clockIn after the cron closed yesterday", () => {
-  const clockInAtKemang = () =>
-    clockIn({
-      user: asUser(shop.cashier.id),
-      storeId: shop.store.id,
-      coordinates: AT_KEMANG,
-    });
+const clockInAtKemang = () =>
+  clockIn({
+    user: asUser(shop.cashier.id),
+    storeId: shop.store.id,
+    coordinates: AT_KEMANG,
+  });
 
+describe("clockIn after the cron closed yesterday", () => {
   it("tells the worker their day was cut to ten hours", async () => {
     await openShift(shop.cashier.id, jkt("2026-10-11T08:29"), {
       auto_closed: true,
@@ -190,8 +195,6 @@ describe("clockIn after the cron closed yesterday", () => {
 });
 
 describe("updateShift", () => {
-  const admin = () => asUser(shop.admin.id, "admin");
-
   it("records the real overtime and who entered it", async () => {
     const shift = await openShift(shop.cashier.id, jkt("2026-10-11T08:29"), {
       auto_closed: true,
@@ -203,6 +206,7 @@ describe("updateShift", () => {
       user: admin(),
       shiftId: shift.id,
       body: {
+        store_id: shop.store.id,
         clock_in_at: jkt("2026-10-11T08:29"),
         clock_out_at: jkt("2026-10-11T21:00"),
       },
@@ -222,14 +226,14 @@ describe("updateShift", () => {
       user: admin(),
       shiftId: shift.id,
       body: {
+        store_id: shop.store.id,
         clock_in_at: jkt("2026-10-12T08:00"),
         clock_out_at: jkt("2026-10-12T18:00"),
       },
     });
 
-    expect((await reload(shift.id)).clock_out_at).toEqual(
-      jkt("2026-10-12T18:00")
-    );
+    const closed = await reload(shift.id);
+    expect(closed.clock_out_at).toEqual(jkt("2026-10-12T18:00"));
   });
 
   it("refuses times that run into the worker's next Shift", async () => {
@@ -245,6 +249,7 @@ describe("updateShift", () => {
         user: admin(),
         shiftId: monday.id,
         body: {
+          store_id: shop.store.id,
           clock_in_at: jkt("2026-10-11T08:00"),
           clock_out_at: jkt("2026-10-12T09:00"),
         },
@@ -252,9 +257,8 @@ describe("updateShift", () => {
     );
 
     expect(error).toBeInstanceOf(BadRequestException);
-    expect((await reload(monday.id)).clock_out_at).toEqual(
-      jkt("2026-10-11T18:00")
-    );
+    const mondayRow = await reload(monday.id);
+    expect(mondayRow.clock_out_at).toEqual(jkt("2026-10-11T18:00"));
   });
 
   it("refuses a clock-out that has not happened yet", async () => {
@@ -266,6 +270,7 @@ describe("updateShift", () => {
         user: admin(),
         shiftId: shift.id,
         body: {
+          store_id: shop.store.id,
           clock_in_at: jkt("2026-10-12T08:00"),
           clock_out_at: jkt("2026-10-12T18:00"),
         },
@@ -287,6 +292,7 @@ describe("updateShift", () => {
         user: asUser(shop.cashier.id),
         shiftId: shift.id,
         body: {
+          store_id: shop.store.id,
           clock_in_at: jkt("2026-10-11T08:00"),
           clock_out_at: jkt("2026-10-11T23:00"),
         },
@@ -294,12 +300,180 @@ describe("updateShift", () => {
     );
 
     expect(error).toBeInstanceOf(ForbiddenException);
-    expect((await reload(shift.id)).edited_by).toBeNull();
+    const untouched = await reload(shift.id);
+    expect(untouched.edited_by).toBeNull();
+  });
+
+  it("fixes the start of a worker still on shift and leaves them on it", async () => {
+    // Tapped Clock in on the bus at 07:40; the admin enters the 08:15 arrival.
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T07:40"));
+    setSystemTime(jkt("2026-10-12T11:00"));
+
+    await updateShift({
+      user: admin(),
+      shiftId: shift.id,
+      body: { store_id: shop.store.id, clock_in_at: jkt("2026-10-12T08:15") },
+    });
+
+    const edited = await reload(shift.id);
+    expect(edited.clock_in_at).toEqual(jkt("2026-10-12T08:15"));
+    expect(edited.clock_out_at).toBeNull();
+    expect(edited.edited_by).toBe(shop.admin.id);
+
+    await clockOut(asUser(shop.cashier.id));
+    const clockedOut = await reload(shift.id);
+    expect(clockedOut.edited_by).toBe(shop.admin.id);
+  });
+
+  it("keeps the Store when an older page sends only the times", async () => {
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
+    setSystemTime(jkt("2026-10-12T11:00"));
+
+    await updateShift({
+      user: admin(),
+      shiftId: shift.id,
+      body: { clock_in_at: jkt("2026-10-12T08:30") },
+    });
+
+    const edited = await reload(shift.id);
+    expect(edited.store_id).toBe(shop.store.id);
+  });
+
+  it("does not reopen a Shift the worker clocked out of mid-edit", async () => {
+    const { updateShiftById } =
+      await import("@/modules/shifts/shift.repository");
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"), {
+      auto_closed: false,
+      clock_out_at: jkt("2026-10-12T14:00"),
+    });
+
+    const updated = await updateShiftById(shift.id, {
+      clock_in_at: jkt("2026-10-12T08:00"),
+      clock_out_at: null,
+      edited_by: shop.admin.id,
+      store_id: shop.store.id,
+    });
+
+    expect(updated).toBeNull();
+    const kept = await reload(shift.id);
+    expect(kept.clock_out_at).toEqual(jkt("2026-10-12T14:00"));
+  });
+
+  it("will not reopen a finished Shift", async () => {
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"), {
+      auto_closed: false,
+      clock_out_at: jkt("2026-10-12T14:00"),
+    });
+    setSystemTime(jkt("2026-10-12T15:00"));
+
+    const error = await captureRejection(
+      updateShift({
+        user: admin(),
+        shiftId: shift.id,
+        body: { store_id: shop.store.id, clock_in_at: jkt("2026-10-12T08:00") },
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    const kept = await reload(shift.id);
+    expect(kept.clock_out_at).toEqual(jkt("2026-10-12T14:00"));
+  });
+
+  it("refuses a running Shift moved back to yesterday", async () => {
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
+    setSystemTime(jkt("2026-10-12T11:00"));
+
+    const error = await captureRejection(
+      updateShift({
+        user: admin(),
+        shiftId: shift.id,
+        body: { store_id: shop.store.id, clock_in_at: jkt("2026-10-11T20:00") },
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+  });
+
+  it("refuses a running Shift that would start over the last one", async () => {
+    await openShift(shop.cashier.id, jkt("2026-10-12T08:00"), {
+      auto_closed: false,
+      clock_out_at: jkt("2026-10-12T12:00"),
+    });
+    const afternoon = await openShift(shop.cashier.id, jkt("2026-10-12T13:00"));
+    setSystemTime(jkt("2026-10-12T15:00"));
+
+    const error = await captureRejection(
+      updateShift({
+        user: admin(),
+        shiftId: afternoon.id,
+        body: { store_id: shop.store.id, clock_in_at: jkt("2026-10-12T11:00") },
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+  });
+
+  it("moves a Shift clocked in at the wrong Store", async () => {
+    const [bintaro] = await testDb
+      .insert(storesTable)
+      .values({
+        address: "Jl. Bintaro 1",
+        code: "BTR",
+        is_active: true,
+        latitude: "-6.30",
+        longitude: "106.65",
+        name: "Fresclean Bintaro",
+        phone_number: "+622100000000",
+      })
+      .returning();
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
+    setSystemTime(jkt("2026-10-12T11:00"));
+    const moveToBintaro = () =>
+      updateShift({
+        user: admin(),
+        shiftId: shift.id,
+        body: { store_id: bintaro.id, clock_in_at: jkt("2026-10-12T08:00") },
+      });
+
+    expect(await captureRejection(moveToBintaro())).toBeInstanceOf(
+      BadRequestException
+    );
+
+    await testDb
+      .insert(userStoresTable)
+      .values({ store_id: bintaro.id, user_id: shop.cashier.id });
+    await moveToBintaro();
+
+    const moved = await reload(shift.id);
+    expect(moved.store_id).toBe(bintaro.id);
+  });
+});
+
+describe("deleteShift", () => {
+  it("removes a mistaken clock-in, so the worker can clock in again", async () => {
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
+
+    await deleteShift({
+      user: asUser(shop.admin.id, "admin"),
+      shiftId: shift.id,
+    });
+
+    expect(await reload(shift.id)).toBeUndefined();
+  });
+
+  it("is for admins only", async () => {
+    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
+
+    const error = await captureRejection(
+      deleteShift({ user: asUser(shop.cashier.id), shiftId: shift.id })
+    );
+
+    expect(error).toBeInstanceOf(ForbiddenException);
+    expect(await reload(shift.id)).toBeDefined();
   });
 });
 
 describe("createShift", () => {
-  const admin = () => asUser(shop.admin.id, "admin");
   const day = {
     clock_in_at: jkt("2026-10-12T08:00"),
     clock_out_at: jkt("2026-10-12T18:00"),
@@ -394,11 +568,14 @@ describe("createShift", () => {
   });
 });
 
-describe("PATCHShiftSchema", () => {
-  const parse = (inAt: unknown, outAt: unknown) =>
-    PATCHShiftSchema.safeParse({ clock_in_at: inAt, clock_out_at: outAt })
-      .success;
+const parse = (inAt: unknown, outAt: unknown) =>
+  PATCHShiftSchema.safeParse({
+    clock_in_at: inAt,
+    clock_out_at: outAt,
+    store_id: 1,
+  }).success;
 
+describe("PATCHShiftSchema", () => {
   it("refuses a clock-out before the clock-in", () => {
     expect(parse("2026-10-11T11:00:00Z", "2026-10-11T01:00:00Z")).toBe(false);
   });
@@ -409,67 +586,66 @@ describe("PATCHShiftSchema", () => {
 
   it("refuses a missing time instead of reading it as 1970", () => {
     expect(parse(null, "2026-10-11T11:00:00Z")).toBe(false);
+    expect(parse("2026-10-11T01:00:00Z", null)).toBe(false);
+  });
+
+  it("takes no clock-out, for a worker still on shift", () => {
+    expect(parse("2026-10-11T01:00:00Z", undefined)).toBe(true);
   });
 });
 
+const addWorker = async (name: string, storeIds: number[], isActive = true) => {
+  const [worker] = await testDb
+    .insert(usersTable)
+    .values({
+      is_active: isActive,
+      name,
+      password: "hashed",
+      role: "worker",
+      username: name.toLowerCase().padEnd(5, "x"),
+    })
+    .returning();
+  if (storeIds.length > 0) {
+    await testDb
+      .insert(userStoresTable)
+      .values(storeIds.map((store_id) => ({ store_id, user_id: worker.id })));
+  }
+  return worker;
+};
+
+const worked = (
+  userId: number,
+  storeId: number,
+  inAt: string,
+  outAt: string | null,
+  autoClosed = false
+) =>
+  testDb.insert(shiftsTable).values({
+    auto_closed: autoClosed,
+    clock_in_at: jkt(inAt),
+    clock_out_at: outAt ? jkt(outAt) : null,
+    store_id: storeId,
+    user_id: userId,
+  });
+
+const addBintaro = async () => {
+  const [bintaro] = await testDb
+    .insert(storesTable)
+    .values({
+      address: "Jl. Bintaro 1",
+      code: "BTR",
+      is_active: true,
+      latitude: "-6.30",
+      longitude: "106.65",
+      name: "Fresclean Bintaro",
+      phone_number: "+622100000000",
+    })
+    .returning();
+  return bintaro;
+};
+
 // The Shifts page: who worked which days, for the meal fee paid per day worked.
 describe("getShiftsOverview", () => {
-  const addWorker = async (
-    name: string,
-    storeIds: number[],
-    isActive = true
-  ) => {
-    const [worker] = await testDb
-      .insert(usersTable)
-      .values({
-        is_active: isActive,
-        name,
-        password: "hashed",
-        role: "worker",
-        username: name.toLowerCase().padEnd(5, "x"),
-      })
-      .returning();
-    if (storeIds.length > 0) {
-      await testDb
-        .insert(userStoresTable)
-        .values(storeIds.map((store_id) => ({ store_id, user_id: worker.id })));
-    }
-    return worker;
-  };
-
-  const worked = (
-    userId: number,
-    storeId: number,
-    inAt: string,
-    outAt: string | null,
-    autoClosed = false
-  ) =>
-    testDb.insert(shiftsTable).values({
-      auto_closed: autoClosed,
-      clock_in_at: jkt(inAt),
-      clock_out_at: outAt ? jkt(outAt) : null,
-      store_id: storeId,
-      user_id: userId,
-    });
-
-  const addBintaro = async () => {
-    const [bintaro] = await testDb
-      .insert(storesTable)
-      .values({
-        address: "Jl. Bintaro 1",
-        code: "BTR",
-        is_active: true,
-        latitude: "-6.30",
-        longitude: "106.65",
-        name: "Fresclean Bintaro",
-        phone_number: "+622100000000",
-      })
-      .returning();
-    return bintaro;
-  };
-
-  const asAdmin = () => asUser(shop.admin.id, "admin");
-
   it("counts two Shifts on one Jakarta day once, and keeps the other Store's days", async () => {
     const bintaro = await addBintaro();
     const rizky = await addWorker("Rizky", [shop.store.id, bintaro.id]);
@@ -496,7 +672,7 @@ describe("getShiftsOverview", () => {
     );
     setSystemTime(jkt("2026-10-13T10:00"));
 
-    const { days, people } = await getShiftsOverview(asAdmin(), {
+    const { days, people } = await getShiftsOverview(admin(), {
       from: "2026-10-11",
       to: "2026-10-13",
       store_id: shop.store.id,
@@ -533,7 +709,7 @@ describe("getShiftsOverview", () => {
     await worked(shop.cashier.id, shop.store.id, "2026-10-13T08:00", null);
     setSystemTime(jkt("2026-10-13T14:15"));
 
-    const { days } = await getShiftsOverview(asAdmin(), {
+    const { days } = await getShiftsOverview(admin(), {
       from: "2026-10-13",
       to: "2026-10-13",
     });
@@ -559,7 +735,7 @@ describe("getShiftsOverview", () => {
     await worked(shop.cashier.id, shop.store.id, "2026-10-13T13:00", null);
     setSystemTime(jkt("2026-10-13T14:15"));
 
-    const { days } = await getShiftsOverview(asAdmin(), {
+    const { days } = await getShiftsOverview(admin(), {
       from: "2026-10-13",
       to: "2026-10-13",
     });
@@ -584,7 +760,7 @@ describe("getShiftsOverview", () => {
     await addWorker("Gone", [shop.store.id], false);
     setSystemTime(jkt("2026-10-13T10:00"));
 
-    const { people } = await getShiftsOverview(asAdmin(), {
+    const { people } = await getShiftsOverview(admin(), {
       from: "2026-10-11",
       to: "2026-10-13",
       store_id: shop.store.id,

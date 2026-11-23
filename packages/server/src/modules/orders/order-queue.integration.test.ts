@@ -1,8 +1,12 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { eq } from "drizzle-orm";
+
 import { categoriesTable, servicesTable } from "@/db/schema";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // The artisan reads the Queue as "Repair only", the cleaners as "everything
@@ -12,12 +16,10 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // database before the swap runs.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
-const { getOrderServiceQueue, getOrderServiceQueueCounts } = await import(
-  "@/modules/orders/order-queue.service"
-);
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { getOrderServiceQueue, getOrderServiceQueueCounts } =
+  await import("@/modules/orders/order-queue.service");
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 
 let shop: Shop;
 let repairCategoryId: number;
@@ -40,6 +42,7 @@ beforeEach(async () => {
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: [
       { brand: "clean only", services: [{ id: shop.serviceId }] },
       { brand: "repair only", services: [{ id: shop.repairServiceId }] },
@@ -62,7 +65,7 @@ const rack = async (category_mode: "only" | "except") => {
     store_id: shop.store.id,
   });
   return {
-    brands: page.items.map((item) => item.brand).sort(),
+    brands: page.items.map((item) => item.brand).toSorted(),
     total: page.meta.total,
   };
 };
@@ -89,10 +92,9 @@ it("still lists every live Service on a card that qualified for the rack", async
   });
   const both = page.items.find((item) => item.brand === "clean and repair");
 
-  expect(both?.services.map((service) => service.service_name).sort()).toEqual([
-    "Deep Clean",
-    "Repair",
-  ]);
+  expect(
+    both?.services.map((service) => service.service_name).toSorted()
+  ).toEqual(["Deep Clean", "Repair"]);
 });
 
 it("counts the chips over the same rack the list shows", async () => {

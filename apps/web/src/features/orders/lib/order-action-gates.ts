@@ -1,151 +1,154 @@
-import { hasUnpricedLine, isComplainableLine } from "@fresclean/api/schema";
+import { hasUnpricedLine, isComplainableLine } from "@fresclean/api/rules";
+
 import type { Order, OrderDetail } from "@/features/orders/api";
-import {
-	flattenOrderLines,
-	type OrderItem,
-	type OrderLine,
-} from "@/features/orders/lib/order-lines";
+import { flattenOrderLines } from "@/features/orders/lib/order-lines";
+import type { OrderItem, OrderLine } from "@/features/orders/lib/order-lines";
 import type { Me } from "@/features/users/api";
 
 export interface OrderPaymentState {
-	payment_status: Order["payment_status"];
-	status: Order["status"];
+  payment_status: Order["payment_status"];
+  status: Order["status"];
 }
 
 // Cancelled before anyone paid: the Customer owes nothing, so no screen says
 // Unpaid.
 export const isCancelledBeforePayment = (order: OrderPaymentState) =>
-	order.status === "cancelled" && order.payment_status === "unpaid";
+  order.status === "cancelled" && order.payment_status === "unpaid";
 
 export interface OrderActionGates {
-	isAdmin: boolean;
-	isPaymentAllowed: boolean;
-	canCollectPayment: boolean;
-	isPickupAllowed: boolean;
-	canManageDropoffPhoto: boolean;
-	canManageCourier: boolean;
-	canOpenPickup: boolean;
-	pickupDisabledReason?: string;
-	canCancelOrder: boolean;
-	canRefundWholeOrder: boolean;
-	canOpenComplaint: boolean;
-	// ADR-0018: no price, no payment — any live unpriced line refuses the
-	// Order's move to paid.
-	hasUnpricedLine: boolean;
-	complaintableServices: OrderLine[];
-	// ADR-0017: what leaves the counter is an Item, not an OrderService; half a
-	// shoe can't be handed back.
-	collectableItems: OrderItem[];
-	refundableServices: OrderLine[];
-	refundableProducts: OrderDetail["products"];
-	cancellableServices: OrderLine[];
-	cancellableProducts: OrderDetail["products"];
+  isAdmin: boolean;
+  isPaymentAllowed: boolean;
+  canCollectPayment: boolean;
+  isPickupAllowed: boolean;
+  canManageDropoffPhoto: boolean;
+  canManageCourier: boolean;
+  // ADR-0029: shown to the same roles as the Courier, hidden once paid.
+  canEditDeliveryFee: boolean;
+  canOpenPickup: boolean;
+  pickupDisabledReason?: string;
+  canCancelOrder: boolean;
+  canRefundWholeOrder: boolean;
+  canOpenComplaint: boolean;
+  // ADR-0018: no price, no payment — any live unpriced line refuses the
+  // Order's move to paid.
+  hasUnpricedLine: boolean;
+  complaintableServices: OrderLine[];
+  // ADR-0017: what leaves the counter is an Item, not an OrderService; half a
+  // shoe can't be handed back.
+  collectableItems: OrderItem[];
+  refundableServices: OrderLine[];
+  refundableProducts: OrderDetail["products"];
+  cancellableServices: OrderLine[];
+  cancellableProducts: OrderDetail["products"];
 }
 
 // ADR-0012 / ADR-0019: words for the server's `has_start_photo` verdict. A
 // Rework needs a photo taken after its round went on the rack.
 export const startPhotoBlocker = (
-	line: Pick<OrderLine, "status" | "has_start_photo" | "reworkOf">,
+  line: Pick<OrderLine, "status" | "has_start_photo" | "reworkOf">
 ): string | undefined => {
-	if (line.status !== "queued" || line.has_start_photo) {
-		return undefined;
-	}
-	return line.reworkOf
-		? "Take a new photo of the item before starting this rework."
-		: "Add an item photo before starting work.";
+  if (line.status !== "queued" || line.has_start_photo) {
+    return undefined;
+  }
+  return line.reworkOf
+    ? "Take a new photo of the item before starting this rework."
+    : "Add an item photo before starting work.";
 };
 
 // `me` must come from /admin/users/me: an admin can change roles mid-session
 // and the login token would still carry the old ones.
+// oxlint-disable-next-line complexity -- every Order action's gate is worked out in one place so the page and sheet agree
 export const getOrderActionGates = (
-	me: Me | undefined,
-	detail: OrderDetail,
+  me: Me | undefined,
+  detail: OrderDetail
 ): OrderActionGates => {
-	const isAdmin = me?.role === "admin";
-	const isCounterRole = isAdmin || me?.role === "cashier";
-	// Every shop role takes payment at the POS since ADR-0004's 2026-09-05
-	// amendment; a courier only clocks in, and a signed-out viewer gets nothing.
-	const isPaymentAllowed = isCounterRole || me?.role === "worker";
-	// Handing the Item back stays a separate gate: a worker still needs the
-	// per-user flag, mirroring assertCanProcessPickup on the server.
-	const isPickupAllowed = isCounterRole || me?.can_process_pickup === true;
-	const canManageDropoffPhoto = isPaymentAllowed;
-	// Courier attribution edit mirrors the create-order permission.
-	const canManageCourier = isPaymentAllowed;
+  const isAdmin = me?.role === "admin";
+  const isCounterRole = isAdmin || me?.role === "cashier";
+  // Every shop role takes payment at the POS since ADR-0004's 2026-09-05
+  // amendment; a courier only clocks in, and a signed-out viewer gets nothing.
+  const isPaymentAllowed = isCounterRole || me?.role === "worker";
+  // Handing the Item back stays a separate gate: a worker still needs the
+  // per-user flag, mirroring assertCanProcessPickup on the server.
+  const isPickupAllowed = isCounterRole || me?.can_process_pickup === true;
+  const canManageDropoffPhoto = isPaymentAllowed;
+  // Courier attribution edit mirrors the create-order permission.
+  const canManageCourier = isPaymentAllowed;
 
-	const services = flattenOrderLines(detail);
-	const collectableItems = (detail.items ?? []).filter(
-		(item) => item.is_collectable,
-	);
-	const refundableServices = services.filter(
-		// Rework lines are free, so never refundable; escalation refunds the
-		// original line (ADR-0013).
-		(service) =>
-			!service.reworkOf && !["refunded", "cancelled"].includes(service.status),
-	);
-	const products = Array.isArray(detail.products) ? detail.products : [];
-	const refundableProducts = products.filter(
-		(item) => !(item.refunded_at || item.cancelled_at),
-	);
-	const cancellableServices = services.filter(
-		(service) =>
-			!["picked_up", "refunded", "cancelled"].includes(service.status),
-	);
-	const cancellableProducts = products.filter(
-		(item) => !item.refunded_at && !item.cancelled_at,
-	);
-	// ADR-0013: one complaint per line, lifetime; rework lines are never
-	// re-complained.
-	const complaintableServices = services.filter(
-		(service) =>
-			!service.reworkOf &&
-			isComplainableLine(service, service.item.services) &&
-			(service.complaints ?? []).length === 0,
-	);
-	const isPaid = detail.payment_status === "paid";
-	const hasUnpriced = hasUnpricedLine(services);
-	// ADR-0009: Items are ready but the Order is unpaid — explain why pickup is
-	// blocked, and to whom (a pickup-only worker must fetch a cashier to collect).
-	const pickupDisabledReason =
-		collectableItems.length > 0 && !isPaid
-			? isPaymentAllowed
-				? "Order must be paid before pickup."
-				: "A cashier must collect payment before pickup."
-			: undefined;
+  const services = flattenOrderLines(detail);
+  const collectableItems = (detail.items ?? []).filter(
+    (item) => item.is_collectable
+  );
+  const refundableServices = services.filter(
+    // Rework lines are free, so never refundable; escalation refunds the
+    // original line (ADR-0013).
+    (service) =>
+      !service.reworkOf && !["refunded", "cancelled"].includes(service.status)
+  );
+  const products = Array.isArray(detail.products) ? detail.products : [];
+  const refundableProducts = products.filter(
+    (item) => !(item.refunded_at || item.cancelled_at)
+  );
+  const cancellableServices = services.filter(
+    (service) =>
+      !["picked_up", "refunded", "cancelled"].includes(service.status)
+  );
+  const cancellableProducts = products.filter(
+    (item) => !item.refunded_at && !item.cancelled_at
+  );
+  // ADR-0013: one complaint per line, lifetime; rework lines are never
+  // re-complained.
+  const complaintableServices = services.filter(
+    (service) =>
+      !service.reworkOf &&
+      isComplainableLine(service, service.item.services) &&
+      (service.complaints ?? []).length === 0
+  );
+  const isPaid = detail.payment_status === "paid";
+  const hasUnpriced = hasUnpricedLine(services);
+  // ADR-0009: Items are ready but the Order is unpaid — explain why pickup is
+  // blocked, and to whom (a pickup-only worker must fetch a cashier to collect).
+  let pickupDisabledReason: string | undefined;
+  if (collectableItems.length > 0 && !isPaid) {
+    pickupDisabledReason = isPaymentAllowed
+      ? "Order must be paid before pickup."
+      : "A cashier must collect payment before pickup.";
+  }
 
-	return {
-		isAdmin,
-		isPaymentAllowed,
-		canCollectPayment:
-			isPaymentAllowed &&
-			!isPaid &&
-			detail.status !== "cancelled" &&
-			!hasUnpriced,
-		isPickupAllowed,
-		canManageDropoffPhoto,
-		canManageCourier,
-		// ADR-0009: payment precedes pickup — no collection on an unpaid Order.
-		canOpenPickup: isPickupAllowed && collectableItems.length > 0 && isPaid,
-		pickupDisabledReason,
-		canCancelOrder:
-			detail.status !== "cancelled" &&
-			!isPaid &&
-			(cancellableServices.length > 0 || cancellableProducts.length > 0),
-		canRefundWholeOrder:
-			isAdmin &&
-			detail.status !== "cancelled" &&
-			isPaid &&
-			(refundableServices.length > 0 || refundableProducts.length > 0),
-		// Opening a complaint is open to any staff (ADR-0013) — no role gate.
-		canOpenComplaint: complaintableServices.length > 0,
-		// ADR-0018: the same predicate the server's paid transition runs, so the
-		// payment section can explain the block instead of relaying a 400.
-		hasUnpricedLine: hasUnpriced,
-		complaintableServices,
-		collectableItems,
-		refundableServices,
-		refundableProducts,
-		cancellableServices,
-		cancellableProducts,
-	};
+  return {
+    isAdmin,
+    isPaymentAllowed,
+    canCollectPayment:
+      isPaymentAllowed &&
+      !isPaid &&
+      detail.status !== "cancelled" &&
+      !hasUnpriced,
+    isPickupAllowed,
+    canManageDropoffPhoto,
+    canManageCourier,
+    canEditDeliveryFee:
+      isPaymentAllowed && !isPaid && detail.status !== "cancelled",
+    // ADR-0009: payment precedes pickup — no collection on an unpaid Order.
+    canOpenPickup: isPickupAllowed && collectableItems.length > 0 && isPaid,
+    pickupDisabledReason,
+    canCancelOrder:
+      detail.status !== "cancelled" &&
+      !isPaid &&
+      (cancellableServices.length > 0 || cancellableProducts.length > 0),
+    canRefundWholeOrder:
+      isAdmin &&
+      detail.status !== "cancelled" &&
+      isPaid &&
+      (refundableServices.length > 0 || refundableProducts.length > 0),
+    // Opening a complaint is open to any staff (ADR-0013) — no role gate.
+    canOpenComplaint: complaintableServices.length > 0,
+    // ADR-0018: the same predicate the server's paid transition runs, so the
+    // payment section can explain the block instead of relaying a 400.
+    hasUnpricedLine: hasUnpriced,
+    complaintableServices,
+    collectableItems,
+    refundableServices,
+    refundableProducts,
+    cancellableServices,
+    cancellableProducts,
+  };
 };

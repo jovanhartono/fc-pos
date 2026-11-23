@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+
 import { NotFoundException } from "@/http-exceptions";
 import { assertIsAdmin } from "@/modules/permissions/permissions";
 import {
@@ -57,7 +58,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Service not found");
       }
 
-      return c.json(success(service, `Update service ${service.code} success`));
+      return c.json(success(service, `${service.name} updated`));
     }
   );
 

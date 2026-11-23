@@ -1,4 +1,5 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
+
 import { db } from "@/db";
 import {
   itemImagesTable,
@@ -7,13 +8,12 @@ import {
 } from "@/db/schema";
 import type { PostPhotoDownloadUrlInput } from "@/modules/orders/order-admin.schema";
 
-export function softDeleteItemImageById(id: number, userId: number) {
-  return db
+export const softDeleteItemImageById = (id: number, userId: number) =>
+  db
     .update(itemImagesTable)
     .set({ deleted_at: new Date(), deleted_by: userId })
     .where(and(eq(itemImagesTable.id, id), isNull(itemImagesTable.deleted_at)))
     .returning({ id: itemImagesTable.id });
-}
 
 // An Item photo is named by its Item code; drop-off and pickup photos by the Order code.
 export interface StoredPhoto {
@@ -23,10 +23,10 @@ export interface StoredPhoto {
   suffix: string;
 }
 
-export async function findPhotoById({
+export const findPhotoById = async ({
   kind,
   id,
-}: PostPhotoDownloadUrlInput): Promise<StoredPhoto | null> {
+}: PostPhotoDownloadUrlInput): Promise<StoredPhoto | null> => {
   switch (kind) {
     case "item": {
       const photo = await db.query.itemImagesTable.findFirst({
@@ -77,16 +77,17 @@ export async function findPhotoById({
           }
         : null;
     }
-    default:
+    default: {
       return kind satisfies never;
+    }
   }
-}
+};
 
 /**
  * Deleted Item photos still count: the row can be restored, and the photo is still
  * evidence in a dispute. (Briefly reversed in #104, put back the same day: owner's call.)
  */
-export async function listReferencedPhotoKeys(): Promise<Set<string>> {
+export const listReferencedPhotoKeys = async (): Promise<Set<string>> => {
   const [itemPhotos, dropoffPhotos, pickupPhotos] = await Promise.all([
     db.select({ path: itemImagesTable.image_path }).from(itemImagesTable),
     db
@@ -106,4 +107,4 @@ export async function listReferencedPhotoKeys(): Promise<Set<string>> {
   }
 
   return referenced;
-}
+};

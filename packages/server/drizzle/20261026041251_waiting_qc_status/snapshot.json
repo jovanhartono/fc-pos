@@ -1,0 +1,92 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "dd78d3e4-3782-4f5a-a34e-6da4ebc50341",
+  "prevIds": [
+    "4f02539b-8a84-4a2a-9426-67289150882a"
+  ],
+  "footprints": [
+    {
+      "statementType": "recreate_enum",
+      "statementTarget": [
+        "enum",
+        "public",
+        "order_service_status_enum"
+      ],
+      "writes": [
+        "s|enum|public.order_service_status_enum",
+        "n|enum|public.order_service_status_enum",
+        "e|enum|public.order_service_status_enum",
+        "n|type|public.order_service_status_enum",
+        "s|colprop|public.order_service_status_logs.from_status.type",
+        "s|colprop|public.order_service_status_logs.from_status.default",
+        "s|colprop|public.order_service_status_logs.to_status.type",
+        "s|colprop|public.order_service_status_logs.to_status.default",
+        "s|colprop|public.orders_services.status.type",
+        "s|colprop|public.orders_services.status.default"
+      ],
+      "reads": [
+        "n|sch|public",
+        "n|tbl|public.order_service_status_logs",
+        "n|sch|public",
+        "n|col|public.order_service_status_logs.from_status",
+        "n|tbl|public.order_service_status_logs",
+        "n|sch|public",
+        "n|col|public.order_service_status_logs.to_status",
+        "n|tbl|public.orders_services",
+        "n|sch|public",
+        "n|col|public.orders_services.status"
+      ],
+      "sqlHash": "8f0f4f70c6d848d6"
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "order_service_status_logs",
+        "order_service_status_logs_qc_idx"
+      ],
+      "writes": [
+        "s|idx|public.order_service_status_logs_qc_idx",
+        "n|idx|public.order_service_status_logs_qc_idx",
+        "e|idx|public.order_service_status_logs_qc_idx",
+        "n|rel|public.order_service_status_logs_qc_idx"
+      ],
+      "reads": [
+        "n|tbl|public.order_service_status_logs",
+        "n|sch|public",
+        "n|col|public.order_service_status_logs.to_status",
+        "n|col|public.order_service_status_logs.created_at"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "6afeaf4b651b51dd"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "enums\u0000[\"public\",\"order_service_status_enum\"]",
+      "set": {
+        "values": [
+          "queued",
+          "processing",
+          "waiting_qc",
+          "qc_reject",
+          "ready_for_pickup",
+          "picked_up",
+          "refunded",
+          "cancelled"
+        ]
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"order_service_status_logs_qc_idx\"]",
+      "set": {
+        "where": "\"to_status\" IN ('waiting_qc', 'qc_reject')"
+      }
+    }
+  ]
+}

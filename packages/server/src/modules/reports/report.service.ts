@@ -1,4 +1,9 @@
 import { revenue } from "@/modules/reports/money-basis";
+import { listTopServiceRows } from "@/modules/reports/report-range.repository";
+import {
+  getJakartaDayRange,
+  shiftDate,
+} from "@/modules/reports/report-range.util";
 import {
   categoryGrossSalesForRange,
   countAgingQueue,
@@ -12,7 +17,6 @@ import {
   refundsTrendSeries,
   sumDailyPaid,
   sumDailyRefunds,
-  topServicesForRange,
 } from "@/modules/reports/report.repository";
 import type {
   GetAgingQueueQuery,
@@ -20,16 +24,12 @@ import type {
   GetReportOverviewQuery,
 } from "@/modules/reports/report.schema";
 import {
-  getJakartaDayRange,
-  shiftDate,
-} from "@/modules/reports/report-range.util";
-import {
   countServicesProcessed,
   servicesProcessedTrendSeries,
 } from "@/modules/reports/services-processed";
 import { buildPaginationMeta, normalizePagination } from "@/utils/pagination";
 
-export async function getDailyReport(query: GetDailyReportQuery) {
+export const getDailyReport = async (query: GetDailyReportQuery) => {
   const range = getJakartaDayRange(query.date);
   const storeId = query.store_id;
 
@@ -50,9 +50,9 @@ export async function getDailyReport(query: GetDailyReportQuery) {
     orders_in: ordersIn,
     orders_out: ordersOut,
   };
-}
+};
 
-export async function getReportOverview(query: GetReportOverviewQuery) {
+export const getReportOverview = async (query: GetReportOverviewQuery) => {
   const dayRange = getJakartaDayRange(query.date);
   const storeId = query.store_id;
   const trendDays = query.trend_days;
@@ -81,7 +81,7 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
     refundsTrendSeries({ range: trendRange, storeId }),
     servicesProcessedTrendSeries({ range: trendRange, storeId }),
     categoryGrossSalesForRange({ range: dayRange, storeId }),
-    topServicesForRange({ range: dayRange, storeId }),
+    listTopServiceRows({ range: dayRange, storeId }),
     perStoreForRange({ range: dayRange }),
   ]);
 
@@ -113,12 +113,17 @@ export async function getReportOverview(query: GetReportOverviewQuery) {
     daily,
     trend,
     categories,
-    top_services: topServices,
+    top_services: topServices.map((row) => ({
+      service_id: row.service_id,
+      service_name: row.name,
+      count: row.items,
+      gross_sales: row.gross_sales,
+    })),
     per_store: perStore,
   };
-}
+};
 
-export async function getAgingQueueReport(query?: GetAgingQueueQuery) {
+export const getAgingQueueReport = async (query?: GetAgingQueueQuery) => {
   const pagination = normalizePagination(query, { maxPageSize: 200 });
   const filters = { storeId: query?.store_id };
 
@@ -135,4 +140,4 @@ export async function getAgingQueueReport(query?: GetAgingQueueQuery) {
     items,
     meta: buildPaginationMeta(total, pagination),
   };
-}
+};

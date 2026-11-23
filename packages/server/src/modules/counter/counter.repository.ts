@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, inArray, min, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, not, sql } from "drizzle-orm";
+
 import { db } from "@/db";
 import {
   categoriesTable,
@@ -11,47 +12,17 @@ import {
   ordersTable,
   servicesTable,
 } from "@/db/schema";
-import { REWORKED_ROUND_STATUSES } from "@/modules/complaints/complaint.schema";
-import type { DateRange } from "@/modules/reports/report-range.util";
-import { listServicesProcessed } from "@/modules/reports/services-processed";
+import { hasLiveRework } from "@/modules/complaints/complaint.repository";
+import { itemNameColumns } from "@/modules/orders/order-read.repository";
+import { WORKSHOP_SERVICE_STATUSES } from "@/schema/order-status";
 import type { NormalizedPagination } from "@/utils/pagination";
 
-const WAITING_STATUSES = ["queued", "processing", "qc_reject"] as const;
-
-export async function findFirstOrderCreatedAt(storeId: number) {
-  const [row] = await db
-    .select({ first: min(ordersTable.created_at) })
-    .from(ordersTable)
-    .where(eq(ordersTable.store_id, storeId));
-
-  return row?.first ?? null;
-}
-
-export function listProcessedByCategory(storeId: number, range: DateRange) {
-  const processed = listServicesProcessed({ range, storeId }).as("processed");
-
-  return db
-    .select({
-      category_id: servicesTable.category_id,
-      processed_at: processed.processed_at,
-    })
-    .from(processed)
-    .innerJoin(
-      ordersServicesTable,
-      eq(processed.order_service_id, ordersServicesTable.id)
-    )
-    .innerJoin(
-      servicesTable,
-      eq(ordersServicesTable.service_id, servicesTable.id)
-    );
-}
-
-export function listWaitingLines(storeId: number) {
-  return db
+export const listWaitingLines = (storeId: number) =>
+  db
     .select({
       category_id: categoriesTable.id,
       category_name: categoriesTable.name,
-      item_code: itemsTable.item_code,
+      ...itemNameColumns,
       item_id: ordersServicesTable.item_id,
       line_id: ordersServicesTable.id,
       order_id: ordersTable.id,
@@ -72,14 +43,13 @@ export function listWaitingLines(storeId: number) {
     .where(
       and(
         eq(ordersTable.store_id, storeId),
-        inArray(ordersServicesTable.status, [...WAITING_STATUSES])
+        inArray(ordersServicesTable.status, [...WORKSHOP_SERVICE_STATUSES])
       )
     );
-}
 
 // The latest QC reject on each line: when, and the note the checker left.
-export function listLatestQcRejects(lineIds: number[]) {
-  return db
+export const listLatestQcRejects = (lineIds: number[]) =>
+  db
     .selectDistinctOn([orderServiceStatusLogsTable.order_service_id], {
       created_at: orderServiceStatusLogsTable.created_at,
       line_id: orderServiceStatusLogsTable.order_service_id,
@@ -96,17 +66,16 @@ export function listLatestQcRejects(lineIds: number[]) {
       orderServiceStatusLogsTable.order_service_id,
       desc(orderServiceStatusLogsTable.created_at)
     );
-}
 
 // A Complaint is undecided while its line is still live and no Rework round
 // that was not cancelled exists (ADR-0013 amendment).
-export function listUndecidedComplaints(storeId: number) {
-  return db
+export const listUndecidedComplaints = (storeId: number) =>
+  db
     .select({
       category_name: categoriesTable.name,
       complaint_id: complaintsTable.id,
       created_at: complaintsTable.created_at,
-      item_code: itemsTable.item_code,
+      ...itemNameColumns,
       reason: complaintsTable.reason,
     })
     .from(complaintsTable)
@@ -128,11 +97,10 @@ export function listUndecidedComplaints(storeId: number) {
       and(
         eq(ordersTable.store_id, storeId),
         sql`${ordersServicesTable.status} NOT IN ('refunded', 'cancelled')`,
-        sql`NOT EXISTS (SELECT 1 FROM orders_services rw WHERE rw.complaint_id = ${complaintsTable.id} AND rw.status IN ${REWORKED_ROUND_STATUSES})`
+        not(hasLiveRework)
       )
     )
     .orderBy(asc(complaintsTable.created_at));
-}
 
 // Only Items still on the shelf count: one the Customer already took home
 // from a part pickup, or one cancelled or refunded, is not there.
@@ -147,8 +115,8 @@ const onShelfAt = (storeId: number) =>
     eq(ordersTable.status, "ready_for_pickup")
   );
 
-export function sumPickupShelf(storeId: number) {
-  return db
+export const sumPickupShelf = (storeId: number) =>
+  db
     .select({
       items: sql<number>`COUNT(DISTINCT ${ordersServicesTable.item_id})::int`,
       orders: sql<number>`COUNT(DISTINCT ${ordersTable.id})::int`,
@@ -157,10 +125,9 @@ export function sumPickupShelf(storeId: number) {
     .leftJoin(ordersServicesTable, shelfLineOfOrder)
     .where(onShelfAt(storeId))
     .then((rows) => rows[0] ?? { items: 0, orders: 0 });
-}
 
-export function listPickupShelf(storeId: number, page: NormalizedPagination) {
-  return db
+export const listPickupShelf = (storeId: number, page: NormalizedPagination) =>
+  db
     .select({
       customer_name: customersTable.name,
       customer_phone: customersTable.phone_number,
@@ -177,4 +144,3 @@ export function listPickupShelf(storeId: number, page: NormalizedPagination) {
     .orderBy(asc(ordersTable.ready_at), asc(ordersTable.id))
     .limit(page.limit)
     .offset(page.offset);
-}

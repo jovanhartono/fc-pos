@@ -1,6 +1,7 @@
 // A one-day drift here moves money between days. jakartaBucketExpr is tested
 // against a database in report-day-buckets.integration.test.ts.
 import { describe, expect, it } from "bun:test";
+
 import {
   bucketFormat,
   daysBetween,

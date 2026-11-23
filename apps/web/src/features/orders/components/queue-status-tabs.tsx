@@ -1,31 +1,35 @@
-import { WORKSHOP_SERVICE_STATUSES } from "@fresclean/api/schema";
+import { WORKSHOP_SERVICE_STATUSES } from "@fresclean/api/rules";
+
 import { StatusChipStrip } from "@/components/chip-strip";
 import { formatOrderServiceStatus } from "@/lib/status";
 
 const STATUS_TAB_ITEMS: {
-	value: "all" | (typeof WORKSHOP_SERVICE_STATUSES)[number];
-	label: string;
+  value: "all" | (typeof WORKSHOP_SERVICE_STATUSES)[number];
+  label: string;
 }[] = [
-	{ value: "all", label: "All" },
-	...WORKSHOP_SERVICE_STATUSES.map((status) => ({
-		value: status,
-		label: formatOrderServiceStatus(status),
-	})),
+  { value: "all", label: "All" },
+  ...WORKSHOP_SERVICE_STATUSES.map((status) => ({
+    value: status,
+    label: formatOrderServiceStatus(status),
+  })),
 ];
 
 interface QueueStatusTabsProps {
-	value: string;
-	onValueChange: (value: string) => void;
+  value: string;
+  onValueChange: (value: string) => void;
+  disabled?: boolean;
 }
 
 export const QueueStatusTabs = ({
-	value,
-	onValueChange,
+  value,
+  onValueChange,
+  disabled,
 }: QueueStatusTabsProps) => (
-	<StatusChipStrip
-		chips={STATUS_TAB_ITEMS}
-		legend="Filter by status"
-		onValueChange={onValueChange}
-		value={value}
-	/>
+  <StatusChipStrip
+    chips={STATUS_TAB_ITEMS}
+    disabled={disabled}
+    legend="Filter by status"
+    onValueChange={onValueChange}
+    value={value}
+  />
 );

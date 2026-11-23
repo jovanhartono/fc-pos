@@ -1,6 +1,8 @@
 import type { InferInsertModel, SQL } from "drizzle-orm";
 import { EmptyFilter, sql } from "drizzle-orm";
-import { type DbExecutor, db } from "@/db";
+
+import { db } from "@/db";
+import type { DbExecutor } from "@/db";
 import {
   itemsTable,
   orderCountersTable,
@@ -10,23 +12,20 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
+import { deriveOrderRefundStatus } from "@/modules/orders/order-refund-status";
+import type { OrderRefundStatus } from "@/modules/orders/order-refund-status";
+import { isNumericSearch } from "@/modules/orders/order-search";
+import {
+  countItemsReady,
+  summarizeOrderFulfillment,
+} from "@/modules/orders/order-status-machine";
 import type {
   NormalizedOrderListQuery,
   OrderListFilters,
 } from "@/modules/orders/order.schema";
-import {
-  deriveOrderRefundStatus,
-  type OrderRefundStatus,
-} from "@/modules/orders/order-refund-status";
-import { isNumericSearch } from "@/modules/orders/order-search";
-import {
-  countItemsReady,
-  type ItemStatusLine,
-  summarizeOrderFulfillment,
-} from "@/modules/orders/order-status-machine";
 import { toStoredPhonePrefix } from "@/schema/phone";
 import { PICKUP_OVERDUE_HOURS } from "@/schema/turnaround";
-import { isUnpricedLine } from "@/schema/unpriced-line";
+import { hasUnpricedLine } from "@/schema/unpriced-line";
 import { jakartaDayEnd, jakartaDayStart, jakartaNow } from "@/utils/date";
 
 export type OrderTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -41,7 +40,7 @@ const getItemPrepared = db.query.itemsTable
   })
   .prepare("get_item");
 
-export async function getItemOrThrow(orderId: number, itemId: number) {
+export const getItemOrThrow = async (orderId: number, itemId: number) => {
   const item = await getItemPrepared.execute({
     order_id: orderId,
     id: itemId,
@@ -52,12 +51,12 @@ export async function getItemOrThrow(orderId: number, itemId: number) {
   }
 
   return item;
-}
+};
 
 // Each line's price beside the catalog's tells a blank Repair from a free line.
 // Read inside the transaction that books the money.
-export function findSettlementLines(executor: DbExecutor, orderId: number) {
-  return executor.query.ordersServicesTable.findMany({
+export const findSettlementLines = (executor: DbExecutor, orderId: number) =>
+  executor.query.ordersServicesTable.findMany({
     where: { order_id: orderId },
     columns: {
       complaint_id: true,
@@ -69,7 +68,6 @@ export function findSettlementLines(executor: DbExecutor, orderId: number) {
       service: { columns: { price: true } },
     },
   });
-}
 
 export interface OrderListItem {
   code: string;
@@ -78,6 +76,7 @@ export interface OrderListItem {
   customer_id: number;
   customer_name: string;
   customer_phone: string;
+  delivery_fee: string;
   discount: string;
   fulfillment: ReturnType<typeof summarizeOrderFulfillment>;
   has_complaint: boolean;
@@ -119,21 +118,36 @@ const NOTIFIED_FILTER = {
 
 // The same split as deriveOrderRefundStatus, so the list never disagrees
 // with the badge on the Order it opens. A refund never exceeds what was paid.
-function refundConditions(status: OrderListFilters["refund_status"]) {
+const refundConditions = (status: OrderListFilters["refund_status"]) => {
   if (!status) {
     return [];
+  }
+  if (status === "any") {
+    return [{ refunded_amount: { gt: "0" } }];
   }
   const compare = status === "full" ? sql`=` : sql`<`;
   return [
     { refunded_amount: { gt: "0" } },
     {
       RAW: (t: typeof ordersTable) =>
-        sql`${t.refunded_amount} ${compare} ${t.paid_amount}`,
+        sql`${t.refunded_amount} ${compare} ${t.paid_amount} - ${t.delivery_fee}`,
     },
   ];
-}
+};
 
-function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
+const dayRangeConditions = (
+  column: "created_at" | "paid_at",
+  from?: string,
+  to?: string
+): Record<string, unknown>[] => [
+  ...(from ? [{ [column]: { gte: jakartaDayStart(from) } }] : []),
+  ...(to ? [{ [column]: { lte: jakartaDayEnd(to) } }] : []),
+];
+
+const buildOrderWhere = (
+  filters: OrderListFilters,
+  scopedStoreIds?: number[]
+) => {
   const conditions: Record<string, unknown>[] = [];
 
   if (scopedStoreIds !== undefined) {
@@ -161,14 +175,16 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
   conditions.push(...refundConditions(filters.refund_status));
 
   if (filters.overdue) {
-    conditions.push({ status: "ready_for_pickup" });
-    // Aged from when it was ready, not from drop-off. A null ready_at is left
-    // out on purpose: an unfinished Order has not kept anyone waiting.
-    conditions.push({
-      ready_at: {
-        lt: jakartaNow().subtract(PICKUP_OVERDUE_HOURS, "hour").toDate(),
-      },
-    });
+    conditions.push(
+      { status: "ready_for_pickup" },
+      // Aged from when it was ready, not from drop-off. A null ready_at is left
+      // out on purpose: an unfinished Order has not kept anyone waiting.
+      {
+        ready_at: {
+          lt: jakartaNow().subtract(PICKUP_OVERDUE_HOURS, "hour").toDate(),
+        },
+      }
+    );
   }
 
   if (filters.notified) {
@@ -191,17 +207,10 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
     conditions.push({ payment_method_id: filters.payment_method_id });
   }
 
-  if (filters.date_from) {
-    conditions.push({
-      created_at: { gte: jakartaDayStart(filters.date_from) },
-    });
-  }
-
-  if (filters.date_to) {
-    conditions.push({
-      created_at: { lte: jakartaDayEnd(filters.date_to) },
-    });
-  }
+  conditions.push(
+    ...dayRangeConditions("created_at", filters.date_from, filters.date_to),
+    ...dayRangeConditions("paid_at", filters.paid_from, filters.paid_to)
+  );
 
   if (filters.search) {
     const search = filters.search.trim();
@@ -222,10 +231,12 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
 
     if (isNumericSearch(search)) {
       const numericSearch = Number(search);
-      searchOr.push({ id: numericSearch });
-      searchOr.push({
-        services: { id: numericSearch },
-      });
+      searchOr.push(
+        { id: numericSearch },
+        {
+          services: { id: numericSearch },
+        }
+      );
     }
 
     conditions.push({ OR: searchOr });
@@ -238,12 +249,28 @@ function buildOrderWhere(filters: OrderListFilters, scopedStoreIds?: number[]) {
     return conditions[0];
   }
   return { AND: conditions };
-}
+};
 
-export async function findOrders(
+// Counts through buildOrderWhere itself, since db.$count() cannot take its
+// filters and a second copy would drift from the page. The window count runs
+// before LIMIT, so one row carries the total.
+export const countOrders = async (
+  filters: OrderListFilters,
+  scopedStoreIds?: number[]
+): Promise<number> => {
+  const [row] = await db.query.ordersTable.findMany({
+    where: buildOrderWhere(filters, scopedStoreIds),
+    columns: { id: true },
+    extras: { total: sql<number>`(count(*) over ())::int`.as("total") },
+    limit: 1,
+  });
+  return row?.total ?? 0;
+};
+
+export const findOrders = async (
   filters: NormalizedOrderListQuery,
   scopedStoreIds?: number[]
-): Promise<FindOrdersResult> {
+): Promise<FindOrdersResult> => {
   const [rows, total] = await Promise.all([
     db.query.ordersTable.findMany({
       columns: {
@@ -254,6 +281,7 @@ export async function findOrders(
         paid_amount: true,
         refunded_amount: true,
         discount: true,
+        delivery_fee: true,
         total: true,
         notes: true,
         created_at: true,
@@ -283,6 +311,15 @@ export async function findOrders(
           },
         },
         pickupNotices: { columns: { id: true }, limit: 1 },
+        services: {
+          columns: {
+            item_id: true,
+            pickup_event_id: true,
+            price: true,
+            status: true,
+          },
+          with: { complaints: { columns: { id: true } } },
+        },
       },
       where: buildOrderWhere(filters, scopedStoreIds),
       orderBy:
@@ -298,72 +335,27 @@ export async function findOrders(
     countOrders(filters, scopedStoreIds),
   ]);
 
-  const orderIds = rows.map((row) => row.id);
-  const serviceRows =
-    orderIds.length === 0
-      ? []
-      : await db.query.ordersServicesTable.findMany({
-          where: { order_id: { in: orderIds } },
-          columns: {
-            order_id: true,
-            item_id: true,
-            pickup_event_id: true,
-            price: true,
-            status: true,
-          },
-          with: { complaints: { columns: { id: true } } },
-        });
-
-  const groupedStatuses = new Map<
-    number,
-    (typeof serviceRows)[number]["status"][]
-  >();
-  const awaitingPrice = new Set<number>();
-  const complained = new Set<number>();
-  // Per Order, each Item's lines, for the list's "2 of 3 ready".
-  const linesByItem = new Map<number, Map<number, ItemStatusLine[]>>();
-
-  for (const row of serviceRows) {
-    if (row.order_id === null) {
-      continue;
-    }
-
-    const current = groupedStatuses.get(row.order_id) ?? [];
-    current.push(row.status);
-    groupedStatuses.set(row.order_id, current);
-
-    const items = linesByItem.get(row.order_id) ?? new Map();
-    items.set(row.item_id, [...(items.get(row.item_id) ?? []), row]);
-    linesByItem.set(row.order_id, items);
-
-    if (isUnpricedLine(row)) {
-      awaitingPrice.add(row.order_id);
-    }
-    if (row.complaints.length > 0) {
-      complained.add(row.order_id);
-    }
-  }
-
-  const countItems = (orderId: number) =>
-    countItemsReady([...(linesByItem.get(orderId)?.values() ?? [])]);
-
   const items: OrderListItem[] = rows.map((row) => ({
     id: row.id,
     code: row.code,
     status: row.status,
     payment_status: row.payment_status,
     refund_status: deriveOrderRefundStatus({
+      delivery_fee: row.delivery_fee,
       paid_amount: row.paid_amount,
       refunded_amount: row.refunded_amount,
     }),
     discount: row.discount,
+    delivery_fee: row.delivery_fee,
     total: row.total,
     paid_amount: row.paid_amount,
     refunded_amount: row.refunded_amount,
-    has_unpriced_line: awaitingPrice.has(row.id),
-    has_complaint: complained.has(row.id),
+    has_unpriced_line: hasUnpricedLine(row.services),
+    has_complaint: row.services.some((line) => line.complaints.length > 0),
     notified: row.pickupNotices.length > 0,
-    ...countItems(row.id),
+    ...countItemsReady([
+      ...Map.groupBy(row.services, (line) => line.item_id).values(),
+    ]),
     notes: row.notes,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -377,23 +369,25 @@ export async function findOrders(
     payment_method_name: row.paymentMethod?.name ?? null,
     created_by: row.created_by,
     updated_by: row.updated_by,
-    fulfillment: summarizeOrderFulfillment(groupedStatuses.get(row.id) ?? []),
+    fulfillment: summarizeOrderFulfillment(
+      row.services.map((line) => line.status)
+    ),
   }));
 
   return {
     items,
     total,
   };
-}
+};
 
 type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
 
-// Counted like countOrders below, so each status tab's number matches the page
+// Counted like countOrders above, so each status tab's number matches the page
 // it opens.
-export async function countOrdersByStatus(
+export const countOrdersByStatus = async (
   filters: OrderListFilters,
   scopedStoreIds?: number[]
-): Promise<Record<OrderStatus, number>> {
+): Promise<Record<OrderStatus, number>> => {
   const statuses = orderStatusEnum.enumValues;
   const [row] = await db.query.ordersTable.findMany({
     where: buildOrderWhere({ ...filters, status: undefined }, scopedStoreIds),
@@ -411,29 +405,13 @@ export async function countOrdersByStatus(
   return Object.fromEntries(
     statuses.map((status) => [status, row?.[status] ?? 0])
   ) as Record<OrderStatus, number>;
-}
+};
 
-// Counts through buildOrderWhere itself, since db.$count() cannot take its
-// filters and a second copy would drift from the page. The window count runs
-// before LIMIT, so one row carries the total.
-export async function countOrders(
-  filters: OrderListFilters,
-  scopedStoreIds?: number[]
-): Promise<number> {
-  const [row] = await db.query.ordersTable.findMany({
-    where: buildOrderWhere(filters, scopedStoreIds),
-    columns: { id: true },
-    extras: { total: sql<number>`(count(*) over ())::int`.as("total") },
-    limit: 1,
-  });
-  return row?.total ?? 0;
-}
-
-export async function reserveNextOrderNumber(
+export const reserveNextOrderNumber = async (
   tx: OrderTx,
   storeCode: string,
   dateStr: string
-): Promise<number> {
+): Promise<number> => {
   const [counter] = await tx
     .insert(orderCountersTable)
     .values({
@@ -452,27 +430,27 @@ export async function reserveNextOrderNumber(
     });
 
   return counter.last_number;
-}
+};
 
-export async function insertOrder(
+export const insertOrder = async (
   tx: OrderTx,
   values: InferInsertModel<typeof ordersTable>
-): Promise<number> {
+): Promise<number> => {
   const [created] = await tx
     .insert(ordersTable)
     .values(values)
     .returning({ id: ordersTable.id });
 
   return created.id;
-}
+};
 
 // Returns item_code with each id so the caller matches lines to Items by code,
 // not by row order. A mix-up would put a line on the wrong shoe, and no database
 // rule would catch it (ADR-0017).
-export async function insertItems(
+export const insertItems = async (
   tx: OrderTx,
   values: InferInsertModel<typeof itemsTable>[]
-): Promise<{ id: number; item_code: string }[]> {
+): Promise<{ id: number; item_code: string }[]> => {
   if (values.length === 0) {
     return [];
   }
@@ -481,12 +459,12 @@ export async function insertItems(
     .insert(itemsTable)
     .values(values)
     .returning({ id: itemsTable.id, item_code: itemsTable.item_code });
-}
+};
 
-export async function insertOrderServices(
+export const insertOrderServices = async (
   tx: OrderTx,
   values: InferInsertModel<typeof ordersServicesTable>[]
-): Promise<number> {
+): Promise<number> => {
   if (values.length === 0) {
     return 0;
   }
@@ -497,12 +475,12 @@ export async function insertOrderServices(
     .returning({ subtotal: ordersServicesTable.subtotal });
 
   return inserted.reduce((sum, row) => sum + Number(row.subtotal ?? 0), 0);
-}
+};
 
-export async function insertOrderProducts(
+export const insertOrderProducts = async (
   tx: OrderTx,
   values: InferInsertModel<typeof ordersProductsTable>[]
-): Promise<number> {
+): Promise<number> => {
   if (values.length === 0) {
     return 0;
   }
@@ -513,4 +491,4 @@ export async function insertOrderProducts(
     .returning({ subtotal: ordersProductsTable.subtotal });
 
   return inserted.reduce((sum, row) => sum + Number(row.subtotal ?? 0), 0);
-}
+};

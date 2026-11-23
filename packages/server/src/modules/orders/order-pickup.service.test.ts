@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
@@ -32,6 +33,13 @@ const s3Calls = {
   presigned: [] as { contentType: string; key: string }[],
   optimized: [] as string[],
 };
+
+const readyServiceIds = () =>
+  state.items.flatMap((item) =>
+    item.services
+      .filter((service) => service.status === "ready_for_pickup")
+      .map((service) => service.id)
+  );
 
 // The real status machine runs on this, so the pickup and the event share one
 // transaction and roll back together.
@@ -81,13 +89,6 @@ const TX = {
   }),
 };
 
-const readyServiceIds = () =>
-  state.items.flatMap((item) =>
-    item.services
-      .filter((service) => service.status === "ready_for_pickup")
-      .map((service) => service.id)
-  );
-
 mock.module("@/db", () => ({
   db: {
     query: {
@@ -104,9 +105,9 @@ mock.module("@/db", () => ({
         },
       },
     },
-    transaction: async (cb: (tx: unknown) => Promise<unknown>) => {
+    transaction: async (work: (tx: unknown) => Promise<unknown>) => {
       try {
-        const result = await cb(TX);
+        const result = await work(TX);
         state.transactionOutcome = "committed";
         return result;
       } catch (error) {
@@ -119,12 +120,7 @@ mock.module("@/db", () => ({
 
 const STORAGE_ENV_PREFIX = "dev/";
 
-// Taken before the mock replaces the module, so the real key checks run here.
-const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
-
 mock.module("@/utils/s3", () => ({
-  STORAGE_ENV_PREFIX,
-  assertPhotoKeyUnder,
   buildMediaUrl: (path: string) => `https://cdn.test/${path}`,
   createPresignedUploadUrl: (input: { contentType: string; key: string }) => {
     s3Calls.presigned.push(input);
@@ -134,16 +130,14 @@ mock.module("@/utils/s3", () => ({
       expires_in_seconds: 300,
     };
   },
-  newPhotoKey,
   optimizeUploadedImage: (key: string) => {
     s3Calls.optimized.push(key);
     return Promise.resolve();
   },
 }));
 
-const { createOrderPickupEvent, createOrderPickupEventPresign } = await import(
-  "@/modules/orders/order-pickup.service"
-);
+const { createOrderPickupEvent, createOrderPickupEventPresign } =
+  await import("@/modules/orders/order-pickup.service");
 
 const ORDER_ID = 42;
 
@@ -287,7 +281,7 @@ describe("createOrderPickupEvent", () => {
     const error = await captureRejection(pickup({ item_ids: [1, 2] }));
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Another cashier already processed one of the selected items. Refresh and try again."
+      "Someone already picked up one of these Items. Refresh and try again."
     );
     expect(state.insertedEvent).toBeDefined();
     expect(state.transactionOutcome).toBe("rolled_back");

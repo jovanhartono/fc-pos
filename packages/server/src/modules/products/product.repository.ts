@@ -1,15 +1,16 @@
 import type { InferInsertModel } from "drizzle-orm";
 import { and, eq, gte, sql } from "drizzle-orm";
+
 import { db } from "@/db";
 import { productsTable } from "@/db/schema";
 import type { OrderTx } from "@/modules/orders/order.repository";
 
 // A Product short on stock is left untouched and missing from the returned
 // ids, which is how the caller knows which Line to refuse.
-export function decrementProductsStock(
+export const decrementProductsStock = (
   tx: OrderTx,
   entries: { productId: number; qty: number }[]
-) {
+) => {
   const wanted = sql.join(
     entries.map(
       (entry) => sql`(${entry.productId}::integer, ${entry.qty}::integer)`
@@ -28,39 +29,36 @@ export function decrementProductsStock(
       )
     )
     .returning({ id: productsTable.id });
-}
+};
 
 // A Cancellation puts stock back (ADR-0008): the goods never left the shop,
 // unlike after a Refund.
-export function incrementProductStock(
+export const incrementProductStock = (
   tx: OrderTx,
   productId: number,
   qty: number
-) {
-  return tx
+) =>
+  tx
     .update(productsTable)
     .set({ stock: sql`${productsTable.stock} + ${qty}` })
     .where(eq(productsTable.id, productId))
     .returning({ id: productsTable.id });
-}
 
-export function findProducts(ids: number[]) {
-  return db.query.productsTable.findMany({
+export const findProducts = (ids: number[]) =>
+  db.query.productsTable.findMany({
     where: { id: { in: ids } },
   });
-}
 
 export const LIST_PRODUCTS_MAX = 500;
 
-export function listProducts() {
-  return db.query.productsTable.findMany({
+export const listProducts = () =>
+  db.query.productsTable.findMany({
     orderBy: { id: "asc" },
     limit: LIST_PRODUCTS_MAX,
     with: {
       category: true,
     },
   });
-}
 
 const findProductByIdPrepared = db.query.productsTable
   .findFirst({
@@ -68,21 +66,18 @@ const findProductByIdPrepared = db.query.productsTable
   })
   .prepare("find_product_by_id");
 
-export function findProductById(id: number) {
-  return findProductByIdPrepared.execute({ id });
-}
+export const findProductById = (id: number) =>
+  findProductByIdPrepared.execute({ id });
 
-export function insertProduct(values: InferInsertModel<typeof productsTable>) {
-  return db.insert(productsTable).values(values).returning();
-}
+export const insertProduct = (values: InferInsertModel<typeof productsTable>) =>
+  db.insert(productsTable).values(values).returning();
 
-export function updateProductById(
+export const updateProductById = (
   id: number,
   values: Partial<InferInsertModel<typeof productsTable>>
-) {
-  return db
+) =>
+  db
     .update(productsTable)
     .set(values)
     .where(eq(productsTable.id, id))
     .returning();
-}

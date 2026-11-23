@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+
 import {
   orderRefundItemsTable,
   orderRefundsTable,
@@ -33,6 +34,7 @@ const state = {
   serviceRows: [] as AnyObj[],
   productRows: [] as AnyObj[],
   refundedRows: [] as AnyObj[],
+  orderReads: 0,
   postCancelStatus: undefined as string | undefined,
   postCancelPaymentStatus: "unpaid" as string,
   postCancelTotal: "0" as string | null,
@@ -89,9 +91,11 @@ const fakeTx = {
   select: selectBuilder,
   query: {
     ordersTable: {
+      // The first read is the Order as the cancel found it; later ones see it
+      // after the lines went.
       findFirst: () =>
         Promise.resolve(
-          state.postCancelStatus == null
+          state.orderReads++ === 0 || state.postCancelStatus == null
             ? state.order
             : {
                 payment_status: state.postCancelPaymentStatus,
@@ -105,6 +109,9 @@ const fakeTx = {
     },
     ordersProductsTable: {
       findMany: () => Promise.resolve(state.productRows),
+    },
+    orderCampaignsTable: {
+      findMany: () => Promise.resolve([]),
     },
   },
 };
@@ -125,9 +132,9 @@ mock.module("@/db", () => ({
         }),
       },
     },
-    transaction: (cb: (tx: unknown) => unknown) => {
+    transaction: (work: (tx: unknown) => unknown) => {
       writes.transactionCount += 1;
-      return cb(fakeTx);
+      return work(fakeTx);
     },
   },
 }));
@@ -140,9 +147,8 @@ const machine = {
   rollupCalls: [] as { executor: unknown; orderId: number; userId: number }[],
 };
 
-const actualStatusMachine = await import(
-  "@/modules/orders/order-status-machine"
-);
+const actualStatusMachine =
+  await import("@/modules/orders/order-status-machine");
 
 // Held before mocking: read later off the namespace, it would be the double.
 const realApplyRefundTransition = actualStatusMachine.applyRefundTransition;
@@ -177,9 +183,8 @@ const redemption = {
   voidCalls: [] as { billableTotal: number; orderId: number }[],
 };
 
-const actualRedemption = await import(
-  "@/modules/campaigns/campaign-redemption.service"
-);
+const actualRedemption =
+  await import("@/modules/campaigns/campaign-redemption.service");
 
 mock.module("@/modules/campaigns/campaign-redemption.service", () => ({
   ...actualRedemption,
@@ -195,6 +200,11 @@ mock.module("@/modules/campaigns/campaign-redemption.service", () => ({
     redemption.voidCalls.push({ orderId, billableTotal });
     return Promise.resolve();
   },
+}));
+
+// Closing a QRIS reaches the gateway; payment-charge.service's own suite covers it.
+mock.module("@/modules/payments/payment-charge-close", () => ({
+  cancelOrderPendingCharges: () => Promise.resolve(),
 }));
 
 const stock = {
@@ -227,9 +237,8 @@ afterAll(() => {
   mock.module("@/modules/products/product.repository", () => actualProductRepo);
 });
 
-const { cancelOrder, createOrderRefund } = await import(
-  "@/modules/orders/order-reversal.service"
-);
+const { cancelOrder, createOrderRefund } =
+  await import("@/modules/orders/order-reversal.service");
 
 const ADMIN = { id: 42, role: "admin" } as unknown as JWTPayload;
 
@@ -261,6 +270,7 @@ const makePaidOrder = (over: AnyObj = {}) => ({
   refunded_amount: "0",
   total: "100000",
   discount: "10000",
+  delivery_fee: "0",
   ...over,
 });
 
@@ -276,6 +286,7 @@ beforeEach(() => {
   state.serviceRows = [];
   state.productRows = [];
   state.refundedRows = [];
+  state.orderReads = 0;
   state.postCancelStatus = undefined;
   state.postCancelPaymentStatus = "unpaid";
   state.postCancelTotal = "0";
@@ -454,7 +465,7 @@ describe("createOrderRefund", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Service changed state before transition could apply. Refresh and try again."
+      "Someone just changed this line. Refresh and try again."
     );
   });
 
@@ -657,7 +668,7 @@ describe("cancelOrder", () => {
     expect((error as Error).message).toBe(
       "Product line 32 is refunded and cannot be cancelled"
     );
-    expect(writes.transactionCount).toBe(0);
+    expect(writes.updates).toHaveLength(0);
   });
 
   it("refuses a line that does not belong to this order", async () => {
@@ -672,6 +683,6 @@ describe("cancelOrder", () => {
     expect((error as Error).message).toBe(
       "Product line 33 not found on this order"
     );
-    expect(writes.transactionCount).toBe(0);
+    expect(writes.updates).toHaveLength(0);
   });
 });

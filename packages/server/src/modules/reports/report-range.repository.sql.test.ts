@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { drizzle } from "drizzle-orm/pg-proxy";
+
 import type { DateRange } from "@/modules/reports/report-range.util";
 
 // Whole statements, byte for byte: an added `or paid_at is null` leaves every
@@ -37,7 +39,7 @@ const askedFor = async (run: () => Promise<unknown>) => {
 
   return queries.map((query) => ({
     params: query.params,
-    sql: query.sql.replace(/\s+/g, " ").trim(),
+    sql: query.sql.replaceAll(/\s+/gu, " ").trim(),
   }));
 };
 
@@ -45,32 +47,14 @@ type Query = (storeId?: number) => Promise<unknown>;
 
 const QUERIES: [string, Query][] = [
   [
-    "services gross sales",
+    "services gross sales and COGS",
     (storeId) =>
-      repo.listServicesGrossSalesSeries({
-        granularity: DAY,
-        range: AUGUST,
-        storeId,
-      }),
+      repo.listServicesSeries({ granularity: DAY, range: AUGUST, storeId }),
   ],
   [
-    "products gross sales",
+    "products gross sales and COGS",
     (storeId) =>
-      repo.listProductsGrossSalesSeries({
-        granularity: DAY,
-        range: AUGUST,
-        storeId,
-      }),
-  ],
-  [
-    "services COGS",
-    (storeId) =>
-      repo.listServicesCogsSeries({ granularity: DAY, range: AUGUST, storeId }),
-  ],
-  [
-    "products COGS",
-    (storeId) =>
-      repo.listProductsCogsSeries({ granularity: DAY, range: AUGUST, storeId }),
+      repo.listProductsSeries({ granularity: DAY, range: AUGUST, storeId }),
   ],
   [
     "order discount",
@@ -93,6 +77,18 @@ const QUERIES: [string, Query][] = [
   [
     "store refunds",
     (storeId) => repo.listStoreRefundRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "busy hours",
+    (storeId) => repo.listBusyHourRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "top services",
+    (storeId) => repo.listTopServiceRows({ range: AUGUST, storeId }),
+  ],
+  [
+    "unpaid orders by age",
+    (storeId) => repo.listUnpaidOrderAgeRows({ storeId }),
   ],
   [
     "category gross sales",
@@ -185,6 +181,17 @@ describe("what each money report asks Postgres for one store", () => {
       expect(await askedFor(() => run(KEMANG))).toMatchSnapshot();
     });
   }
+});
+
+// A worker's Profile page reads only their own rows, across every Store.
+describe("what a worker's own figures ask Postgres for", () => {
+  it("asks for one person's lines, shifts, moves and QC checks", async () => {
+    expect(
+      await askedFor(() =>
+        repo.listWorkerActivity({ range: AUGUST, userId: 7 })
+      )
+    ).toMatchSnapshot();
+  });
 });
 
 describe("what each money report asks Postgres for the whole company", () => {

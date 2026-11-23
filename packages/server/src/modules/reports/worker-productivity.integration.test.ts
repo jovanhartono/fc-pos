@@ -1,6 +1,9 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { eq, inArray } from "drizzle-orm";
+
 import {
   complaintsTable,
   orderServiceStatusLogsTable,
@@ -11,9 +14,11 @@ import {
 } from "@/db/schema";
 import {
   getJakartaDayRange,
+  getJakartaRange,
   shiftDate,
 } from "@/modules/reports/report-range.util";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 import { jakartaNow } from "@/utils/date";
 
@@ -25,6 +30,7 @@ import { jakartaNow } from "@/utils/date";
 // database before the mock runs.
 const { createOrder } = await import("@/modules/orders/order.service");
 const {
+  getOwnWorkerFacts,
   getWorkerDetailReport,
   getWorkerLiveReport,
   getWorkerProductivityReport,
@@ -59,6 +65,7 @@ const placeOrder = async (
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: items.map(({ brand, serviceId }) => ({
       brand,
       services: [{ id: serviceId }],
@@ -166,6 +173,16 @@ beforeEach(async () => {
     .returning();
 });
 
+const kemangAugust = () =>
+  getWorkerProductivityReport({ ...AUGUST, store_id: shop.store.id });
+
+const itemCodeOf = async (brand: string) => {
+  const item = await testDb.query.itemsTable.findFirst({
+    where: { brand },
+  });
+  return item?.item_code ?? "";
+};
+
 describe("the Workers report over August", () => {
   beforeEach(async () => {
     const clean = shop.serviceId;
@@ -184,18 +201,18 @@ describe("the Workers report over August", () => {
     // Adi cleans, Citra passes it.
     await log(kemang["adi-clean"].lineId, [
       ["queued", "processing", adi, jkt("2026-08-03T09:00")],
-      ["processing", "quality_check", adi, jkt("2026-08-03T10:00")],
-      ["quality_check", "ready_for_pickup", citra, jkt("2026-08-03T11:00")],
+      ["processing", "waiting_qc", adi, jkt("2026-08-03T10:00")],
+      ["waiting_qc", "ready_for_pickup", citra, jkt("2026-08-03T11:00")],
     ]);
     // Adi starts the repair, Citra sends it back, Bayu redoes it and his
     // round passes. The Customer then complains: that is Bayu's round.
     await log(kemang["adi-repair"].lineId, [
       ["queued", "processing", adi, jkt("2026-08-03T12:00")],
-      ["processing", "quality_check", adi, jkt("2026-08-03T13:00")],
-      ["quality_check", "qc_reject", citra, jkt("2026-08-03T14:00")],
+      ["processing", "waiting_qc", adi, jkt("2026-08-03T13:00")],
+      ["waiting_qc", "qc_reject", citra, jkt("2026-08-03T14:00")],
       ["qc_reject", "processing", bayu, jkt("2026-08-03T15:00")],
-      ["processing", "quality_check", bayu, jkt("2026-08-03T16:00")],
-      ["quality_check", "ready_for_pickup", citra, jkt("2026-08-03T17:00")],
+      ["processing", "waiting_qc", bayu, jkt("2026-08-03T16:00")],
+      ["waiting_qc", "ready_for_pickup", citra, jkt("2026-08-03T17:00")],
     ]);
     const complaintId = await complain(kemang["adi-repair"]);
     // Bayu does the free redo; it passes and is never anyone's Complaint.
@@ -212,24 +229,24 @@ describe("the Workers report over August", () => {
       .returning();
     await log(rework.id, [
       ["queued", "processing", bayu, jkt("2026-08-20T09:00")],
-      ["processing", "quality_check", bayu, jkt("2026-08-20T10:00")],
-      ["quality_check", "ready_for_pickup", citra, jkt("2026-08-20T11:00")],
+      ["processing", "waiting_qc", bayu, jkt("2026-08-20T10:00")],
+      ["waiting_qc", "ready_for_pickup", citra, jkt("2026-08-20T11:00")],
     ]);
     // The admin starts a pair herself on a busy morning; nobody has checked
     // it yet.
     await log(kemang["by-admin"].lineId, [
       ["queued", "processing", admin, jkt("2026-08-04T09:00")],
-      ["processing", "quality_check", admin, jkt("2026-08-04T10:00")],
+      ["processing", "waiting_qc", admin, jkt("2026-08-04T10:00")],
     ]);
     // Reached QC with no start on record: the shop's work, nobody's credit.
     await log(kemang["never-started"].lineId, [
-      ["processing", "quality_check", adi, jkt("2026-08-05T10:00")],
+      ["processing", "waiting_qc", adi, jkt("2026-08-05T10:00")],
     ]);
     // Bayu covering Bintaro; Adi passes his work there.
     await log(atBintaro.bintaro.lineId, [
       ["queued", "processing", bayu, jkt("2026-08-06T09:00")],
-      ["processing", "quality_check", bayu, jkt("2026-08-06T10:00")],
-      ["quality_check", "ready_for_pickup", adi, jkt("2026-08-06T11:00")],
+      ["processing", "waiting_qc", bayu, jkt("2026-08-06T10:00")],
+      ["waiting_qc", "ready_for_pickup", adi, jkt("2026-08-06T11:00")],
     ]);
 
     // Adi clocks in twice on 3 August, the first time before 07:00 Jakarta
@@ -267,9 +284,6 @@ describe("the Workers report over August", () => {
       jkt("2026-08-20T17:00")
     );
   });
-
-  const kemangAugust = () =>
-    getWorkerProductivityReport({ ...AUGUST, store_id: shop.store.id });
 
   it("lists everyone who started or moved an Item at the bench, admin included, with their role", async () => {
     const report = await kemangAugust();
@@ -340,7 +354,7 @@ describe("the Workers report over August", () => {
     );
     // Right now, not in August: the 4 August Shift he never closed.
     const live = await getWorkerLiveReport({ store_id: shop.store.id });
-    expect(live.find((r) => r.user_id === adi)?.live).toEqual({
+    expect(live.workers.find((r) => r.user_id === adi)?.live).toEqual({
       clock_in_at: jkt("2026-08-04T08:00"),
       clock_out_at: null,
       in_hand: 0,
@@ -501,13 +515,6 @@ describe("the Workers report over August", () => {
   });
 
   describe("a worker's detail page", () => {
-    const itemCodeOf = async (brand: string) => {
-      const item = await testDb.query.itemsTable.findFirst({
-        where: { brand },
-      });
-      return item?.item_code ?? "";
-    };
-
     it("lists the Services finished each day, 0 on a day worked with none and nothing on a day away", async () => {
       const detail = await detailOf(adi, shop.store.id);
       const day = (label: string) =>
@@ -535,11 +542,13 @@ describe("the Workers report over August", () => {
             {
               service_id: shop.serviceId,
               service_name: "Deep Clean",
+              service_code: "DCLN",
               count: 1,
             },
             {
               service_id: shop.repairServiceId,
               service_name: "Repair",
+              service_code: "RPR",
               count: 1,
             },
           ],
@@ -551,8 +560,18 @@ describe("the Workers report over August", () => {
       // Bintaro's day is not Kemang's.
       expect(day("2026-08-06")?.total).toBeNull();
       expect(detail.services).toEqual([
-        { service_id: shop.serviceId, service_name: "Deep Clean", count: 1 },
-        { service_id: shop.repairServiceId, service_name: "Repair", count: 1 },
+        {
+          service_id: shop.serviceId,
+          service_name: "Deep Clean",
+          service_code: "DCLN",
+          count: 1,
+        },
+        {
+          service_id: shop.repairServiceId,
+          service_name: "Repair",
+          service_code: "RPR",
+          count: 1,
+        },
       ]);
     });
 
@@ -577,12 +596,12 @@ describe("the Workers report over August", () => {
       ]);
       await log(redo.lineId, [
         ["queued", "processing", bayu, jkt("2026-08-21T09:00")],
-        ["processing", "quality_check", bayu, jkt("2026-08-21T10:00")],
+        ["processing", "waiting_qc", bayu, jkt("2026-08-21T10:00")],
       ]);
       await testDb.insert(orderServiceStatusLogsTable).values({
         changed_by: citra,
         created_at: jkt("2026-08-21T11:00"),
-        from_status: "quality_check",
+        from_status: "waiting_qc",
         note: "Sole still stained",
         order_service_id: redo.lineId,
         to_status: "qc_reject",
@@ -603,7 +622,12 @@ describe("the Workers report over August", () => {
               order_id: expect.any(Number),
               order_service_id: expect.any(Number),
               item_code: await itemCodeOf("adi-repair"),
+              item_brand: "adi-repair",
+              item_model: null,
+              item_color: null,
+              item_size: null,
               rejected_at: "2026-08-03T07:00:00.000Z",
+              rejected_by_name: "Citra",
               note: null,
             },
           ],
@@ -621,7 +645,12 @@ describe("the Workers report over August", () => {
               order_id: redo.orderId,
               order_service_id: redo.lineId,
               item_code: await itemCodeOf("redo"),
+              item_brand: "redo",
+              item_model: null,
+              item_color: null,
+              item_size: null,
               rejected_at: "2026-08-21T04:00:00.000Z",
+              rejected_by_name: "Citra",
               note: "Sole still stained",
             },
           ],
@@ -645,14 +674,20 @@ describe("the Workers report over August", () => {
               order_id: expect.any(Number),
               order_service_id: complaint?.order_service_id,
               item_code: await itemCodeOf("adi-repair"),
+              item_brand: "adi-repair",
+              item_model: null,
+              item_color: null,
+              item_size: null,
               opened_at: complaint?.created_at.toISOString(),
               reason: "Still dirty",
+              outcome: "reworked",
             },
           ],
         },
       ]);
       // Adi started that Repair but did not clean the round that passed.
-      expect((await detailOf(adi, shop.store.id)).complaints).toEqual([]);
+      const adiDetail = await detailOf(adi, shop.store.id);
+      expect(adiDetail.complaints).toEqual([]);
     });
 
     it("answers zeros for someone with nothing at the Store, the Store's average still drawn", async () => {
@@ -681,6 +716,20 @@ describe("the Workers report over August", () => {
             : [[bucket.label, bucket.store_average]]
         )
       ).toEqual([["2026-08-06", 0.5]]);
+    });
+
+    it("draws no stripe for a Store where they worked a day but finished nothing", async () => {
+      const detail = await getWorkerDetailReport({ ...AUGUST, user_id: adi });
+
+      // His 6 August Shift at Bintaro is a day worked there, with no Services.
+      expect(detail.facts.days_worked).toBe(4);
+      expect(detail.stores).toEqual([
+        {
+          store_id: shop.store.id,
+          store_name: "Fresclean Kemang",
+          services: 2,
+        },
+      ]);
     });
 
     it("refuses a user who does not exist", async () => {
@@ -717,11 +766,11 @@ describe("a round that passes after the stretch", () => {
     // Adi starts it on 31 August; Bayu's redo passes on 1 September.
     await log(repair.lineId, [
       ["queued", "processing", adi, jkt("2026-08-31T09:00")],
-      ["processing", "quality_check", adi, jkt("2026-08-31T10:00")],
-      ["quality_check", "qc_reject", citra, jkt("2026-08-31T11:00")],
+      ["processing", "waiting_qc", adi, jkt("2026-08-31T10:00")],
+      ["waiting_qc", "qc_reject", citra, jkt("2026-08-31T11:00")],
       ["qc_reject", "processing", bayu, jkt("2026-09-01T09:00")],
-      ["processing", "quality_check", bayu, jkt("2026-09-01T10:00")],
-      ["quality_check", "ready_for_pickup", citra, jkt("2026-09-01T11:00")],
+      ["processing", "waiting_qc", bayu, jkt("2026-09-01T10:00")],
+      ["waiting_qc", "ready_for_pickup", citra, jkt("2026-09-01T11:00")],
     ]);
 
     const report = await getWorkerProductivityReport({
@@ -753,7 +802,7 @@ describe("a worker's usual day", () => {
       hours: number;
       repair: boolean;
     }[] = [];
-    days.forEach((day, perDay) => {
+    for (const [perDay, day] of days.entries()) {
       for (let n = 0; n < perDay; n += 1) {
         // The last day's five pairs are Repairs, taking 1 to 5 hours.
         const repair = day === "2026-08-15";
@@ -764,7 +813,7 @@ describe("a worker's usual day", () => {
           repair,
         });
       }
-    });
+    }
     plan.push({
       brand: "no-shift",
       day: "2026-08-16",
@@ -785,7 +834,7 @@ describe("a worker's usual day", () => {
         ["queued", "processing", citra, start],
         [
           "processing",
-          "quality_check",
+          "waiting_qc",
           citra,
           new Date(start.getTime() + hours * 3_600_000),
         ],
@@ -858,15 +907,15 @@ describe("a worker's usual day", () => {
 
 // Pilot shops track Shifts in another app, so most days worked here come from
 // the bench moves alone.
-describe("days worked by people who rarely clock in", () => {
-  const report = (storeId?: number) =>
-    getWorkerProductivityReport({ ...AUGUST, store_id: storeId });
-  const startAndSend = (line: Line, by: number, day: string) =>
-    log(line.lineId, [
-      ["queued", "processing", by, jkt(`${day}T09:00`)],
-      ["processing", "quality_check", by, jkt(`${day}T10:00`)],
-    ]);
+const augustReport = (storeId?: number) =>
+  getWorkerProductivityReport({ ...AUGUST, store_id: storeId });
+const startAndSend = (line: Line, by: number, day: string) =>
+  log(line.lineId, [
+    ["queued", "processing", by, jkt(`${day}T09:00`)],
+    ["processing", "waiting_qc", by, jkt(`${day}T10:00`)],
+  ]);
 
+describe("days worked by people who rarely clock in", () => {
   it("counts the days a worker with no Shift started Items, and divides by them", async () => {
     const lines = await placeOrder(shop.store, [
       { brand: "a", serviceId: shop.serviceId },
@@ -879,7 +928,7 @@ describe("days worked by people who rarely clock in", () => {
     await startAndSend(lines.c, bayu, "2026-08-12");
     await startAndSend(lines.d, bayu, "2026-08-14");
 
-    const { workers } = await report(shop.store.id);
+    const { workers } = await augustReport(shop.store.id);
 
     expect(workers).toEqual([
       expect.objectContaining({
@@ -903,7 +952,7 @@ describe("days worked by people who rarely clock in", () => {
     );
     await startAndSend(a, bayu, "2026-08-10");
 
-    const { workers } = await report(shop.store.id);
+    const { workers } = await augustReport(shop.store.id);
 
     expect(workers[0]).toEqual(
       expect.objectContaining({ user_id: bayu, days_worked: 1 })
@@ -932,7 +981,7 @@ describe("days worked by people who rarely clock in", () => {
       ],
     ]);
 
-    const { workers, summary } = await report(shop.store.id);
+    const { workers, summary } = await augustReport(shop.store.id);
 
     expect(workers).toEqual([]);
     expect(summary.current.days_worked).toBe(0);
@@ -948,7 +997,7 @@ describe("days worked by people who rarely clock in", () => {
     await startAndSend(atKemang.kemang, bayu, "2026-08-11");
     await startAndSend(atBintaro.bintaro, bayu, "2026-08-10");
 
-    const both = await report();
+    const both = await augustReport();
 
     expect(
       both.workers.map((row) => [row.store_name, row.days_worked])
@@ -975,11 +1024,11 @@ describe("days worked by people who rarely clock in", () => {
     for (const [line, started, sent] of plan) {
       await log(line.lineId, [
         ["queued", "processing", bayu, jkt(`${started}T09:00`)],
-        ["processing", "quality_check", shop.admin.id, jkt(`${sent}T10:00`)],
+        ["processing", "waiting_qc", shop.admin.id, jkt(`${sent}T10:00`)],
       ]);
     }
 
-    const full = await report(shop.store.id);
+    const full = await augustReport(shop.store.id);
 
     expect(full.workers).toEqual([
       expect.objectContaining({ user_id: bayu, days_worked: 3 }),
@@ -999,6 +1048,262 @@ describe("days worked by people who rarely clock in", () => {
   });
 });
 
+describe("a worker's own figures on their Profile page", () => {
+  it("paces every Service over their days, even Bintaro's started before the range", async () => {
+    const atKemang = await placeOrder(
+      shop.store,
+      [..."abcdefghij"].map((brand) => ({ brand, serviceId: shop.serviceId }))
+    );
+    const atBintaro = await placeOrder(
+      bintaro,
+      [..."klmnop"].map((brand) => ({ brand, serviceId: shop.serviceId }))
+    );
+    for (const [index, line] of Object.values(atKemang).entries()) {
+      await startAndSend(line, bayu, index < 5 ? "2026-08-10" : "2026-08-11");
+    }
+    // Started in July, sent to QC in August by someone else: no Bintaro day.
+    for (const line of Object.values(atBintaro)) {
+      await log(line.lineId, [
+        ["queued", "processing", bayu, jkt("2026-07-31T09:00")],
+        ["processing", "waiting_qc", shop.admin.id, jkt("2026-08-05T10:00")],
+      ]);
+    }
+
+    const facts = await getOwnWorkerFacts(
+      bayu,
+      getJakartaRange(AUGUST.from, AUGUST.to)
+    );
+
+    expect(facts).toEqual(
+      expect.objectContaining({
+        services_processed: 16,
+        days_worked: 2,
+        per_day_worked: 8,
+      })
+    );
+    // Their By Worker row says the same.
+    const report = await getWorkerProductivityReport(AUGUST);
+    expect(report.people.find((person) => person.user_id === bayu)).toEqual(
+      expect.objectContaining(facts)
+    );
+  });
+});
+
+const pairs = (prefix: string, count: number) =>
+  Array.from({ length: count }, (_, index) => ({
+    brand: `${prefix}${index}`,
+    serviceId: shop.serviceId,
+  }));
+
+const checkedByAdmin = (line: Line, to: Status, at: string) =>
+  log(line.lineId, [["waiting_qc", to, shop.admin.id, jkt(at)]]);
+
+const adiAt = (people: { user_id: number }[]) =>
+  people.find((person) => person.user_id === adi);
+
+// Adi clocks in only at Kemang and also cleans the Bintaro booth's pairs: 11
+// Kemang and 9 Bintaro on 17 August. The admin checks them.
+describe("the By Worker view", () => {
+  let atKemang: Record<string, Line>;
+  let atBintaro: Record<string, Line>;
+
+  beforeEach(async () => {
+    atKemang = await placeOrder(shop.store, pairs("k", 11));
+    atBintaro = await placeOrder(bintaro, pairs("b", 9));
+    for (const line of [
+      ...Object.values(atKemang),
+      ...Object.values(atBintaro),
+    ]) {
+      await startAndSend(line, adi, "2026-08-17");
+    }
+    await clockIn(
+      adi,
+      shop.store.id,
+      jkt("2026-08-17T08:00"),
+      jkt("2026-08-17T17:00")
+    );
+    await checkedByAdmin(atKemang.k0, "ready_for_pickup", "2026-08-17T11:00");
+    await checkedByAdmin(atBintaro.b0, "ready_for_pickup", "2026-08-17T11:00");
+    await checkedByAdmin(atBintaro.b1, "qc_reject", "2026-08-17T12:00");
+  });
+
+  it("counts a day at two Stores once and paces all 20 Services over it", async () => {
+    const report = await getWorkerProductivityReport(AUGUST);
+
+    expect(report.people).toEqual([
+      {
+        user_id: adi,
+        user_name: "Adi",
+        avatar_url: null,
+        role: "worker",
+        services_processed: 20,
+        days_worked: 1,
+        per_day_worked: 20,
+        qc_checks: 3,
+        qc_rejects: 1,
+        complaints: 0,
+        complaint_cohort: 2,
+        stores: [
+          { store_id: shop.store.id, services: 11 },
+          { store_id: bintaro.id, services: 9 },
+        ],
+        row_store_ids: [bintaro.id, shop.store.id],
+        clock_in_store_ids: [shop.store.id],
+      },
+    ]);
+    expect(report.cleaned_by).toEqual([]);
+  });
+
+  it("shows him under the Store he clocked in at with his whole range, the By Store rows left per Store", async () => {
+    const report = await getWorkerProductivityReport({
+      ...AUGUST,
+      store_id: shop.store.id,
+    });
+
+    expect(adiAt(report.people)).toEqual(
+      expect.objectContaining({ services_processed: 20, days_worked: 1 })
+    );
+    expect(report.workers).toEqual([
+      expect.objectContaining({ user_id: adi, services_processed: 11 }),
+    ]);
+    expect(report.summary.current.services_processed).toBe(11);
+  });
+
+  it("names who cleans a booth's Items when nobody clocked in there", async () => {
+    const report = await getWorkerProductivityReport({
+      ...AUGUST,
+      store_id: bintaro.id,
+    });
+
+    expect(report.people).toEqual([]);
+    expect(report.cleaned_by).toEqual(["Adi"]);
+    expect(report.workers).toEqual([
+      expect.objectContaining({ user_id: adi, services_processed: 9 }),
+    ]);
+  });
+
+  it("shows someone with no Shift anywhere at the Stores whose Items they cleaned", async () => {
+    const { solo } = await placeOrder(bintaro, [
+      { brand: "solo", serviceId: shop.serviceId },
+    ]);
+    await startAndSend(solo, bayu, "2026-08-10");
+
+    const atBooth = await getWorkerProductivityReport({
+      ...AUGUST,
+      store_id: bintaro.id,
+    });
+    const atMain = await getWorkerProductivityReport({
+      ...AUGUST,
+      store_id: shop.store.id,
+    });
+
+    expect(atBooth.people.map((person) => person.user_name)).toEqual(["Bayu"]);
+    expect(atMain.people.map((person) => person.user_name)).toEqual(["Adi"]);
+  });
+
+  describe("his sheet across every Store", () => {
+    it("adds up both Stores and splits each day by the Order's Store", async () => {
+      const detail = await getWorkerDetailReport({ ...AUGUST, user_id: adi });
+      const day = detail.buckets.find(
+        (bucket) => bucket.label === "2026-08-17"
+      );
+
+      expect(detail).toEqual(
+        expect.objectContaining({
+          store_id: null,
+          store_name: null,
+          facts: {
+            services_processed: 20,
+            days_worked: 1,
+            per_day_worked: 20,
+            qc_checks: 3,
+            qc_rejects: 1,
+            complaints: 0,
+            complaint_cohort: 2,
+          },
+          stores: [
+            {
+              store_id: shop.store.id,
+              store_name: "Fresclean Kemang",
+              services: 11,
+            },
+            {
+              store_id: bintaro.id,
+              store_name: "Fresclean Bintaro",
+              services: 9,
+            },
+          ],
+        })
+      );
+      expect(day).toEqual(
+        expect.objectContaining({
+          worked: true,
+          total: 20,
+          store_average: null,
+          by_store: [
+            { store_id: bintaro.id, count: 9 },
+            { store_id: shop.store.id, count: 11 },
+          ],
+        })
+      );
+      expect(detail.services).toEqual([
+        expect.objectContaining({ service_id: shop.serviceId, count: 20 }),
+      ]);
+      expect(detail.qc_rejects).toEqual([
+        expect.objectContaining({
+          rejects: 1,
+          checks: 3,
+          items: [
+            expect.objectContaining({ order_service_id: atBintaro.b1.lineId }),
+          ],
+        }),
+      ]);
+    });
+
+    it("lists both Stores' Complaints newest first", async () => {
+      await complain(atKemang.k0);
+      await complain(atBintaro.b0);
+
+      const detail = await getWorkerDetailReport({ ...AUGUST, user_id: adi });
+
+      expect(detail.complaints).toEqual([
+        expect.objectContaining({
+          complaints: 2,
+          finished: 2,
+          items: [
+            expect.objectContaining({ order_service_id: atBintaro.b0.lineId }),
+            expect.objectContaining({ order_service_id: atKemang.k0.lineId }),
+          ],
+        }),
+      ]);
+    });
+
+    it("keeps one Store's sheet to that Store, its average still drawn", async () => {
+      const detail = await getWorkerDetailReport({
+        ...AUGUST,
+        store_id: shop.store.id,
+        user_id: adi,
+      });
+
+      expect(detail.facts.services_processed).toBe(11);
+      expect(
+        detail.buckets.find((bucket) => bucket.label === "2026-08-17")
+      ).toEqual(
+        expect.objectContaining({
+          total: 11,
+          store_average: 11,
+          by_store: [{ store_id: shop.store.id, count: 11 }],
+        })
+      );
+    });
+  });
+});
+
+const liveAt = async (userId: number) => {
+  const { workers } = await getWorkerLiveReport({ store_id: shop.store.id });
+  return workers.find((row) => row.user_id === userId)?.live;
+};
+
 describe("the Workers report for today", () => {
   const today = jakartaNow().format("YYYY-MM-DD");
   const dayStart = getJakartaDayRange(today).start.getTime();
@@ -1016,7 +1321,7 @@ describe("the Workers report for today", () => {
 
     await log(lines.done.lineId, [
       ["queued", "processing", adi, at(1.5)],
-      ["processing", "quality_check", adi, at(5)],
+      ["processing", "waiting_qc", adi, at(5)],
     ]);
     await log(lines["on-bench"].lineId, [["queued", "processing", adi, at(4)]]);
     await testDb
@@ -1032,11 +1337,6 @@ describe("the Workers report for today", () => {
       store_id: shop.store.id,
     });
 
-  const liveAt = async (userId: number) => {
-    const rows = await getWorkerLiveReport({ store_id: shop.store.id });
-    return rows.find((row) => row.user_id === userId)?.live;
-  };
-
   it("shows who is on shift, what is in their hands and when they last moved", async () => {
     expect(await liveAt(adi)).toEqual({
       clock_in_at: at(3),
@@ -1048,9 +1348,9 @@ describe("the Workers report for today", () => {
   });
 
   it("names the person and their Store on a live row", async () => {
-    const rows = await getWorkerLiveReport({ store_id: shop.store.id });
+    const { workers } = await getWorkerLiveReport({ store_id: shop.store.id });
 
-    expect(rows).toEqual([
+    expect(workers).toEqual([
       expect.objectContaining({
         user_id: adi,
         user_name: "Adi",
@@ -1061,12 +1361,44 @@ describe("the Workers report for today", () => {
     ]);
   });
 
+  it("merges a person's Stores into one live row: the open Shift, every Item in hand, the latest move", async () => {
+    // Earlier at the Bintaro booth: a short Shift, and a pair he still holds.
+    const { booth } = await placeOrder(bintaro, [
+      { brand: "booth", serviceId: shop.serviceId },
+    ]);
+    await clockIn(adi, bintaro.id, at(0.5), at(1));
+    await log(booth.lineId, [["queued", "processing", adi, at(6)]]);
+    await testDb
+      .update(ordersServicesTable)
+      .set({ handler_id: adi, status: "processing" })
+      .where(eq(ordersServicesTable.id, booth.lineId));
+
+    const { workers, people } = await getWorkerLiveReport({
+      store_id: shop.store.id,
+    });
+
+    expect(workers.map((row) => row.store_id)).toEqual([shop.store.id]);
+    expect(people).toEqual([
+      expect.objectContaining({
+        user_id: adi,
+        row_store_ids: [bintaro.id, shop.store.id],
+        live: {
+          clock_in_at: at(3),
+          clock_out_at: null,
+          in_hand: 2,
+          last_move_at: at(6),
+          services_today: 1,
+        },
+      }),
+    ]);
+  });
+
   it("keeps another Store's floor out of a Store's live rows", async () => {
     await clockIn(bayu, bintaro.id, at(1), null);
 
-    const rows = await getWorkerLiveReport({ store_id: shop.store.id });
+    const { workers } = await getWorkerLiveReport({ store_id: shop.store.id });
 
-    expect(rows.map((row) => row.user_id)).toEqual([adi]);
+    expect(workers.map((row) => row.user_id)).toEqual([adi]);
   });
 
   it("lists someone with pairs in hand before anything they started reaches QC", async () => {
@@ -1090,6 +1422,9 @@ describe("the Workers report for today", () => {
     expect(report.workers.find((row) => row.user_id === bayu)).toEqual(
       expect.objectContaining({ services_processed: 0, days_worked: 0 })
     );
+    // No Shift anywhere, only pairs in hand: he still shows under Kemang in
+    // By Worker.
+    expect(report.people.map((person) => person.user_id)).toContain(bayu);
     expect(await liveAt(bayu)).toEqual({
       clock_in_at: null,
       clock_out_at: null,
@@ -1135,7 +1470,8 @@ describe("the Workers report for today", () => {
       ["ready_for_pickup", "picked_up", adi, at(6)],
     ]);
 
-    expect((await liveAt(adi))?.last_move_at).toEqual(at(5));
+    const live = await liveAt(adi);
+    expect(live?.last_move_at).toEqual(at(5));
   });
 
   it("gives a cashier holding an Item the same day in her sheet as in her row", async () => {
@@ -1167,7 +1503,7 @@ describe("the Workers report for today", () => {
     ]);
     await log(yesterday.lineId, [
       ["queued", "processing", adi, at(-6)],
-      ["processing", "quality_check", adi, at(-5)],
+      ["processing", "waiting_qc", adi, at(-5)],
     ]);
 
     const report = await getWorkerProductivityReport({
@@ -1181,7 +1517,8 @@ describe("the Workers report for today", () => {
       expect.objectContaining({ services_processed: 2 })
     );
     expect(report.workers[0]).not.toHaveProperty("live");
-    expect((await liveAt(adi))?.services_today).toBe(1);
+    const live = await liveAt(adi);
+    expect(live?.services_today).toBe(1);
   });
 
   it("keeps a cashier's Shift off the bench when she cleaned a pair days ago", async () => {
@@ -1191,7 +1528,7 @@ describe("the Workers report for today", () => {
     ]);
     await log(earlier.lineId, [
       ["queued", "processing", shop.cashier.id, at(-40)],
-      ["processing", "quality_check", shop.cashier.id, at(-39)],
+      ["processing", "waiting_qc", shop.cashier.id, at(-39)],
     ]);
     await clockIn(shop.cashier.id, shop.store.id, at(3), null);
 
@@ -1204,8 +1541,8 @@ describe("the Workers report for today", () => {
     ]);
     await log(checked.lineId, [
       ["queued", "processing", adi, at(-40)],
-      ["processing", "quality_check", adi, at(-39)],
-      ["quality_check", "ready_for_pickup", shop.cashier.id, at(4)],
+      ["processing", "waiting_qc", adi, at(-39)],
+      ["waiting_qc", "ready_for_pickup", shop.cashier.id, at(4)],
     ]);
     await clockIn(shop.cashier.id, shop.store.id, at(3), null);
 
@@ -1219,7 +1556,7 @@ describe("the Workers report for today", () => {
       { brand: "checked", serviceId: shop.serviceId },
     ]);
     await log(checked.lineId, [
-      ["quality_check", "ready_for_pickup", citra, at(-5)],
+      ["waiting_qc", "ready_for_pickup", citra, at(-5)],
     ]);
 
     const report = await getWorkerProductivityReport({

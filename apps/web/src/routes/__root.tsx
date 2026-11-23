@@ -1,5 +1,11 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  Outlet,
+  useMatches,
+} from "@tanstack/react-router";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+
 import { GlobalErrorPage } from "@/components/global-error-page";
 import { NotFoundPage } from "@/components/not-found-page";
 import { OfflineBanner } from "@/components/offline-banner";
@@ -8,48 +14,53 @@ import { GlobalSheet } from "@/components/ui/global-sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsCoarsePointer } from "@/hooks/use-mobile";
-import { useUpdatePrompt } from "@/hooks/useUpdatePrompt";
+import { dropQueryString } from "@/lib/analytics";
 
 export interface RouterContext {
-	queryClient: QueryClient;
+  queryClient: QueryClient;
 }
-
-export const Route = createRootRouteWithContext<RouterContext>()({
-	component: RootComponent,
-	errorComponent: GlobalErrorPage,
-	notFoundComponent: NotFoundPage,
-});
 
 // Clears the tab bar, so "Work started" never lands on top of the nav the
 // worker is about to tap.
 const TOUCH_TOAST_OFFSET = {
-	bottom: "calc(env(safe-area-inset-bottom) + 4.25rem)",
+  bottom: "calc(env(safe-area-inset-bottom) + 4.25rem)",
 };
 
-function RootComponent() {
-	// Top-right lands on top of the mobile header, and far from the thumb.
-	const isCoarsePointer = useIsCoarsePointer();
-	useUpdatePrompt();
+const RootComponent = () => {
+  // Top-right lands on top of the mobile header, and far from the thumb.
+  const isCoarsePointer = useIsCoarsePointer();
+  // Every Order opened counts toward one /orders/$orderId score, not a row
+  // of its own with a sample or two.
+  const route = useMatches({
+    select: (matches) => matches.at(-1)?.fullPath,
+  });
 
-	return (
-		<TooltipProvider>
-			<Toaster
-				position={isCoarsePointer ? "bottom-center" : "top-right"}
-				offset={isCoarsePointer ? TOUCH_TOAST_OFFSET : undefined}
-				mobileOffset={isCoarsePointer ? TOUCH_TOAST_OFFSET : undefined}
-				className="pointer-events-auto"
-			/>
-			{/* The viewport is claimed here, not in the shell: when the counter
+  return (
+    <TooltipProvider>
+      <Toaster
+        position={isCoarsePointer ? "bottom-center" : "top-right"}
+        offset={isCoarsePointer ? TOUCH_TOAST_OFFSET : undefined}
+        mobileOffset={isCoarsePointer ? TOUCH_TOAST_OFFSET : undefined}
+        className="pointer-events-auto"
+      />
+      {/* The viewport is claimed here, not in the shell: when the counter
 			    drops offline the banner has to take its height off the app rather
 			    than push it past the bottom of the screen. */}
-			<div className="flex h-dvh flex-col">
-				<OfflineBanner />
-				<main className="min-h-0 flex-1 overflow-auto bg-background text-foreground">
-					<Outlet />
-				</main>
-			</div>
-			<GlobalSheet />
-			<GlobalDialog />
-		</TooltipProvider>
-	);
-}
+      <div className="flex h-dvh flex-col">
+        <OfflineBanner />
+        <div className="min-h-0 flex-1 overflow-auto bg-background text-foreground">
+          <Outlet />
+        </div>
+      </div>
+      <GlobalSheet />
+      <GlobalDialog />
+      <SpeedInsights route={route} beforeSend={dropQueryString} />
+    </TooltipProvider>
+  );
+};
+
+export const Route = createRootRouteWithContext<RouterContext>()({
+  component: RootComponent,
+  errorComponent: GlobalErrorPage,
+  notFoundComponent: NotFoundPage,
+});

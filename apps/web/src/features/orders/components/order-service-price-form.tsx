@@ -3,85 +3,86 @@ import { Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
+
 import { CurrencyInput } from "@/components/form/currency-input";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { useSetServicePriceMutation } from "@/features/orders/hooks/useOrderMutations";
+import { useSetServicePriceMutation } from "@/features/orders/hooks/use-order-mutations";
 
 const servicePriceSchema = z.object({
-	// Zero is deliberately free (a Rework), never a keyed price.
-	price: z
-		.string()
-		.trim()
-		.refine((value) => Number(value) > 0, "Price is required"),
+  // Zero is deliberately free (a Rework), never a keyed price.
+  price: z
+    .string()
+    .trim()
+    .refine((value) => Number(value) > 0, "Price is required"),
 });
 
 type ServicePriceValues = z.infer<typeof servicePriceSchema>;
 
 interface OrderServicePriceFormProps {
-	orderId: number;
-	serviceId: number;
-	// null = the line is still blank (Repair awaiting inspection); a value
-	// means this submit is a correction on an unpaid order.
-	currentPrice: string | null;
-	onSuccess?: () => void;
+  orderId: number;
+  serviceId: number;
+  // null = the line is still blank (Repair awaiting inspection); a value
+  // means this submit is a correction on an unpaid order.
+  currentPrice: string | null;
+  onSuccess?: () => void;
 }
 
 // ADR-0018: any staff may set or correct a price; the server's price log is
 // the oversight, not a role. Payment freezes prices.
 export const OrderServicePriceForm = ({
-	orderId,
-	serviceId,
-	currentPrice,
-	onSuccess,
+  orderId,
+  serviceId,
+  currentPrice,
+  onSuccess,
 }: OrderServicePriceFormProps) => {
-	const priceMutation = useSetServicePriceMutation(orderId);
-	const form = useForm<ServicePriceValues>({
-		resolver: zodResolver(servicePriceSchema),
-		defaultValues: { price: currentPrice ?? "" },
-	});
+  const priceMutation = useSetServicePriceMutation(orderId);
+  const form = useForm<ServicePriceValues>({
+    resolver: zodResolver(servicePriceSchema),
+    defaultValues: { price: currentPrice ?? "" },
+  });
 
-	return (
-		<form
-			className="grid gap-3"
-			// mutate, not mutateAsync: if someone priced or cancelled this line
-			// first, staff see the server's reason, not a spinner that just stops.
-			onSubmit={form.handleSubmit((values) => {
-				priceMutation.mutate(
-					{
-						serviceId,
-						payload: { price: values.price },
-					},
-					{ onSuccess },
-				);
-			})}
-		>
-			<Controller
-				control={form.control}
-				name="price"
-				render={({ field, fieldState }) => (
-					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel asterisk htmlFor={`service-price-${serviceId}`}>
-							Price
-						</FieldLabel>
-						<CurrencyInput
-							id={`service-price-${serviceId}`}
-							onValueChange={field.onChange}
-							required
-							value={field.value}
-						/>
-						<FieldError errors={[fieldState.error]} />
-					</Field>
-				)}
-			/>
-			<Button
-				size="lg"
-				icon={<HugeiconsIcon icon={Tick02Icon} className="size-4" />}
-				loading={priceMutation.isPending}
-				type="submit"
-			>
-				{currentPrice === null ? "Set price" : "Update price"}
-			</Button>
-		</form>
-	);
+  return (
+    <form
+      className="grid gap-3"
+      // mutate, not mutateAsync: if someone priced or cancelled this line
+      // first, staff see the server's reason, not a spinner that just stops.
+      onSubmit={form.handleSubmit((values) => {
+        priceMutation.mutate(
+          {
+            serviceId,
+            payload: { price: values.price },
+          },
+          { onSuccess }
+        );
+      })}
+    >
+      <Controller
+        control={form.control}
+        name="price"
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel asterisk htmlFor={`service-price-${serviceId}`}>
+              Price
+            </FieldLabel>
+            <CurrencyInput
+              id={`service-price-${serviceId}`}
+              onValueChange={(value) => field.onChange(value)}
+              required
+              value={field.value}
+            />
+            <FieldError errors={[fieldState.error]} />
+          </Field>
+        )}
+      />
+      <Button
+        size="lg"
+        icon={<HugeiconsIcon icon={Tick02Icon} className="size-4" />}
+        loading={priceMutation.isPending}
+        type="submit"
+      >
+        {currentPrice === null ? "Set Price" : "Update Price"}
+      </Button>
+    </form>
+  );
 };

@@ -7,6 +7,7 @@ import {
   mock,
   setSystemTime,
 } from "bun:test";
+
 import { ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
@@ -109,7 +110,7 @@ const relationalQuery = (first: () => unknown) => ({
 
 mock.module("@/db", () => ({
   db: {
-    transaction: (cb: (tx: unknown) => unknown) => cb(TX),
+    transaction: (work: (tx: unknown) => unknown) => work(TX),
     query: new Proxy(
       {},
       {
@@ -147,6 +148,18 @@ const actualServiceRepository = {
   ...(await import("@/modules/services/service.repository")),
 };
 
+// The cash drawer: active, and not a gateway's. Stubbed whole, since the real
+// module prepares a query against the stubbed db as it loads.
+const unused = () => Promise.reject(new Error("not used by createOrder"));
+mock.module("@/modules/payment-methods/payment-method.repository", () => ({
+  findPaymentMethodByGateway: unused,
+  findPaymentMethodById: (id: number) =>
+    Promise.resolve({ gateway: null, id, is_active: true, name: "Cash" }),
+  insertPaymentMethod: unused,
+  listPaymentMethods: unused,
+  updatePaymentMethodById: unused,
+}));
+
 mock.module("@/modules/orders/order.repository", () => ({
   ...actualOrderRepository,
   reserveNextOrderNumber: (tx: unknown, storeCode: string, dateStr: string) => {
@@ -167,7 +180,7 @@ mock.module("@/modules/orders/order.repository", () => ({
           id: ITEM_ID_BASE + index,
           item_code: row.item_code as string,
         }))
-        .reverse()
+        .toReversed()
     );
   },
   insertOrderServices: (_tx: unknown, rows: AnyObj[]) => {
@@ -243,9 +256,8 @@ mock.module("@/modules/services/service.repository", () => ({
     Promise.resolve(catalog.services.filter((s) => ids.includes(s.id))),
 }));
 
-const { createOrder, getOrderDetailById, listOrders } = await import(
-  "@/modules/orders/order.service"
-);
+const { createOrder, getOrderDetailById, listOrders } =
+  await import("@/modules/orders/order.service");
 
 // 00:30 on 2 Aug in Jakarta, still 1 Aug in UTC: a Store open past midnight
 // must use the Jakarta date, or Order codes repeat yesterday's numbers.
@@ -291,6 +303,7 @@ const checkout = ({ services, ...over }: AnyObj = {}) =>
     campaign_ids: [],
     voucher_codes: [],
     discount: 0,
+    delivery_fee: 0,
     payment_status: "unpaid",
     // `services` gives each OrderService its own Item; tests about grouping
     // pass `items` themselves (ADR-0017).
@@ -440,7 +453,7 @@ describe("createOrder", () => {
       storeCode: "JKT",
     });
 
-    const { set } = finalize.writes[0];
+    const [{ set }] = finalize.writes;
     expect(set.total).toBe("50000");
     expect(set.discount).toBe("5000");
     expect(set.paid_amount).toBe("45000");
@@ -554,9 +567,7 @@ describe("createOrder", () => {
     );
 
     expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(
-      "Insufficient stock for product Detergent 1L"
-    );
+    expect((error as Error).message).toBe("Not enough stock for Detergent 1L");
     // One take of five, not five takes another cashier could slip between.
     expect(stock.calls).toEqual([{ productId: 20, qty: 5 }]);
     expect(repo.insertedOrder).toBeDefined();
@@ -764,7 +775,7 @@ describe("createOrder", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — set its price before collecting payment"
+      "Order has an unpriced line. Price it before collecting payment."
     );
     expect(repo.reserveCalls).toHaveLength(0);
     expect(redemptions.calls).toHaveLength(0);
@@ -859,7 +870,7 @@ describe("createOrder", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add discounts once every line is priced."
     );
     expect(repo.reserveCalls).toHaveLength(0);
     expect(discount.calls).toHaveLength(0);

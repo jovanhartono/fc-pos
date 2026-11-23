@@ -2,14 +2,8 @@ import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
+
 import { NotFoundException } from "@/http-exceptions";
-import { GETOrdersQuerySchema } from "@/modules/orders/order.schema";
-import {
-  createOrder,
-  getOrderDetailById,
-  getOrderStatusCounts,
-  listOrders,
-} from "@/modules/orders/order.service";
 import {
   GETMyOrderServicesQuerySchema,
   GETOrderLookupQuerySchema,
@@ -19,6 +13,7 @@ import {
   orderItemPhotoParamSchema,
   orderServiceParamSchema,
   PATCHOrderCourierSchema,
+  PATCHOrderDeliveryFeeSchema,
   PATCHOrderPaymentSchema,
   PATCHOrderServiceHandlerSchema,
   PATCHOrderServicePriceSchema,
@@ -33,6 +28,7 @@ import {
   PUTOrderDropoffPhotoSchema,
 } from "@/modules/orders/order-admin.schema";
 import { updateOrderCollectedBy } from "@/modules/orders/order-courier.service";
+import { updateOrderDeliveryFee } from "@/modules/orders/order-delivery-fee.service";
 import { resolveOrderLookup } from "@/modules/orders/order-lookup.service";
 import { updateOrderPayment } from "@/modules/orders/order-payment.service";
 import {
@@ -42,11 +38,11 @@ import {
   saveItemPhoto,
   saveOrderDropoffPhoto,
 } from "@/modules/orders/order-photo.service";
+import { createOrderPickupNotice } from "@/modules/orders/order-pickup-notice.service";
 import {
   createOrderPickupEvent,
   createOrderPickupEventPresign,
 } from "@/modules/orders/order-pickup.service";
-import { createOrderPickupNotice } from "@/modules/orders/order-pickup-notice.service";
 import { setOrderServicePrice } from "@/modules/orders/order-price.service";
 import {
   getMyOrderServices,
@@ -62,7 +58,27 @@ import {
   createOrderRefund,
 } from "@/modules/orders/order-reversal.service";
 import { getOrderServiceDetail } from "@/modules/orders/order-service-detail.service";
-import { assertCanCreateOrder } from "@/modules/permissions/permissions";
+import { GETOrdersQuerySchema } from "@/modules/orders/order.schema";
+import {
+  createOrder,
+  getOrderDetailById,
+  getOrderStatusCounts,
+  listOrders,
+} from "@/modules/orders/order.service";
+import {
+  POSTPaymentChargeSchema,
+  paymentChargeParamSchema,
+} from "@/modules/payments/payment-charge.schema";
+import {
+  cancelPaymentCharge,
+  createPaymentCharge,
+  getOpenQrisCharge,
+  getPaymentCharge,
+} from "@/modules/payments/payment-charge.service";
+import {
+  assertCanCreateOrder,
+  assertCanProcessPayment,
+} from "@/modules/permissions/permissions";
 import { getStoreById } from "@/modules/stores/store.service";
 import { POSTOrderSchema } from "@/schema";
 import { idParamSchema } from "@/schema/param";
@@ -223,7 +239,62 @@ const app = new Hono<OrderAccessEnv>()
         throw new NotFoundException("Order not found");
       }
 
-      return c.json(success(payment, "Payment updated"));
+      return c.json(success(payment, "Marked as paid"));
+    }
+  )
+  .post(
+    "/:id/payment-charges",
+    idParamSchema,
+    zodValidator("json", POSTPaymentChargeSchema),
+    async (c) => {
+      assertCanProcessPayment(c.get("jwtPayload"));
+      const { id } = c.req.valid("param");
+      const charge = await createPaymentCharge({
+        createdBy: c.get("jwtPayload").id,
+        orderId: id,
+        request: c.req.valid("json"),
+      });
+
+      return c.json(success(charge), StatusCodes.CREATED);
+    }
+  )
+  // Before /:chargeId, which would read "open" as an id.
+  .get("/:id/payment-charges/open", idParamSchema, async (c) => {
+    assertCanProcessPayment(c.get("jwtPayload"));
+    const { id } = c.req.valid("param");
+
+    return c.json(success(await getOpenQrisCharge(id)));
+  })
+  .get(
+    "/:id/payment-charges/:chargeId",
+    paymentChargeParamSchema,
+    async (c) => {
+      assertCanProcessPayment(c.get("jwtPayload"));
+      const { id, chargeId } = c.req.valid("param");
+
+      const charge = await getPaymentCharge(id, chargeId);
+
+      if (!charge) {
+        throw new NotFoundException("Payment charge not found");
+      }
+
+      return c.json(success(charge));
+    }
+  )
+  .post(
+    "/:id/payment-charges/:chargeId/cancel",
+    paymentChargeParamSchema,
+    async (c) => {
+      assertCanProcessPayment(c.get("jwtPayload"));
+      const { id, chargeId } = c.req.valid("param");
+
+      const charge = await cancelPaymentCharge(id, chargeId);
+
+      if (!charge) {
+        throw new NotFoundException("Payment charge not found");
+      }
+
+      return c.json(success(charge));
     }
   )
   .patch(
@@ -246,6 +317,28 @@ const app = new Hono<OrderAccessEnv>()
       }
 
       return c.json(success(updated, "Courier updated"));
+    }
+  )
+  .patch(
+    "/:id/delivery-fee",
+    idParamSchema,
+    zodValidator("json", PATCHOrderDeliveryFeeSchema),
+    async (c) => {
+      const user = c.get("jwtPayload");
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+
+      const updated = await updateOrderDeliveryFee({
+        orderId: id,
+        deliveryFee: body.delivery_fee,
+        user,
+      });
+
+      if (!updated) {
+        throw new NotFoundException("Order not found");
+      }
+
+      return c.json(success(updated, "Delivery fee updated"));
     }
   )
   .post(
@@ -319,7 +412,7 @@ const app = new Hono<OrderAccessEnv>()
         user,
       });
 
-      return c.json(success(result, "Order service started"));
+      return c.json(success(result, "Work started"));
     }
   )
   .patch(
@@ -338,7 +431,7 @@ const app = new Hono<OrderAccessEnv>()
         user,
       });
 
-      return c.json(success(result, "Order service handler updated"));
+      return c.json(success(result, "Handler updated"));
     }
   )
   // Open to any staff — deliberately NOT behind the admin money gate
@@ -378,7 +471,7 @@ const app = new Hono<OrderAccessEnv>()
         user,
       });
 
-      return c.json(success(result, "Order service status updated"));
+      return c.json(success(result, "Status updated"));
     }
   )
   .post(
@@ -483,10 +576,7 @@ const app = new Hono<OrderAccessEnv>()
         user,
       });
 
-      return c.json(
-        success(result, "Order refund processed"),
-        StatusCodes.CREATED
-      );
+      return c.json(success(result, "Refund recorded"), StatusCodes.CREATED);
     }
   )
   .post(

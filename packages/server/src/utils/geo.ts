@@ -9,7 +9,7 @@ export interface Coordinates {
 
 // How far a worker is from the Store they are clocking in against, and the
 // same formula the clock-in screen uses to rank the Stores nearest them.
-export function distanceKm(from: Coordinates, to: Coordinates) {
+export const distanceKm = (from: Coordinates, to: Coordinates) => {
   const deltaLat = toRadians(to.latitude - from.latitude);
   const deltaLon = toRadians(to.longitude - from.longitude);
 
@@ -20,4 +20,4 @@ export function distanceKm(from: Coordinates, to: Coordinates) {
       Math.sin(deltaLon / 2) ** 2;
 
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(chord)));
-}
+};

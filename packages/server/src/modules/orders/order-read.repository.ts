@@ -1,6 +1,11 @@
-import { type DbExecutor, db } from "@/db";
+import type { AnyColumn } from "drizzle-orm";
+
+import { db } from "@/db";
+import type { DbExecutor } from "@/db";
+import { itemsTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
-import type { OrderServiceStatus } from "@/modules/orders/order-status-machine";
+import type { ItemNameFields } from "@/modules/orders/order.schema";
+import type { OrderServiceStatus } from "@/schema/order-status";
 
 // The Item code and descriptors, the same fields wherever an Item is named
 // (ADR-0017).
@@ -12,6 +17,24 @@ export const itemCardColumns = {
   model: true,
   size: true,
 } as const;
+
+// The same Item name for a flat list row. `satisfies` keeps these and
+// ItemNameFields key for key.
+export const itemNameColumns = {
+  item_code: itemsTable.item_code,
+  item_brand: itemsTable.brand,
+  item_model: itemsTable.model,
+  item_color: itemsTable.color,
+  item_size: itemsTable.size,
+} satisfies Record<keyof ItemNameFields, AnyColumn>;
+
+export const pickItemName = (row: ItemNameFields): ItemNameFields => ({
+  item_code: row.item_code,
+  item_brand: row.item_brand,
+  item_model: row.item_model,
+  item_color: row.item_color,
+  item_size: row.item_size,
+});
 
 // The name printed beside an event, never the login.
 export const userRefColumns = { id: true, name: true } as const;
@@ -31,6 +54,7 @@ const orderStateColumns = {
   total: true,
   discount: true,
   discount_source: true,
+  delivery_fee: true,
   paid_amount: true,
   refunded_amount: true,
 } as const;
@@ -87,14 +111,14 @@ const latestPickupNoticeRelation = {
   },
 } as const;
 
-export function toLastPickupNotice(
-  notices: ReadonlyArray<{ sent_at: Date; sentBy: { name: string } }>
-) {
+export const toLastPickupNotice = (
+  notices: readonly { sent_at: Date; sentBy: { name: string } }[]
+) => {
   const [latest] = notices;
   return latest
     ? { sent_at: latest.sent_at, sent_by_name: latest.sentBy.name }
     : null;
-}
+};
 
 export interface UserRef {
   id: number;
@@ -117,31 +141,29 @@ export interface ReworkOpening {
 }
 
 interface LineWithComplaints {
-  complaints: ReadonlyArray<
-    ComplaintOpening & {
+  complaints: readonly (ComplaintOpening & {
+    id: number;
+    reason: string;
+    reworkLines: readonly {
       id: number;
-      reason: string;
-      reworkLines: ReadonlyArray<{
-        id: number;
-        status: OrderServiceStatus;
-        statusLogs: readonly OpeningLog[];
-      }>;
-    }
-  >;
+      status: OrderServiceStatus;
+      statusLogs: readonly OpeningLog[];
+    }[];
+  })[];
   id: number;
   reworkOf:
-    | (ComplaintOpening & { reworkLines: ReadonlyArray<{ id: number }> })
+    | (ComplaintOpening & { reworkLines: readonly { id: number }[] })
     | null;
-  statusLogs: ReadonlyArray<OpeningLog & { from_status: string | null }>;
+  statusLogs: readonly (OpeningLog & { from_status: string | null })[];
 }
 
 // Rounds from before queuing was logged: the first takes its Complaint's date, a
 // later one stays blank rather than guess.
-function reworkOpening(
+const reworkOpening = (
   log: OpeningLog | undefined,
   complaint: ComplaintOpening,
   isFirstRound: boolean
-): ReworkOpening {
+): ReworkOpening => {
   if (log) {
     return {
       rework_opened_at: log.created_at,
@@ -155,9 +177,9 @@ function reworkOpening(
     };
   }
   return { rework_opened_at: null, rework_opened_by: null };
-}
+};
 
-export function withReworkOpenings(line: LineWithComplaints) {
+export const withReworkOpenings = (line: LineWithComplaints) => {
   const { reworkOf } = line;
   const own: ReworkOpening = reworkOf
     ? reworkOpening(
@@ -177,10 +199,10 @@ export function withReworkOpenings(line: LineWithComplaints) {
       })),
     })),
   };
-}
+};
 
-export function findOrderState(executor: DbExecutor, id: number) {
-  return executor.query.ordersTable.findFirst({
+export const findOrderState = (executor: DbExecutor, id: number) =>
+  executor.query.ordersTable.findFirst({
     where: { id },
     columns: orderStateColumns,
     with: {
@@ -188,9 +210,11 @@ export function findOrderState(executor: DbExecutor, id: number) {
       store: { columns: { code: true } },
     },
   });
-}
 
-export async function getOrderStateOrThrow(executor: DbExecutor, id: number) {
+export const getOrderStateOrThrow = async (
+  executor: DbExecutor,
+  id: number
+) => {
   const order = await findOrderState(executor, id);
 
   if (!order) {
@@ -198,15 +222,17 @@ export async function getOrderStateOrThrow(executor: DbExecutor, id: number) {
   }
 
   return order;
-}
+};
 
-export function findOrderDetail(id: number) {
-  return db.query.ordersTable.findFirst({
+export const findOrderDetail = (id: number) =>
+  db.query.ordersTable.findFirst({
     where: { id },
     with: {
       campaigns: {
         with: {
-          campaign: true,
+          campaign: {
+            with: { eligibleServices: { columns: { service_id: true } } },
+          },
         },
         orderBy: { id: "asc" },
       },
@@ -277,12 +303,11 @@ export function findOrderDetail(id: number) {
       store: true,
     },
   });
-}
 
 // The only staff read that returns pickup_code, since the printed Receipt is the
 // Customer's proof (ADR-0016). Kept apart from findOrderDetail (ADR-0005).
-export function findOrderReceipt(id: number) {
-  return db.query.ordersTable.findFirst({
+export const findOrderReceipt = (id: number) =>
+  db.query.ordersTable.findFirst({
     where: { id },
     columns: {
       id: true,
@@ -294,6 +319,7 @@ export function findOrderReceipt(id: number) {
       total: true,
       discount: true,
       discount_source: true,
+      delivery_fee: true,
       pickup_code: true,
     },
     with: {
@@ -384,11 +410,10 @@ export function findOrderReceipt(id: number) {
       },
     },
   });
-}
 
 // The Queue's line detail: never the whole Order (ADR-0016: no pickup_code).
-export function findOrderServiceDetail(orderId: number, serviceId: number) {
-  return db.query.ordersServicesTable.findFirst({
+export const findOrderServiceDetail = (orderId: number, serviceId: number) =>
+  db.query.ordersServicesTable.findFirst({
     where: { id: serviceId, order_id: orderId },
     columns: {
       id: true,
@@ -433,22 +458,20 @@ export function findOrderServiceDetail(orderId: number, serviceId: number) {
       },
     },
   });
-}
 
-export function findOrderForLookup(id: number) {
-  return db.query.ordersTable.findFirst({
+export const findOrderForLookup = (id: number) =>
+  db.query.ordersTable.findFirst({
     where: { id },
     columns: { id: true, store_id: true },
   });
-}
 
 // The Customer's tracking page. The tracking service decides when to show
 // pickup_code. No staff notes: anyone with the code and phone number can read this.
-export function findTrackedOrder(code: string, customerId: number) {
-  return db.query.ordersTable.findFirst({
+export const findTrackedOrder = (code: string, phoneNumber: string) =>
+  db.query.ordersTable.findFirst({
     where: {
       code,
-      customer_id: customerId,
+      customer: { phone_number: phoneNumber },
     },
     columns: {
       id: true,
@@ -456,6 +479,7 @@ export function findTrackedOrder(code: string, customerId: number) {
       status: true,
       payment_status: true,
       discount: true,
+      delivery_fee: true,
       total: true,
       pickup_code: true,
       created_at: true,
@@ -517,4 +541,9 @@ export function findTrackedOrder(code: string, customerId: number) {
       },
     },
   });
-}
+
+export const findTrackedOrderRef = (code: string, phoneNumber: string) =>
+  db.query.ordersTable.findFirst({
+    where: { code, customer: { phone_number: phoneNumber } },
+    columns: { id: true },
+  });

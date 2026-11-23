@@ -1,6 +1,6 @@
 {
-	"routesDirectory": "./src/routes",
-	"generatedRouteTree": "./src/routeTree.gen.ts",
-	"quoteStyle": "double",
-	"semicolons": true
+  "routesDirectory": "./src/routes",
+  "generatedRouteTree": "./src/routeTree.gen.ts",
+  "quoteStyle": "double",
+  "semicolons": true
 }

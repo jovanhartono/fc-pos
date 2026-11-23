@@ -1,16 +1,16 @@
 import { cn } from "@/shared/utils";
 
 interface NotifiedLabelProps {
-	className?: string;
+  className?: string;
 }
 
 export const NotifiedLabel = ({ className }: NotifiedLabelProps) => (
-	<span
-		className={cn(
-			"whitespace-nowrap text-tone-good-foreground text-footnote",
-			className,
-		)}
-	>
-		NOTIFIED
-	</span>
+  <span
+    className={cn(
+      "text-footnote whitespace-nowrap text-tone-good-foreground",
+      className
+    )}
+  >
+    NOTIFIED
+  </span>
 );

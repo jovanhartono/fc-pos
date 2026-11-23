@@ -1,345 +1,355 @@
-import type { KpiDelta, ReportGranularity } from "@fresclean/api/types";
+import type { ReportGranularity } from "@fresclean/api/types";
 import { queryOptions } from "@tanstack/react-query";
-import { type InferResponseType, parseResponse } from "hono/client";
-import {
-	type PaginatedData,
-	parseSuccessData,
-	toPaginated,
-	toSearchParams,
-} from "@/lib/http";
-import { REPORT_STALE_TIME } from "@/lib/query-defaults";
-import { type rpc, rpcWithAuth } from "@/lib/rpc";
+import { parseResponse } from "hono/client";
+import type { InferResponseType } from "hono/client";
 
-export type { KpiDelta, ReportGranularity };
+import { parseSuccessData, toPaginated, toSearchParams } from "@/lib/http";
+import type { PaginatedData } from "@/lib/http";
+import { REPORT_STALE_TIME } from "@/lib/query-defaults";
+import { rpc } from "@/lib/rpc";
+
+export type { KpiDelta, ReportGranularity } from "@fresclean/api/types";
 
 export type ReportOverview = InferResponseType<
-	typeof rpc.api.admin.reports.overview.$get
+  typeof rpc.api.admin.reports.overview.$get
 >["data"];
 
 export type FinancialReport = InferResponseType<
-	typeof rpc.api.admin.reports.financial.$get
+  typeof rpc.api.admin.reports.financial.$get
 >["data"];
 
 export type OrdersFlowReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["orders-flow"]["$get"]
+  (typeof rpc.api.admin.reports)["orders-flow"]["$get"]
 >["data"];
 
 export type TurnaroundReport = InferResponseType<
-	typeof rpc.api.admin.reports.turnaround.$get
+  typeof rpc.api.admin.reports.turnaround.$get
 >["data"];
 
 export type PaymentMixReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["payment-mix"]["$get"]
+  (typeof rpc.api.admin.reports)["payment-mix"]["$get"]
 >["data"];
 
 export type CustomerAcquisitionReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["customer-acquisition"]["$get"]
+  (typeof rpc.api.admin.reports)["customer-acquisition"]["$get"]
 >["data"];
 
 export type QualityReport = InferResponseType<
-	typeof rpc.api.admin.reports.quality.$get
+  typeof rpc.api.admin.reports.quality.$get
 >["data"];
 
 export type QcRejectItem = InferResponseType<
-	(typeof rpc.api.admin.reports)["qc-rejects"]["$get"]
+  (typeof rpc.api.admin.reports)["qc-rejects"]["$get"]
 >["data"][number];
 
 // The Quality tab's first page and the loader's prefetch must ask for the same
 // page, or every visit refetches.
-export const QC_REJECTS_PREVIEW_SIZE = 10;
+export const QC_REJECTS_PAGE_SIZE = 200;
 
 export type WorkerProductivityReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["worker-productivity"]["$get"]
+  (typeof rpc.api.admin.reports)["worker-productivity"]["$get"]
 >["data"];
 
 export type WorkerRangeRow = WorkerProductivityReport["workers"][number];
 
-export type WorkerLiveRow = InferResponseType<
-	(typeof rpc.api.admin.reports)["worker-live"]["$get"]
->["data"][number];
+export type WorkerLiveReport = InferResponseType<
+  (typeof rpc.api.admin.reports)["worker-live"]["$get"]
+>["data"];
+
+export type WorkerLiveRow = WorkerLiveReport["workers"][number];
+
+export type PersonLiveRow = WorkerLiveReport["people"][number];
 
 // One person at one Store; someone who works at two Stores has two rows.
 export interface WorkerRow extends WorkerRangeRow {
-	live: WorkerLiveRow["live"];
+  live: WorkerLiveRow["live"];
+}
+
+export type PersonRangeRow = WorkerProductivityReport["people"][number];
+
+// One person across every Store, for By Worker.
+export interface PersonRow extends PersonRangeRow {
+  live: PersonLiveRow["live"];
 }
 
 export type WorkerDetailReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["worker-detail"]["$get"]
+  (typeof rpc.api.admin.reports)["worker-detail"]["$get"]
 >["data"];
 
 export type CampaignEffectivenessReport = InferResponseType<
-	(typeof rpc.api.admin.reports)["campaign-effectiveness"]["$get"]
+  (typeof rpc.api.admin.reports)["campaign-effectiveness"]["$get"]
 >["data"];
 
 export type AgingQueueItem = InferResponseType<
-	(typeof rpc.api.admin.reports)["aging-queue"]["$get"]
+  (typeof rpc.api.admin.reports)["aging-queue"]["$get"]
 >["data"][number];
 
-export type FetchReportOverviewQuery = {
-	date: string;
-	store_id?: number;
-	trend_days?: number;
-};
+export interface FetchReportOverviewQuery {
+  date: string;
+  store_id?: number;
+  trend_days?: number;
+}
 
-export type FetchReportRangeQuery = {
-	from: string;
-	to: string;
-	store_id?: number;
-	granularity?: ReportGranularity;
-};
+export interface FetchReportRangeQuery {
+  from: string;
+  to: string;
+  store_id?: number;
+  granularity?: ReportGranularity;
+}
 
 export interface FetchWorkerDetailQuery {
-	from: string;
-	to: string;
-	store_id: number;
-	user_id: number;
+  from: string;
+  to: string;
+  // Left off, the person across every Store.
+  store_id?: number;
+  user_id: number;
 }
 
 export interface FetchWorkerLiveQuery {
-	store_id?: number;
+  store_id?: number;
 }
 
 export interface FetchQcRejectsQuery {
-	from: string;
-	to: string;
-	store_id?: number;
-	limit?: number;
-	offset?: number;
+  from: string;
+  to: string;
+  store_id?: number;
+  checker_id?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export interface FetchAgingQueueQuery {
-	store_id?: number;
-	limit?: number;
-	offset?: number;
+  store_id?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export const reportsKeys = {
-	all: ["reports"] as const,
-	overview: (query: FetchReportOverviewQuery) =>
-		[...reportsKeys.all, "overview", query] as const,
-	financial: (query: FetchReportRangeQuery) =>
-		[...reportsKeys.all, "financial", query] as const,
-	ordersFlow: (query: FetchReportRangeQuery) =>
-		[...reportsKeys.all, "orders-flow", query] as const,
-	turnaround: (query: FetchReportRangeQuery) =>
-		[
-			...reportsKeys.all,
-			"turnaround",
-			{ ...query, granularity: undefined },
-		] as const,
-	paymentMix: (query: FetchReportRangeQuery) =>
-		[...reportsKeys.all, "payment-mix", query] as const,
-	customerAcquisition: (query: FetchReportRangeQuery) =>
-		[...reportsKeys.all, "customer-acquisition", query] as const,
-	quality: (query: FetchReportRangeQuery) =>
-		[...reportsKeys.all, "quality", query] as const,
-	qcRejects: (query: FetchQcRejectsQuery) =>
-		[...reportsKeys.all, "qc-rejects", query] as const,
-	workerProductivity: (query: FetchReportRangeQuery) =>
-		[...reportsKeys.all, "worker-productivity", query] as const,
-	workerLive: (query: FetchWorkerLiveQuery) =>
-		[...reportsKeys.all, "worker-live", query] as const,
-	workerDetail: (query: FetchWorkerDetailQuery) =>
-		[...reportsKeys.all, "worker-detail", query] as const,
-	campaignEffectiveness: (query: FetchReportRangeQuery) =>
-		[...reportsKeys.all, "campaign-effectiveness", query] as const,
-	agingQueue: (query?: FetchAgingQueueQuery) =>
-		[...reportsKeys.all, "aging-queue", query ?? {}] as const,
+  all: ["reports"] as const,
+  overview: (query: FetchReportOverviewQuery) =>
+    [...reportsKeys.all, "overview", query] as const,
+  financial: (query: FetchReportRangeQuery) =>
+    [...reportsKeys.all, "financial", query] as const,
+  ordersFlow: (query: FetchReportRangeQuery) =>
+    [...reportsKeys.all, "orders-flow", query] as const,
+  turnaround: (query: FetchReportRangeQuery) =>
+    [
+      ...reportsKeys.all,
+      "turnaround",
+      { ...query, granularity: undefined },
+    ] as const,
+  paymentMix: (query: FetchReportRangeQuery) =>
+    [...reportsKeys.all, "payment-mix", query] as const,
+  customerAcquisition: (query: FetchReportRangeQuery) =>
+    [...reportsKeys.all, "customer-acquisition", query] as const,
+  quality: (query: FetchReportRangeQuery) =>
+    [...reportsKeys.all, "quality", query] as const,
+  qcRejects: (query: FetchQcRejectsQuery) =>
+    [...reportsKeys.all, "qc-rejects", query] as const,
+  workerProductivity: (query: FetchReportRangeQuery) =>
+    [...reportsKeys.all, "worker-productivity", query] as const,
+  workerLive: (query: FetchWorkerLiveQuery) =>
+    [...reportsKeys.all, "worker-live", query] as const,
+  workerDetail: (query: FetchWorkerDetailQuery) =>
+    [...reportsKeys.all, "worker-detail", query] as const,
+  campaignEffectiveness: (query: FetchReportRangeQuery) =>
+    [...reportsKeys.all, "campaign-effectiveness", query] as const,
+  agingQueue: (query?: FetchAgingQueueQuery) =>
+    [...reportsKeys.all, "aging-queue", query ?? {}] as const,
 };
 
-function toRangeQuery(query: FetchReportRangeQuery) {
-	return {
-		from: query.from,
-		to: query.to,
-		...(query.store_id !== undefined
-			? { store_id: String(query.store_id) }
-			: {}),
-		...(query.granularity ? { granularity: query.granularity } : {}),
-	};
-}
+const toRangeQuery = (query: FetchReportRangeQuery) => ({
+  from: query.from,
+  to: query.to,
+  ...(query.store_id === undefined ? {} : { store_id: String(query.store_id) }),
+  ...(query.granularity ? { granularity: query.granularity } : {}),
+});
 
-function fetchReportOverview(query: FetchReportOverviewQuery) {
-	return parseSuccessData<ReportOverview>(
-		rpcWithAuth().api.admin.reports.overview.$get({
-			query: {
-				date: query.date,
-				...(query.store_id !== undefined
-					? { store_id: String(query.store_id) }
-					: {}),
-				...(query.trend_days !== undefined
-					? { trend_days: String(query.trend_days) }
-					: {}),
-			},
-		}),
-	);
-}
+const fetchReportOverview = (query: FetchReportOverviewQuery) =>
+  parseSuccessData<ReportOverview>(
+    rpc.api.admin.reports.overview.$get({
+      query: {
+        date: query.date,
+        ...(query.store_id === undefined
+          ? {}
+          : { store_id: String(query.store_id) }),
+        ...(query.trend_days === undefined
+          ? {}
+          : { trend_days: String(query.trend_days) }),
+      },
+    })
+  );
 
-async function fetchAgingQueueReport(
-	query?: FetchAgingQueueQuery,
-): Promise<PaginatedData<AgingQueueItem>> {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.reports["aging-queue"].$get({
-			query: toSearchParams({
-				store_id: query?.store_id,
-				limit: query?.limit,
-				offset: query?.offset,
-			}),
-		}),
-	);
-	return toPaginated(response);
-}
+const fetchAgingQueueReport = async (
+  query?: FetchAgingQueueQuery
+): Promise<PaginatedData<AgingQueueItem>> => {
+  const response = await parseResponse(
+    rpc.api.admin.reports["aging-queue"].$get({
+      query: toSearchParams({
+        store_id: query?.store_id,
+        limit: query?.limit,
+        offset: query?.offset,
+      }),
+    })
+  );
+  return toPaginated(response);
+};
 
-async function fetchQcRejectsReport(
-	query: FetchQcRejectsQuery,
-): Promise<PaginatedData<QcRejectItem>> {
-	const response = await parseResponse(
-		rpcWithAuth().api.admin.reports["qc-rejects"].$get({
-			query: {
-				...toRangeQuery(query),
-				...toSearchParams({ limit: query.limit, offset: query.offset }),
-			},
-		}),
-	);
-	return toPaginated(response);
-}
+const fetchQcRejectsReport = async (
+  query: FetchQcRejectsQuery
+): Promise<PaginatedData<QcRejectItem>> => {
+  const response = await parseResponse(
+    rpc.api.admin.reports["qc-rejects"].$get({
+      query: {
+        ...toRangeQuery(query),
+        ...toSearchParams({
+          checker_id: query.checker_id,
+          limit: query.limit,
+          offset: query.offset,
+        }),
+      },
+    })
+  );
+  return toPaginated(response);
+};
 
 export const reportsQueries = {
-	overview: (query: FetchReportOverviewQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.overview(query),
-			queryFn: () => fetchReportOverview(query),
-			staleTime: REPORT_STALE_TIME,
-		}),
-	financial: (query: FetchReportRangeQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.financial(query),
-			queryFn: () =>
-				parseSuccessData<FinancialReport>(
-					rpcWithAuth().api.admin.reports.financial.$get({
-						query: toRangeQuery(query),
-					}),
-				),
-			staleTime: REPORT_STALE_TIME,
-		}),
-	ordersFlow: (query: FetchReportRangeQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.ordersFlow(query),
-			queryFn: () =>
-				parseSuccessData<OrdersFlowReport>(
-					rpcWithAuth().api.admin.reports["orders-flow"].$get({
-						query: toRangeQuery(query),
-					}),
-				),
-			staleTime: REPORT_STALE_TIME,
-		}),
-	turnaround: (query: FetchReportRangeQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.turnaround(query),
-			queryFn: () =>
-				parseSuccessData<TurnaroundReport>(
-					rpcWithAuth().api.admin.reports.turnaround.$get({
-						query: toRangeQuery({ ...query, granularity: undefined }),
-					}),
-				),
-			staleTime: REPORT_STALE_TIME,
-		}),
-	paymentMix: (query: FetchReportRangeQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.paymentMix(query),
-			queryFn: () =>
-				parseSuccessData<PaymentMixReport>(
-					rpcWithAuth().api.admin.reports["payment-mix"].$get({
-						query: toRangeQuery(query),
-					}),
-				),
-			staleTime: REPORT_STALE_TIME,
-		}),
-	customerAcquisition: (query: FetchReportRangeQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.customerAcquisition(query),
-			queryFn: () =>
-				parseSuccessData<CustomerAcquisitionReport>(
-					rpcWithAuth().api.admin.reports["customer-acquisition"].$get({
-						query: toRangeQuery(query),
-					}),
-				),
-			staleTime: REPORT_STALE_TIME,
-		}),
-	quality: (query: FetchReportRangeQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.quality(query),
-			queryFn: () =>
-				parseSuccessData<QualityReport>(
-					rpcWithAuth().api.admin.reports.quality.$get({
-						query: toRangeQuery(query),
-					}),
-				),
-			staleTime: REPORT_STALE_TIME,
-		}),
-	qcRejects: (query: FetchQcRejectsQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.qcRejects(query),
-			queryFn: () => fetchQcRejectsReport(query),
-			staleTime: REPORT_STALE_TIME,
-		}),
-	workerProductivity: (query: FetchReportRangeQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.workerProductivity(query),
-			queryFn: () =>
-				parseSuccessData<WorkerProductivityReport>(
-					rpcWithAuth().api.admin.reports["worker-productivity"].$get({
-						query: toRangeQuery(query),
-					}),
-				),
-			staleTime: REPORT_STALE_TIME,
-			// Today's Services keep coming in. A longer stretch would rescan every
-			// day of it each minute, so it doesn't; workerLive keeps the floor current.
-			refetchInterval: (q) => (q.state.data?.is_today ? 60_000 : false),
-		}),
-	workerLive: (query: FetchWorkerLiveQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.workerLive(query),
-			queryFn: () =>
-				parseSuccessData<WorkerLiveRow[]>(
-					rpcWithAuth().api.admin.reports["worker-live"].$get({
-						query: toSearchParams({ store_id: query.store_id }),
-					}),
-				),
-			staleTime: REPORT_STALE_TIME,
-			// Who is on the floor now, on every date range: today's handful of rows.
-			refetchInterval: 60_000,
-		}),
-	workerDetail: (query: FetchWorkerDetailQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.workerDetail(query),
-			queryFn: () =>
-				parseSuccessData<WorkerDetailReport>(
-					rpcWithAuth().api.admin.reports["worker-detail"].$get({
-						query: {
-							from: query.from,
-							to: query.to,
-							store_id: String(query.store_id),
-							user_id: String(query.user_id),
-						},
-					}),
-				),
-			staleTime: REPORT_STALE_TIME,
-		}),
-	campaignEffectiveness: (query: FetchReportRangeQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.campaignEffectiveness(query),
-			queryFn: () =>
-				parseSuccessData<CampaignEffectivenessReport>(
-					rpcWithAuth().api.admin.reports["campaign-effectiveness"].$get({
-						query: toRangeQuery(query),
-					}),
-				),
-			staleTime: REPORT_STALE_TIME,
-		}),
-	agingQueue: (query?: FetchAgingQueueQuery) =>
-		queryOptions({
-			queryKey: reportsKeys.agingQueue(query),
-			queryFn: () => fetchAgingQueueReport(query),
-			staleTime: REPORT_STALE_TIME,
-		}),
+  overview: (query: FetchReportOverviewQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.overview(query),
+      queryFn: () => fetchReportOverview(query),
+      staleTime: REPORT_STALE_TIME,
+    }),
+  financial: (query: FetchReportRangeQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.financial(query),
+      queryFn: () =>
+        parseSuccessData<FinancialReport>(
+          rpc.api.admin.reports.financial.$get({
+            query: toRangeQuery(query),
+          })
+        ),
+      staleTime: REPORT_STALE_TIME,
+    }),
+  ordersFlow: (query: FetchReportRangeQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.ordersFlow(query),
+      queryFn: () =>
+        parseSuccessData<OrdersFlowReport>(
+          rpc.api.admin.reports["orders-flow"].$get({
+            query: toRangeQuery(query),
+          })
+        ),
+      staleTime: REPORT_STALE_TIME,
+    }),
+  turnaround: (query: FetchReportRangeQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.turnaround(query),
+      queryFn: () =>
+        parseSuccessData<TurnaroundReport>(
+          rpc.api.admin.reports.turnaround.$get({
+            query: toRangeQuery({ ...query, granularity: undefined }),
+          })
+        ),
+      staleTime: REPORT_STALE_TIME,
+    }),
+  paymentMix: (query: FetchReportRangeQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.paymentMix(query),
+      queryFn: () =>
+        parseSuccessData<PaymentMixReport>(
+          rpc.api.admin.reports["payment-mix"].$get({
+            query: toRangeQuery(query),
+          })
+        ),
+      staleTime: REPORT_STALE_TIME,
+    }),
+  customerAcquisition: (query: FetchReportRangeQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.customerAcquisition(query),
+      queryFn: () =>
+        parseSuccessData<CustomerAcquisitionReport>(
+          rpc.api.admin.reports["customer-acquisition"].$get({
+            query: toRangeQuery(query),
+          })
+        ),
+      staleTime: REPORT_STALE_TIME,
+    }),
+  quality: (query: FetchReportRangeQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.quality(query),
+      queryFn: () =>
+        parseSuccessData<QualityReport>(
+          rpc.api.admin.reports.quality.$get({
+            query: toRangeQuery(query),
+          })
+        ),
+      staleTime: REPORT_STALE_TIME,
+    }),
+  qcRejects: (query: FetchQcRejectsQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.qcRejects(query),
+      queryFn: () => fetchQcRejectsReport(query),
+      staleTime: REPORT_STALE_TIME,
+    }),
+  workerProductivity: (query: FetchReportRangeQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.workerProductivity(query),
+      queryFn: () =>
+        parseSuccessData<WorkerProductivityReport>(
+          rpc.api.admin.reports["worker-productivity"].$get({
+            query: toRangeQuery(query),
+          })
+        ),
+      staleTime: REPORT_STALE_TIME,
+      // Today's Services keep coming in. A longer stretch would rescan every
+      // day of it each minute, so it doesn't; workerLive keeps the floor current.
+      refetchInterval: (q) => (q.state.data?.is_today ? 60_000 : false),
+    }),
+  workerLive: (query: FetchWorkerLiveQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.workerLive(query),
+      queryFn: () =>
+        parseSuccessData<WorkerLiveReport>(
+          rpc.api.admin.reports["worker-live"].$get({
+            query: toSearchParams({ store_id: query.store_id }),
+          })
+        ),
+      staleTime: REPORT_STALE_TIME,
+      // Who is on the floor now, on every date range: today's handful of rows.
+      refetchInterval: 60_000,
+    }),
+  workerDetail: (query: FetchWorkerDetailQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.workerDetail(query),
+      queryFn: () =>
+        parseSuccessData<WorkerDetailReport>(
+          rpc.api.admin.reports["worker-detail"].$get({
+            query: {
+              from: query.from,
+              to: query.to,
+              store_id: query.store_id?.toString(),
+              user_id: String(query.user_id),
+            },
+          })
+        ),
+      staleTime: REPORT_STALE_TIME,
+    }),
+  campaignEffectiveness: (query: FetchReportRangeQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.campaignEffectiveness(query),
+      queryFn: () =>
+        parseSuccessData<CampaignEffectivenessReport>(
+          rpc.api.admin.reports["campaign-effectiveness"].$get({
+            query: toRangeQuery(query),
+          })
+        ),
+      staleTime: REPORT_STALE_TIME,
+    }),
+  agingQueue: (query?: FetchAgingQueueQuery) =>
+    queryOptions({
+      queryKey: reportsKeys.agingQueue(query),
+      queryFn: () => fetchAgingQueueReport(query),
+      staleTime: REPORT_STALE_TIME,
+    }),
 };

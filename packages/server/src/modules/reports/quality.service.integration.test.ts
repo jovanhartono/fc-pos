@@ -1,16 +1,18 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { eq } from "drizzle-orm";
+
 import {
   complaintsTable,
-  orderRefundItemsTable,
-  orderRefundsTable,
   orderServiceStatusLogsTable,
   ordersServicesTable,
   storesTable,
   usersTable,
 } from "@/db/schema";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // August at the Kemang shop, told through the status log. Adi, Bayu and Citra
@@ -20,9 +22,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Loaded after the swap above: a static import would bind the shop's real
 // database before the mock runs.
 const { createOrder } = await import("@/modules/orders/order.service");
-const { getQualityReport, getQcRejectsReport } = await import(
-  "@/modules/reports/quality.service"
-);
+const { getQualityReport, getQcRejectsReport } =
+  await import("@/modules/reports/quality.service");
 
 const AUGUST = { from: "2026-08-01", to: "2026-08-31" };
 
@@ -54,6 +55,7 @@ const placeOrder = async (
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: items.map(({ brand, serviceId }) => ({
       brand,
       services: [{ id: serviceId }],
@@ -114,11 +116,11 @@ const complain = async (line: Line) => {
   return complaint.id;
 };
 
-const addReworkLine = async (
+const addLine = async (
   line: Line,
-  complaintId: number,
   serviceId: number,
-  status: Status
+  status: Status,
+  complaintId: number | null = null
 ) => {
   const [rework] = await testDb
     .insert(ordersServicesTable)
@@ -134,37 +136,7 @@ const addReworkLine = async (
   return rework.id;
 };
 
-const refund = async (
-  line: Line,
-  at: string,
-  reason: "damaged" | "lost" | "cannot_process",
-  amount: number,
-  note: string | null
-) => {
-  const [handedBack] = await testDb
-    .insert(orderRefundsTable)
-    .values({
-      created_at: jkt(at),
-      order_id: line.orderId,
-      refunded_by: shop.admin.id,
-      total_amount: String(amount),
-    })
-    .returning();
-  const [item] = await testDb
-    .insert(orderRefundItemsTable)
-    .values({
-      amount: String(amount),
-      note,
-      order_refund_id: handedBack.id,
-      order_service_id: line.lineId,
-      reason,
-    })
-    .returning();
-  return item.id;
-};
-
 let reworkLineId: number;
-let refundIds: { damaged: number; lost: number };
 
 beforeEach(async () => {
   await resetDb();
@@ -217,55 +189,49 @@ beforeEach(async () => {
   // Adi cleans, Bayu passes it. First try.
   await log(line("first-pass"), [
     ["queued", "processing", adi, "2026-08-02T10:00"],
-    ["processing", "quality_check", adi, "2026-08-02T12:00"],
-    ["quality_check", "ready_for_pickup", bayu, "2026-08-02T13:00"],
+    ["processing", "waiting_qc", adi, "2026-08-02T12:00"],
+    ["waiting_qc", "ready_for_pickup", bayu, "2026-08-02T13:00"],
   ]);
 
   // Bayu sends Adi's work back; Citra redoes it and passes her own redo.
   await log(line("redone"), [
     ["queued", "processing", adi, "2026-08-03T09:00"],
-    ["processing", "quality_check", adi, "2026-08-03T10:00"],
-    [
-      "quality_check",
-      "qc_reject",
-      bayu,
-      "2026-08-03T11:00",
-      "stain on toe box",
-    ],
+    ["processing", "waiting_qc", adi, "2026-08-03T10:00"],
+    ["waiting_qc", "qc_reject", bayu, "2026-08-03T11:00", "stain on toe box"],
     ["qc_reject", "processing", citra, "2026-08-03T12:00"],
-    ["processing", "quality_check", citra, "2026-08-03T13:00"],
-    ["quality_check", "ready_for_pickup", citra, "2026-08-03T14:00"],
+    ["processing", "waiting_qc", citra, "2026-08-03T13:00"],
+    ["waiting_qc", "ready_for_pickup", citra, "2026-08-03T14:00"],
   ]);
 
   // Adi repairs and passes his own work; the Customer complains, and the
   // Rework line Bayu does is sent back by Citra.
   await log(line("self-checked"), [
     ["queued", "processing", adi, "2026-08-04T09:00"],
-    ["processing", "quality_check", adi, "2026-08-04T10:00"],
-    ["quality_check", "ready_for_pickup", adi, "2026-08-04T11:00"],
+    ["processing", "waiting_qc", adi, "2026-08-04T10:00"],
+    ["waiting_qc", "ready_for_pickup", adi, "2026-08-04T11:00"],
   ]);
   const reworkedComplaint = await complain(lines["self-checked"]);
-  reworkLineId = await addReworkLine(
+  reworkLineId = await addLine(
     lines["self-checked"],
-    reworkedComplaint,
     repair,
-    "qc_reject"
+    "qc_reject",
+    reworkedComplaint
   );
   await log(reworkLineId, [
     ["queued", "processing", bayu, "2026-08-11T09:00"],
-    ["processing", "quality_check", bayu, "2026-08-11T10:00"],
-    ["quality_check", "qc_reject", citra, "2026-08-11T11:00", "glue marks"],
+    ["processing", "waiting_qc", bayu, "2026-08-11T10:00"],
+    ["waiting_qc", "qc_reject", citra, "2026-08-11T11:00", "glue marks"],
   ]);
 
   // Sent back before reasons were asked for, then passed by Adi, then
   // refunded as damaged after the Customer complained.
   await log(line("refunded"), [
     ["queued", "processing", bayu, "2026-08-05T09:00"],
-    ["processing", "quality_check", bayu, "2026-08-05T10:00"],
-    ["quality_check", "qc_reject", citra, "2026-08-05T11:00"],
+    ["processing", "waiting_qc", bayu, "2026-08-05T10:00"],
+    ["waiting_qc", "qc_reject", citra, "2026-08-05T11:00"],
     ["qc_reject", "processing", bayu, "2026-08-05T12:00"],
-    ["processing", "quality_check", bayu, "2026-08-05T13:00"],
-    ["quality_check", "ready_for_pickup", adi, "2026-08-05T14:00"],
+    ["processing", "waiting_qc", bayu, "2026-08-05T13:00"],
+    ["waiting_qc", "ready_for_pickup", adi, "2026-08-05T14:00"],
   ]);
   await complain(lines.refunded);
   await setStatus(line("refunded"), "refunded");
@@ -273,74 +239,48 @@ beforeEach(async () => {
   // July's work: the stretch before.
   await log(line("july"), [
     ["queued", "processing", adi, "2026-07-20T09:00"],
-    ["processing", "quality_check", adi, "2026-07-20T10:00"],
-    ["quality_check", "qc_reject", bayu, "2026-07-20T11:00", "scuffs"],
+    ["processing", "waiting_qc", adi, "2026-07-20T10:00"],
+    ["waiting_qc", "qc_reject", bayu, "2026-07-20T11:00", "scuffs"],
     ["qc_reject", "processing", adi, "2026-07-20T12:00"],
-    ["processing", "quality_check", adi, "2026-07-20T13:00"],
-    ["quality_check", "ready_for_pickup", bayu, "2026-07-20T14:00"],
+    ["processing", "waiting_qc", adi, "2026-07-20T13:00"],
+    ["waiting_qc", "ready_for_pickup", bayu, "2026-07-20T14:00"],
   ]);
 
   // Checked in August, sent back the instant September opens.
   await log(line("rejected-after-range"), [
     ["queued", "processing", citra, "2026-08-30T09:00"],
-    ["processing", "quality_check", citra, "2026-08-30T10:00"],
-    ["quality_check", "qc_reject", bayu, "2026-09-01T00:00", "still wet"],
+    ["processing", "waiting_qc", citra, "2026-08-30T10:00"],
+    ["waiting_qc", "qc_reject", bayu, "2026-09-01T00:00", "still wet"],
   ]);
 
   // Complained about; the Rework line was cancelled, so nothing was redone.
   await log(line("pending"), [
     ["queued", "processing", citra, "2026-08-06T09:00"],
-    ["processing", "quality_check", citra, "2026-08-06T10:00"],
-    ["quality_check", "ready_for_pickup", bayu, "2026-08-06T11:00"],
+    ["processing", "waiting_qc", citra, "2026-08-06T10:00"],
+    ["waiting_qc", "ready_for_pickup", bayu, "2026-08-06T11:00"],
   ]);
   const pendingComplaint = await complain(lines.pending);
-  await addReworkLine(lines.pending, pendingComplaint, clean, "cancelled");
+  await addLine(lines.pending, clean, "cancelled", pendingComplaint);
 
   await log(line("cancelled"), [
     ["queued", "processing", citra, "2026-08-07T09:00"],
-    ["processing", "quality_check", citra, "2026-08-07T10:00"],
-    ["quality_check", "ready_for_pickup", bayu, "2026-08-07T11:00"],
+    ["processing", "waiting_qc", citra, "2026-08-07T10:00"],
+    ["waiting_qc", "ready_for_pickup", bayu, "2026-08-07T11:00"],
   ]);
   await complain(lines.cancelled);
   await setStatus(line("cancelled"), "cancelled");
 
   await log(line("repaired"), [
     ["queued", "processing", bayu, "2026-08-09T09:00"],
-    ["processing", "quality_check", bayu, "2026-08-09T10:00"],
-    ["quality_check", "ready_for_pickup", citra, "2026-08-09T11:00"],
+    ["processing", "waiting_qc", bayu, "2026-08-09T10:00"],
+    ["waiting_qc", "ready_for_pickup", citra, "2026-08-09T11:00"],
   ]);
 
   await log(line("bintaro"), [
     ["queued", "processing", adi, "2026-08-08T09:00"],
-    ["processing", "quality_check", adi, "2026-08-08T10:00"],
-    ["quality_check", "qc_reject", bayu, "2026-08-08T11:00", "other store"],
+    ["processing", "waiting_qc", adi, "2026-08-08T10:00"],
+    ["waiting_qc", "qc_reject", bayu, "2026-08-08T11:00", "other store"],
   ]);
-
-  refundIds = {
-    damaged: await refund(
-      lines.refunded,
-      "2026-08-20T10:00",
-      "damaged",
-      100_000,
-      "Sole split"
-    ),
-    lost: await refund(
-      lines["first-pass"],
-      "2026-08-21T10:00",
-      "lost",
-      80_000,
-      null
-    ),
-  };
-  await refund(
-    lines.redone,
-    "2026-08-22T10:00",
-    "cannot_process",
-    50_000,
-    null
-  );
-  await refund(lines.bintaro, "2026-08-22T10:00", "damaged", 70_000, "torn");
-  await refund(lines.july, "2026-07-25T10:00", "damaged", 60_000, "faded");
 });
 
 const kemangAugust = () =>
@@ -355,10 +295,10 @@ describe("the Quality report", () => {
     expect(report.summary.current).toEqual({
       services_processed: 8,
       first_pass: 5,
-      sent_back: 3,
       first_pass_rate: 0.625,
       complaints: 4,
       complaint_rate: 0.5,
+      checks: 10,
       qc_rejects: 3,
       passes: 7,
       self_checks: 2,
@@ -373,10 +313,10 @@ describe("the Quality report", () => {
     expect(report.summary.previous).toEqual({
       services_processed: 1,
       first_pass: 0,
-      sent_back: 1,
       first_pass_rate: 0,
       complaints: 0,
       complaint_rate: 0,
+      checks: 2,
       qc_rejects: 1,
       passes: 1,
       self_checks: 0,
@@ -399,7 +339,7 @@ describe("the Quality report", () => {
       store_id: shop.store.id,
     });
 
-    expect(report.summary.current.sent_back).toBe(3);
+    expect(report.summary.current.first_pass).toBe(5);
     expect(report.summary.current.qc_rejects).toBe(3);
     expect(rejects.items.map((row) => row.reason)).not.toContain("still wet");
   });
@@ -415,6 +355,21 @@ describe("the Quality report", () => {
     });
   });
 
+  it("lists each Complaint behind the Mistakes count, with its outcome", async () => {
+    const report = await kemangAugust();
+    const byItem = Object.fromEntries(
+      report.complaints.map((row) => [row.item_code, row.outcome])
+    );
+
+    expect(report.complaints).toHaveLength(report.mistakes.complaints);
+    expect(byItem).toEqual({
+      [lines["self-checked"].itemCode]: "reworked",
+      [lines.refunded.itemCode]: "refunded",
+      [lines.pending.itemCode]: "pending",
+      [lines.cancelled.itemCode]: "cancelled",
+    });
+  });
+
   it("ranks Services with the worst first-pass rate first", async () => {
     const report = await kemangAugust();
 
@@ -425,7 +380,7 @@ describe("the Quality report", () => {
         processed: 6,
         first_pass: 3,
         first_pass_rate: 0.5,
-        sent_back: 3,
+        qc_rejects: 2,
         complaints: 3,
       },
       {
@@ -434,7 +389,8 @@ describe("the Quality report", () => {
         processed: 2,
         first_pass: 2,
         first_pass_rate: 1,
-        sent_back: 0,
+        // The Rework line's reject in August, though the Repair was done first time.
+        qc_rejects: 1,
         complaints: 1,
       },
     ]);
@@ -448,68 +404,150 @@ describe("the Quality report", () => {
         user_id: bayu,
         user_name: "Bayu",
         checks: 4,
+        days_checked: 4,
+        per_day: 1,
         passes: 3,
         rejects: 1,
-        reject_rate: 0.25,
         self_checks: 0,
-        self_check_rate: 0,
         complaints_after: 2,
+        days: expect.any(Array),
       },
       {
         // Citra passed her own redo of Adi's pair: a Self-check.
         user_id: citra,
         user_name: "Citra",
         checks: 4,
+        days_checked: 4,
+        per_day: 1,
         passes: 2,
         rejects: 2,
-        reject_rate: 0.5,
         self_checks: 1,
-        self_check_rate: 0.5,
         complaints_after: 0,
+        days: expect.any(Array),
       },
       {
         user_id: adi,
         user_name: "Adi",
         checks: 2,
+        days_checked: 2,
+        per_day: 1,
         passes: 2,
         rejects: 0,
-        reject_rate: 0,
         self_checks: 1,
-        self_check_rate: 0.5,
         complaints_after: 2,
+        days: expect.any(Array),
       },
     ]);
   });
 
-  it("lists Items refunded as damaged or lost, newest first", async () => {
+  it("averages checks over the Jakarta days the checker worked", async () => {
+    // Bayu's late shift runs past midnight: two Jakarta days, though in UTC
+    // all three checks land on 14 August.
+    const late = await placeOrder(shop.store, [
+      { brand: "evening", serviceId: shop.serviceId },
+      { brand: "before-midnight", serviceId: shop.serviceId },
+      { brand: "after-midnight", serviceId: shop.serviceId },
+    ]);
+    await log(late.evening.lineId, [
+      ["waiting_qc", "ready_for_pickup", bayu, "2026-08-14T20:00"],
+    ]);
+    await log(late["before-midnight"].lineId, [
+      ["waiting_qc", "ready_for_pickup", bayu, "2026-08-14T23:30"],
+    ]);
+    await log(late["after-midnight"].lineId, [
+      ["waiting_qc", "ready_for_pickup", bayu, "2026-08-15T00:30"],
+    ]);
+
+    const report = await kemangAugust();
+    const bayuRow = report.by_checker.find((row) => row.user_id === bayu);
+
+    // 7 checks over 2, 3, 6, 7, 14 and 15 August.
+    expect(bayuRow).toMatchObject({ checks: 7, days_checked: 6, per_day: 1.2 });
+  });
+
+  it("sets each day's arrivals on the QC shelf beside the checks made", async () => {
+    const report = await kemangAugust();
+    const day = (label: string) =>
+      report.daily.rows.find((row) => row.label === label);
+    const total = (key: "arrived" | "passes" | "qc_rejects") =>
+      report.daily.rows.reduce((sum, row) => sum + row[key], 0);
+
+    expect(report.daily.bucket).toBe("day");
+    expect(report.daily.rows).toHaveLength(31);
+    // The redone pair landed on the shelf twice on 3 August.
+    expect(day("2026-08-03")).toEqual({
+      label: "2026-08-03",
+      arrived: 2,
+      passes: 1,
+      qc_rejects: 1,
+    });
+    // Waiting since 30 August; its check falls in September.
+    expect(day("2026-08-30")).toEqual({
+      label: "2026-08-30",
+      arrived: 1,
+      passes: 0,
+      qc_rejects: 0,
+    });
+    expect([total("arrived"), total("passes"), total("qc_rejects")]).toEqual([
+      11, 7, 3,
+    ]);
+  });
+
+  it("gives each checker their own days", async () => {
+    const report = await kemangAugust();
+    const citraDays = report.by_checker
+      .find((row) => row.user_id === citra)
+      ?.days.filter((row) => row.passes + row.qc_rejects > 0);
+
+    expect(citraDays).toEqual([
+      { label: "2026-08-03", passes: 1, qc_rejects: 0 },
+      { label: "2026-08-05", passes: 0, qc_rejects: 1 },
+      { label: "2026-08-09", passes: 1, qc_rejects: 0 },
+      { label: "2026-08-11", passes: 0, qc_rejects: 1 },
+    ]);
+  });
+
+  it("counts every QC reject made in the range, whenever the work was done", async () => {
     const report = await kemangAugust();
 
-    expect(report.damaged_lost).toEqual([
-      {
-        refund_item_id: refundIds.lost,
-        refunded_at: jkt("2026-08-21T10:00"),
-        order_id: lines["first-pass"].orderId,
-        order_code: lines["first-pass"].orderCode,
-        item_code: lines["first-pass"].itemCode,
-        service_name: "Deep Clean",
-        store_code: "KMG",
-        reason: "lost",
-        amount: 80_000,
-        note: null,
-      },
-      {
-        refund_item_id: refundIds.damaged,
-        refunded_at: jkt("2026-08-20T10:00"),
-        order_id: lines.refunded.orderId,
-        order_code: lines.refunded.orderCode,
-        item_code: lines.refunded.itemCode,
-        service_name: "Deep Clean",
-        store_code: "KMG",
-        reason: "damaged",
-        amount: 100_000,
-        note: "Sole split",
-      },
+    expect(report.mistakes).toEqual({
+      total: 7,
+      qc_rejects: report.summary.current.qc_rejects,
+      complaints: 4,
+    });
+    expect(report.mistakes.qc_rejects).toBe(3);
+  });
+
+  it("counts what waits on the QC shelf now, from its latest landing there", async () => {
+    await setStatus(lines["rejected-after-range"].lineId, "waiting_qc");
+    await setStatus(lines.redone.lineId, "waiting_qc");
+
+    const report = await kemangAugust();
+
+    expect(report.waiting_qc_now).toEqual({
+      count: 2,
+      oldest_at: jkt("2026-08-03T13:00"),
+    });
+  });
+
+  it("counts an Item on the shelf once, and only when nothing but its check is left", async () => {
+    const repair = shop.repairServiceId;
+    await setStatus(lines.redone.lineId, "waiting_qc");
+    const repaired = await addLine(lines.redone, repair, "waiting_qc");
+    await addLine(lines.redone, repair, "refunded");
+    await log(repaired, [
+      ["processing", "waiting_qc", adi, "2026-08-04T15:00"],
     ]);
+    // Cleaned, but its Repair is still in someone's hands.
+    await setStatus(lines["rejected-after-range"].lineId, "waiting_qc");
+    await addLine(lines["rejected-after-range"], repair, "processing");
+
+    const report = await kemangAugust();
+
+    expect(report.waiting_qc_now).toEqual({
+      count: 1,
+      oldest_at: jkt("2026-08-04T15:00"),
+    });
   });
 
   it("takes in every Store when none is named", async () => {
@@ -517,11 +555,6 @@ describe("the Quality report", () => {
 
     expect(report.summary.current.services_processed).toBe(9);
     expect(report.summary.current.qc_rejects).toBe(4);
-    expect(report.damaged_lost.map((row) => row.store_code)).toEqual([
-      "BTR",
-      "KMG",
-      "KMG",
-    ]);
   });
 });
 
@@ -539,7 +572,12 @@ describe("the QC rejects list", () => {
         rejected_at: jkt("2026-08-11T11:00"),
         order_id: lines["self-checked"].orderId,
         order_code: lines["self-checked"].orderCode,
+        order_service_id: reworkLineId,
         item_code: lines["self-checked"].itemCode,
+        item_brand: "self-checked",
+        item_model: null,
+        item_color: null,
+        item_size: null,
         service_name: "Repair",
         store_code: "KMG",
         store_name: "Fresclean Kemang",
@@ -553,7 +591,12 @@ describe("the QC rejects list", () => {
         rejected_at: jkt("2026-08-05T11:00"),
         order_id: lines.refunded.orderId,
         order_code: lines.refunded.orderCode,
+        order_service_id: lines.refunded.lineId,
         item_code: lines.refunded.itemCode,
+        item_brand: "refunded",
+        item_model: null,
+        item_color: null,
+        item_size: null,
         service_name: "Deep Clean",
         store_code: "KMG",
         store_name: "Fresclean Kemang",
@@ -566,7 +609,12 @@ describe("the QC rejects list", () => {
         rejected_at: jkt("2026-08-03T11:00"),
         order_id: lines.redone.orderId,
         order_code: lines.redone.orderCode,
+        order_service_id: lines.redone.lineId,
         item_code: lines.redone.itemCode,
+        item_brand: "redone",
+        item_model: null,
+        item_color: null,
+        item_size: null,
         service_name: "Deep Clean",
         store_code: "KMG",
         store_name: "Fresclean Kemang",
@@ -603,6 +651,20 @@ describe("the QC rejects list", () => {
 
       expect(page.meta.total).toBe(report.summary.current.qc_rejects);
     }
+  });
+
+  it("narrows to one checker's QC rejects", async () => {
+    const page = await getQcRejectsReport({
+      ...AUGUST,
+      store_id: shop.store.id,
+      checker_id: citra,
+    });
+
+    expect(page.meta.total).toBe(2);
+    expect(page.items.map((row) => row.rejected_by_name)).toEqual([
+      "Citra",
+      "Citra",
+    ]);
   });
 
   it("keeps another Store's QC rejects out", async () => {

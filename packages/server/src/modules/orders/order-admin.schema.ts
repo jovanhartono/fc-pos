@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import {
   cancelReasonEnum,
   orderServiceStatusEnum,
@@ -9,8 +10,10 @@ import {
   campaignIdsSchema,
   currencySchema,
   dateStringSchema,
+  photoContentTypeSchema,
   voucherCodesSchema,
 } from "@/schema/common";
+import { QUEUE_CATEGORY_MODES } from "@/schema/queue";
 import { normalizePagination } from "@/utils/pagination";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
@@ -38,14 +41,6 @@ export const orderItemPhotoParamSchema = zodValidator(
     photoId: z.coerce.number().int().positive(),
   })
 );
-
-const photoContentTypeSchema = z
-  .string()
-  .trim()
-  .refine(
-    (value) => ["image/jpeg", "image/png", "image/webp"].includes(value),
-    "Unsupported content type"
-  );
 
 export const POSTItemPhotoPresignSchema = z.object({
   content_type: photoContentTypeSchema,
@@ -77,7 +72,7 @@ export const PUTOrderDropoffPhotoSchema = z.object({
 
 export const POSTOrderPickupEventSchema = z.object({
   image_path: z.string().trim().min(1).max(512),
-  pickup_code: z.string().regex(/^\d{6}$/, "Pickup code must be 6 digits"),
+  pickup_code: z.string().regex(/^\d{6}$/u, "Pickup code must be 6 digits"),
   // Items, not lines (ADR-0017): the counter hands back a whole shoe, never half
   // of one.
   item_ids: z.array(z.coerce.number().int().positive()).min(1),
@@ -96,7 +91,7 @@ export const PATCHOrderServiceStatusSchema = z
     if (value.status === "qc_reject" && !value.note) {
       ctx.addIssue({
         code: "custom",
-        message: "Say what's wrong",
+        message: "Write reject reason",
         path: ["note"],
       });
       return;
@@ -143,6 +138,10 @@ export const PATCHOrderServicePriceSchema = z.object({
 
 export const PATCHOrderCourierSchema = z.object({
   collected_by: z.coerce.number().int().positive().nullable(),
+});
+
+export const PATCHOrderDeliveryFeeSchema = z.object({
+  delivery_fee: currencySchema("Delivery fee"),
 });
 
 export const POSTOrderCancelSchema = z.object({
@@ -226,8 +225,6 @@ export const GETMyOrderServicesQuerySchema = z.object({
   include_terminal: z.stringbool().optional().default(false),
 });
 
-export const QUEUE_CATEGORY_MODES = ["only", "except"] as const;
-
 // Without a mode the picked Category means "only", so a bare category_id
 // never silently reads as its opposite.
 const queueCategoryFilterSchema = {
@@ -303,9 +300,9 @@ export type PostOrderPickupEventInput = z.infer<
   typeof POSTOrderPickupEventSchema
 >;
 
-export function normalizeOrderServiceQueueQuery(
+export const normalizeOrderServiceQueueQuery = (
   query?: GetOrderServiceQueueQuery
-) {
+) => {
   const pagination = normalizePagination(query, {
     maxPageSize: MAX_PAGE_SIZE,
   });
@@ -321,4 +318,4 @@ export function normalizeOrderServiceQueueQuery(
     category_id: query?.category_id,
     category_mode: query?.category_mode,
   };
-}
+};

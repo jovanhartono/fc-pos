@@ -1,20 +1,206 @@
 import { and, eq } from "drizzle-orm";
+
 import { db } from "@/db";
+import type { DbExecutor } from "@/db";
 import { ordersTable } from "@/db/schema";
-import { BadRequestException } from "@/http-exceptions";
-import { findSettlementLines } from "@/modules/orders/order.repository";
+import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import type { PatchOrderPaymentInput } from "@/modules/orders/order-admin.schema";
 import { findOrderState } from "@/modules/orders/order-read.repository";
 import {
   assertDiscountRequestAllowed,
   assertPayable,
+  previewDiscount,
   settleDiscount,
 } from "@/modules/orders/order-settlement.service";
+import type {
+  DiscountRequest,
+  SettleDiscountInput,
+} from "@/modules/orders/order-settlement.service";
+import { findSettlementLines } from "@/modules/orders/order.repository";
+import type { OrderTx } from "@/modules/orders/order.repository";
+import { findPaymentMethodById } from "@/modules/payment-methods/payment-method.repository";
+import { cancelOrderPendingCharges } from "@/modules/payments/payment-charge-close";
 import { assertCanProcessPayment } from "@/modules/permissions/permissions";
 import { isDiscountSettled, orderNetDue } from "@/schema/discount";
 import type { JWTPayload } from "@/types";
 
-export async function updateOrderPayment({
+// A QRIS was shown for one amount and the Order now owes another (a price or
+// promo changed meanwhile), so the money cannot simply be booked against it.
+export class NetDueChangedError extends Error {
+  constructor(expected: number, actual: number) {
+    super(`Charged ${expected} but the Order now owes ${actual}`);
+    this.name = "NetDueChangedError";
+  }
+}
+
+const findPayableOrder = async (
+  executor: DbExecutor,
+  orderId: number,
+  request: DiscountRequest
+) => {
+  const order = await findOrderState(executor, orderId);
+
+  if (!order) {
+    return null;
+  }
+
+  if (order.payment_status === "paid") {
+    throw new BadRequestException("Order has already been paid");
+  }
+
+  if (order.status === "cancelled") {
+    throw new BadRequestException(
+      "Cannot collect payment on a cancelled order"
+    );
+  }
+
+  const lines = await findSettlementLines(executor, orderId);
+  assertPayable(lines);
+
+  const isSettledAtDropoff = isDiscountSettled(order.discount_source);
+  assertDiscountRequestAllowed({
+    hasBlankLine: false,
+    isSettled: isSettledAtDropoff,
+    request,
+  });
+
+  // A promo settled at drop-off keeps the amount on the Receipt; otherwise it
+  // settles at payment and its claims stand or fall with the payment.
+  const discountInput: SettleDiscountInput = {
+    grossTotal: Number(order.total ?? 0),
+    lines,
+    request,
+    settled: isSettledAtDropoff
+      ? {
+          discountAmount: Number(order.discount),
+          discountSource: order.discount_source,
+        }
+      : undefined,
+    storeCode: order.store.code,
+    storeId: order.store_id,
+  };
+
+  return { discountInput, order };
+};
+
+// What a counter QRIS asks for, without spending the Voucher code: the
+// Customer may still walk away from the QR.
+export const quoteOrderNetDue = async (
+  orderId: number,
+  request: DiscountRequest
+) => {
+  const payable = await findPayableOrder(db, orderId, request);
+
+  if (!payable) {
+    return null;
+  }
+
+  const { discountAmount } = await previewDiscount(db, payable.discountInput);
+
+  return orderNetDue({
+    grossTotal: payable.discountInput.grossTotal,
+    discount: discountAmount,
+    refunded: Number(payable.order.refunded_amount),
+    deliveryFee: Number(payable.order.delivery_fee),
+  });
+};
+
+interface MarkOrderPaidInput {
+  // null when the Customer paid online from the Track page.
+  actorId: number | null;
+  expectedNetDue?: number;
+  orderId: number;
+  paymentMethodId: number;
+  request: DiscountRequest;
+  tx?: OrderTx;
+}
+
+const markOrderPaidIn = async (
+  tx: OrderTx,
+  {
+    actorId,
+    expectedNetDue,
+    orderId,
+    paymentMethodId,
+    request,
+  }: Omit<MarkOrderPaidInput, "tx">
+) => {
+  const payable = await findPayableOrder(tx, orderId, request);
+
+  if (!payable) {
+    return null;
+  }
+
+  const { discountAmount, discountSource } = await settleDiscount(tx, {
+    ...payable.discountInput,
+    orderId,
+  });
+
+  const netDue = orderNetDue({
+    grossTotal: payable.discountInput.grossTotal,
+    discount: discountAmount,
+    refunded: Number(payable.order.refunded_amount),
+    deliveryFee: Number(payable.order.delivery_fee),
+  });
+
+  if (expectedNetDue !== undefined && netDue !== expectedNetDue) {
+    throw new NetDueChangedError(expectedNetDue, netDue);
+  }
+
+  // Two cashiers tapping collect at once must not both book the money; the
+  // loser rolls back, Voucher claim included.
+  const rows = await tx
+    .update(ordersTable)
+    .set({
+      payment_method_id: paymentMethodId,
+      payment_status: "paid",
+      discount: discountAmount.toString(),
+      discount_source: discountSource,
+      paid_amount: netDue.toString(),
+      paid_at: new Date(),
+      paid_by: actorId,
+      ...(actorId === null ? {} : { updated_by: actorId }),
+    })
+    .where(
+      and(eq(ordersTable.id, orderId), eq(ordersTable.payment_status, "unpaid"))
+    )
+    .returning({
+      id: ordersTable.id,
+      payment_status: ordersTable.payment_status,
+      paid_amount: ordersTable.paid_amount,
+    });
+
+  if (!rows[0]) {
+    throw new BadRequestException("Order has already been paid");
+  }
+
+  return rows[0];
+};
+
+// Shared by the cashier's Mark as paid and a gateway confirming the money.
+export const markOrderPaid = ({ tx, ...input }: MarkOrderPaidInput) =>
+  // Read inside the transaction, so a price set mid-payment cannot leave the
+  // Customer paying a total that no longer matches their lines.
+  tx
+    ? markOrderPaidIn(tx, input)
+    : db.transaction((newTx) => markOrderPaidIn(newTx, input));
+
+// A cashier keys money they took themselves. The gateway's PaymentMethod would
+// put cash on the gateway's Day close line with nothing behind it.
+export const assertCashierPaymentMethod = async (id: number) => {
+  const method = await findPaymentMethodById(id);
+  if (!method) {
+    throw new NotFoundException("Payment method not found");
+  }
+  if (!method.is_active) {
+    throw new BadRequestException(`${method.name} is inactive`);
+  }
+  if (method.gateway !== null) {
+    throw new BadRequestException(`${method.name} takes online payments only`);
+  }
+};
+
+export const updateOrderPayment = async ({
   orderId,
   body,
   user,
@@ -22,93 +208,21 @@ export async function updateOrderPayment({
   orderId: number;
   body: PatchOrderPaymentInput;
   user: JWTPayload;
-}) {
+}) => {
   assertCanProcessPayment(user);
+  await assertCashierPaymentMethod(body.payment_method_id);
 
-  // Read inside the transaction, so a price set mid-payment cannot leave the
-  // Customer paying a total that no longer matches their lines.
-  return await db.transaction(async (tx) => {
-    const order = await findOrderState(tx, orderId);
-
-    if (!order) {
-      return null;
-    }
-
-    if (order.payment_status === "paid") {
-      throw new BadRequestException("Order has already been paid");
-    }
-
-    if (order.status === "cancelled") {
-      throw new BadRequestException(
-        "Cannot collect payment on a cancelled order"
-      );
-    }
-
-    const lines = await findSettlementLines(tx, orderId);
-    assertPayable(lines);
-
-    const isSettledAtDropoff = isDiscountSettled(order.discount_source);
-    assertDiscountRequestAllowed({
-      hasBlankLine: false,
-      isSettled: isSettledAtDropoff,
-      request: body,
-    });
-
-    const grossTotal = Number(order.total ?? 0);
-
-    // A promo settled at drop-off keeps the amount on the Receipt; otherwise it
-    // settles here and its claims stand or fall with the payment.
-    const { discountAmount, discountSource } = await settleDiscount(tx, {
-      grossTotal,
-      lines,
-      orderId,
-      request: body,
-      settled: isSettledAtDropoff
-        ? {
-            discountAmount: Number(order.discount),
-            discountSource: order.discount_source,
-          }
-        : undefined,
-      storeCode: order.store.code,
-      storeId: order.store_id,
-    });
-
-    const netDue = orderNetDue({
-      grossTotal,
-      discount: discountAmount,
-      refunded: Number(order.refunded_amount),
-    });
-
-    // Two cashiers tapping collect at once must not both book the money; the
-    // loser rolls back, Voucher claim included.
-    const rows = await tx
-      .update(ordersTable)
-      .set({
-        payment_method_id: body.payment_method_id,
-        payment_status: "paid",
-        discount: discountAmount.toString(),
-        discount_source: discountSource,
-        paid_amount: netDue.toString(),
-        paid_at: new Date(),
-        paid_by: user.id,
-        updated_by: user.id,
-      })
-      .where(
-        and(
-          eq(ordersTable.id, orderId),
-          eq(ordersTable.payment_status, "unpaid")
-        )
-      )
-      .returning({
-        id: ordersTable.id,
-        payment_status: ordersTable.payment_status,
-        paid_amount: ordersTable.paid_amount,
-      });
-
-    if (!rows[0]) {
-      throw new BadRequestException("Order has already been paid");
-    }
-
-    return rows[0];
+  const payment = await markOrderPaid({
+    actorId: user.id,
+    orderId,
+    paymentMethodId: body.payment_method_id,
+    request: body,
   });
-}
+
+  // A QR left on the counter must not take the money a second time.
+  if (payment) {
+    await cancelOrderPendingCharges(orderId);
+  }
+
+  return payment;
+};

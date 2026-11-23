@@ -23,6 +23,7 @@ export type {
   DayCloseServiceCount,
   DayCloseTotal,
 } from "@/modules/counter/day-close.schema";
+export type { ItemNameFields } from "@/modules/orders/order.schema";
 export type {
   ComparableSummary,
   KpiDelta,

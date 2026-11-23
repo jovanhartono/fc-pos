@@ -17,10 +17,23 @@ export interface PaginationMeta extends NormalizedPagination {
   total: number;
 }
 
-export function normalizePagination(
+const clampInt = (
+  value: number | undefined,
+  min: number,
+  max: number,
+  fallback: number
+) => {
+  if (value === undefined || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, Math.trunc(value)));
+};
+
+export const normalizePagination = (
   input: PaginationInput | undefined,
   options: PaginationOptions = {}
-): NormalizedPagination {
+): NormalizedPagination => {
   const defaultPageSize = options.defaultPageSize ?? 25;
   const maxPageSize = options.maxPageSize ?? 100;
 
@@ -31,28 +44,13 @@ export function normalizePagination(
     limit,
     offset,
   };
-}
+};
 
-export function buildPaginationMeta(
+export const buildPaginationMeta = (
   total: number,
   pagination: NormalizedPagination
-): PaginationMeta {
-  return {
-    limit: pagination.limit,
-    offset: pagination.offset,
-    total,
-  };
-}
-
-function clampInt(
-  value: number | undefined,
-  min: number,
-  max: number,
-  fallback: number
-) {
-  if (value === undefined || !Number.isFinite(value)) {
-    return fallback;
-  }
-
-  return Math.min(max, Math.max(min, Math.trunc(value)));
-}
+): PaginationMeta => ({
+  limit: pagination.limit,
+  offset: pagination.offset,
+  total,
+});

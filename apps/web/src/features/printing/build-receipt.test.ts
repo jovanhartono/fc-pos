@@ -1,404 +1,428 @@
 import { describe, expect, test } from "bun:test";
+
 import type { OrderReceipt } from "@/features/orders/api";
+
 import { buildReceiptEscPos } from "./build-receipt";
 import { RECEIPT_LOGO } from "./receipt-logo";
 
 const baseReceipt: OrderReceipt = {
-	id: 12,
-	code: "#JKT/06072026/12",
-	created_at: "2026-07-06T07:32:00.000Z",
-	notes: "Jangan pakai pemutih",
-	status: "created",
-	payment_status: "paid",
-	total: "315000.00",
-	discount: "41500.00",
-	discount_source: "campaign",
-	pickup_code: "482917",
-	store: {
-		name: "Fresclean Kemang",
-		address: "Jl. Kemang Raya No. 12, Jakarta",
-		phone_number: "081234567890",
-		devices: [],
-	},
-	customer: {
-		name: "Budi Santoso",
-		phone_number: "081299998888",
-	},
-	createdBy: {
-		name: "Rina",
-	},
-	paymentMethod: {
-		name: "QRIS",
-	},
-	campaigns: [
-		{
-			id: 1,
-			applied_amount: "31500.00",
-			campaign: { code: "PROMO10", name: "Promo Juli" },
-		},
-	],
-	items: [
-		{
-			id: 1,
-			item_code: "#JKT/06072026/12-S001",
-			brand: "Nike",
-			color: "Putih",
-			model: "AF1",
-			size: "42",
-			services: [
-				{
-					id: 1,
-					status: "queued",
-					subtotal: "75000.00",
-					notes: "Sol kanan lepas sedikit",
-					service: { name: "Deep Clean" },
-				},
-			],
-		},
-	],
-	products: [
-		{
-			id: 1,
-			qty: 2,
-			price: "45000.00",
-			subtotal: "90000.00",
-			cancelled_at: null,
-			refunded_at: null,
-			product: { name: "Shoe Cleaner 250ml" },
-		},
-	],
+  id: 12,
+  code: "#JKT/06072026/12",
+  created_at: "2026-07-06T07:32:00.000Z",
+  notes: "Jangan pakai pemutih",
+  status: "created",
+  payment_status: "paid",
+  total: "315000.00",
+  discount: "41500.00",
+  discount_source: "campaign",
+  delivery_fee: "0.00",
+  pickup_code: "482917",
+  store: {
+    name: "Fresclean Kemang",
+    address: "Jl. Kemang Raya No. 12, Jakarta",
+    phone_number: "081234567890",
+    devices: [],
+  },
+  customer: {
+    name: "Budi Santoso",
+    phone_number: "081299998888",
+  },
+  createdBy: {
+    name: "Rina",
+  },
+  paymentMethod: {
+    name: "QRIS",
+  },
+  campaigns: [
+    {
+      id: 1,
+      applied_amount: "31500.00",
+      campaign: { code: "PROMO10", name: "Promo Juli" },
+    },
+  ],
+  items: [
+    {
+      id: 1,
+      item_code: "#JKT/06072026/12-S001",
+      brand: "Nike",
+      color: "Putih",
+      model: "AF1",
+      size: "42",
+      services: [
+        {
+          id: 1,
+          status: "queued",
+          subtotal: "75000.00",
+          notes: "Sol kanan lepas sedikit",
+          service: { name: "Deep Clean" },
+        },
+      ],
+    },
+  ],
+  products: [
+    {
+      id: 1,
+      qty: 2,
+      price: "45000.00",
+      subtotal: "90000.00",
+      cancelled_at: null,
+      refunded_at: null,
+      product: { name: "Shoe Cleaner 250ml" },
+    },
+  ],
 };
 
 const withItem = (
-	overrides: Partial<OrderReceipt["items"][number]>,
+  overrides: Partial<OrderReceipt["items"][number]>
 ): OrderReceipt => ({
-	...baseReceipt,
-	items: [{ ...baseReceipt.items[0], ...overrides }],
+  ...baseReceipt,
+  items: [{ ...baseReceipt.items[0], ...overrides }],
 });
 
 const withService = (
-	overrides: Partial<OrderReceipt["items"][number]["services"][number]>,
+  overrides: Partial<OrderReceipt["items"][number]["services"][number]>
 ): OrderReceipt =>
-	withItem({
-		services: [{ ...baseReceipt.items[0].services[0], ...overrides }],
-	});
+  withItem({
+    services: [{ ...baseReceipt.items[0].services[0], ...overrides }],
+  });
 
 const decodeText = (bytes: Uint8Array): string =>
-	new TextDecoder().decode(bytes);
+  new TextDecoder().decode(bytes);
 
 // Printer mode commands, as they read in the decoded receipt — prefix a row
 // with one to assert the mode that governs it.
-const EMPHASIS_ON = "\x1bE\x01";
-const EMPHASIS_OFF = "\x1bE\x00";
-const ALIGN_LEFT = "\x1ba\x00";
+const EMPHASIS_ON = "\u001BE\u0001";
+const EMPHASIS_OFF = "\u001BE\u0000";
+const ALIGN_LEFT = "\u001Ba\u0000";
 
 const RASTER_HEADER = [0x1d, 0x76, 0x30, 0x00];
 
 const afterHeaderLogo = (bytes: number[]): number => {
-	if (!RECEIPT_LOGO) {
-		return 0;
-	}
-	const start = bytes.findIndex((_, index) =>
-		RASTER_HEADER.every((byte, offset) => bytes[index + offset] === byte),
-	);
-	return start + RASTER_HEADER.length + 4 + RECEIPT_LOGO.data.length;
+  if (!RECEIPT_LOGO) {
+    return 0;
+  }
+  const start = bytes.findIndex((_, index) =>
+    RASTER_HEADER.every((byte, offset) => bytes[index + offset] === byte)
+  );
+  return start + RASTER_HEADER.length + 4 + RECEIPT_LOGO.data.length;
 };
 
 describe("buildReceiptEscPos", () => {
-	test("produces a complete paid receipt", () => {
-		const bytes = buildReceiptEscPos(
-			baseReceipt,
-			"http://localhost/track?code=x&phone=y",
-		);
-		const text = decodeText(bytes);
+  test("produces a complete paid receipt", () => {
+    const bytes = buildReceiptEscPos(
+      baseReceipt,
+      "http://localhost/track?code=x&phone=y"
+    );
+    const text = decodeText(bytes);
 
-		// ESC @ init first, cut last.
-		expect([bytes[0], bytes[1]]).toEqual([0x1b, 0x40]);
-		expect([...bytes.slice(-4)]).toEqual([0x1d, 0x56, 0x42, 0x00]);
+    // ESC @ init first, cut last.
+    expect([bytes[0], bytes[1]]).toEqual([0x1b, 0x40]);
+    expect(bytes.slice(-4)).toEqual(Uint8Array.of(0x1d, 0x56, 0x42, 0x00));
 
-		// The wordmark carries the brand; the Store name would collide with it.
-		expect(text).not.toContain("Fresclean Kemang");
-		expect(text).toContain("Jl. Kemang Raya No. 12, Jakarta");
-		expect(text).toContain("No. Order : #JKT/06072026/12");
-		expect(text).toContain("Kasir     : Rina");
-		expect(text).toContain("Nike - AF1 - Putih - 42");
-		expect(text).toContain("#JKT/06072026/12-S001");
-		expect(text).toContain("  Deep Clean");
-		expect(text).toContain("    * Sol kanan lepas sedikit");
-		expect(text).toContain("2 x Rp45.000");
-		expect(text).toContain("Rp315.000");
-		expect(text).toContain("PROMO10 - Promo Juli");
-		expect(text).toContain("Diskon manual");
-		expect(text).toContain("-Rp10.000");
-		// TOTAL = 315.000 - 41.500
-		expect(text).toContain("Rp273.500");
-		expect(text).toContain("Pembayaran: LUNAS - QRIS");
-		expect(text).toContain("KODE PENGAMBILAN");
-		expect(text).toContain("4 8 2 9 1 7");
-		expect(text).toContain("http://localhost/track?code=x&phone=y");
-		expect(text).toContain("Catatan: Jangan pakai pemutih");
+    // The wordmark carries the brand; the Store name would collide with it.
+    expect(text).not.toContain("Fresclean Kemang");
+    expect(text).toContain("Jl. Kemang Raya No. 12, Jakarta");
+    expect(text).toContain("No. Order : #JKT/06072026/12");
+    expect(text).toContain("Kasir     : Rina");
+    expect(text).toContain("Nike - AF1 - Putih - 42");
+    expect(text).toContain("#JKT/06072026/12-S001");
+    expect(text).toContain("  Deep Clean");
+    expect(text).toContain("    * Sol kanan lepas sedikit");
+    expect(text).toContain("2 x Rp45.000");
+    expect(text).toContain("Rp315.000");
+    expect(text).toContain("PROMO10 - Promo Juli");
+    expect(text).toContain("Diskon manual");
+    expect(text).toContain("-Rp10.000");
+    // TOTAL = 315.000 - 41.500
+    expect(text).toContain("Rp273.500");
+    expect(text).toContain("Pembayaran: LUNAS - QRIS");
+    expect(text).toContain("KODE PENGAMBILAN");
+    expect(text).toContain("4 8 2 9 1 7");
+    expect(text).toContain("http://localhost/track?code=x&phone=y");
+    expect(text).toContain("Catatan: Jangan pakai pemutih");
 
-		// GS ( k QR print command present.
-		const qrPrint = [0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30];
-		const asArray = [...bytes];
-		const hasQrPrint = asArray.some((_, index) =>
-			qrPrint.every((byte, offset) => asArray[index + offset] === byte),
-		);
-		expect(hasQrPrint).toBe(true);
+    // GS ( k QR print command present.
+    const qrPrint = [0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30];
+    const asArray = [...bytes];
+    const hasQrPrint = asArray.some((_, index) =>
+      qrPrint.every((byte, offset) => asArray[index + offset] === byte)
+    );
+    expect(hasQrPrint).toBe(true);
 
-		// Every byte of text is ASCII, so the printer prints no garbage; the logo
-		// is skipped, since a bitmap is arbitrary bytes.
-		const nonAscii = asArray
-			.slice(afterHeaderLogo(asArray))
-			.filter((byte) => byte > 0x7e);
-		expect(nonAscii).toEqual([]);
-	});
+    // Every byte of text is ASCII, so the printer prints no garbage; the logo
+    // is skipped, since a bitmap is arbitrary bytes.
+    const nonAscii = asArray
+      .slice(afterHeaderLogo(asArray))
+      .filter((byte) => byte > 0x7e);
+    expect(nonAscii).toEqual([]);
+  });
 
-	test("header carries the centred brand mark", () => {
-		const bytes = buildReceiptEscPos(baseReceipt, "http://localhost/track");
-		const asArray = [...bytes];
-		const start = asArray.findIndex((_, index) =>
-			RASTER_HEADER.every((byte, offset) => asArray[index + offset] === byte),
-		);
+  test("prints the Delivery Fee above a TOTAL that includes it", () => {
+    const text = decodeText(
+      buildReceiptEscPos(
+        { ...baseReceipt, delivery_fee: "25000.00" },
+        "http://localhost/track?code=x&phone=y"
+      )
+    );
+    expect(text).toContain("Delivery Fee");
+    expect(text).toContain("Rp25.000");
+    // TOTAL = 315.000 - 41.500 + 25.000
+    expect(text).toContain("Rp298.500");
+    expect(text.indexOf("Delivery Fee") < text.indexOf("TOTAL")).toBe(true);
+  });
 
-		expect(RECEIPT_LOGO).not.toBeNull();
-		expect(start).toBeGreaterThan(-1);
-		// ESC a 1 precedes it, or the mark prints hard against the left edge.
-		expect(asArray.slice(start - 3, start)).toEqual([0x1b, 0x61, 0x01]);
-		// Width and height in the command must match the bitmap that follows,
-		// otherwise the printer eats receipt text as image data.
-		expect(asArray.slice(start + 4, start + 8)).toEqual([
-			RECEIPT_LOGO?.widthBytes ?? 0,
-			0,
-			RECEIPT_LOGO?.height ?? 0,
-			0,
-		]);
-		expect(RECEIPT_LOGO?.data.length).toBe(
-			(RECEIPT_LOGO?.widthBytes ?? 0) * (RECEIPT_LOGO?.height ?? 0),
-		);
-		// The mark must not push the Store's address off the top of the Receipt.
-		expect(decodeText(bytes)).toContain("Jl. Kemang Raya No. 12, Jakarta");
-	});
+  test("prints no Delivery Fee row on a walk-in Order", () => {
+    const text = decodeText(
+      buildReceiptEscPos(baseReceipt, "http://localhost/track?code=x&phone=y")
+    );
+    expect(text).not.toContain("Delivery Fee");
+  });
 
-	test("one Item with three treatments prints one tag and one descriptor row", () => {
-		// The counter's standard upsell (ADR-0017): a pair in for a deep clean
-		// leaves the POS with three Services, and must not read as three shoes.
-		const bytes = buildReceiptEscPos(
-			withItem({
-				services: [
-					baseReceipt.items[0].services[0],
-					{
-						...baseReceipt.items[0].services[0],
-						id: 2,
-						subtotal: "150000.00",
-						notes: null,
-						service: { name: "Repaint" },
-					},
-					{
-						...baseReceipt.items[0].services[0],
-						id: 3,
-						subtotal: "35000.00",
-						notes: null,
-						service: { name: "Leather Care" },
-					},
-				],
-			}),
-			"http://localhost/track",
-		);
-		const text = decodeText(bytes);
+  test("header carries the centred brand mark", () => {
+    const bytes = buildReceiptEscPos(baseReceipt, "http://localhost/track");
+    const asArray = [...bytes];
+    const start = asArray.findIndex((_, index) =>
+      RASTER_HEADER.every((byte, offset) => asArray[index + offset] === byte)
+    );
 
-		expect(text.split("Nike - AF1 - Putih - 42").length - 1).toBe(1);
-		expect(text.split("#JKT/06072026/12-S001").length - 1).toBe(1);
-		// Each Service still prices on its own line: the cashier sold three.
-		expect(text).toMatch(/ {2}Deep Clean +Rp75\.000/);
-		expect(text).toMatch(/ {2}Repaint +Rp150\.000/);
-		expect(text).toMatch(/ {2}Leather Care +Rp35\.000/);
-	});
+    expect(RECEIPT_LOGO).not.toBeNull();
+    expect(start).toBeGreaterThan(-1);
+    // ESC a 1 precedes it, or the mark prints hard against the left edge.
+    expect(asArray.slice(start - 3, start)).toEqual([0x1b, 0x61, 0x01]);
+    // Width and height in the command must match the bitmap that follows,
+    // otherwise the printer eats receipt text as image data.
+    expect(asArray.slice(start + 4, start + 8)).toEqual([
+      RECEIPT_LOGO?.widthBytes ?? 0,
+      0,
+      RECEIPT_LOGO?.height ?? 0,
+      0,
+    ]);
+    expect(RECEIPT_LOGO?.data.length).toBe(
+      (RECEIPT_LOGO?.widthBytes ?? 0) * (RECEIPT_LOGO?.height ?? 0)
+    );
+    // The mark must not push the Store's address off the top of the Receipt.
+    expect(decodeText(bytes)).toContain("Jl. Kemang Raya No. 12, Jakarta");
+  });
 
-	test("a second Item is set off by a blank line, and each is named in bold", () => {
-		// Five pairs on one Receipt is a normal family drop-off; without the gap
-		// the cashier cannot see which Services belong to which pair.
-		const bytes = buildReceiptEscPos(
-			{
-				...baseReceipt,
-				items: [
-					baseReceipt.items[0],
-					{
-						...baseReceipt.items[0],
-						item_code: "#JKT/06072026/12-S002",
-						brand: "Adidas",
-						model: "Samba",
-						color: "Hitam",
-						size: "41",
-					},
-				],
-			},
-			"http://localhost/track",
-		);
-		const text = decodeText(bytes);
-		const lines = text.split("\n");
-		const first = lines.findIndex((line) =>
-			line.includes("Nike - AF1 - Putih - 42"),
-		);
-		const second = lines.findIndex((line) =>
-			line.includes("Adidas - Samba - Hitam - 41"),
-		);
+  test("one Item with three treatments prints one tag and one descriptor row", () => {
+    // The counter's standard upsell (ADR-0017): a pair in for a deep clean
+    // leaves the POS with three Services, and must not read as three shoes.
+    const bytes = buildReceiptEscPos(
+      withItem({
+        services: [
+          baseReceipt.items[0].services[0],
+          {
+            ...baseReceipt.items[0].services[0],
+            id: 2,
+            subtotal: "150000.00",
+            notes: null,
+            service: { name: "Repaint" },
+          },
+          {
+            ...baseReceipt.items[0].services[0],
+            id: 3,
+            subtotal: "35000.00",
+            notes: null,
+            service: { name: "Leather Care" },
+          },
+        ],
+      }),
+      "http://localhost/track"
+    );
+    const text = decodeText(bytes);
 
-		// The first Item hangs straight off the section header; only the ones
-		// after it get a gap.
-		expect(lines[first - 1]).toContain("LAYANAN");
-		expect(lines[second - 1]).toBe("");
-		expect(text).toContain(`${EMPHASIS_ON}Nike - AF1 - Putih - 42`);
-		expect(text).toContain(`${EMPHASIS_ON}Adidas - Samba - Hitam - 41`);
-		// The tag prints plain; the bold name above it is what the eye finds.
-		expect(text).toContain(`${EMPHASIS_OFF}#JKT/06072026/12-S001`);
-	});
+    expect(text.split("Nike - AF1 - Putih - 42").length - 1).toBe(1);
+    expect(text.split("#JKT/06072026/12-S001").length - 1).toBe(1);
+    // Each Service still prices on its own line: the cashier sold three.
+    expect(text).toMatch(/ {2}Deep Clean +Rp75\.000/u);
+    expect(text).toMatch(/ {2}Repaint +Rp150\.000/u);
+    expect(text).toMatch(/ {2}Leather Care +Rp35\.000/u);
+  });
 
-	test("an Item logged without descriptors puts its tag in the bold row", () => {
-		const bytes = buildReceiptEscPos(
-			withItem({ brand: null, model: null, color: null, size: null }),
-			"http://localhost/track",
-		);
+  test("a second Item is set off by a blank line, and each is named in bold", () => {
+    // Five pairs on one Receipt is a normal family drop-off; without the gap
+    // the cashier cannot see which Services belong to which pair.
+    const bytes = buildReceiptEscPos(
+      {
+        ...baseReceipt,
+        items: [
+          baseReceipt.items[0],
+          {
+            ...baseReceipt.items[0],
+            item_code: "#JKT/06072026/12-S002",
+            brand: "Adidas",
+            model: "Samba",
+            color: "Hitam",
+            size: "41",
+          },
+        ],
+      },
+      "http://localhost/track"
+    );
+    const text = decodeText(bytes);
+    const lines = text.split("\n");
+    const first = lines.findIndex((line) =>
+      line.includes("Nike - AF1 - Putih - 42")
+    );
+    const second = lines.findIndex((line) =>
+      line.includes("Adidas - Samba - Hitam - 41")
+    );
 
-		expect(decodeText(bytes)).toContain(`${EMPHASIS_ON}#JKT/06072026/12-S001`);
-	});
+    // The first Item hangs straight off the section header; only the ones
+    // after it get a gap.
+    expect(lines[first - 1]).toContain("LAYANAN");
+    expect(lines[second - 1]).toBe("");
+    expect(text).toContain(`${EMPHASIS_ON}Nike - AF1 - Putih - 42`);
+    expect(text).toContain(`${EMPHASIS_ON}Adidas - Samba - Hitam - 41`);
+    // The tag prints plain; the bold name above it is what the eye finds.
+    expect(text).toContain(`${EMPHASIS_OFF}#JKT/06072026/12-S001`);
+  });
 
-	test("products are named in bold like Items", () => {
-		const bytes = buildReceiptEscPos(baseReceipt, "http://localhost/track");
+  test("an Item logged without descriptors puts its tag in the bold row", () => {
+    const bytes = buildReceiptEscPos(
+      withItem({ brand: null, model: null, color: null, size: null }),
+      "http://localhost/track"
+    );
 
-		expect(decodeText(bytes)).toContain(`${EMPHASIS_ON}Shoe Cleaner 250ml`);
-	});
+    expect(decodeText(bytes)).toContain(`${EMPHASIS_ON}#JKT/06072026/12-S001`);
+  });
 
-	test("the customer's note prints above the claim ticket, disclaimer flush left", () => {
-		const bytes = buildReceiptEscPos(baseReceipt, "http://localhost/track");
-		const text = decodeText(bytes);
+  test("products are named in bold like Items", () => {
+    const bytes = buildReceiptEscPos(baseReceipt, "http://localhost/track");
 
-		// The note is an instruction for the work, so it belongs with the Order,
-		// not stranded under the QR where nobody reads it.
-		expect(text.indexOf("KODE PENGAMBILAN")).toBeGreaterThan(
-			text.indexOf("Catatan: Jangan pakai pemutih"),
-		);
-		// Centred, the three wrapped lines of fine print read as ragged prose.
-		expect(text).toContain(`${ALIGN_LEFT}Barang tidak diambil`);
-	});
+    expect(decodeText(bytes)).toContain(`${EMPHASIS_ON}Shoe Cleaner 250ml`);
+  });
 
-	test("item header that exactly fills 48 columns keeps every character", () => {
-		const bytes = buildReceiptEscPos(
-			// 29-char brand + " - AF1 - Putih - 42" = exactly 48 columns.
-			withItem({ brand: "ABCDEFGHIJKLMNOPQRSTUVWXYZ123" }),
-			"http://localhost/track",
-		);
-		const text = decodeText(bytes);
+  test("the customer's note prints above the claim ticket, disclaimer flush left", () => {
+    const bytes = buildReceiptEscPos(baseReceipt, "http://localhost/track");
+    const text = decodeText(bytes);
 
-		// The full 48-char header survives unbroken — a wrap or a truncation
-		// would put a newline or a cut inside it.
-		expect(text).toContain("ABCDEFGHIJKLMNOPQRSTUVWXYZ123 - AF1 - Putih - 42");
-	});
+    // The note is an instruction for the work, so it belongs with the Order,
+    // not stranded under the QR where nobody reads it.
+    expect(text.indexOf("KODE PENGAMBILAN")).toBeGreaterThan(
+      text.indexOf("Catatan: Jangan pakai pemutih")
+    );
+    // Centred, the three wrapped lines of fine print read as ragged prose.
+    expect(text).toContain(`${ALIGN_LEFT}Barang tidak diambil`);
+  });
 
-	test("long item note wraps inside 48 columns keeping the treatment indent", () => {
-		const bytes = buildReceiptEscPos(
-			withService({
-				notes: "jangan pakai pemutih karena bahannya sensitif dan mudah luntur",
-			}),
-			"http://localhost/track",
-		);
-		const lines = decodeText(bytes).split("\n");
-		const start = lines.findIndex((line) => line.startsWith("    * jangan"));
+  test("item header that exactly fills 48 columns keeps every character", () => {
+    const bytes = buildReceiptEscPos(
+      // 29-char brand + " - AF1 - Putih - 42" = exactly 48 columns.
+      withItem({ brand: "ABCDEFGHIJKLMNOPQRSTUVWXYZ123" }),
+      "http://localhost/track"
+    );
+    const text = decodeText(bytes);
 
-		expect(start).toBeGreaterThan(-1);
-		// Continuation stays indented under the Service, not flush at column 0.
-		expect(lines[start + 1]).toMatch(/^ {4}\S/);
-		for (const line of [lines[start], lines[start + 1]]) {
-			expect(line.length).toBeLessThanOrEqual(48);
-		}
-	});
+    // The full 48-char header survives unbroken — a wrap or a truncation
+    // would put a newline or a cut inside it.
+    expect(text).toContain("ABCDEFGHIJKLMNOPQRSTUVWXYZ123 - AF1 - Putih - 42");
+  });
 
-	test("unbreakable long token in a note hard-splits inside 48 columns", () => {
-		const bytes = buildReceiptEscPos(
-			withService({
-				notes: "https://instagram.com/p/Cx1234567890abcdefghijklmnop",
-			}),
-			"http://localhost/track",
-		);
-		const lines = decodeText(bytes).split("\n");
-		const start = lines.findIndex((line) => line.startsWith("    * https://"));
+  test("long item note wraps inside 48 columns keeping the treatment indent", () => {
+    const bytes = buildReceiptEscPos(
+      withService({
+        notes: "jangan pakai pemutih karena bahannya sensitif dan mudah luntur",
+      }),
+      "http://localhost/track"
+    );
+    const lines = decodeText(bytes).split("\n");
+    const start = lines.findIndex((line) => line.startsWith("    * jangan"));
 
-		expect(start).toBeGreaterThan(-1);
-		// Continuation stays indented, and no line exceeds the printer width.
-		expect(lines[start + 1]).toMatch(/^ {4}\S/);
-		for (const line of [lines[start], lines[start + 1]]) {
-			expect(line.length).toBeLessThanOrEqual(48);
-		}
-	});
+    expect(start).toBeGreaterThan(-1);
+    // Continuation stays indented under the Service, not flush at column 0.
+    expect(lines[start + 1]).toMatch(/^ {4}\S/u);
+    for (const line of [lines[start], lines[start + 1]]) {
+      expect(line.length).toBeLessThanOrEqual(48);
+    }
+  });
 
-	test("voided lines are marked on reprint", () => {
-		const bytes = buildReceiptEscPos(
-			{
-				...withService({ status: "refunded" }),
-				products: [{ ...baseReceipt.products[0], cancelled_at: null }],
-			},
-			"http://localhost/track",
-		);
-		const text = decodeText(bytes);
+  test("unbreakable long token in a note hard-splits inside 48 columns", () => {
+    const bytes = buildReceiptEscPos(
+      withService({
+        notes: "https://instagram.com/p/Cx1234567890abcdefghijklmnop",
+      }),
+      "http://localhost/track"
+    );
+    const lines = decodeText(bytes).split("\n");
+    const start = lines.findIndex((line) => line.startsWith("    * https://"));
 
-		expect(text).toContain("Deep Clean (REFUND)");
-		expect(text).toContain("Shoe Cleaner 250ml");
-		expect(text).not.toContain("Shoe Cleaner 250ml (BATAL)");
+    expect(start).toBeGreaterThan(-1);
+    // Continuation stays indented, and no line exceeds the printer width.
+    expect(lines[start + 1]).toMatch(/^ {4}\S/u);
+    for (const line of [lines[start], lines[start + 1]]) {
+      expect(line.length).toBeLessThanOrEqual(48);
+    }
+  });
 
-		const cancelledProduct = decodeText(
-			buildReceiptEscPos(
-				{
-					...baseReceipt,
-					products: [
-						{
-							...baseReceipt.products[0],
-							cancelled_at: "2026-07-07T03:00:00.000Z",
-						},
-					],
-				},
-				"http://localhost/track",
-			),
-		);
-		expect(cancelledProduct).toContain("Shoe Cleaner 250ml (BATAL)");
-	});
+  test("voided lines are marked on reprint", () => {
+    const bytes = buildReceiptEscPos(
+      {
+        ...withService({ status: "refunded" }),
+        products: [{ ...baseReceipt.products[0], cancelled_at: null }],
+      },
+      "http://localhost/track"
+    );
+    const text = decodeText(bytes);
 
-	test("cancelled order prints no pickup code and no pay-at-pickup line", () => {
-		const bytes = buildReceiptEscPos(
-			{
-				...withService({ status: "cancelled" }),
-				status: "cancelled",
-				payment_status: "unpaid",
-				paymentMethod: null,
-			},
-			"http://localhost/track",
-		);
-		const text = decodeText(bytes);
+    expect(text).toContain("Deep Clean (REFUND)");
+    expect(text).toContain("Shoe Cleaner 250ml");
+    expect(text).not.toContain("Shoe Cleaner 250ml (BATAL)");
 
-		expect(text).toContain("ORDER DIBATALKAN");
-		expect(text).toContain("Deep Clean (BATAL)");
-		expect(text).not.toContain("KODE PENGAMBILAN");
-		expect(text).not.toContain("4 8 2 9 1 7");
-		expect(text).not.toContain("bayar saat pengambilan");
-	});
+    const cancelledProduct = decodeText(
+      buildReceiptEscPos(
+        {
+          ...baseReceipt,
+          products: [
+            {
+              ...baseReceipt.products[0],
+              cancelled_at: "2026-07-07T03:00:00.000Z",
+            },
+          ],
+        },
+        "http://localhost/track"
+      )
+    );
+    expect(cancelledProduct).toContain("Shoe Cleaner 250ml (BATAL)");
+  });
 
-	test("unpaid order prints pay-at-pickup line and no method", () => {
-		const bytes = buildReceiptEscPos(
-			{
-				...baseReceipt,
-				payment_status: "unpaid",
-				paymentMethod: null,
-				discount: "0.00",
-				discount_source: "none",
-				campaigns: [],
-				notes: null,
-			},
-			"http://localhost/track",
-		);
-		const text = decodeText(bytes);
+  test("cancelled order prints no pickup code and no pay-at-pickup line", () => {
+    const bytes = buildReceiptEscPos(
+      {
+        ...withService({ status: "cancelled" }),
+        status: "cancelled",
+        payment_status: "unpaid",
+        paymentMethod: null,
+      },
+      "http://localhost/track"
+    );
+    const text = decodeText(bytes);
 
-		expect(text).toContain("Pembayaran: BELUM LUNAS - bayar saat pengambilan");
-		expect(text).not.toContain("LUNAS - QRIS");
-		expect(text).not.toContain("Diskon manual");
-		expect(text).not.toContain("Catatan:");
-	});
+    expect(text).toContain("ORDER DIBATALKAN");
+    expect(text).toContain("Deep Clean (BATAL)");
+    expect(text).not.toContain("KODE PENGAMBILAN");
+    expect(text).not.toContain("4 8 2 9 1 7");
+    expect(text).not.toContain("bayar saat pengambilan");
+  });
+
+  test("unpaid order prints pay-at-pickup line and no method", () => {
+    const bytes = buildReceiptEscPos(
+      {
+        ...baseReceipt,
+        payment_status: "unpaid",
+        paymentMethod: null,
+        discount: "0.00",
+        discount_source: "none",
+        campaigns: [],
+        notes: null,
+      },
+      "http://localhost/track"
+    );
+    const text = decodeText(bytes);
+
+    expect(text).toContain("Pembayaran: BELUM LUNAS - bayar saat pengambilan");
+    expect(text).not.toContain("LUNAS - QRIS");
+    expect(text).not.toContain("Diskon manual");
+    expect(text).not.toContain("Catatan:");
+  });
 });

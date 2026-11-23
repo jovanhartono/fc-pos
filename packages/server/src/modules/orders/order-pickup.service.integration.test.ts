@@ -1,8 +1,10 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it, mock } from "bun:test";
+
+import "@/test-support/pglite";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // The handover and the move to picked_up are one transaction, so an Item that
@@ -10,19 +12,13 @@ import { resetDb, testDb } from "@/test-support/pglite";
 
 const STORAGE_ENV_PREFIX = "dev/";
 
-// Taken before the mock replaces the module, so the real key checks run here.
-const { assertPhotoKeyUnder, newPhotoKey } = await import("@/utils/s3");
-
 mock.module("@/utils/s3", () => ({
-  STORAGE_ENV_PREFIX,
-  assertPhotoKeyUnder,
   buildMediaUrl: (path: string) => `https://cdn.test/${path}`,
   createPresignedUploadUrl: ({ key }: { key: string }) => ({
     expires_in_seconds: 300,
     key,
     upload_url: `https://s3.test/${key}`,
   }),
-  newPhotoKey,
   optimizeUploadedImage: () => Promise.resolve(),
 }));
 
@@ -30,12 +26,10 @@ mock.module("@/utils/s3", () => ({
 // database and storage before the swaps run.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
-const { createOrderPickupEvent } = await import(
-  "@/modules/orders/order-pickup.service"
-);
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { createOrderPickupEvent } =
+  await import("@/modules/orders/order-pickup.service");
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 
 let shop: Shop;
 
@@ -44,6 +38,7 @@ const placeOrder = (paymentStatus: "paid" | "unpaid") =>
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: [{ services: [{ id: shop.serviceId }] }],
     payment_method_id: shop.paymentMethodId,
     payment_status: paymentStatus,
@@ -69,11 +64,7 @@ const readyForPickup = async (orderId: number) => {
     throw new Error("Order has no service line");
   }
 
-  for (const to of [
-    "processing",
-    "quality_check",
-    "ready_for_pickup",
-  ] as const) {
+  for (const to of ["processing", "waiting_qc", "ready_for_pickup"] as const) {
     await transitionOrderService(db, {
       by: shop.cashier.id,
       orderId,

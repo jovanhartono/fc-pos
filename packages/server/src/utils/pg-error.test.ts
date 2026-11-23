@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
+
 import { StatusCodes } from "http-status-codes";
+
 import { mapPostgresError, redactDetail } from "@/utils/pg-error";
 
 const PHONE = "+628123456789";
@@ -60,7 +62,7 @@ describe("mapPostgresError", () => {
       detail: `Key (phone_number)=(${PHONE}) already exists.`,
     });
 
-    expect(message).toBe("Something went wrong");
+    expect(message).toBe("The server hit a problem. Try again.");
     expect(message).not.toContain(PHONE);
     expect(status).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
   });

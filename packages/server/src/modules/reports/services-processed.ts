@@ -1,16 +1,18 @@
 import { and, eq, gte, lt, sql } from "drizzle-orm";
+
 import { db } from "@/db";
 import {
   orderServiceStatusLogsTable,
   ordersServicesTable,
   ordersTable,
 } from "@/db/schema";
-import { type RangeArgs, storeScope } from "@/modules/reports/money-basis";
+import { storeScope } from "@/modules/reports/money-basis";
+import type { RangeArgs } from "@/modules/reports/money-basis";
 import { jakartaBucketExpr } from "@/modules/reports/report-range.util";
 
-// Counted once, at its first quality check: a line checked in July and sent
+// Counted once, when it first reached Waiting QC: a line done in July and sent
 // back in August is July's work.
-export function listServicesProcessed({ range, storeId }: RangeArgs) {
+export const listServicesProcessed = ({ range, storeId }: RangeArgs) => {
   const firstReachedQc =
     sql`MIN(${orderServiceStatusLogsTable.created_at})`.mapWith(
       orderServiceStatusLogsTable.created_at
@@ -33,7 +35,7 @@ export function listServicesProcessed({ range, storeId }: RangeArgs) {
     .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
     .where(
       and(
-        eq(orderServiceStatusLogsTable.to_status, "quality_check"),
+        eq(orderServiceStatusLogsTable.to_status, "waiting_qc"),
         // Nothing logged after the stretch can be a line's first check, so one
         // month's answer need not read back through the shop's whole history.
         lt(orderServiceStatusLogsTable.created_at, range.end),
@@ -42,11 +44,11 @@ export function listServicesProcessed({ range, storeId }: RangeArgs) {
     )
     .groupBy(orderServiceStatusLogsTable.order_service_id)
     .having(and(gte(firstReachedQc, from), lt(firstReachedQc, to)));
-}
+};
 
 // Same rule as the count, one row per Jakarta day, for the Overview's
 // "vs yesterday" line and its seven-day bars.
-export async function servicesProcessedTrendSeries(args: RangeArgs) {
+export const servicesProcessedTrendSeries = async (args: RangeArgs) => {
   const processed = listServicesProcessed(args).as("services_processed");
   const dayExpr = jakartaBucketExpr(processed.processed_at, "day");
 
@@ -62,12 +64,12 @@ export async function servicesProcessedTrendSeries(args: RangeArgs) {
     day: row.day,
     services_processed: Number(row.services_processed),
   }));
-}
+};
 
-export async function countServicesProcessed(args: RangeArgs) {
+export const countServicesProcessed = async (args: RangeArgs) => {
   const [row] = await db
     .select({ count: sql<number>`COUNT(*)::int` })
     .from(listServicesProcessed(args).as("services_processed"));
 
   return Number(row?.count ?? 0);
-}
+};

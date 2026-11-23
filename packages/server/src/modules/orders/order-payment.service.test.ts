@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
 import type { JWTPayload } from "@/types";
@@ -9,6 +10,7 @@ import type { JWTPayload } from "@/types";
 type AnyObj = Record<string, unknown>;
 
 interface FakeOrderRow {
+  delivery_fee: string;
   discount: string | null;
   discount_source: string;
   id: number;
@@ -87,8 +89,13 @@ mock.module("@/db", () => ({
         }),
       },
     },
-    transaction: (cb: (tx: unknown) => unknown) => cb(TX),
+    transaction: (work: (tx: unknown) => unknown) => work(TX),
   },
+}));
+
+// Closing a QRIS reaches the gateway; payment-charge.service's own suite covers it.
+mock.module("@/modules/payments/payment-charge-close", () => ({
+  cancelOrderPendingCharges: () => Promise.resolve(),
 }));
 
 const discount = {
@@ -127,9 +134,20 @@ mock.module("@/modules/campaigns/campaign-redemption.service", () => ({
   },
 }));
 
-const { updateOrderPayment } = await import(
-  "@/modules/orders/order-payment.service"
-);
+// The cash drawer: active, and not a gateway's. Stubbed whole, since the real
+// module prepares a query against the fake db as it loads.
+const unused = () => Promise.reject(new Error("not used by Mark as paid"));
+mock.module("@/modules/payment-methods/payment-method.repository", () => ({
+  findPaymentMethodByGateway: unused,
+  findPaymentMethodById: (id: number) =>
+    Promise.resolve({ gateway: null, id, is_active: true, name: "Cash" }),
+  insertPaymentMethod: unused,
+  listPaymentMethods: unused,
+  updatePaymentMethodById: unused,
+}));
+
+const { updateOrderPayment } =
+  await import("@/modules/orders/order-payment.service");
 
 afterAll(() => {
   mock.module(
@@ -145,6 +163,7 @@ afterAll(() => {
 const CASHIER = { id: 42, role: "cashier" } as unknown as JWTPayload;
 
 const makeOrder = (over: Partial<FakeOrderRow> = {}): FakeOrderRow => ({
+  delivery_fee: "0",
   discount: "0",
   discount_source: "none",
   id: 10,
@@ -274,7 +293,7 @@ describe("updateOrderPayment", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "This order's discount was settled at drop-off — collect the printed total"
+      "This Order's discount was settled at drop-off. Collect the printed total."
     );
     expect(discount.calls).toHaveLength(0);
     expect(redemptions.calls).toHaveLength(0);
@@ -336,7 +355,7 @@ describe("updateOrderPayment", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — set its price before collecting payment"
+      "Order has an unpriced line. Price it before collecting payment."
     );
     expect(dbState.updateCalls).toBe(0);
     expect(discount.calls).toHaveLength(0);

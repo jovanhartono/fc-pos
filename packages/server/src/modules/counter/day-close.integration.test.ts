@@ -1,6 +1,9 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { eq, inArray } from "drizzle-orm";
+
 import {
   complaintsTable,
   orderPickupEventsTable,
@@ -11,7 +14,8 @@ import {
   paymentMethodsTable,
   storesTable,
 } from "@/db/schema";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // What the owner checks at closing time: the money against the card-terminal
@@ -59,6 +63,7 @@ const place = async ({
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: Array.from({ length: items }, (_, index) => ({
       brand: `item-${index}`,
       services: [{ id: shop.serviceId }],
@@ -226,10 +231,19 @@ describe("the money collected", () => {
     await place({ paidAt: `${DAY}T10:00` });
     await place({ paidAt: `${DAY}T10:00`, store: bintaro });
 
-    expect((await closeOf()).payments).toHaveLength(1);
-    expect((await closeOf(bintaro)).payments).toHaveLength(1);
+    const here = await closeOf();
+    expect(here.payments).toHaveLength(1);
+    const there = await closeOf(bintaro);
+    expect(there.payments).toHaveLength(1);
   });
 });
+
+const cancelAt = async (orderId: number, local: string) => {
+  await testDb
+    .update(ordersTable)
+    .set({ cancelled_at: jkt(local), status: "cancelled" })
+    .where(eq(ordersTable.id, orderId));
+};
 
 describe("what was dropped off", () => {
   it("counts Orders, Items and Services, leaving Reworks out", async () => {
@@ -300,13 +314,6 @@ describe("what was dropped off", () => {
     expect(row(none.orderId)?.is_paid).toBe(false);
   });
 
-  const cancelAt = async (orderId: number, local: string) => {
-    await testDb
-      .update(ordersTable)
-      .set({ cancelled_at: jkt(local), status: "cancelled" })
-      .where(eq(ordersTable.id, orderId));
-  };
-
   it("counts a cancelled Order as dropped off but not as unpaid", async () => {
     const cancelled = await place();
     await cancelAt(cancelled.orderId, `${DAY}T15:00`);
@@ -337,13 +344,21 @@ describe("what was dropped off", () => {
     await place({ createdAt: "2026-09-29T10:00" });
     await place({ createdAt: "2026-09-29T10:00", paidAt: `${DAY}T09:00` });
 
-    const { order_list } = (await closeOf()).dropped_off;
+    const {
+      dropped_off: { order_list },
+    } = await closeOf();
     expect(order_list.map((order) => order.is_paid)).toEqual([false, false]);
     expect(order_list.reduce((sum, order) => sum + order.amount, 0)).toBe(
       180_000
     );
   });
 });
+
+const pickedUpCounts = async (date: string) => {
+  const close = await getDayClose(shop.store.id, date);
+  const [row] = close.picked_up.order_list;
+  return [row?.items_picked_by_day, row?.items_total];
+};
 
 describe("what was picked up", () => {
   it("counts each Order once and each Item handed back once", async () => {
@@ -382,7 +397,8 @@ describe("what was picked up", () => {
     }
     await place({ store: bintaro });
 
-    expect((await closeOf()).picked_up).toMatchObject({ items: 2, orders: 1 });
+    const close = await closeOf();
+    expect(close.picked_up).toMatchObject({ items: 2, orders: 1 });
   });
 
   it("lists an Order dropped off earlier with only the Items collected this day", async () => {
@@ -402,7 +418,8 @@ describe("what was picked up", () => {
       .set({ pickup_event_id: pickup.id, status: "picked_up" })
       .where(inArray(ordersServicesTable.id, order.lineIds.slice(0, 2)));
 
-    expect((await closeOf()).picked_up.order_list).toEqual([
+    const close = await closeOf();
+    expect(close.picked_up.order_list).toEqual([
       {
         created_day: "2026-09-25",
         customer_name: "Budi Santoso",
@@ -434,13 +451,7 @@ describe("what was picked up", () => {
         .where(eq(ordersServicesTable.id, order.lineIds[index]));
     }
 
-    const counts = async (date: string) => {
-      const [row] = (await getDayClose(shop.store.id, date)).picked_up
-        .order_list;
-      return [row?.items_picked_by_day, row?.items_total];
-    };
-
-    expect(await counts(DAY)).toEqual([1, 2]);
-    expect(await counts("2026-10-02")).toEqual([2, 2]);
+    expect(await pickedUpCounts(DAY)).toEqual([1, 2]);
+    expect(await pickedUpCounts("2026-10-02")).toEqual([2, 2]);
   });
 });

@@ -1,17 +1,20 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { eq } from "drizzle-orm";
+
 import { orderPickupNoticesTable, ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // Imported after the swap above, never beside the imports (see order-list).
 const { createOrder } = await import("@/modules/orders/order.service");
 const { findOrders } = await import("@/modules/orders/order.repository");
-const { createOrderPickupNotice } = await import(
-  "@/modules/orders/order-pickup-notice.service"
-);
+const { createOrderPickupNotice } =
+  await import("@/modules/orders/order-pickup-notice.service");
 
 let shop: Shop;
 
@@ -20,6 +23,7 @@ const dropOff = (name: string) =>
     campaign_ids: [],
     customer: { name, phone_number: `+62811${name.length}000111` },
     discount: 0,
+    delivery_fee: 0,
     items: [{ brand: name, services: [{ id: shop.serviceId }] }],
     payment_method_id: shop.paymentMethodId,
     payment_status: "unpaid",
@@ -61,11 +65,23 @@ describe("createOrderPickupNotice", () => {
     await createOrderPickupNotice({ orderId: order.id, user: shop.cashier });
     await createOrderPickupNotice({ orderId: order.id, user: shop.admin });
 
-    expect((await noticesOf(order.id)).map((notice) => notice.sent_by)).toEqual(
-      [shop.cashier.id, shop.admin.id]
-    );
+    const notices = await noticesOf(order.id);
+    expect(notices.map((notice) => notice.sent_by)).toEqual([
+      shop.cashier.id,
+      shop.admin.id,
+    ]);
   });
 });
+
+const listByNotified = (value?: "yes" | "no") =>
+  findOrders({
+    limit: 10,
+    notified: value,
+    offset: 0,
+    sort_by: "id",
+    sort_order: "asc",
+    status: "ready_for_pickup",
+  });
 
 describe("the notified list filter", () => {
   it("splits ready Orders by whether a notice went out", async () => {
@@ -78,25 +94,12 @@ describe("the notified list filter", () => {
       user: shop.cashier,
     });
 
-    const list = (value?: "yes" | "no") =>
-      findOrders({
-        limit: 10,
-        notified: value,
-        offset: 0,
-        sort_by: "id",
-        sort_order: "asc",
-        status: "ready_for_pickup",
-      });
-
-    expect((await list("yes")).items.map((order) => order.id)).toEqual([
-      notified.id,
-    ]);
-    expect((await list("no")).items.map((order) => order.id)).toEqual([
-      waiting.id,
-    ]);
-    expect(
-      (await list()).items.map((order) => [order.id, order.notified])
-    ).toEqual([
+    const yes = await listByNotified("yes");
+    expect(yes.items.map((order) => order.id)).toEqual([notified.id]);
+    const no = await listByNotified("no");
+    expect(no.items.map((order) => order.id)).toEqual([waiting.id]);
+    const all = await listByNotified();
+    expect(all.items.map((order) => [order.id, order.notified])).toEqual([
       [notified.id, true],
       [waiting.id, false],
     ]);

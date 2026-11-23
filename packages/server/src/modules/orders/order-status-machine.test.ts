@@ -1,24 +1,28 @@
 import { describe, expect, it } from "bun:test";
+
 import { is, SQL } from "drizzle-orm";
+
 import { orderServiceStatusEnum } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import {
   billableOrderTotal,
   completePickup,
-  type DbExecutor,
   deriveItemStatus,
   deriveOrderStatus,
-  type ItemStatusLine,
-  isHandedOverByPickup,
   isItemCollectable,
   isTerminalOrderServiceStatus,
   nextReadyAt,
-  ORDER_SERVICE_TRANSITIONS,
-  ORDER_TERMINAL_SERVICE_STATUSES,
-  type OrderServiceStatus,
   summarizeOrderFulfillment,
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
+import type { DbExecutor } from "@/modules/orders/order-status-machine";
+import {
+  isHandedOverByPickup,
+  isWaitingQcOnly,
+  ORDER_SERVICE_TRANSITIONS,
+  ORDER_TERMINAL_SERVICE_STATUSES,
+} from "@/schema/order-status";
+import type { ItemStatusLine, OrderServiceStatus } from "@/schema/order-status";
 
 interface AnyLine extends ItemStatusLine {
   id: number;
@@ -118,7 +122,7 @@ describe("deriveOrderStatus", () => {
     expect(deriveOrderStatus([s("queued"), s("processing")], [p(true)])).toBe(
       "processing"
     );
-    expect(deriveOrderStatus([s("quality_check")], [])).toBe("processing");
+    expect(deriveOrderStatus([s("waiting_qc")], [])).toBe("processing");
     expect(deriveOrderStatus([s("qc_reject")], [])).toBe("processing");
   });
 
@@ -138,9 +142,7 @@ describe("deriveItemStatus", () => {
     expect(deriveItemStatus([t("queued"), t("processing"), t("queued")])).toBe(
       "processing"
     );
-    expect(deriveItemStatus([t("queued"), t("quality_check")])).toBe(
-      "processing"
-    );
+    expect(deriveItemStatus([t("queued"), t("waiting_qc")])).toBe("processing");
   });
 
   it("reaches the shelf only when every live treatment is finished", () => {
@@ -189,6 +191,23 @@ describe("deriveItemStatus", () => {
   });
 });
 
+describe("isWaitingQcOnly", () => {
+  it("is true once every line still in the workshop waits for the check", () => {
+    expect(isWaitingQcOnly([s("waiting_qc"), s("ready_for_pickup")])).toBe(
+      true
+    );
+  });
+
+  it("is false while another line still waits for work", () => {
+    expect(isWaitingQcOnly([s("waiting_qc"), s("queued")])).toBe(false);
+    expect(isWaitingQcOnly([s("waiting_qc"), s("qc_reject")])).toBe(false);
+  });
+
+  it("is false with nothing left in the workshop", () => {
+    expect(isWaitingQcOnly([s("ready_for_pickup")])).toBe(false);
+  });
+});
+
 describe("isItemCollectable", () => {
   it("lets an object go when every live treatment on it is ready", () => {
     expect(
@@ -232,7 +251,7 @@ describe("ORDER_SERVICE_TRANSITIONS", () => {
     const nonTerminals: OrderServiceStatus[] = [
       "queued",
       "processing",
-      "quality_check",
+      "waiting_qc",
       "qc_reject",
       "ready_for_pickup",
     ];
@@ -245,9 +264,9 @@ describe("ORDER_SERVICE_TRANSITIONS", () => {
     expect(ORDER_SERVICE_TRANSITIONS.picked_up).toContain("refunded");
   });
 
-  it("forces QC redo through qc_reject (no direct quality_check -> processing)", () => {
-    expect(ORDER_SERVICE_TRANSITIONS.quality_check).not.toContain("processing");
-    expect(ORDER_SERVICE_TRANSITIONS.quality_check).toContain("qc_reject");
+  it("forces QC redo through qc_reject (no direct waiting_qc -> processing)", () => {
+    expect(ORDER_SERVICE_TRANSITIONS.waiting_qc).not.toContain("processing");
+    expect(ORDER_SERVICE_TRANSITIONS.waiting_qc).toContain("qc_reject");
     expect(ORDER_SERVICE_TRANSITIONS.qc_reject).toContain("processing");
   });
 
@@ -261,7 +280,7 @@ describe("ORDER_SERVICE_TRANSITIONS", () => {
     const others: OrderServiceStatus[] = [
       "queued",
       "processing",
-      "quality_check",
+      "waiting_qc",
       "qc_reject",
     ];
     for (const status of others) {
@@ -281,7 +300,7 @@ describe("isTerminalOrderServiceStatus", () => {
     const active: OrderServiceStatus[] = [
       "queued",
       "processing",
-      "quality_check",
+      "waiting_qc",
       "qc_reject",
       "ready_for_pickup",
     ];
@@ -463,8 +482,8 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
     let error: unknown;
     try {
       await pickUp(executor, [1]);
-    } catch (caught) {
-      error = caught;
+    } catch (error_) {
+      error = error_;
     }
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
@@ -485,7 +504,8 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
         },
       ],
     });
-    expect((await pickUp(executor, [1])).handedOverIds).toEqual([5]);
+    const pickup = await pickUp(executor, [1]);
+    expect(pickup.handedOverIds).toEqual([5]);
   });
 
   it("refuses an object the customer already collected", async () => {
@@ -501,8 +521,8 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
     let error: unknown;
     try {
       await pickUp(executor, [1]);
-    } catch (caught) {
-      error = caught;
+    } catch (error_) {
+      error = error_;
     }
     expect((error as Error).message).toBe(
       "Items not ready for pickup: #ORD-S001"
@@ -561,8 +581,8 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
     let error: unknown;
     try {
       await pickUp(executor, [1]);
-    } catch (caught) {
-      error = caught;
+    } catch (error_) {
+      error = error_;
     }
     expect((error as Error).message).toBe(
       "Items not ready for pickup: #ORD-S001"
@@ -574,8 +594,8 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
     let error: unknown;
     try {
       await pickUp(executor, [1]);
-    } catch (caught) {
-      error = caught;
+    } catch (error_) {
+      error = error_;
     }
     expect((error as Error).message).toBe(
       "One or more items do not belong to this order"
@@ -604,19 +624,19 @@ describe("completePickup (ADR-0017: whole objects only)", () => {
   });
 });
 
+const expectBlocked = async (executor: DbExecutor, message: string) => {
+  let error: unknown;
+  try {
+    await transitionTo(executor, "processing");
+  } catch (error_) {
+    error = error_;
+  }
+  expect(error).toBeInstanceOf(BadRequestException);
+  expect((error as Error).message).toBe(message);
+};
+
 describe("transitionOrderService photo gate (ADR-0012, ADR-0019)", () => {
   const dropOff = new Date("2026-09-01T02:00:00Z");
-
-  const expectBlocked = async (executor: DbExecutor, message: string) => {
-    let error: unknown;
-    try {
-      await transitionTo(executor, "processing");
-    } catch (caught) {
-      error = caught;
-    }
-    expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(message);
-  };
 
   it("blocks queued -> processing while the object has no photo at all", async () => {
     await expectBlocked(
@@ -675,16 +695,16 @@ describe("transitionOrderService photo gate (ADR-0012, ADR-0019)", () => {
   });
 });
 
-describe("billableOrderTotal", () => {
-  const svc = (status: OrderServiceStatus, subtotal: string) => ({
-    status,
-    subtotal,
-  });
-  const prod = (subtotal: string, cancelled = false) => ({
-    cancelled_at: cancelled ? new Date() : null,
-    subtotal,
-  });
+const svc = (status: OrderServiceStatus, subtotal: string) => ({
+  status,
+  subtotal,
+});
+const prod = (subtotal: string, cancelled = false) => ({
+  cancelled_at: cancelled ? new Date() : null,
+  subtotal,
+});
 
+describe("billableOrderTotal", () => {
   it("drops a cancelled repair so the counter stops asking for it", () => {
     // The Customer declines a 200k Repair quote before paying.
     expect(

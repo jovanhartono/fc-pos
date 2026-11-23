@@ -1,5 +1,7 @@
 # The Ready estimate is per Category, from the last 7 open days, and after-clean days add up
 
+> **Superseded 2026-10-26** by [ADR-0027](0027-ready-estimate-is-the-p90-of-recent-items.md): the quote is now the p90 of recent Items per Category, after prod backtests showed pile ÷ pace quoting 2–3 days for shoes that took 7.
+
 The Counter tells a customer "about X–Y days". We quote each Category on its own, as that Category's waiting OrderServices divided by its Services processed per day over the Store's last 7 open days. A day with no quality check at the Store at all, such as a public holiday, is not an open day. An After-clean Category (marked "Starts after cleaning" on the Category) adds its days on top of the clean, and two after-clean Services on one Item add up too. A slow Category looks further back, open day by open day, until it has 7 checks, up to 4 weeks. With fewer it shows its waiting count but no quote: on prod, two Repair checks in a week had quoted 42–43 days. Nothing shows for a Store under 14 days old.
 
 **Why per Category:** the workshop is not one first-in-first-out queue. Cleaners and artisans work their own Categories at their own pace, so one Store-wide quote gave a Repaint customer the Deep Clean pace.

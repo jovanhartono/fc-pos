@@ -2,52 +2,52 @@ import type { CellData, RowData, TableFeatures } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
 type MobileCardSlot =
-	| "title"
-	| "title-end"
-	// Follows the title text, e.g. a Category's Active badge right after its name.
-	| "title-badge"
-	| "subtitle"
-	| "eyebrow"
-	| "badges"
-	// Sits at the right end of the card's last row, beside the details or badges.
-	| "status"
-	| "detail"
-	| "footer"
-	| "hidden";
+  | "title"
+  | "title-end"
+  // Follows the title text, e.g. a Category's Active badge right after its name.
+  | "title-badge"
+  | "subtitle"
+  | "eyebrow"
+  | "badges"
+  // Sits at the right end of the card's last row, beside the details or badges.
+  | "status"
+  | "detail"
+  | "footer"
+  | "hidden";
 
 interface MobileCardColumnOptions {
-	slot?: MobileCardSlot;
-	label?: ReactNode;
-	// Most customers have no email; an empty "Email —" pair is just noise.
-	omitWhenEmpty?: boolean;
-	className?: string;
-	labelClassName?: string;
-	valueClassName?: string;
+  slot?: MobileCardSlot;
+  label?: ReactNode;
+  // Most customers have no email; an empty "Email —" pair is just noise.
+  omitWhenEmpty?: boolean;
+  className?: string;
+  labelClassName?: string;
+  valueClassName?: string;
 }
 
 export interface ColumnWidth {
-	percent: number;
-	minRem: number;
+  percent: number;
+  minRem: number;
 }
 
 declare module "@tanstack/react-table" {
-	interface ColumnMeta<
-		in out TFeatures extends TableFeatures,
-		in out TData extends RowData,
-		TValue extends CellData = CellData,
-	> {
-		mobileCard?: MobileCardColumnOptions;
-		// Money columns sit on the right so the thousands line up row to row.
-		align?: "right";
-		// A code cell keeps its digits in line, a name cell is medium weight, on the
-		// table and the card. On the table a long name or text wraps to two lines,
-		// then ends in "…".
-		kind?: "code" | "name" | "text";
-		// The column's share of the table on a wide screen, and the narrowest it
-		// gets before the table scrolls sideways instead.
-		width?: ColumnWidth;
-		// Extra classes for the desktop table th/td (e.g. sticky columns).
-		headerClassName?: string;
-		cellClassName?: string;
-	}
+  interface ColumnMeta<
+    in out TFeatures extends TableFeatures,
+    in out TData extends RowData,
+    TValue extends CellData = CellData,
+  > {
+    mobileCard?: MobileCardColumnOptions;
+    // Money columns sit on the right so the thousands line up row to row.
+    align?: "right";
+    // A code cell keeps its digits in line, a name cell is medium weight, on the
+    // table and the card. On the table a long name or text wraps to two lines,
+    // then ends in "…".
+    kind?: "code" | "name" | "text";
+    // The column's share of the table on a wide screen, and the narrowest it
+    // gets before the table scrolls sideways instead.
+    width?: ColumnWidth;
+    // Extra classes for the desktop table th/td (e.g. sticky columns).
+    headerClassName?: string;
+    cellClassName?: string;
+  }
 }

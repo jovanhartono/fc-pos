@@ -1,9 +1,15 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { campaignCodesTable, campaignsTable } from "@/db/schema";
+
+import "@/test-support/pglite";
+import {
+  campaignCodesTable,
+  campaignEligibleServicesTable,
+  campaignsTable,
+} from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // A Repair from unpriced to settled on real rows: what is still owed, and a
@@ -12,12 +18,10 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Imported after the swap above: a static import would bind the shop's real
 // database, prepared statements included, before the swap runs.
 const { createOrder } = await import("@/modules/orders/order.service");
-const { updateOrderPayment } = await import(
-  "@/modules/orders/order-payment.service"
-);
-const { setOrderServicePrice } = await import(
-  "@/modules/orders/order-price.service"
-);
+const { updateOrderPayment } =
+  await import("@/modules/orders/order-payment.service");
+const { setOrderServicePrice } =
+  await import("@/modules/orders/order-price.service");
 const { cancelOrder } = await import("@/modules/orders/order-reversal.service");
 
 let shop: Shop;
@@ -45,6 +49,7 @@ const checkout = ({
     campaign_ids: campaignIds,
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: [
       ...services.map((id) => ({ services: [{ id }] })),
       ...(withRepair
@@ -130,9 +135,74 @@ const addVoucher = async () => {
   return campaign;
 };
 
+// Repair is listed too, so only the slot rule can keep it from counting.
+const addBuy4Get1 = async () => {
+  const [campaign] = await testDb
+    .insert(campaignsTable)
+    .values({
+      buy_quantity: 4,
+      code: "B4G1",
+      created_by: shop.admin.id,
+      discount_type: "buy_n_get_m_free",
+      free_quantity: 1,
+      name: "Buy 4 Get 1",
+      updated_by: shop.admin.id,
+    })
+    .returning();
+
+  await testDb.insert(campaignEligibleServicesTable).values([
+    { campaign_id: campaign.id, service_id: shop.serviceId },
+    { campaign_id: campaign.id, service_id: shop.repairServiceId },
+  ]);
+
+  return campaign;
+};
+
 beforeEach(async () => {
   await resetDb();
   shop = await seedShop();
+});
+
+describe("a buy 4 get 1 Campaign", () => {
+  it("is refused at drop-off when a Repair makes up the fifth Item", async () => {
+    // The Repair has no list price, so it can never be the free one
+    // (ADR-0018); four Deep cleans alone don't earn the free Item.
+    const campaign = await addBuy4Get1();
+
+    const error = await captureRejection(
+      checkout({
+        campaignIds: [campaign.id],
+        repairPrice: 200_000,
+        services: [
+          shop.serviceId,
+          shop.serviceId,
+          shop.serviceId,
+          shop.serviceId,
+        ],
+        withRepair: true,
+      })
+    );
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(
+      "Campaign B4G1 needs 5 eligible Services"
+    );
+    const unclaimed = await readCampaign(campaign.id);
+    expect(unclaimed?.redeemed_count).toBe(0);
+  });
+
+  it("settles once five eligible Services are on the Order", async () => {
+    const campaign = await addBuy4Get1();
+
+    const order = await checkout({
+      campaignIds: [campaign.id],
+      services: Array.from({ length: 5 }, () => shop.serviceId),
+    });
+
+    const settled = await readOrder(order.id);
+    expect(settled?.discount).toBe("100000");
+    expect(settled?.discount_source).toBe("campaign");
+  });
 });
 
 describe("a Repair that still needs inspecting", () => {
@@ -148,9 +218,10 @@ describe("a Repair that still needs inspecting", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — set its price before collecting payment"
+      "Order has an unpriced line. Price it before collecting payment."
     );
-    expect((await readOrder(order.id))?.payment_status).toBe("unpaid");
+    const unpaid = await readOrder(order.id);
+    expect(unpaid?.payment_status).toBe("unpaid");
   });
 
   it("turns the customer's voucher away rather than settle it on a guess", async () => {
@@ -168,9 +239,10 @@ describe("a Repair that still needs inspecting", () => {
 
     expect(error).toBeInstanceOf(BadRequestException);
     expect((error as Error).message).toBe(
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add discounts once every line is priced."
     );
-    expect((await readVoucherCode())?.redeemed_at).toBeNull();
+    const voucher = await readVoucherCode();
+    expect(voucher?.redeemed_at).toBeNull();
   });
 
   it("settles the promo at the desk once the workshop has keyed the number", async () => {
@@ -197,7 +269,8 @@ describe("a Repair that still needs inspecting", () => {
     expect(settled?.total).toBe("350000");
     expect(settled?.discount).toBe("30000");
     expect(settled?.discount_source).toBe("campaign");
-    expect((await readCampaign(campaign.id))?.redeemed_count).toBe(1);
+    const claimed = await readCampaign(campaign.id);
+    expect(claimed?.redeemed_count).toBe(1);
   });
 });
 
@@ -213,8 +286,10 @@ describe("a price corrected downward", () => {
       withRepair: true,
     });
 
-    expect((await readOrder(order.id))?.discount).toBe("100000");
-    expect((await readVoucherCode())?.redeemed_at).not.toBeNull();
+    const printed = await readOrder(order.id);
+    expect(printed?.discount).toBe("100000");
+    const spent = await readVoucherCode();
+    expect(spent?.redeemed_at).not.toBeNull();
 
     const [, repairLine] = await serviceLines(order.id);
     await setOrderServicePrice({
@@ -228,7 +303,8 @@ describe("a price corrected downward", () => {
     expect(corrected?.total).toBe("110000");
     expect(corrected?.discount).toBe("0");
     expect(corrected?.discount_source).toBe("none");
-    expect((await readVoucherCode())?.redeemed_at).toBeNull();
+    const returned = await readVoucherCode();
+    expect(returned?.redeemed_at).toBeNull();
     expect(
       await testDb.query.orderCampaignsTable.findMany({
         where: { order_id: order.id },
@@ -252,7 +328,8 @@ describe("cancelling every line", () => {
       campaignIds: [campaign.id],
       services: [shop.serviceId],
     });
-    expect((await readCampaign(campaign.id))?.redeemed_count).toBe(2);
+    const bothClaimed = await readCampaign(campaign.id);
+    expect(bothClaimed?.redeemed_count).toBe(2);
 
     const lines = await serviceLines(order.id);
     await cancelOrder({
@@ -266,8 +343,10 @@ describe("cancelling every line", () => {
       user: shop.cashier,
     });
 
-    expect((await readOrder(order.id))?.status).toBe("cancelled");
-    expect((await readCampaign(campaign.id))?.redeemed_count).toBe(1);
+    const cancelled = await readOrder(order.id);
+    expect(cancelled?.status).toBe("cancelled");
+    const oneReleased = await readCampaign(campaign.id);
+    expect(oneReleased?.redeemed_count).toBe(1);
   });
 });
 
@@ -282,13 +361,10 @@ describe("a retail-only sale", () => {
     });
 
     expect(order.total).toBe("250000");
-    expect(
-      (
-        await testDb.query.productsTable.findFirst({
-          where: { id: shop.productId },
-        })
-      )?.stock
-    ).toBe(5);
+    const shoeTree = await testDb.query.productsTable.findFirst({
+      where: { id: shop.productId },
+    });
+    expect(shoeTree?.stock).toBe(5);
   });
 
   it("refuses the sale when the two lines together outrun the shelf", async () => {
@@ -304,15 +380,10 @@ describe("a retail-only sale", () => {
     );
 
     expect(error).toBeInstanceOf(BadRequestException);
-    expect((error as Error).message).toBe(
-      "Insufficient stock for product Shoe Tree"
-    );
-    expect(
-      (
-        await testDb.query.productsTable.findFirst({
-          where: { id: shop.productId },
-        })
-      )?.stock
-    ).toBe(10);
+    expect((error as Error).message).toBe("Not enough stock for Shoe Tree");
+    const shoeTree = await testDb.query.productsTable.findFirst({
+      where: { id: shop.productId },
+    });
+    expect(shoeTree?.stock).toBe(10);
   });
 });

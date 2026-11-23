@@ -1,12 +1,13 @@
-import { type SQL, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import {
-  type AnyPgColumn,
   boolean,
   check,
   decimal,
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   smallint,
@@ -15,6 +16,7 @@ import {
   uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 // The shop never charges a fraction of a rupiah — there is no sen at the
 // counter — so every money column below is scale: 0, whole rupiah only.
@@ -30,6 +32,7 @@ export type UserRole = (typeof userRoleEnum.enumValues)[number];
 export const usersTable = pgTable(
   "users",
   {
+    avatar_path: varchar("avatar_path", { length: 512 }),
     can_process_pickup: boolean("can_process_pickup").default(false).notNull(),
     created_at: timestamp("created_at").defaultNow().notNull(),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -182,13 +185,29 @@ export const servicesTable = pgTable(
   ]
 );
 
-export const paymentMethodsTable = pgTable("payment_methods", {
-  code: varchar("code", { length: 6 }).notNull().unique(),
-  created_at: timestamp("created_at").defaultNow().notNull(),
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  is_active: boolean("is_active").default(false).notNull(),
-  name: varchar("name", { length: 255 }).notNull(),
-});
+export const paymentGatewayEnum = pgEnum("payment_gateway", [
+  "midtrans",
+  "doku",
+]);
+
+export const paymentMethodsTable = pgTable(
+  "payment_methods",
+  {
+    code: varchar("code", { length: 6 }).notNull().unique(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    // The PaymentMethod a gateway-paid Order gets, so Day close shows that
+    // money on its own line.
+    gateway: paymentGatewayEnum("gateway"),
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    is_active: boolean("is_active").default(false).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("payment_methods_gateway_uidx")
+      .on(table.gateway)
+      .where(sql`${table.gateway} IS NOT NULL`),
+  ]
+);
 
 export const orderPaymentStatusEnum = pgEnum("order_payment_status", [
   "paid",
@@ -214,7 +233,7 @@ export const campaignDiscountTypeEnum = pgEnum("campaign_discount_type_enum", [
 export const orderServiceStatusEnum = pgEnum("order_service_status_enum", [
   "queued",
   "processing",
-  "quality_check",
+  "waiting_qc",
   "qc_reject",
   "ready_for_pickup",
   "picked_up",
@@ -483,6 +502,11 @@ export const ordersTable = pgTable(
     discount: decimal("discount", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
+    // Kept out of `total` so Gross sales, Campaigns and Refunds never see it
+    // (ADR-0029).
+    delivery_fee: decimal("delivery_fee", { precision: 12, scale: 0 })
+      .default("0")
+      .notNull(),
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
 
     notes: text("notes"),
@@ -549,9 +573,10 @@ export const ordersTable = pgTable(
     ),
     check("discount_non_negative_check", sql`${table.discount} >= 0`),
     check("discount_valid_check", sql`(${table.total}) >= ${table.discount}`),
+    check("delivery_fee_non_negative_check", sql`${table.delivery_fee} >= 0`),
     check(
       "paid_amount_valid_check",
-      sql`${table.paid_amount} <= ${table.total}`
+      sql`${table.paid_amount} <= ${table.total} + ${table.delivery_fee}`
     ),
     check(
       "refunded_amount_valid_check",
@@ -560,12 +585,67 @@ export const ordersTable = pgTable(
   ]
 );
 
+// needs_review: the gateway took the money but the Order could not be marked
+// paid with it (already paid in cash, amount changed), so a person sorts it out.
+export const paymentChargeStatusEnum = pgEnum("payment_charge_status", [
+  "pending",
+  "paid",
+  "expired",
+  "cancelled",
+  "failed",
+  "needs_review",
+]);
+
+// One Gateway charge per try; each new QRIS is a new row.
+export const paymentChargesTable = pgTable(
+  "payment_charges",
+  {
+    amount: decimal("amount", { precision: 12, scale: 0 }).notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    // null = the Customer started it from the Track page.
+    created_by: integer("created_by").references(() => usersTable.id),
+    // The promo a cashier keyed for a counter QRIS; claimed only once paid.
+    discount_request: jsonb("discount_request").$type<{
+      campaign_ids: number[];
+      discount: number;
+      voucher_codes: string[];
+    }>(),
+    // When the daily job asked the gateway about this QR after it ended.
+    end_checked_at: timestamp("end_checked_at"),
+    expires_at: timestamp("expires_at").notNull(),
+    gateway: paymentGatewayEnum("gateway").notNull(),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    last_payload: jsonb("last_payload"),
+    order_id: integer("order_id")
+      .references(() => ordersTable.id)
+      .notNull(),
+    paid_at: timestamp("paid_at"),
+    provider_ref: varchar("provider_ref", { length: 255 }),
+    // DOKU's QRIS text, drawn by the phone: an image would be resent on every
+    // poll of the Track page.
+    qr_content: text("qr_content"),
+    qr_image_url: text("qr_image_url"),
+    redirect_url: text("redirect_url"),
+    reference: varchar("reference", { length: 50 }).notNull().unique(),
+    review_reason: text("review_reason"),
+    status: paymentChargeStatusEnum("status").default("pending").notNull(),
+    updated_at: timestamp("updated_at")
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("payment_charges_order_status_idx").on(table.order_id, table.status),
+  ]
+);
+
 export const orderCountersTable = pgTable(
   "order_counters",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     store_code: varchar("store_code", { length: 10 }).notNull(),
-    date_str: varchar("date_str", { length: 8 }).notNull(), // e.g. 05102025
+    // e.g. 05102025
+    date_str: varchar("date_str", { length: 8 }).notNull(),
     last_number: integer("last_number").notNull().default(0),
   },
   (table) => [
@@ -845,7 +925,7 @@ export const orderServiceStatusLogsTable = pgTable(
       .where(sql`${table.to_status} = 'processing'`),
     index("order_service_status_logs_qc_idx")
       .on(table.to_status, table.created_at)
-      .where(sql`${table.to_status} IN ('quality_check', 'qc_reject')`),
+      .where(sql`${table.to_status} IN ('waiting_qc', 'qc_reject')`),
   ]
 );
 

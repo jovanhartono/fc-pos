@@ -8,22 +8,17 @@ import {
   findComplaints,
   findItemLines,
   insertComplaint,
-  insertReworkLine,
   lockOrderServiceState,
 } from "@/modules/complaints/complaint.repository";
-import {
-  type GetComplaintsQuery,
-  isComplainableLine,
-  isComplainableStatus,
-  normalizeComplaintListQuery,
-  type PostComplaintInput,
+import { normalizeComplaintListQuery } from "@/modules/complaints/complaint.schema";
+import type {
+  GetComplaintsQuery,
+  PostComplaintInput,
 } from "@/modules/complaints/complaint.schema";
-import {
-  type DbExecutor,
-  isInWorkshop,
-  logReworkQueued,
-  recomputeOrderRollup,
-} from "@/modules/orders/order-status-machine";
+import { queueReworkLine } from "@/modules/orders/order-status-machine";
+import type { DbExecutor } from "@/modules/orders/order-status-machine";
+import { isComplainableLine, isComplainableStatus } from "@/schema/complaint";
+import { isInWorkshop } from "@/schema/order-status";
 import type { AuthUser } from "@/types";
 import {
   assertStoreAccess,
@@ -38,7 +33,7 @@ type SubjectService = NonNullable<
 
 // The same shoes come back over the counter, so the Rework line reuses the
 // complained Item and its tag (ADR-0013, ADR-0017).
-async function createReworkLine(
+const createReworkLine = (
   tx: DbExecutor,
   {
     complaintId,
@@ -49,44 +44,31 @@ async function createReworkLine(
     subject: SubjectService;
     userId: number;
   }
-) {
+) => {
   const { order } = subject;
   if (!order) {
     throw new BadRequestException("Order service is not attached to an order");
   }
 
-  const line = await insertReworkLine(tx, {
-    order_id: order.id,
-    item_id: subject.item_id,
-    service_id: subject.service_id,
-    price: "0",
-    cogs_snapshot: "0",
-    is_priority: true,
-    status: "queued",
-    complaint_id: complaintId,
-  });
-
-  await logReworkQueued(tx, {
+  return queueReworkLine(tx, {
     by: userId,
-    note: `Rework for complaint #${complaintId}`,
-    serviceId: line.id,
+    complaintId,
+    itemId: subject.item_id,
+    orderId: order.id,
+    serviceId: subject.service_id,
   });
+};
 
-  await recomputeOrderRollup(tx, order.id, userId);
-
-  return line;
-}
-
-async function lockSubjectLine(tx: DbExecutor, subject: SubjectService) {
+const lockSubjectLine = async (tx: DbExecutor, subject: SubjectService) => {
   const line = await lockOrderServiceState(tx, {
     orderId: subject.order_id,
     serviceId: subject.id,
   });
   const itemLines = await findItemLines(tx, subject.item_id);
   return { itemLines, line };
-}
+};
 
-async function loadComplaintSubject(user: AuthUser, complaintId: number) {
+const loadComplaintSubject = async (user: AuthUser, complaintId: number) => {
   const complaint = await findComplaintById(complaintId);
   if (!complaint) {
     throw new NotFoundException("Complaint not found");
@@ -100,15 +82,15 @@ async function loadComplaintSubject(user: AuthUser, complaintId: number) {
   await assertStoreAccess(user, subject.order.store_id);
 
   return { complaint, subject };
-}
+};
 
-export async function openComplaint({
+export const openComplaint = async ({
   user,
   body,
 }: {
   user: AuthUser;
   body: PostComplaintInput;
-}) {
+}) => {
   const subject = await findComplaintSubjectService(body.order_service_id);
   if (!subject?.order) {
     throw new NotFoundException("Order service not found");
@@ -151,15 +133,15 @@ export async function openComplaint({
 
     return { complaint, rework };
   });
-}
+};
 
-export async function addRework({
+export const addRework = async ({
   user,
   complaintId,
 }: {
   user: AuthUser;
   complaintId: number;
-}) {
+}) => {
   const { complaint, subject } = await loadComplaintSubject(user, complaintId);
 
   return db.transaction(async (tx) => {
@@ -189,9 +171,9 @@ export async function addRework({
       userId: user.id,
     });
   });
-}
+};
 
-export async function getComplaintDetail(user: AuthUser, id: number) {
+export const getComplaintDetail = async (user: AuthUser, id: number) => {
   const detail = await findComplaintDetailById(id);
   if (!detail?.orderService?.order) {
     return null;
@@ -200,31 +182,35 @@ export async function getComplaintDetail(user: AuthUser, id: number) {
   await assertStoreAccess(user, detail.orderService.order.store_id);
 
   return detail;
-}
+};
 
-export async function listComplaints(
+export const listComplaints = async (
   user: AuthUser,
   query?: GetComplaintsQuery
-) {
+) => {
   const normalized = normalizeComplaintListQuery(query);
   const scope = await resolveStoreScope(user, normalized.store_id);
   let scopedStoreIds: number[] | undefined;
 
   switch (scope.kind) {
     // A cashier sees the Complaints of the Stores they work at, never another's.
-    case "some":
+    case "some": {
       scopedStoreIds = scope.storeIds;
       break;
+    }
     // A User not yet assigned to a Store sees nothing, not everything.
-    case "none":
+    case "none": {
       scopedStoreIds = [];
       break;
+    }
     // A named Store is already the query's store_id filter.
     case "all":
-    case "one":
+    case "one": {
       break;
-    default:
+    }
+    default: {
       return unhandledStoreScope(scope);
+    }
   }
 
   const { items, total } = await findComplaints(normalized, scopedStoreIds);
@@ -233,4 +219,4 @@ export async function listComplaints(
     items,
     meta: buildPaginationMeta(total, normalized),
   };
-}
+};

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
 import { sign } from "hono/jwt";
+
 import type { AuthUser, JWTPayload } from "@/types";
 
 type AuthStateRow = Pick<JWTPayload, "role" | "can_process_pickup"> & {
@@ -108,6 +110,21 @@ describe("adminMiddleware — DB auth-state refresh", () => {
       userStores: [],
     });
     const res = await getMe(await signToken({ id: 42 }));
+    expect(res.status).toBe(200);
+    expect(executeMock).toHaveBeenCalledWith({ id: 42 });
+  });
+
+  // The web app sends only the sign-in cookie; losing it signs every screen out.
+  it("accepts the token from the session cookie", async () => {
+    executeMock.mockResolvedValue({
+      role: "cashier",
+      is_active: true,
+      can_process_pickup: false,
+      userStores: [],
+    });
+    const res = await app.request("/admin/me", {
+      headers: { Cookie: `session=${await signToken({ id: 42 })}` },
+    });
     expect(res.status).toBe(200);
     expect(executeMock).toHaveBeenCalledWith({ id: 42 });
   });

@@ -1,0 +1,56 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "dcd20d7d-3e6c-42f5-a23c-55c651163aa9",
+  "prevIds": [
+    "3a482e42-23bf-448e-834c-d256f74fe392"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "payment_charges",
+        "kind"
+      ],
+      "writes": [
+        "s|col|public.payment_charges.kind",
+        "n|col|public.payment_charges.kind",
+        "e|col|public.payment_charges.kind"
+      ],
+      "reads": [
+        "n|tbl|public.payment_charges",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_enum",
+      "statementTarget": [
+        "enum",
+        "public",
+        "payment_charge_kind"
+      ],
+      "writes": [
+        "s|enum|public.payment_charge_kind",
+        "n|enum|public.payment_charge_kind",
+        "e|enum|public.payment_charge_kind",
+        "n|type|public.payment_charge_kind"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "drop",
+      "key": "enums\u0000[\"public\",\"payment_charge_kind\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"payment_charges\",\"kind\"]"
+    }
+  ]
+}

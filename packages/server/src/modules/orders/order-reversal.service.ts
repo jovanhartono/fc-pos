@@ -1,4 +1,5 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+
 import { db } from "@/db";
 import {
   orderRefundItemsTable,
@@ -7,18 +8,18 @@ import {
   ordersTable,
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
-import type { OrderTx } from "@/modules/orders/order.repository";
 import type {
   PostOrderCancelInput,
   PostOrderRefundInput,
 } from "@/modules/orders/order-admin.schema";
-import { getOrderStateOrThrow } from "@/modules/orders/order-read.repository";
-import { revalidateSettledPromo } from "@/modules/orders/order-settlement.service";
+import { refundableAmount } from "@/modules/orders/order-refund-status";
+import { changeUnpaidOrder } from "@/modules/orders/order-settlement.service";
 import {
   applyRefundTransition,
   cancelOrderServices,
-  type DbExecutor,
 } from "@/modules/orders/order-status-machine";
+import type { DbExecutor } from "@/modules/orders/order-status-machine";
+import type { OrderTx } from "@/modules/orders/order.repository";
 import {
   assertCanCancelOrderService,
   assertCanRefundOrderService,
@@ -27,9 +28,9 @@ import { incrementProductStock } from "@/modules/products/product.repository";
 import {
   allocateRefund,
   lineKey,
-  lineRefundCap,
-  type RefundLineKind,
+  orderLineRefundCaps,
 } from "@/schema/refund-allocation";
+import type { RefundLineKind } from "@/schema/refund-allocation";
 import type { JWTPayload } from "@/types";
 
 type RefundLineInput = PostOrderRefundInput["items"][number];
@@ -42,7 +43,7 @@ interface RefundLine {
   reason: RefundLineInput["reason"];
 }
 
-function toRefundLine(item: RefundLineInput): RefundLine {
+const toRefundLine = (item: RefundLineInput): RefundLine => {
   if (item.order_service_id != null) {
     return {
       kind: "service",
@@ -63,50 +64,68 @@ function toRefundLine(item: RefundLineInput): RefundLine {
   throw new BadRequestException(
     "Each refund item must reference a service or product line"
   );
-}
+};
 
-async function getOrderLineRefundCaps(
+const getOrderLineRefundCaps = async (
   executor: DbExecutor,
-  order: Pick<typeof ordersTable.$inferSelect, "discount" | "id" | "total">
-) {
+  order: Pick<typeof ordersTable.$inferSelect, "discount" | "id">
+) => {
   const orderId = order.id;
-  const [serviceRows, productRows, refundedRows] = await Promise.all([
-    executor.query.ordersServicesTable.findMany({
-      where: { order_id: orderId },
-      columns: {
-        id: true,
-        subtotal: true,
-      },
-    }),
-    executor.query.ordersProductsTable.findMany({
-      where: { order_id: orderId },
-      columns: {
-        id: true,
-        refunded_at: true,
-        cancelled_at: true,
-        subtotal: true,
-      },
-    }),
-    executor
-      .select({
-        order_product_id: orderRefundItemsTable.order_product_id,
-        order_service_id: orderRefundItemsTable.order_service_id,
-        refunded_total: sql<string>`COALESCE(SUM(${orderRefundItemsTable.amount}), 0)`,
-      })
-      .from(orderRefundItemsTable)
-      .innerJoin(
-        orderRefundsTable,
-        eq(orderRefundItemsTable.order_refund_id, orderRefundsTable.id)
-      )
-      .where(eq(orderRefundsTable.order_id, orderId))
-      .groupBy(
-        orderRefundItemsTable.order_service_id,
-        orderRefundItemsTable.order_product_id
-      ),
-  ]);
-
-  const grossTotal = Number(order.total ?? 0);
-  const orderDiscount = Number(order.discount);
+  const [serviceRows, productRows, campaignRows, refundedRows] =
+    await Promise.all([
+      executor.query.ordersServicesTable.findMany({
+        where: { order_id: orderId },
+        columns: {
+          complaint_id: true,
+          id: true,
+          service_id: true,
+          status: true,
+          subtotal: true,
+        },
+        with: { service: { columns: { price: true } } },
+      }),
+      executor.query.ordersProductsTable.findMany({
+        where: { order_id: orderId },
+        columns: {
+          id: true,
+          refunded_at: true,
+          cancelled_at: true,
+          subtotal: true,
+        },
+      }),
+      executor.query.orderCampaignsTable.findMany({
+        where: { order_id: orderId, discount_type: "buy_n_get_m_free" },
+        columns: {
+          applied_amount: true,
+          buy_quantity: true,
+          discount_type: true,
+          free_quantity: true,
+        },
+        orderBy: { id: "asc" },
+        with: {
+          campaign: {
+            columns: { id: true },
+            with: { eligibleServices: { columns: { service_id: true } } },
+          },
+        },
+      }),
+      executor
+        .select({
+          order_product_id: orderRefundItemsTable.order_product_id,
+          order_service_id: orderRefundItemsTable.order_service_id,
+          refunded_total: sql<string>`COALESCE(SUM(${orderRefundItemsTable.amount}), 0)`,
+        })
+        .from(orderRefundItemsTable)
+        .innerJoin(
+          orderRefundsTable,
+          eq(orderRefundItemsTable.order_refund_id, orderRefundsTable.id)
+        )
+        .where(eq(orderRefundsTable.order_id, orderId))
+        .groupBy(
+          orderRefundItemsTable.order_service_id,
+          orderRefundItemsTable.order_product_id
+        ),
+    ]);
 
   const refundedByLineKey = new Map(
     refundedRows.map((row) => [
@@ -117,32 +136,16 @@ async function getOrderLineRefundCaps(
     ])
   );
 
-  const lineCap = (key: string, subtotal: string | null) =>
-    lineRefundCap({
-      alreadyRefunded: refundedByLineKey.get(key) ?? 0,
-      grossLine: Number(subtotal ?? 0),
-      grossTotal,
-      orderDiscount,
-    });
+  return orderLineRefundCaps({
+    campaigns: campaignRows,
+    discount: order.discount,
+    products: productRows,
+    refundedByLineKey,
+    services: serviceRows,
+  });
+};
 
-  return new Map<string, number>([
-    ...serviceRows.map((row): [string, number] => {
-      const key = lineKey("service", row.id);
-      return [key, lineCap(key, row.subtotal)];
-    }),
-    ...productRows.map((row): [string, number] => {
-      const key = lineKey("product", row.id);
-      // Rounding can leave a few rupiah after a whole-line refund; a line already
-      // refunded or cancelled (ADR-0008) is never refundable again.
-      return [
-        key,
-        row.refunded_at || row.cancelled_at ? 0 : lineCap(key, row.subtotal),
-      ];
-    }),
-  ]);
-}
-
-export async function createOrderRefund({
+export const createOrderRefund = async ({
   orderId,
   body,
   user,
@@ -150,7 +153,7 @@ export async function createOrderRefund({
   orderId: number;
   body: PostOrderRefundInput;
   user: JWTPayload;
-}) {
+}) => {
   const lines = body.items.map(toRefundLine);
 
   const uniqueLineKeys = new Set(
@@ -171,8 +174,8 @@ export async function createOrderRefund({
         payment_status: ordersTable.payment_status,
         paid_amount: ordersTable.paid_amount,
         refunded_amount: ordersTable.refunded_amount,
-        total: ordersTable.total,
         discount: ordersTable.discount,
+        delivery_fee: ordersTable.delivery_fee,
       })
       .from(ordersTable)
       .where(eq(ordersTable.id, orderId))
@@ -194,7 +197,7 @@ export async function createOrderRefund({
     const totalAmount = refundItems.reduce((sum, item) => sum + item.amount, 0);
 
     const refundablePaidAmount =
-      Number(order.paid_amount) - Number(order.refunded_amount);
+      refundableAmount(order) - Number(order.refunded_amount);
     if (totalAmount > refundablePaidAmount) {
       throw new BadRequestException(
         "Refund exceeds remaining paid amount for this order"
@@ -263,7 +266,7 @@ export async function createOrderRefund({
     refund,
     total_refund_amount: totalRefundAmount,
   };
-}
+};
 
 type CancelLineInput = PostOrderCancelInput["items"][number];
 
@@ -274,7 +277,7 @@ interface CancelLine {
   reason: CancelLineInput["reason"];
 }
 
-function toCancelLine(item: CancelLineInput): CancelLine {
+const toCancelLine = (item: CancelLineInput): CancelLine => {
   if (item.order_service_id != null) {
     return {
       kind: "service",
@@ -294,7 +297,7 @@ function toCancelLine(item: CancelLineInput): CancelLine {
   throw new BadRequestException(
     "Each cancel item must reference a service or product line"
   );
-}
+};
 
 interface CancelProductRow {
   cancelled_at: Date | null;
@@ -305,11 +308,11 @@ interface CancelProductRow {
 }
 
 // Only one of two simultaneous cancels wins, so stock is put back exactly once.
-async function cancelProductLines(
+const cancelProductLines = async (
   tx: OrderTx,
   productLines: CancelLine[],
   productRowById: Map<number, CancelProductRow>
-) {
+) => {
   for (const line of productLines) {
     const row = productRowById.get(line.id);
     if (!row) {
@@ -339,13 +342,13 @@ async function cancelProductLines(
       await incrementProductStock(tx, row.product_id, row.qty);
     }
   }
-}
+};
 
 // Cancellation is the unpaid twin of a Refund (ADR-0008): no money moves, and
 // cancelled Products go back on the shelf. A promo stays only while the Order
 // still clears its minimum (ADR-0018); on a paid Order it stays and only shrinks
 // to fit (ADR-0015).
-export async function cancelOrder({
+export const cancelOrder = async ({
   orderId,
   body,
   user,
@@ -353,7 +356,7 @@ export async function cancelOrder({
   orderId: number;
   body: PostOrderCancelInput;
   user: JWTPayload;
-}) {
+}) => {
   const lines = body.items.map(toCancelLine);
 
   const uniqueLineKeys = new Set(
@@ -365,75 +368,70 @@ export async function cancelOrder({
     );
   }
 
-  const order = await getOrderStateOrThrow(db, orderId);
-
-  assertCanCancelOrderService(user, order);
-
   const serviceLines = lines.filter((line) => line.kind === "service");
   const productLines = lines.filter((line) => line.kind === "product");
 
-  const productRows =
-    productLines.length > 0
-      ? await db.query.ordersProductsTable.findMany({
-          where: {
-            order_id: orderId,
-            id: { in: productLines.map((l) => l.id) },
-          },
-          columns: {
-            id: true,
-            qty: true,
-            product_id: true,
-            refunded_at: true,
-            cancelled_at: true,
-          },
-        })
-      : [];
-  const productRowById = new Map(productRows.map((row) => [row.id, row]));
+  const reworkIds = await changeUnpaidOrder(
+    orderId,
+    user.id,
+    async (tx, order) => {
+      assertCanCancelOrderService(user, order);
 
-  for (const line of productLines) {
-    const row = productRowById.get(line.id);
-    if (!row) {
-      throw new BadRequestException(
-        `Product line ${line.id} not found on this order`
-      );
+      const productRows =
+        productLines.length > 0
+          ? await tx.query.ordersProductsTable.findMany({
+              where: {
+                order_id: orderId,
+                id: { in: productLines.map((l) => l.id) },
+              },
+              columns: {
+                id: true,
+                qty: true,
+                product_id: true,
+                refunded_at: true,
+                cancelled_at: true,
+              },
+            })
+          : [];
+      const productRowById = new Map(productRows.map((row) => [row.id, row]));
+
+      for (const line of productLines) {
+        const row = productRowById.get(line.id);
+        if (!row) {
+          throw new BadRequestException(
+            `Product line ${line.id} not found on this order`
+          );
+        }
+        if (row.cancelled_at) {
+          throw new BadRequestException(
+            `Product line ${line.id} is already cancelled`
+          );
+        }
+        if (row.refunded_at) {
+          throw new BadRequestException(
+            `Product line ${line.id} is refunded and cannot be cancelled`
+          );
+        }
+      }
+
+      const cancelled =
+        serviceLines.length > 0
+          ? await cancelOrderServices(tx, {
+              by: user.id,
+              lines: serviceLines.map((line) => ({
+                note: line.note,
+                reason: line.reason,
+                serviceId: line.id,
+              })),
+              orderId,
+            })
+          : { reworkIds: [] };
+
+      await cancelProductLines(tx, productLines, productRowById);
+
+      return cancelled.reworkIds;
     }
-    if (row.cancelled_at) {
-      throw new BadRequestException(
-        `Product line ${line.id} is already cancelled`
-      );
-    }
-    if (row.refunded_at) {
-      throw new BadRequestException(
-        `Product line ${line.id} is refunded and cannot be cancelled`
-      );
-    }
-  }
-
-  const reworkIds = await db.transaction(async (tx) => {
-    const cancelled =
-      serviceLines.length > 0
-        ? await cancelOrderServices(tx, {
-            by: user.id,
-            lines: serviceLines.map((line) => ({
-              note: line.note,
-              reason: line.reason,
-              serviceId: line.id,
-            })),
-            orderId,
-          })
-        : { reworkIds: [] };
-
-    await cancelProductLines(tx, productLines, productRowById);
-
-    // Status read before the cancel: an Order already cancelled gave its
-    // redemptions back, and doing it again would hand the Customer a second
-    // free Voucher use (ADR-0015).
-    if (order.status !== "cancelled") {
-      await revalidateSettledPromo(tx, orderId, user.id);
-    }
-
-    return cancelled.reworkIds;
-  });
+  );
 
   return {
     cancelled_service_ids: [
@@ -443,4 +441,4 @@ export async function cancelOrder({
     cancelled_product_ids: productLines.map((line) => line.id),
     order_id: orderId,
   };
-}
+};

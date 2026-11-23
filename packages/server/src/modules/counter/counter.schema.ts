@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { ItemNameFields } from "@/modules/orders/order.schema";
+
 export const GETCounterQuerySchema = z.object({
   store_id: z.coerce.number().int().positive(),
 });
@@ -14,8 +16,7 @@ export const GETPickupShelfQuerySchema = z.object({
 export type GetPickupShelfQuery = z.infer<typeof GETPickupShelfQuerySchema>;
 
 export interface CounterEstimate {
-  days_high: number;
-  days_low: number;
+  days: number;
 }
 
 export interface CounterCategory {
@@ -26,6 +27,7 @@ export interface CounterCategory {
   items_waiting: number;
   name: string;
   queued: number;
+  waiting_qc: number;
 }
 
 export interface CounterShelfOrder {
@@ -42,24 +44,25 @@ export interface CounterPickupShelf {
   orders: number;
 }
 
-export interface CounterQcReject {
+export interface CounterQcReject extends ItemNameFields {
   category: string;
   days: number;
-  item_code: string;
   note: string | null;
   order_id: number;
   order_service_id: number;
 }
 
-export interface CounterComplaint {
+export interface CounterComplaint extends ItemNameFields {
   category: string;
   complaint_id: number;
   days: number;
-  item_code: string;
   reason: string | null;
 }
 
-export type CounterWorkshop = Pick<CounterCategory, "in_progress" | "queued">;
+export type CounterWorkshop = Pick<
+  CounterCategory,
+  "in_progress" | "queued" | "waiting_qc"
+>;
 
 export interface Counter {
   categories: CounterCategory[];

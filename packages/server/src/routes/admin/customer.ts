@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+
 import { NotFoundException } from "@/http-exceptions";
 import {
   GETCustomerLookupQuerySchema,
@@ -92,9 +93,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Customer not found");
       }
 
-      return c.json(
-        success(customer, `Update customer ${customer.name} success`)
-      );
+      return c.json(success(customer, `${customer.name} updated`));
     }
   );
 

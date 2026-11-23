@@ -2,9 +2,11 @@ import { sql } from "drizzle-orm";
 import { every } from "hono/combine";
 import { createMiddleware } from "hono/factory";
 import { jwt } from "hono/jwt";
+
 import { db } from "@/db";
 import { UnauthorizedException } from "@/http-exceptions";
 import type { AdminEnv } from "@/types/hono";
+import { SESSION_COOKIE, SESSION_COOKIE_PREFIX } from "@/utils/session-cookie";
 
 const findUserAuthStatePrepared = db.query.usersTable
   .findFirst({
@@ -23,9 +25,7 @@ const refreshAuthState = createMiddleware<AdminEnv>(async (c, next) => {
   const user = await findUserAuthStatePrepared.execute({ id: payload.id });
 
   if (!user?.is_active) {
-    throw new UnauthorizedException(
-      "User is not active. Please contact admin."
-    );
+    throw new UnauthorizedException("Your account isn't Active. Ask an admin.");
   }
 
   c.set("jwtPayload", {
@@ -39,6 +39,10 @@ const refreshAuthState = createMiddleware<AdminEnv>(async (c, next) => {
 });
 
 export const adminMiddleware = every(
-  jwt({ secret: process.env.JWT_SECRET as string, alg: "HS256" }),
+  jwt({
+    secret: process.env.JWT_SECRET as string,
+    alg: "HS256",
+    cookie: { key: SESSION_COOKIE, prefixOptions: SESSION_COOKIE_PREFIX },
+  }),
   refreshAuthState
 );

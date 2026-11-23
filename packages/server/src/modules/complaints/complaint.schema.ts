@@ -1,34 +1,12 @@
 import { z } from "zod";
+
 import { orderServiceStatusEnum } from "@/db/schema";
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
 } from "@/modules/orders/order.schema";
-import { isInWorkshop } from "@/modules/orders/order-status-machine";
+import { isReworkedRound } from "@/schema/complaint";
 import { normalizePagination } from "@/utils/pagination";
-
-// A finished line (ADR-0013, 2026-09-24): usually turned down at the counter
-// while still ready, sometimes brought back after it went home.
-export function isComplainableStatus(status: string): boolean {
-  return status === "ready_for_pickup" || status === "picked_up";
-}
-
-// The Customer at the counter is shown the whole Item, so a ready line waits
-// until nothing else on its Item is still in the workshop.
-export function isComplainableLine(
-  line: { status: string },
-  itemLines: ReadonlyArray<{ status: string }>
-): boolean {
-  return (
-    line.status === "picked_up" ||
-    (line.status === "ready_for_pickup" && !itemLines.some(isInWorkshop))
-  );
-}
-
-// A cancelled round re-cleaned nothing, so it does not make a Complaint Reworked.
-export function isReworkedRound(round: { status: string }): boolean {
-  return round.status !== "cancelled";
-}
 
 export const REWORKED_ROUND_STATUSES = orderServiceStatusEnum.enumValues.filter(
   (status) => isReworkedRound({ status })
@@ -60,9 +38,9 @@ export interface NormalizedComplaintListQuery {
   store_id?: number;
 }
 
-export function normalizeComplaintListQuery(
+export const normalizeComplaintListQuery = (
   query?: GetComplaintsQuery
-): NormalizedComplaintListQuery {
+): NormalizedComplaintListQuery => {
   const pagination = normalizePagination(query, {
     defaultPageSize: DEFAULT_PAGE_SIZE,
     maxPageSize: MAX_PAGE_SIZE,
@@ -74,4 +52,4 @@ export function normalizeComplaintListQuery(
     search: query?.search,
     store_id: query?.store_id,
   };
-}
+};

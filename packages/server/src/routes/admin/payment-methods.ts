@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+
 import { NotFoundException } from "@/http-exceptions";
 import {
   GETPaymentMethodsQuerySchema,
@@ -62,12 +63,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Payment method not found");
       }
 
-      return c.json(
-        success(
-          paymentMethod,
-          `Update payment method ${paymentMethod.name} success`
-        )
-      );
+      return c.json(success(paymentMethod, `${paymentMethod.name} updated`));
     }
   );
 

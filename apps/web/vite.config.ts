@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
@@ -6,81 +7,96 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
-	plugins: [
-		tanstackRouter({ target: "react", autoCodeSplitting: true }),
-		react(),
-		tailwindcss(),
-		VitePWA({
-			// A screen open during a deploy keeps its build until someone taps
-			// Reload. Swapping builds at once deleted files that screen still needed.
-			registerType: "prompt",
-			// Launch screens are generated at build time from pwa-assets.config.ts,
-			// so none of them are committed. The theme-color metas are already
-			// hand-written in index.html per colour scheme; let those stand.
-			pwaAssets: { config: true, injectThemeColor: false },
-			manifest: {
-				id: "/",
-				name: "Fresclean POS",
-				short_name: "FC POS",
-				description: "Counter, queue, and reports for Fresclean stores",
-				start_url: "/",
-				scope: "/",
-				display: "standalone",
-				// Tapping the icon returns the cashier to the order they were
-				// already part-way through, instead of a second blank session.
-				launch_handler: { client_mode: "focus-existing" },
-				orientation: "any",
-				shortcuts: [
-					{
-						name: "New order",
-						description: "Take an order and collect payment",
-						url: "/transactions",
-					},
-					{
-						name: "Queue",
-						description: "Items waiting for work, most urgent first",
-						url: "/queue",
-					},
-				],
-				theme_color: "#ffffff",
-				background_color: "#ffffff",
-				icons: [
-					{
-						src: "/web-app-manifest-192x192.png",
-						sizes: "192x192",
-						type: "image/png",
-					},
-					{
-						src: "/web-app-manifest-512x512.png",
-						sizes: "512x512",
-						type: "image/png",
-					},
-					{
-						src: "/web-app-manifest-512x512.png",
-						sizes: "512x512",
-						type: "image/png",
-						purpose: "maskable",
-					},
-				],
-			},
-			workbox: {
-				globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
-				// iOS reads the launch screens from the head links as the app opens,
-				// never through the worker. Precaching them would add 400KB to what
-				// a counter tablet downloads on install and never use it.
-				globIgnores: ["**/apple-splash-*.png"],
-				// Orders and payments must always come from the server: a cached
-				// /api response at the counter would show a settled order as unpaid.
-				navigateFallbackDenylist: [/^\/api\//],
-			},
-		}),
-	],
-	server: {
-		allowedHosts: ["4961-103-165-128-11.ngrok-free.app"],
-	},
-	resolve: {
-		alias: {
-			"@": path.resolve(__dirname, "./src"),
-		},
-	},
+  plugins: [
+    tanstackRouter({
+      target: "react",
+      autoCodeSplitting: true,
+      codeSplittingOptions: {
+        // A page's skeleton ships with the page. No route sets its own groupings:
+        // one that did would put its not-found page in every first load.
+        defaultBehavior: [
+          ["component", "pendingComponent"],
+          ["errorComponent"],
+          ["notFoundComponent"],
+        ],
+      },
+    }),
+    react({ compiler: { reportDiagnostics: true } }),
+    tailwindcss(),
+    VitePWA({
+      // A new build takes over without a reload, so a cashier's cart survives. A
+      // screen left open since a deploy shows the error page's Retry on its next new screen.
+      registerType: "autoUpdate",
+      // Launch screens are generated at build time from pwa-assets.config.ts,
+      // so none of them are committed. The theme-color metas are already
+      // hand-written in index.html per colour scheme; let those stand.
+      pwaAssets: { config: true, injectThemeColor: false },
+      manifest: {
+        id: "/",
+        name: "Fresclean POS",
+        short_name: "FC POS",
+        description: "Counter, queue, and reports for Fresclean stores",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        // Tapping the icon returns the cashier to the order they were
+        // already part-way through, instead of a second blank session.
+        launch_handler: { client_mode: "focus-existing" },
+        orientation: "any",
+        shortcuts: [
+          {
+            name: "New order",
+            description: "Take an order and collect payment",
+            url: "/transactions",
+          },
+          {
+            name: "Queue",
+            description: "Items waiting for work, most urgent first",
+            url: "/queue",
+          },
+        ],
+        theme_color: "#ffffff",
+        background_color: "#ffffff",
+        icons: [
+          {
+            src: "/web-app-manifest-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "/web-app-manifest-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+          {
+            src: "/web-app-manifest-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        // Deploys before #206 left some devices with index.html saved as an app
+        // file, breaking that page. A new name makes every device fetch fresh.
+        cacheId: "fc-pos-2026-10-30",
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
+        // iOS reads the launch screens from the head links as the app opens,
+        // never through the worker. Precaching them would add 400KB to what
+        // a counter tablet downloads on install and never use it.
+        globIgnores: ["**/apple-splash-*.png"],
+        // Orders and payments must always come from the server: a cached
+        // /api response at the counter would show a settled order as unpaid.
+        navigateFallbackDenylist: [/^\/api\//u],
+      },
+    }),
+  ],
+  server: {
+    allowedHosts: ["4961-103-165-128-11.ngrok-free.app"],
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "./src"),
+    },
+  },
 });

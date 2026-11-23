@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+
 import { NotFoundException } from "@/http-exceptions";
 import {
   GETCategoriesQuerySchema,
@@ -59,9 +60,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Category not found");
       }
 
-      return c.json(
-        success(category, `Update Category ${category.name} success`)
-      );
+      return c.json(success(category, `${category.name} updated`));
     }
   );
 

@@ -1,9 +1,11 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { campaignsTable } from "@/db/schema";
+
+import "@/test-support/pglite";
+import { campaignEligibleServicesTable, campaignsTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // What a Refund leaves behind, read back off real rows: the Line's state, the
@@ -12,9 +14,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Imported after the swap above: a static import would bind the shop's real
 // database, prepared statements included, before the swap runs.
 const { createOrder } = await import("@/modules/orders/order.service");
-const { cancelOrder, createOrderRefund } = await import(
-  "@/modules/orders/order-reversal.service"
-);
+const { cancelOrder, createOrderRefund } =
+  await import("@/modules/orders/order-reversal.service");
 
 let shop: Shop;
 
@@ -31,6 +32,7 @@ const placeOrder = (
     campaign_ids: over.campaign_ids ?? [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: over.discount ?? 0,
+    delivery_fee: 0,
     items: [{ services: [{ id: shop.serviceId }] }],
     payment_method_id: shop.paymentMethodId,
     payment_status: over.payment_status ?? "paid",
@@ -74,7 +76,8 @@ describe("refund", () => {
     });
 
     expect(result.total_refund_amount).toBe(80_000);
-    expect((await readOrder(order.id))?.refunded_amount).toBe("80000");
+    const refunded = await readOrder(order.id);
+    expect(refunded?.refunded_amount).toBe("80000");
   });
 
   it("refuses a second refund of the same treatment", async () => {
@@ -94,7 +97,8 @@ describe("refund", () => {
     expect((error as Error).message).toBe(
       `Order service ${serviceId} has no refundable amount remaining`
     );
-    expect((await readOrder(order.id))?.refunded_amount).toBe("80000");
+    const afterRetry = await readOrder(order.id);
+    expect(afterRetry?.refunded_amount).toBe("80000");
   });
 
   it("refuses a second refund of the same product", async () => {
@@ -114,7 +118,58 @@ describe("refund", () => {
     expect((error as Error).message).toBe(
       `Order product ${productId} has no refundable amount remaining`
     );
-    expect((await readOrder(order.id))?.refunded_amount).toBe("40000");
+    const afterRetry = await readOrder(order.id);
+    expect(afterRetry?.refunded_amount).toBe("40000");
+  });
+
+  it("keeps a Buy N Get M discount on the Services that earned it", async () => {
+    const [campaign] = await testDb
+      .insert(campaignsTable)
+      .values({
+        buy_quantity: 1,
+        code: "B1G1",
+        created_by: shop.admin.id,
+        discount_type: "buy_n_get_m_free",
+        free_quantity: 1,
+        name: "Buy 1 Get 1",
+        updated_by: shop.admin.id,
+      })
+      .returning();
+    await testDb
+      .insert(campaignEligibleServicesTable)
+      .values({ campaign_id: campaign.id, service_id: shop.serviceId });
+
+    // 2 × Deep Clean 100.000 + Shoe Tree 50.000, one Deep Clean free.
+    const order = await createOrder(shop.admin.id, shop.store, {
+      campaign_ids: [campaign.id],
+      customer: { name: "Budi Santoso", phone_number: "+628111222333" },
+      discount: 0,
+      delivery_fee: 0,
+      items: [
+        { services: [{ id: shop.serviceId }] },
+        { services: [{ id: shop.serviceId }] },
+      ],
+      payment_method_id: shop.paymentMethodId,
+      payment_status: "paid",
+      products: [{ id: shop.productId, qty: 1 }],
+      store_id: shop.store.id,
+      voucher_codes: [],
+    });
+    const { productId, serviceId } = await lineIds(order.id);
+
+    const shoeTree = await createOrderRefund({
+      orderId: order.id,
+      body: { items: [{ order_product_id: productId, reason: "damaged" }] },
+      user: shop.admin,
+    });
+    const deepClean = await createOrderRefund({
+      orderId: order.id,
+      body: { items: [{ order_service_id: serviceId, reason: "damaged" }] },
+      user: shop.admin,
+    });
+
+    expect(shoeTree.total_refund_amount).toBe(50_000);
+    expect(deepClean.total_refund_amount).toBe(50_000);
   });
 });
 
@@ -139,13 +194,10 @@ describe("cancel", () => {
     });
     const { productId, serviceId } = await lineIds(order.id);
 
-    expect(
-      (
-        await testDb.query.campaignsTable.findFirst({
-          where: { id: campaign.id },
-        })
-      )?.redeemed_count
-    ).toBe(1);
+    const claimed = await testDb.query.campaignsTable.findFirst({
+      where: { id: campaign.id },
+    });
+    expect(claimed?.redeemed_count).toBe(1);
 
     await cancelOrder({
       orderId: order.id,
@@ -158,13 +210,11 @@ describe("cancel", () => {
       user: shop.cashier,
     });
 
-    expect((await readOrder(order.id))?.status).toBe("cancelled");
-    expect(
-      (
-        await testDb.query.campaignsTable.findFirst({
-          where: { id: campaign.id },
-        })
-      )?.redeemed_count
-    ).toBe(0);
+    const cancelled = await readOrder(order.id);
+    expect(cancelled?.status).toBe("cancelled");
+    const released = await testDb.query.campaignsTable.findFirst({
+      where: { id: campaign.id },
+    });
+    expect(released?.redeemed_count).toBe(0);
   });
 });

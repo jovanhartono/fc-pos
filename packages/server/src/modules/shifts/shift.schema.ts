@@ -1,20 +1,11 @@
 import { z } from "zod";
+
 import {
   fromNotAfterTo,
   fromNotAfterToIssue,
   storeIdQuerySchema,
 } from "@/modules/reports/report.schema";
 import { dateStringSchema } from "@/schema/common";
-import type { JWTPayload } from "@/types";
-
-// Wide on purpose: a worker who lives near their Store is not the problem, and a
-// manager quoting it back must be beyond argument (ADR-0020).
-export const CLOCK_IN_RADIUS_KM = 3;
-
-// A Courier is on the road all day, never near the Store they clock in at.
-// The clock-in screen reads this too.
-export const clockInRequiresLocation = (role: JWTPayload["role"]) =>
-  role !== "courier";
 
 export const POSTClockInSchema = z.object({
   // One group, so half a location cannot get through. No coercion: `null` and
@@ -45,10 +36,13 @@ const shiftTime = z.iso.datetime().transform((value) => new Date(value));
 
 const shiftTimes = { clock_in_at: shiftTime, clock_out_at: shiftTime };
 
-function checkShiftTimes(
-  body: { clock_in_at: Date; clock_out_at: Date },
+const checkShiftTimes = (
+  body: { clock_in_at: Date; clock_out_at?: Date },
   ctx: z.RefinementCtx
-) {
+) => {
+  if (!body.clock_out_at) {
+    return;
+  }
   const hours =
     (body.clock_out_at.getTime() - body.clock_in_at.getTime()) / 3_600_000;
   if (hours <= 0) {
@@ -64,10 +58,15 @@ function checkShiftTimes(
       path: ["clock_out_at"],
     });
   }
-}
+};
 
 export const PATCHShiftSchema = z
-  .object(shiftTimes)
+  .object({
+    clock_in_at: shiftTime,
+    clock_out_at: shiftTime.optional(),
+    // Optional: a page still on the old build sends only the times.
+    store_id: z.number().int().positive().optional(),
+  })
   .superRefine(checkShiftTimes);
 
 export type PatchShiftBody = z.infer<typeof PATCHShiftSchema>;

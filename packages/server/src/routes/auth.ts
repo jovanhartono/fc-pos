@@ -4,11 +4,17 @@ import { Hono } from "hono";
 import { sign } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
+
 import { db } from "@/db";
 import { usersTable } from "@/db/schema";
 import { ForbiddenException, UnauthorizedException } from "@/http-exceptions";
 import type { JWTPayload } from "@/types/jwt";
 import { success } from "@/utils/http";
+import {
+  clearSessionCookie,
+  SESSION_MAX_AGE_SECONDS,
+  setSessionCookie,
+} from "@/utils/session-cookie";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
 const loginSchema = createInsertSchema(usersTable)
@@ -21,10 +27,8 @@ const findUserByUsernamePrepared = db.query.usersTable
   })
   .prepare("find_user_by_username");
 
-const app = new Hono().post(
-  "/login",
-  zodValidator("json", loginSchema),
-  async (c) => {
+const app = new Hono()
+  .post("/login", zodValidator("json", loginSchema), async (c) => {
     const { username, password } = c.req.valid("json");
 
     const user = await findUserByUsernamePrepared.execute({ username });
@@ -45,21 +49,30 @@ const app = new Hono().post(
     }
 
     if (!user.is_active) {
-      throw new ForbiddenException("User is not active. Please contact admin.");
+      throw new ForbiddenException("Your account isn't Active. Ask an admin.");
     }
 
-    const jwtPayload: JWTPayload & { exp: number } = {
+    const signedInUser: JWTPayload = {
       id: user.id,
       name: user.name,
       username: user.username,
       role: user.role,
       can_process_pickup: user.can_process_pickup,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7, // 1 week
     };
-    const token = await sign(jwtPayload, process.env.JWT_SECRET as string);
+    const token = await sign(
+      {
+        ...signedInUser,
+        exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS,
+      },
+      process.env.JWT_SECRET as string
+    );
+    setSessionCookie(c, token);
 
-    return c.json(success({ token }, "Signed in"), StatusCodes.OK);
-  }
-);
+    return c.json(success({ user: signedInUser }, "Signed in"), StatusCodes.OK);
+  })
+  .post("/logout", (c) => {
+    clearSessionCookie(c);
+    return c.json(success(null, "Signed out"), StatusCodes.OK);
+  });
 
 export default app;

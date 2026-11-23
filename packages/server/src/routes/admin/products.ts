@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+
 import { NotFoundException } from "@/http-exceptions";
 import { assertIsAdmin } from "@/modules/permissions/permissions";
 import {
@@ -56,7 +57,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Product not found");
       }
 
-      return c.json(success(product, `Update product ${product.sku} success`));
+      return c.json(success(product, `${product.name} updated`));
     }
   );
 

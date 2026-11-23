@@ -1,5 +1,6 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
 import {
   complaintsTable,
   itemImagesTable,
@@ -7,7 +8,8 @@ import {
 } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import { captureRejection } from "@/test-support/capture-rejection";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // The photo gate (ADR-0012, ADR-0019): whether the workshop may start on an
@@ -17,9 +19,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // database before the swap runs.
 const { db } = await import("@/db");
 const { createOrder } = await import("@/modules/orders/order.service");
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 
 let shop: Shop;
 
@@ -32,6 +33,7 @@ const placeOrder = async () => {
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: [{ services: [{ id: shop.serviceId }] }],
     payment_method_id: shop.paymentMethodId,
     payment_status: "unpaid",

@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { JwtVariables } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
+
 import type { AuthUser } from "@/types/jwt";
 import { errorHandler } from "@/utils/error-handler";
 
@@ -81,7 +83,7 @@ describe("errorHandler", () => {
     expect(body).not.toContain(PHONE);
     expect(body).not.toContain("Ibu Ani Wijaya");
     expect(body).not.toContain("insert into");
-    expect(body).toContain("Something went wrong");
+    expect(body).toContain("The server hit a problem. Try again.");
   });
 
   it("keeps a rejected order's reason but not the record attached to it", async () => {

@@ -7,23 +7,23 @@ type OrderForPermissions = Pick<
   "payment_status"
 >;
 
-export function assertIsAdmin(user: JWTPayload) {
+export const assertIsAdmin = (user: JWTPayload) => {
   if (user.role !== "admin") {
     throw new ForbiddenException("Only admin can perform this action");
   }
-}
+};
 
-export function assertCanManageCampaigns(user: JWTPayload) {
+export const assertCanManageCampaigns = (user: JWTPayload) => {
   assertIsAdmin(user);
-}
+};
 
-export function assertCanManageUsers(user: JWTPayload) {
+export const assertCanManageUsers = (user: JWTPayload) => {
   assertIsAdmin(user);
-}
+};
 
-export function assertCanReassignHandler(user: JWTPayload) {
+export const assertCanReassignHandler = (user: JWTPayload) => {
   assertIsAdmin(user);
-}
+};
 
 // A worker rings up a drop-off when no cashier is at the counter (ADR-0004);
 // a Courier only clocks in (ADR-0010). A role added later starts without POS.
@@ -33,31 +33,31 @@ const POS_ROLES: ReadonlySet<JWTPayload["role"]> = new Set([
   "worker",
 ]);
 
-export function assertCanCreateOrder(user: JWTPayload) {
+export const assertCanCreateOrder = (user: JWTPayload) => {
   if (!POS_ROLES.has(user.role)) {
     throw new ForbiddenException("Only shop staff can create orders");
   }
-}
+};
 
-export function assertCanViewCounter(user: JWTPayload) {
+export const assertCanViewCounter = (user: JWTPayload) => {
   if (!POS_ROLES.has(user.role)) {
     throw new ForbiddenException("Only shop staff can view the counter");
   }
-}
+};
 
-export function assertCanSendPickupNotice(user: JWTPayload) {
+export const assertCanSendPickupNotice = (user: JWTPayload) => {
   if (!POS_ROLES.has(user.role)) {
     throw new ForbiddenException("Only shop staff can send pickup notices");
   }
-}
+};
 
-export function assertCanProcessPayment(user: JWTPayload) {
+export const assertCanProcessPayment = (user: JWTPayload) => {
   if (!POS_ROLES.has(user.role)) {
     throw new ForbiddenException("Only shop staff can process payment");
   }
-}
+};
 
-export function assertCanProcessPickup(user: JWTPayload) {
+export const assertCanProcessPickup = (user: JWTPayload) => {
   const allowed =
     user.role === "admin" ||
     user.role === "cashier" ||
@@ -68,15 +68,15 @@ export function assertCanProcessPickup(user: JWTPayload) {
       "Only admin, cashier, or authorized pickup handlers can complete pickups"
     );
   }
-}
+};
 
 // Workshop work (taking a job, moving its status, Item photos) is open to all
 // staff and has no check here (ADR-0004).
 
-export function assertCanCancelOrderService(
+export const assertCanCancelOrderService = (
   user: JWTPayload,
   order: OrderForPermissions
-) {
+) => {
   if (!["admin", "cashier", "worker"].includes(user.role)) {
     throw new ForbiddenException(
       "Only admin, cashier, or worker can cancel order services"
@@ -88,12 +88,12 @@ export function assertCanCancelOrderService(
       "Cancel is only allowed on unpaid orders. Use refund for paid orders."
     );
   }
-}
+};
 
-export function assertCanRefundOrderService(
+export const assertCanRefundOrderService = (
   user: JWTPayload,
   order: OrderForPermissions
-) {
+) => {
   assertIsAdmin(user);
 
   if (order.payment_status !== "paid") {
@@ -101,4 +101,4 @@ export function assertCanRefundOrderService(
       "Refund is only allowed on paid orders. Use cancel for unpaid orders."
     );
   }
-}
+};

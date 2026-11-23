@@ -1,24 +1,22 @@
 import { and, eq } from "drizzle-orm";
+
 import { db } from "@/db";
 import { storeDevicesTable } from "@/db/schema";
 
-export function listStoreDevices(storeId: number) {
-  return db.query.storeDevicesTable.findMany({
+export const listStoreDevices = (storeId: number) =>
+  db.query.storeDevicesTable.findMany({
     where: { store_id: storeId },
     orderBy: { id: "asc" },
   });
-}
 
-export function insertStoreDevice(values: {
+export const insertStoreDevice = (values: {
   store_id: number;
   name: string;
   label?: string;
-}) {
-  return db.insert(storeDevicesTable).values(values).returning();
-}
+}) => db.insert(storeDevicesTable).values(values).returning();
 
-export function deleteStoreDevice(storeId: number, deviceId: number) {
-  return db
+export const deleteStoreDevice = (storeId: number, deviceId: number) =>
+  db
     .delete(storeDevicesTable)
     .where(
       and(
@@ -27,4 +25,3 @@ export function deleteStoreDevice(storeId: number, deviceId: number) {
       )
     )
     .returning();
-}

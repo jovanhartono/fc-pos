@@ -1,5 +1,9 @@
 import { s3 } from "bun";
+
 import { BadRequestException } from "@/http-exceptions";
+import { PHOTO_TILE_SIZE } from "@/schema/photo-thumbnail";
+import { thumbnailKey } from "@/utils/photo-key";
+import { reportError } from "@/utils/report-error";
 
 const DEFAULT_PRESIGNED_EXPIRES_SECONDS = 300;
 // 2560px keeps a 5mm stain visible in a whole-Item shot, which a damage dispute turns on.
@@ -12,55 +16,15 @@ const METADATA_PROBE_BYTES = 65_536;
 // Mirrors apps/web normalize-image.ts. A lossless WebP within 2560px can run to tens of MB and
 // load slowly for every operator opening the gallery, so anything heavier is converted.
 const MAX_PASSTHROUGH_BYTES = 4_000_000;
-
-// Dev and production share one bucket. Without the prefix, the photo sweep could check a
-// production dispute photo against the dev database, find no Order for it, and delete it.
-// Set per Vercel environment alongside DATABASE_URL; the two must agree.
-const rawStoragePrefix = process.env.STORAGE_PREFIX;
-if (!(rawStoragePrefix && /^(dev|prod)\/$/.test(rawStoragePrefix))) {
-  throw new Error('STORAGE_PREFIX must be "dev/" or "prod/"');
-}
-export const STORAGE_ENV_PREFIX = rawStoragePrefix;
-
-export type PhotoScope =
-  | { itemId: number; kind: "item"; orderId: number }
-  | { kind: "dropoff" | "pickup"; orderId: number };
-
-function photoScopePrefix(scope: PhotoScope): string {
-  const base = `${STORAGE_ENV_PREFIX}orders/${scope.orderId}/`;
-  return scope.kind === "item"
-    ? `${base}items/${scope.itemId}/`
-    : `${base}${scope.kind}/`;
-}
-
-export function newPhotoKey(scope: PhotoScope): string {
-  return `${photoScopePrefix(scope)}${crypto.randomUUID()}`;
-}
-
-// A stale tab or a replayed request can hand back a path for another Order's
-// folder, another Item's, or a `..` escape out of it.
-export function assertPhotoKeyUnder(path: string, scope: PhotoScope): void {
-  const prefix = photoScopePrefix(scope);
-  if (!path.startsWith(prefix)) {
-    throw new BadRequestException("Invalid image path");
-  }
-
-  const remainder = path.slice(prefix.length);
-  if (
-    remainder.length === 0 ||
-    remainder.includes("/") ||
-    remainder === "." ||
-    remainder === ".."
-  ) {
-    throw new BadRequestException("Invalid image path");
-  }
-}
+// Every Order screen tiles its photos; a small copy filed beside each one keeps those tiles off
+// Cloudflare's monthly free transformations, which ran out within a week.
+const THUMBNAIL_QUALITY = 75;
 
 // Keeping a counter shot as it came spares a second lossy pass over the faint mark a dispute
 // is argued from. An unreadable header just means convert; only the conversion may reject.
-async function isAlreadyOptimized(
+const isAlreadyOptimized = async (
   file: ReturnType<typeof s3.file>
-): Promise<boolean> {
+): Promise<boolean> => {
   try {
     const [header, stats] = await Promise.all([
       file.slice(0, METADATA_PROBE_BYTES).image().metadata(),
@@ -75,9 +39,9 @@ async function isAlreadyOptimized(
   } catch {
     return false;
   }
-}
+};
 
-const LEADING_SLASHES = /^\/+/;
+const LEADING_SLASHES = /^\/+/u;
 
 export function buildMediaUrl(path: string): string;
 export function buildMediaUrl(path: null | undefined): null;
@@ -102,10 +66,11 @@ interface CreatePresignedUploadInput {
   key: string;
 }
 
-export function createPresignedUploadUrl({
+// Photo flows go through presignPhotoUpload (utils/photo-upload.ts).
+export const createPresignedUploadUrl = ({
   contentType,
   key,
-}: CreatePresignedUploadInput) {
+}: CreatePresignedUploadInput) => {
   const uploadUrl = s3.presign(key, {
     expiresIn: DEFAULT_PRESIGNED_EXPIRES_SECONDS,
     type: contentType,
@@ -117,11 +82,11 @@ export function createPresignedUploadUrl({
     key,
     expires_in_seconds: DEFAULT_PRESIGNED_EXPIRES_SECONDS,
   };
-}
+};
 
 // A link to a missing file swaps the Order screen for S3's error page, so check first. An
 // outage is not a missing photo and is thrown as it is.
-export async function isStoredObjectReadable(key: string): Promise<boolean> {
+export const isStoredObjectReadable = async (key: string): Promise<boolean> => {
   try {
     await s3.file(key).slice(0, 1).bytes();
     return true;
@@ -131,23 +96,22 @@ export async function isStoredObjectReadable(key: string): Promise<boolean> {
     }
     throw error;
   }
-}
+};
 
 // A link that saves the photo as a file instead of showing it, straight from S3 — so the CDN
 // needs no CORS and no bytes pass through this server.
-export function createPresignedDownloadUrl({
+export const createPresignedDownloadUrl = ({
   key,
   filename,
 }: {
   key: string;
   filename: string;
-}) {
-  return s3.presign(key, {
+}) =>
+  s3.presign(key, {
     expiresIn: DEFAULT_PRESIGNED_EXPIRES_SECONDS,
     method: "GET",
     contentDisposition: `attachment; filename="${filename}"`,
   });
-}
 
 export interface StoredObject {
   key: string;
@@ -156,9 +120,9 @@ export interface StoredObject {
 
 // One listing returns 1000 keys; a caller seeing only the first page would treat the rest of
 // the shop's photos as missing.
-export async function listStoredObjects(
+export const listStoredObjects = async (
   prefix: string
-): Promise<StoredObject[]> {
+): Promise<StoredObject[]> => {
   const objects: StoredObject[] = [];
   let continuationToken: string | undefined;
 
@@ -175,22 +139,38 @@ export async function listStoredObjects(
   } while (continuationToken);
 
   return objects;
-}
+};
 
-export function deleteStoredObject(key: string): Promise<void> {
-  return s3.delete(key);
-}
+export const deleteStoredObject = (key: string): Promise<void> =>
+  s3.delete(key);
 
-export async function optimizeUploadedImage(key: string): Promise<void> {
-  const file = s3.file(key);
-
-  if (await isAlreadyOptimized(file)) {
-    return;
-  }
-
-  let optimized: Uint8Array;
+// A photo whose thumbnail fails still tiles from the original, so the save goes on without it.
+// `source` is the photo already in memory, when the save just encoded it.
+export const writePhotoThumbnail = async (
+  key: string,
+  source: Bun.Image = s3.file(key).image()
+): Promise<boolean> => {
   try {
-    optimized = await file
+    const thumbnail = await source
+      .resize(PHOTO_TILE_SIZE, PHOTO_TILE_SIZE, {
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: THUMBNAIL_QUALITY })
+      .bytes();
+    await s3.file(thumbnailKey(key)).write(thumbnail, { type: "image/webp" });
+    return true;
+  } catch (error) {
+    await reportError(error);
+    return false;
+  }
+};
+
+const encodeStoredWebp = async (
+  file: ReturnType<typeof s3.file>
+): Promise<Uint8Array> => {
+  try {
+    return await file
       .image()
       .resize(MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, {
         fit: "inside",
@@ -209,6 +189,21 @@ export async function optimizeUploadedImage(key: string): Promise<void> {
     }
     throw error;
   }
+};
 
-  await file.write(optimized, { type: "image/webp" });
-}
+// Rewrites whatever key it is given: call it through acceptPhotoUpload, which
+// first checks the key belongs to the Order, or one Order could overwrite another's.
+export const optimizeUploadedImage = async (key: string): Promise<void> => {
+  const file = s3.file(key);
+
+  if (await isAlreadyOptimized(file)) {
+    await writePhotoThumbnail(key);
+    return;
+  }
+
+  const encoded = await encodeStoredWebp(file);
+  await Promise.all([
+    file.write(encoded, { type: "image/webp" }),
+    writePhotoThumbnail(key, new Bun.Image(encoded)),
+  ]);
+};

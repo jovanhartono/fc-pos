@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+
 import { orderCampaignsTable, ordersTable } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import {
@@ -30,16 +31,17 @@ export interface CampaignRedemptionFields {
 export type ResolvedCampaignRow = CampaignRedemptionFields &
   ({ kind: "listed" } | { kind: "voucher"; voucherCode: string });
 
-export async function claimRedemptions(
+export const claimRedemptions = async (
   tx: OrderTx,
   campaignRows: ResolvedCampaignRow[],
   orderId: number
-) {
+) => {
   if (campaignRows.length === 0) {
     return;
   }
 
-  const resolvedCodeIds = new Map<number, number>(); // campaignId -> codeId
+  // campaignId -> codeId
+  const resolvedCodeIds = new Map<number, number>();
 
   for (const row of campaignRows) {
     if (row.kind === "listed") {
@@ -80,27 +82,25 @@ export async function claimRedemptions(
       free_quantity: row.free_quantity,
     }))
   );
-}
+};
 
 // Only called when a Cancellation closes the whole Order.
-export async function releaseRedemptions(tx: OrderTx, orderId: number) {
+export const releaseRedemptions = async (tx: OrderTx, orderId: number) => {
   const orderCampaigns = await findOrderCampaignsByOrderId(tx, orderId);
   for (const oc of orderCampaigns) {
-    if (oc.code_id === null) {
-      await decrementCampaignRedeemed(tx, oc.campaign_id);
-    } else {
-      await releaseCampaignCodeRedemption(tx, oc.code_id);
-    }
+    await (oc.code_id === null
+      ? decrementCampaignRedeemed(tx, oc.campaign_id)
+      : releaseCampaignCodeRedemption(tx, oc.code_id));
   }
-}
+};
 
 // Call from every path that lowers an unpaid Order's total after Settling
 // (ADR-0018, ADR-0008): "100k off, min 250k" on a shrunken Order is free money.
-export async function voidCampaignsBelowMinimum(
+export const voidCampaignsBelowMinimum = async (
   tx: OrderTx,
   orderId: number,
   billableTotal: number
-) {
+) => {
   const attached = await findOrderCampaignMinimums(tx, orderId);
   if (attached.length === 0) {
     return;
@@ -119,4 +119,4 @@ export async function voidCampaignsBelowMinimum(
     .update(ordersTable)
     .set({ discount: "0", discount_source: "none" })
     .where(eq(ordersTable.id, orderId));
-}
+};

@@ -1,3 +1,5 @@
+import { orderNetTotal } from "@fresclean/api/rules";
+
 import { TextSkeleton } from "@/components/text-skeleton";
 import { Separator } from "@/components/ui/separator";
 import type { OrderDetail } from "@/features/orders/api";
@@ -8,114 +10,121 @@ const MONEY_LIST = "grid gap-1.5 text-body tabular-nums compact:text-subhead";
 
 // Subtotal over Net, the bill of an Order with no discount.
 export const OrderMoneySummarySkeleton = () => (
-	<div className="px-4 py-4">
-		<dl className={MONEY_LIST}>
-			<div className="flex justify-between gap-4">
-				<dt className="text-muted-foreground">Subtotal</dt>
-				<dd>
-					<TextSkeleton />
-				</dd>
-			</div>
-		</dl>
-		<Separator className="my-2.5" />
-		<dl className={MONEY_LIST}>
-			<div className="flex justify-between gap-4 font-medium">
-				<dt>Net</dt>
-				<dd>
-					<TextSkeleton />
-				</dd>
-			</div>
-		</dl>
-	</div>
+  <div className="px-4 py-4">
+    <dl className={MONEY_LIST}>
+      <div className="flex justify-between gap-4">
+        <dt className="text-muted-foreground">Subtotal</dt>
+        <dd>
+          <TextSkeleton />
+        </dd>
+      </div>
+    </dl>
+    <Separator className="my-2.5" />
+    <dl className={MONEY_LIST}>
+      <div className="flex justify-between gap-4 font-medium">
+        <dt>Net</dt>
+        <dd>
+          <TextSkeleton />
+        </dd>
+      </div>
+    </dl>
+  </div>
 );
 
 interface OrderMoneySummaryProps {
-	detail: OrderDetail;
+  detail: OrderDetail;
 }
 
 export const OrderMoneySummary = ({ detail }: OrderMoneySummaryProps) => {
-	const discount = parseMoney(detail.discount);
-	const net = parseMoney(detail.total) - discount;
-	const refunded = parseMoney(detail.refunded_amount);
+  const discount = parseMoney(detail.discount);
+  const deliveryFee = parseMoney(detail.delivery_fee);
+  const net = orderNetTotal(detail);
+  const refunded = parseMoney(detail.refunded_amount);
 
-	// Money is charged per OrderService, not per Item (ADR-0017).
-	const serviceLines = flattenOrderLines(detail);
-	const servicesSubtotal = serviceLines.reduce(
-		(sum, service) => sum + parseMoney(service.subtotal),
-		0,
-	);
-	const productsSubtotal = detail.products.reduce(
-		(sum, product) => sum + parseMoney(product.subtotal),
-		0,
-	);
-	// Only worth splitting when the subtotal mixes both — otherwise the component
-	// line just repeats the Subtotal.
-	const showSubtotalBreakdown =
-		serviceLines.length > 0 && detail.products.length > 0;
+  // Money is charged per OrderService, not per Item (ADR-0017).
+  const serviceLines = flattenOrderLines(detail);
+  const servicesSubtotal = serviceLines.reduce(
+    (sum, service) => sum + parseMoney(service.subtotal),
+    0
+  );
+  const productsSubtotal = detail.products.reduce(
+    (sum, product) => sum + parseMoney(product.subtotal),
+    0
+  );
+  // Only worth splitting when the subtotal mixes both — otherwise the component
+  // line just repeats the Subtotal.
+  const showSubtotalBreakdown =
+    serviceLines.length > 0 && detail.products.length > 0;
 
-	return (
-		<div className="px-4 py-4">
-			<dl className={MONEY_LIST}>
-				{showSubtotalBreakdown ? (
-					<>
-						<div className="flex justify-between gap-4">
-							<dt className="text-muted-foreground">Services</dt>
-							<dd className="tabular-nums">{formatMoney(servicesSubtotal)}</dd>
-						</div>
-						<div className="flex justify-between gap-4">
-							<dt className="text-muted-foreground">Products</dt>
-							<dd className="tabular-nums">{formatMoney(productsSubtotal)}</dd>
-						</div>
-					</>
-				) : null}
-				<div className="flex justify-between gap-4">
-					<dt className="text-muted-foreground">Subtotal</dt>
-					<dd className="tabular-nums">{formatMoney(detail.total)}</dd>
-				</div>
-				{detail.campaigns.map((row) => (
-					<div className="flex justify-between gap-4" key={row.id}>
-						<dt className="text-muted-foreground">
-							{row.campaign?.code ?? "Campaign"}
-							{row.campaign?.name ? (
-								<span className="text-muted-foreground/70">
-									{" "}
-									· {row.campaign.name}
-								</span>
-							) : null}
-						</dt>
-						<dd className="text-destructive tabular-nums">
-							-{formatMoney(row.applied_amount)}
-						</dd>
-					</div>
-				))}
-				{discount > 0 ? (
-					<div className="flex justify-between gap-4">
-						{/* A manual discount has no row of its own, so the total line
+  return (
+    <div className="px-4 py-4">
+      <dl className={MONEY_LIST}>
+        {showSubtotalBreakdown ? (
+          <>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Services</dt>
+              <dd className="tabular-nums">{formatMoney(servicesSubtotal)}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Products</dt>
+              <dd className="tabular-nums">{formatMoney(productsSubtotal)}</dd>
+            </div>
+          </>
+        ) : null}
+        <div className="flex justify-between gap-4">
+          <dt className="text-muted-foreground">Subtotal</dt>
+          <dd className="tabular-nums">{formatMoney(detail.total)}</dd>
+        </div>
+        {detail.campaigns.map((row) => (
+          <div className="flex justify-between gap-4" key={row.id}>
+            <dt className="text-muted-foreground">
+              {row.campaign?.code ?? "Campaign"}
+              {row.campaign?.name ? (
+                <span className="text-muted-foreground/70">
+                  {" "}
+                  · {row.campaign.name}
+                </span>
+              ) : null}
+            </dt>
+            <dd className="text-destructive tabular-nums">
+              -{formatMoney(row.applied_amount)}
+            </dd>
+          </div>
+        ))}
+        {discount > 0 ? (
+          <div className="flex justify-between gap-4">
+            {/* A manual discount has no row of its own, so the total line
 						    names it for the cashier. */}
-						<dt className="text-muted-foreground">
-							{detail.discount_source === "manual"
-								? "Manual discount"
-								: "Discount total"}
-						</dt>
-						<dd className="text-destructive tabular-nums">
-							-{formatMoney(discount)}
-						</dd>
-					</div>
-				) : null}
-			</dl>
-			<Separator className="my-2.5" />
-			<dl className={MONEY_LIST}>
-				<div className="flex justify-between gap-4 font-medium">
-					<dt>Net</dt>
-					<dd className="tabular-nums">{formatMoney(net)}</dd>
-				</div>
-				{refunded > 0 ? (
-					<div className="flex justify-between gap-4 text-destructive">
-						<dt>Refunded</dt>
-						<dd className="tabular-nums">-{formatMoney(refunded)}</dd>
-					</div>
-				) : null}
-			</dl>
-		</div>
-	);
+            <dt className="text-muted-foreground">
+              {detail.discount_source === "manual"
+                ? "Manual discount"
+                : "Discount total"}
+            </dt>
+            <dd className="text-destructive tabular-nums">
+              -{formatMoney(discount)}
+            </dd>
+          </div>
+        ) : null}
+        {deliveryFee > 0 ? (
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Delivery fee</dt>
+            <dd className="tabular-nums">{formatMoney(deliveryFee)}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <Separator className="my-2.5" />
+      <dl className={MONEY_LIST}>
+        <div className="flex justify-between gap-4 font-medium">
+          <dt>Net</dt>
+          <dd className="tabular-nums">{formatMoney(net)}</dd>
+        </div>
+        {refunded > 0 ? (
+          <div className="flex justify-between gap-4 text-destructive">
+            <dt>Refunded</dt>
+            <dd className="tabular-nums">-{formatMoney(refunded)}</dd>
+          </div>
+        ) : null}
+      </dl>
+    </div>
+  );
 };

@@ -1,13 +1,15 @@
-import "@/test-support/pglite";
 import { beforeEach, expect, it, mock } from "bun:test";
-import { addItemPhoto, type Shop, seedShop } from "@/test-support/fixtures";
+
+import "@/test-support/pglite";
+import { captureRejection } from "@/test-support/capture-rejection";
+import { addItemPhoto, seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // Who may see the Pickup code, the six digits that release a Customer's Items
 // at the counter (ADR-0005/0016).
 
 mock.module("@/utils/s3", () => ({
-  STORAGE_ENV_PREFIX: "dev/",
   buildMediaUrl: (path: string | null) =>
     path ? `https://cdn.test/${path}` : null,
   createPresignedUploadUrl: ({ key }: { key: string }) => ({
@@ -21,23 +23,19 @@ mock.module("@/utils/s3", () => ({
 // Imported after both swaps above: a static import would bind the real
 // database and storage before the swaps run.
 const { db } = await import("@/db");
-const { createOrder, getOrderDetailById } = await import(
-  "@/modules/orders/order.service"
-);
-const { getOrderReceiptById } = await import(
-  "@/modules/orders/order-receipt.service"
-);
-const { getOrderServiceDetail } = await import(
-  "@/modules/orders/order-service-detail.service"
-);
-const { getTrackedOrder } = await import(
-  "@/modules/orders/order-track.service"
-);
-const { transitionOrderService } = await import(
-  "@/modules/orders/order-status-machine"
-);
+const { createOrder, getOrderDetailById } =
+  await import("@/modules/orders/order.service");
+const { getOrderReceiptById } =
+  await import("@/modules/orders/order-receipt.service");
+const { getOrderServiceDetail } =
+  await import("@/modules/orders/order-service-detail.service");
+const { getTrackedOrder } =
+  await import("@/modules/orders/order-track.service");
+const { transitionOrderService } =
+  await import("@/modules/orders/order-status-machine");
 
 const CUSTOMER_PHONE = "+628111222333";
+const OTHER_PHONE = "+628999888777";
 
 let shop: Shop;
 
@@ -46,6 +44,7 @@ const placeOrder = () =>
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: CUSTOMER_PHONE },
     discount: 0,
+    delivery_fee: 0,
     items: [{ services: [{ id: shop.serviceId }] }],
     payment_method_id: shop.paymentMethodId,
     payment_status: "paid",
@@ -67,11 +66,7 @@ const putOnTheShelf = async (orderId: number) => {
   }
   await addItemPhoto(item.id, shop.cashier.id);
 
-  for (const to of [
-    "processing",
-    "quality_check",
-    "ready_for_pickup",
-  ] as const) {
+  for (const to of ["processing", "waiting_qc", "ready_for_pickup"] as const) {
     await transitionOrderService(db, {
       by: shop.cashier.id,
       orderId,
@@ -162,6 +157,7 @@ it("keeps staff notes out of the tracker", async () => {
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: CUSTOMER_PHONE },
     discount: 0,
+    delivery_fee: 0,
     items: [{ services: [{ id: shop.serviceId }] }],
     notes: "Customer argued about the price",
     payment_method_id: shop.paymentMethodId,
@@ -208,4 +204,34 @@ it("masks the phone number the tracker echoes back", async () => {
 
   expect(tracked.customer.phone_number_masked).toBe("******2333");
   expect(tracked.customer).not.toHaveProperty("phone_number");
+});
+
+// A guesser holding a real Order code learns nothing from a wrong phone, even
+// the phone of another real Customer.
+it("answers the same for a wrong phone and another Customer's phone", async () => {
+  const order = await placeOrder();
+  await createOrder(shop.admin.id, shop.store, {
+    campaign_ids: [],
+    customer: { name: "Siti Aminah", phone_number: OTHER_PHONE },
+    discount: 0,
+    delivery_fee: 0,
+    items: [{ services: [{ id: shop.serviceId }] }],
+    payment_method_id: shop.paymentMethodId,
+    payment_status: "paid",
+    store_id: shop.store.id,
+    voucher_codes: [],
+  });
+
+  const otherCustomer = await captureRejection(
+    getTrackedOrder({ code: order.code, phone_number: OTHER_PHONE })
+  );
+  const unknownPhone = await captureRejection(
+    getTrackedOrder({ code: order.code, phone_number: "+628000000000" })
+  );
+
+  for (const refused of [otherCustomer, unknownPhone]) {
+    expect((refused as Error).message).toBe(
+      "Order code or phone number is invalid"
+    );
+  }
 });

@@ -1,33 +1,20 @@
 import { rpcFn } from "@fresclean/api/rpc";
+
 import { API_BASE_URL } from "@/lib/rpc-public";
 import { useAuthStore } from "@/stores/auth-store";
 
 const authFetch: typeof fetch = async (input, init) => {
-	const response = await fetch(input, init);
+  // Local Vite and the API sit on different ports, so the session cookie only
+  // travels when asked for; deployed they share one origin.
+  const response = await fetch(input, { ...init, credentials: "include" });
 
-	if (response.status === 401) {
-		const { token, clearToken } = useAuthStore.getState();
-		if (token) {
-			clearToken();
-			if (typeof window !== "undefined") {
-				const loginPath = "/auth/login";
-				if (window.location.pathname !== loginPath) {
-					window.location.assign(loginPath);
-				}
-			}
-		}
-	}
+  // A wrong password on Sign In is a 401 too; with nobody signed in there is
+  // nothing to clear, and a write would reload every other tab.
+  if (response.status === 401 && useAuthStore.getState().user) {
+    useAuthStore.getState().clearUser();
+  }
 
-	return response;
+  return response;
 };
 
 export const rpc = rpcFn(API_BASE_URL, { fetch: authFetch });
-
-export const rpcWithAuth = () => {
-	const token = useAuthStore.getState().token;
-
-	return rpcFn(API_BASE_URL, {
-		headers: token ? { Authorization: `Bearer ${token}` } : {},
-		fetch: authFetch,
-	});
-};

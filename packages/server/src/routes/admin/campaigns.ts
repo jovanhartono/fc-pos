@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
+
 import { db } from "@/db";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import { findCampaignByIdWithCodes } from "@/modules/campaigns/campaign.repository";
@@ -14,6 +15,7 @@ import {
   deleteCampaign,
   getCampaignById,
   getCampaigns,
+  hasLiveVoucher,
   resolveVoucherCode,
   updateCampaign,
 } from "@/modules/campaigns/campaign.service";
@@ -31,6 +33,19 @@ const app = new Hono<AdminEnv>()
 
     return c.json(success(items));
   })
+  .get(
+    "/live-voucher",
+    zodValidator(
+      "query",
+      z.object({ store_id: z.coerce.number().int().positive() })
+    ),
+    async (c) => {
+      const { store_id } = c.req.valid("query");
+      return c.json(
+        success({ has_live_voucher: await hasLiveVoucher(store_id) })
+      );
+    }
+  )
   .post(
     "/resolve-code",
     zodValidator(
@@ -42,11 +57,14 @@ const app = new Hono<AdminEnv>()
           .max(32)
           .transform((s) => s.toUpperCase()),
         gross_total: z.coerce.number().nonnegative(),
+        // The Order's BOGO slot Services, so a buy 4 get 1 code is refused
+        // here, not after it shows as applied.
+        service_ids: z.array(z.coerce.number().int().positive()),
         store_id: z.coerce.number().int().positive(),
       })
     ),
     async (c) => {
-      const { code, gross_total, store_id } = c.req.valid("json");
+      const { code, gross_total, service_ids, store_id } = c.req.valid("json");
 
       const store = await findStoreById(store_id);
       if (!store) {
@@ -55,6 +73,7 @@ const app = new Hono<AdminEnv>()
 
       const { campaign } = await resolveVoucherCode(db, code, {
         grossTotal: gross_total,
+        lines: service_ids.map((service_id) => ({ service_id })),
         storeCode: store.code,
         storeId: store_id,
       });

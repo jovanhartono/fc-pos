@@ -34,10 +34,8 @@ export function success<T>(
   };
 }
 
-export function failure(message: string, errors?: unknown): ErrorResponse {
-  return {
-    errors,
-    message,
-    success: false,
-  };
-}
+export const failure = (message: string, errors?: unknown): ErrorResponse => ({
+  errors,
+  message,
+  success: false,
+});

@@ -3,7 +3,7 @@ import { StatusCodes } from "http-status-codes";
 
 // For find-or-create races a service recovers from itself, instead of the
 // global handler answering 409.
-export function isUniqueViolation(error: unknown): boolean {
+export const isUniqueViolation = (error: unknown): boolean => {
   if (typeof error !== "object" || error === null) {
     return false;
   }
@@ -12,7 +12,7 @@ export function isUniqueViolation(error: unknown): boolean {
     return (cause as { code?: string }).code === "23505";
   }
   return "code" in error && (error as { code?: string }).code === "23505";
-}
+};
 
 export interface PostgresError {
   code?: string;
@@ -31,23 +31,25 @@ const hasCode = (value: unknown): value is PostgresError =>
 
 // Reads on `db.query.*` throw the driver error directly while writes arrive
 // wrapped, so the code sits on the error itself as often as on its cause.
-export function asPostgresError(error: unknown): PostgresError | undefined {
+export const asPostgresError = (error: unknown): PostgresError | undefined => {
   if (hasCode(error)) {
     return error;
   }
   const cause = (error as { cause?: unknown } | null)?.cause;
   return hasCode(cause) ? cause : undefined;
-}
+};
 
 // Dev calls the constraint customers_phone_number_key, production calls it
 // customers_phone_number_unique. The same duplicate must read the same at the
 // counter on either database.
-const UNIQUE_SUFFIX = /_(?:key|unique)$/;
+const UNIQUE_SUFFIX = /_(?:key|unique)$/u;
 
 const CONSTRAINT_MESSAGES: Partial<Record<string, string>> = {
   customers_email: "A customer with that email already exists",
   customers_phone_number: "A customer with that phone number already exists",
   paid_amount_valid_check: "Payment cannot be more than the order total",
+  payment_methods_gateway_uidx:
+    "Another payment method is already linked to that gateway",
   products_sku: "That SKU is already in use",
   refunded_amount_valid_check: "Refund cannot be more than the amount paid",
   services_code: "That service code is already in use",
@@ -80,26 +82,26 @@ const CODE_FAILURES: Partial<Record<string, PostgresFailure>> = {
 };
 
 const UNKNOWN_FAILURE: PostgresFailure = {
-  message: "Something went wrong",
+  message: "The server hit a problem. Try again.",
   status: StatusCodes.INTERNAL_SERVER_ERROR,
 };
 
-export function mapPostgresError({
+export const mapPostgresError = ({
   code,
   constraint,
-}: PostgresError): PostgresFailure {
+}: PostgresError): PostgresFailure => {
   const failure = (code ? CODE_FAILURES[code] : undefined) ?? UNKNOWN_FAILURE;
   const named = constraint
     ? CONSTRAINT_MESSAGES[constraint.replace(UNIQUE_SUFFIX, "")]
     : undefined;
 
   return named ? { message: named, status: failure.status } : failure;
-}
+};
 
 // Postgres quotes the data that broke the save — the duplicate phone number, or
 // the whole half-typed customer row. Which column clashed is worth keeping in
 // the log; whose phone number it was is not.
 export const redactDetail = (detail: string): string =>
   detail
-    .replaceAll(/[=]\([^)]*\)/g, "=(…)")
-    .replaceAll(/contains \([^)]*\)/g, "contains (…)");
+    .replaceAll(/[=]\([^)]*\)/gu, "=(…)")
+    .replaceAll(/contains \([^)]*\)/gu, "contains (…)");

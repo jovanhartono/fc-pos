@@ -1,7 +1,17 @@
 import { Hono } from "hono";
 import { StatusCodes } from "http-status-codes";
+
 import { NotFoundException } from "@/http-exceptions";
 import { assertIsAdmin } from "@/modules/permissions/permissions";
+import {
+  deviceIdParamSchema,
+  POSTStoreDeviceSchema,
+} from "@/modules/stores/store-device.schema";
+import {
+  getStoreDevices,
+  registerStoreDevice,
+  removeStoreDevice,
+} from "@/modules/stores/store-device.service";
 import {
   PATCHStoreSchema,
   POSTStoreSchema,
@@ -14,15 +24,6 @@ import {
   updateStore,
   updateStoreStatus,
 } from "@/modules/stores/store.service";
-import {
-  deviceIdParamSchema,
-  POSTStoreDeviceSchema,
-} from "@/modules/stores/store-device.schema";
-import {
-  getStoreDevices,
-  registerStoreDevice,
-  removeStoreDevice,
-} from "@/modules/stores/store-device.service";
 import { idParamSchema } from "@/schema/param";
 import type { AdminEnv } from "@/types/hono";
 import { assertStoreAccess } from "@/utils/authorization";
@@ -72,7 +73,7 @@ const app = new Hono<AdminEnv>()
         throw new NotFoundException("Store not found");
       }
 
-      return c.json(success(store, `Successfully updated ${store.name}`));
+      return c.json(success(store, `${store.name} updated`));
     }
   )
   .patch(

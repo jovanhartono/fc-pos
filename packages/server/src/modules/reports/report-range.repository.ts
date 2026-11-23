@@ -9,10 +9,13 @@ import {
   isNotNull,
   isNull,
   lt,
+  ne,
   or,
   sql,
 } from "drizzle-orm";
-import { alias, type SelectedFields } from "drizzle-orm/pg-core";
+import { alias } from "drizzle-orm/pg-core";
+import type { SelectedFields } from "drizzle-orm/pg-core";
+
 import { db } from "@/db";
 import {
   campaignsTable,
@@ -33,25 +36,30 @@ import {
   storesTable,
   usersTable,
 } from "@/db/schema";
+import { hasLiveRework } from "@/modules/complaints/complaint.repository";
+import { itemNameColumns } from "@/modules/orders/order-read.repository";
 import {
   collected,
   discount,
   grossSales,
   paidOrderWindow,
-  type RangeArgs,
   refunded,
   storeScope,
   sumMoney,
   timeWindow,
 } from "@/modules/reports/money-basis";
+import type { RangeArgs } from "@/modules/reports/money-basis";
 import {
   cleanerOfRound,
   qualityCheckInRange,
 } from "@/modules/reports/quality.repository";
 import {
-  type DateRange,
-  type Granularity,
   jakartaBucketExpr,
+  jakartaWallTime,
+} from "@/modules/reports/report-range.util";
+import type {
+  DateRange,
+  Granularity,
 } from "@/modules/reports/report-range.util";
 import { listServicesProcessed } from "@/modules/reports/services-processed";
 
@@ -59,54 +67,40 @@ interface SeriesRangeArgs extends RangeArgs {
   granularity: Granularity;
 }
 
-async function sumByBucket(
+const sumByBucket = async (
   lineTable: typeof ordersServicesTable | typeof ordersProductsTable,
-  amount: "subtotal" | "cogs_snapshot",
   { range, storeId, granularity }: SeriesRangeArgs
-) {
+) => {
   const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
-  return await db
+  const rows = await db
     .select({
       bucket,
-      total: sumMoney(lineTable[amount]),
+      gross_sales: grossSales(lineTable),
+      cogs: sumMoney(lineTable.cogs_snapshot),
     })
     .from(lineTable)
     .innerJoin(ordersTable, eq(lineTable.order_id, ordersTable.id))
     .where(and(...paidOrderWindow({ range, storeId })))
     .groupBy(bucket);
-}
 
-export async function listServicesGrossSalesSeries(args: SeriesRangeArgs) {
-  const rows = await sumByBucket(ordersServicesTable, "subtotal", args);
   return rows.map((row) => ({
     bucket: row.bucket,
-    gross_sales: Number(row.total),
+    gross_sales: Number(row.gross_sales),
+    cogs: Number(row.cogs),
   }));
-}
+};
 
-export async function listProductsGrossSalesSeries(args: SeriesRangeArgs) {
-  const rows = await sumByBucket(ordersProductsTable, "subtotal", args);
-  return rows.map((row) => ({
-    bucket: row.bucket,
-    gross_sales: Number(row.total),
-  }));
-}
+export const listServicesSeries = (args: SeriesRangeArgs) =>
+  sumByBucket(ordersServicesTable, args);
 
-export async function listServicesCogsSeries(args: SeriesRangeArgs) {
-  const rows = await sumByBucket(ordersServicesTable, "cogs_snapshot", args);
-  return rows.map((row) => ({ bucket: row.bucket, cogs: Number(row.total) }));
-}
+export const listProductsSeries = (args: SeriesRangeArgs) =>
+  sumByBucket(ordersProductsTable, args);
 
-export async function listProductsCogsSeries(args: SeriesRangeArgs) {
-  const rows = await sumByBucket(ordersProductsTable, "cogs_snapshot", args);
-  return rows.map((row) => ({ bucket: row.bucket, cogs: Number(row.total) }));
-}
-
-export async function listOrderDiscountSeries({
+export const listOrderDiscountSeries = async ({
   range,
   storeId,
   granularity,
-}: SeriesRangeArgs) {
+}: SeriesRangeArgs) => {
   const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
   const rows = await db
     .select({
@@ -121,18 +115,19 @@ export async function listOrderDiscountSeries({
     bucket: row.bucket,
     discount: Number(row.discount),
   }));
-}
+};
 
-export async function listCollectedSeries({
+export const listCollectedSeries = async ({
   range,
   storeId,
   granularity,
-}: SeriesRangeArgs) {
+}: SeriesRangeArgs) => {
   const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
   const rows = await db
     .select({
       bucket,
       collected: collected(),
+      delivery_fees: sumMoney(ordersTable.delivery_fee),
     })
     .from(ordersTable)
     .where(and(...paidOrderWindow({ range, storeId })))
@@ -141,10 +136,11 @@ export async function listCollectedSeries({
   return rows.map((row) => ({
     bucket: row.bucket,
     collected: Number(row.collected),
+    delivery_fees: Number(row.delivery_fees),
   }));
-}
+};
 
-export async function listStoreCollectedRows({ range, storeId }: RangeArgs) {
+export const listStoreCollectedRows = async ({ range, storeId }: RangeArgs) => {
   const rows = await db
     .select({
       store_id: ordersTable.store_id,
@@ -166,9 +162,9 @@ export async function listStoreCollectedRows({ range, storeId }: RangeArgs) {
     collected: Number(row.collected),
     orders: Number(row.orders),
   }));
-}
+};
 
-export async function listStoreRefundRows({ range, storeId }: RangeArgs) {
+export const listStoreRefundRows = async ({ range, storeId }: RangeArgs) => {
   const rows = await db
     .select({
       store_id: ordersTable.store_id,
@@ -193,13 +189,101 @@ export async function listStoreRefundRows({ range, storeId }: RangeArgs) {
     store_code: row.store_code,
     refunds: Number(row.refunds),
   }));
-}
+};
 
-export async function listCategoryGrossSalesSeries({
+export const listBusyHourRows = async ({ range, storeId }: RangeArgs) => {
+  const wallTime = jakartaWallTime(ordersTable.paid_at);
+  const weekday = sql<number>`(EXTRACT(ISODOW FROM ${wallTime}) - 1)::int`;
+  const hour = sql<number>`EXTRACT(HOUR FROM ${wallTime})::int`;
+  const rows = await db
+    .select({ weekday, hour, collected: collected() })
+    .from(ordersTable)
+    .where(and(...paidOrderWindow({ range, storeId })))
+    .groupBy(weekday, hour)
+    .orderBy(weekday, hour);
+
+  return rows.map((row) => ({
+    weekday: Number(row.weekday),
+    hour: Number(row.hour),
+    collected: Number(row.collected),
+  }));
+};
+
+export const listTopServiceRows = async ({ range, storeId }: RangeArgs) => {
+  const rows = await db
+    .select({
+      service_id: servicesTable.id,
+      code: servicesTable.code,
+      name: servicesTable.name,
+      gross_sales: grossSales(ordersServicesTable),
+      // A Rework is the same sale done again for a Complaint, not a new sale.
+      items: sql<number>`(COUNT(*) FILTER (WHERE ${ordersServicesTable.complaint_id} IS NULL))::int`,
+      cogs: sumMoney(ordersServicesTable.cogs_snapshot),
+    })
+    .from(ordersServicesTable)
+    .innerJoin(ordersTable, eq(ordersServicesTable.order_id, ordersTable.id))
+    .innerJoin(
+      servicesTable,
+      eq(ordersServicesTable.service_id, servicesTable.id)
+    )
+    .where(and(...paidOrderWindow({ range, storeId })))
+    .groupBy(servicesTable.id, servicesTable.code, servicesTable.name)
+    .orderBy(
+      desc(sql`SUM(${ordersServicesTable.subtotal})`),
+      asc(servicesTable.id)
+    )
+    .limit(5);
+
+  return rows.map((row) => ({
+    service_id: row.service_id,
+    code: row.code,
+    name: row.name,
+    gross_sales: Number(row.gross_sales),
+    items: Number(row.items),
+    cogs: Number(row.cogs),
+  }));
+};
+
+export const UNPAID_AGE_KEYS = ["week", "month", "older"] as const;
+
+// Who still owes the counter today, whatever stretch the report covers. A
+// cancelled Order owes nothing, as on the Orders list's Unpaid filter. The
+// amount is orderNetTotal (schema/discount.ts) in SQL: change the two together.
+export const listUnpaidOrderAgeRows = async ({
+  storeId,
+}: Pick<RangeArgs, "storeId">) => {
+  const ageDays = sql`(now() AT TIME ZONE 'Asia/Jakarta')::date - (${jakartaWallTime(ordersTable.created_at)})::date`;
+  const key = sql<
+    (typeof UNPAID_AGE_KEYS)[number]
+  >`CASE WHEN ${ageDays} <= 7 THEN 'week' WHEN ${ageDays} <= 30 THEN 'month' ELSE 'older' END`;
+  const rows = await db
+    .select({
+      key,
+      orders: sql<number>`COUNT(*)::int`,
+      amount: sql<string>`COALESCE(SUM(${ordersTable.total} - ${ordersTable.discount} + ${ordersTable.delivery_fee}), 0)`,
+    })
+    .from(ordersTable)
+    .where(
+      and(
+        eq(ordersTable.payment_status, "unpaid"),
+        ne(ordersTable.status, "cancelled"),
+        storeScope(ordersTable.store_id, storeId)
+      )
+    )
+    .groupBy(key);
+
+  return rows.map((row) => ({
+    key: row.key,
+    orders: Number(row.orders),
+    amount: Number(row.amount),
+  }));
+};
+
+export const listCategoryGrossSalesSeries = async ({
   range,
   storeId,
   granularity,
-}: SeriesRangeArgs) {
+}: SeriesRangeArgs) => {
   const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
   const rows = await db
     .select({
@@ -227,12 +311,12 @@ export async function listCategoryGrossSalesSeries({
     category_name: row.category_name,
     gross_sales: Number(row.gross_sales),
   }));
-}
+};
 
-export async function listStoreCategoryGrossSalesRows({
+export const listStoreCategoryGrossSalesRows = async ({
   range,
   storeId,
-}: RangeArgs) {
+}: RangeArgs) => {
   const rows = await db
     .select({
       store_id: ordersTable.store_id,
@@ -270,13 +354,13 @@ export async function listStoreCategoryGrossSalesRows({
     category_name: row.category_name,
     gross_sales: Number(row.gross_sales),
   }));
-}
+};
 
-export async function listOrdersInSeries({
+export const listOrdersInSeries = async ({
   range,
   storeId,
   granularity,
-}: SeriesRangeArgs) {
+}: SeriesRangeArgs) => {
   const bucket = jakartaBucketExpr(ordersTable.created_at, granularity);
   const conditions = [
     ...timeWindow(ordersTable.created_at, range),
@@ -296,13 +380,13 @@ export async function listOrdersInSeries({
     bucket: row.bucket,
     orders_in: Number(row.orders_in),
   }));
-}
+};
 
-export async function listOrdersOutSeries({
+export const listOrdersOutSeries = async ({
   range,
   storeId,
   granularity,
-}: SeriesRangeArgs) {
+}: SeriesRangeArgs) => {
   const bucket = jakartaBucketExpr(
     orderPickupEventsTable.picked_up_at,
     granularity
@@ -326,19 +410,20 @@ export async function listOrdersOutSeries({
     bucket: row.bucket,
     orders_out: Number(row.orders_out),
   }));
-}
+};
 
-export async function listPaymentMixSeries({
+export const listPaymentMixSeries = async ({
   range,
   storeId,
   granularity,
-}: SeriesRangeArgs) {
+}: SeriesRangeArgs) => {
   const bucket = jakartaBucketExpr(ordersTable.paid_at, granularity);
   const rows = await db
     .select({
       bucket,
       payment_method_id: ordersTable.payment_method_id,
       payment_method_name: paymentMethodsTable.name,
+      payment_method_code: paymentMethodsTable.code,
       collected: collected(),
       orders: sql<number>`COUNT(*)::int`,
     })
@@ -348,22 +433,28 @@ export async function listPaymentMixSeries({
       eq(ordersTable.payment_method_id, paymentMethodsTable.id)
     )
     .where(and(...paidOrderWindow({ range, storeId })))
-    .groupBy(bucket, ordersTable.payment_method_id, paymentMethodsTable.name);
+    .groupBy(
+      bucket,
+      ordersTable.payment_method_id,
+      paymentMethodsTable.name,
+      paymentMethodsTable.code
+    );
 
   return rows.map((row) => ({
     bucket: row.bucket,
     payment_method_id: row.payment_method_id ?? 0,
     payment_method_name: row.payment_method_name ?? "Unknown",
+    payment_method_code: row.payment_method_code ?? "Unknown",
     collected: Number(row.collected),
     orders: Number(row.orders),
   }));
-}
+};
 
-export async function listNewCustomersSeries({
+export const listNewCustomersSeries = async ({
   range,
   storeId,
   granularity,
-}: SeriesRangeArgs) {
+}: SeriesRangeArgs) => {
   const bucket = jakartaBucketExpr(customersTable.created_at, granularity);
   const conditions = [
     ...timeWindow(customersTable.created_at, range),
@@ -383,13 +474,13 @@ export async function listNewCustomersSeries({
     bucket: row.bucket,
     new_customers: Number(row.new_customers),
   }));
-}
+};
 
-export async function listReturningCustomerOrdersSeries({
+export const listReturningCustomerOrdersSeries = async ({
   range,
   storeId,
   granularity,
-}: SeriesRangeArgs) {
+}: SeriesRangeArgs) => {
   const bucket = jakartaBucketExpr(ordersTable.created_at, granularity);
   const conditions = [
     ...timeWindow(ordersTable.created_at, range),
@@ -413,9 +504,9 @@ export async function listReturningCustomerOrdersSeries({
     customer_created_at: row.customer_created_at,
     orders: Number(row.orders),
   }));
-}
+};
 
-export async function listTopCustomers({
+export const listTopCustomers = async ({
   range,
   storeId,
   limit = 10,
@@ -423,7 +514,7 @@ export async function listTopCustomers({
   range: DateRange;
   storeId?: number;
   limit?: number;
-}) {
+}) => {
   // Spelled out rather than reusing paidOrderWindow: that helper puts the store
   // filter before "has a customer", and reordering these renumbers the binds
   // against the LIMIT below.
@@ -460,15 +551,15 @@ export async function listTopCustomers({
     orders: Number(row.orders),
     collected: Number(row.collected),
   }));
-}
+};
 
-export async function findCumulativeCustomersBefore({
+export const findCumulativeCustomersBefore = async ({
   before,
   storeId,
 }: {
   before: Date;
   storeId?: number;
-}) {
+}) => {
   const conditions = [
     lt(customersTable.created_at, before),
     storeScope(customersTable.origin_store_id, storeId),
@@ -480,9 +571,12 @@ export async function findCumulativeCustomersBefore({
     .where(and(...conditions));
 
   return Number(row?.total ?? 0);
-}
+};
 
-export async function findRepeatCustomerStats({ range, storeId }: RangeArgs) {
+export const findRepeatCustomerStats = async ({
+  range,
+  storeId,
+}: RangeArgs) => {
   const conditions = [
     ...timeWindow(ordersTable.created_at, range),
     isNotNull(ordersTable.customer_id),
@@ -510,13 +604,13 @@ export async function findRepeatCustomerStats({ range, storeId }: RangeArgs) {
     total_customers: Number(row?.total_customers ?? 0),
     repeat_customers: Number(row?.repeat_customers ?? 0),
   };
-}
+};
 
-export async function listRefundAmountSeries({
+export const listRefundAmountSeries = async ({
   range,
   storeId,
   granularity,
-}: SeriesRangeArgs) {
+}: SeriesRangeArgs) => {
   const bucket = jakartaBucketExpr(orderRefundsTable.created_at, granularity);
   const conditions = [
     ...timeWindow(orderRefundsTable.created_at, range),
@@ -539,17 +633,42 @@ export async function listRefundAmountSeries({
     amount: Number(row.amount),
     refunds: Number(row.refunds),
   }));
-}
+};
 
 const startLog = alias(orderServiceStatusLogsTable, "start_log");
 const passLog = alias(orderServiceStatusLogsTable, "pass_log");
 const qcCheckLog = alias(orderServiceStatusLogsTable, "qc_check_log");
+const workLog = alias(orderServiceStatusLogsTable, "work_log");
+
+// A worker on their own Profile page: only their rows, not the whole shop's.
+type ActivityArgs = RangeArgs & { userId?: number };
+
+const userScope = (column: Parameters<typeof eq>[0], userId?: number) =>
+  userId === undefined ? undefined : eq(column, userId);
+
+// Whoever started a line, and whoever cleaned the round that passed, both
+// moved it to processing, so this keeps every line their tallies can use.
+const workedOnBy = (userId?: number) =>
+  userId === undefined
+    ? undefined
+    : exists(
+        db
+          .select({ id: workLog.id })
+          .from(workLog)
+          .where(
+            and(
+              eq(workLog.order_service_id, ordersServicesTable.id),
+              eq(workLog.to_status, "processing"),
+              eq(workLog.changed_by, userId)
+            )
+          )
+      );
 
 // Every Service processed in the stretch, credited to whoever started it.
-function listProcessedLines<TDetail extends SelectedFields>(
-  { range, storeId }: RangeArgs,
+const listProcessedLines = <TDetail extends SelectedFields>(
+  { range, storeId, userId }: ActivityArgs,
   detail: TDetail
-) {
+) => {
   const processed = listServicesProcessed({ range, storeId }).as("processed");
   return db
     .selectDistinctOn([processed.order_service_id], {
@@ -577,45 +696,44 @@ function listProcessedLines<TDetail extends SelectedFields>(
         eq(startLog.to_status, "processing")
       )
     )
+    .where(workedOnBy(userId))
     .orderBy(processed.order_service_id, desc(startLog.created_at));
-}
+};
 
 // What the Complaint rate needs from every line, this stretch or the last.
-function complaintFlags() {
-  return {
-    is_rework: sql<boolean>`${isNotNull(ordersServicesTable.complaint_id)}`,
-    passed: sql<boolean>`${exists(
-      db
-        .select({ id: passLog.id })
-        .from(passLog)
-        .where(
-          and(
-            eq(passLog.order_service_id, ordersServicesTable.id),
-            eq(passLog.from_status, "quality_check"),
-            eq(passLog.to_status, "ready_for_pickup")
-          )
+const complaintFlags = () => ({
+  is_rework: sql<boolean>`${isNotNull(ordersServicesTable.complaint_id)}`,
+  passed: sql<boolean>`${exists(
+    db
+      .select({ id: passLog.id })
+      .from(passLog)
+      .where(
+        and(
+          eq(passLog.order_service_id, ordersServicesTable.id),
+          eq(passLog.from_status, "waiting_qc"),
+          eq(passLog.to_status, "ready_for_pickup")
         )
-    )}`,
-    has_complaint: sql<boolean>`${exists(
-      db
-        .select({ id: complaintsTable.id })
-        .from(complaintsTable)
-        .where(eq(complaintsTable.order_service_id, ordersServicesTable.id))
-    )}`,
-  };
-}
+      )
+  )}`,
+  has_complaint: sql<boolean>`${exists(
+    db
+      .select({ id: complaintsTable.id })
+      .from(complaintsTable)
+      .where(eq(complaintsTable.order_service_id, ordersServicesTable.id))
+  )}`,
+});
 
 // What the rows need beyond the headline. Once the line has passed QC, a
 // Complaint about it belongs to whoever cleaned the round that passed, not to
 // whoever started it.
-function lineDetail() {
+const lineDetail = () => {
   const firstPass = db
     .select({ cleaner_id: sql`${cleanerOfRound(passLog)}` })
     .from(passLog)
     .where(
       and(
         eq(passLog.order_service_id, ordersServicesTable.id),
-        eq(passLog.from_status, "quality_check"),
+        eq(passLog.from_status, "waiting_qc"),
         eq(passLog.to_status, "ready_for_pickup")
       )
     )
@@ -625,13 +743,14 @@ function lineDetail() {
   return {
     service_id: ordersServicesTable.service_id,
     service_name: servicesTable.name,
+    service_code: servicesTable.code,
     passed_cleaner_id: sql<number | null>`${firstPass}`,
     ...complaintFlags(),
   };
-}
+};
 
-function listShiftsInRange({ range, storeId }: RangeArgs) {
-  return db
+const listShiftsInRange = ({ range, storeId, userId }: ActivityArgs) =>
+  db
     .select({
       user_id: shiftsTable.user_id,
       store_id: shiftsTable.store_id,
@@ -642,14 +761,14 @@ function listShiftsInRange({ range, storeId }: RangeArgs) {
     .where(
       and(
         ...timeWindow(shiftsTable.clock_in_at, range),
-        storeScope(shiftsTable.store_id, storeId)
+        storeScope(shiftsTable.store_id, storeId),
+        userScope(shiftsTable.user_id, userId)
       )
     );
-}
 
 const BENCH_STATUSES = [
   "processing",
-  "quality_check",
+  "waiting_qc",
   "qc_reject",
   "ready_for_pickup",
 ] as const;
@@ -657,7 +776,7 @@ const BENCH_STATUSES = [
 // Days a person moved an Item through the bench, at the Order's Store. Workers
 // who rarely clock in still show a day worked. Pickups, refunds and cancels are
 // the counter's work, so they are left out.
-function listBenchMoveDays({ range, storeId }: RangeArgs) {
+const listBenchMoveDays = ({ range, storeId, userId }: ActivityArgs) => {
   const day = jakartaBucketExpr(orderServiceStatusLogsTable.created_at, "day");
   return db
     .select({
@@ -675,15 +794,16 @@ function listBenchMoveDays({ range, storeId }: RangeArgs) {
       and(
         ...timeWindow(orderServiceStatusLogsTable.created_at, range),
         inArray(orderServiceStatusLogsTable.to_status, BENCH_STATUSES),
-        storeScope(ordersTable.store_id, storeId)
+        storeScope(ordersTable.store_id, storeId),
+        userScope(orderServiceStatusLogsTable.changed_by, userId)
       )
     )
     .groupBy(orderServiceStatusLogsTable.changed_by, ordersTable.store_id, day);
-}
+};
 
 // A pair Bayu redid after Adi's round was sent back is Bayu's next check, not
 // Adi's: each check goes to the round's cleaner, as the Quality tab names them.
-function listQcChecksByCleaner({ range, storeId }: RangeArgs) {
+const listQcChecksByCleaner = ({ range, storeId, userId }: ActivityArgs) => {
   const checks = db
     .select({
       cleaner_id: sql<number | null>`${cleanerOfRound(qcCheckLog)}`.as(
@@ -711,13 +831,14 @@ function listQcChecksByCleaner({ range, storeId }: RangeArgs) {
       rejects: sql<number>`(COUNT(*) FILTER (WHERE ${checks.is_reject}))::int`,
     })
     .from(checks)
+    .where(userScope(checks.cleaner_id, userId))
     .groupBy(checks.cleaner_id, checks.store_id);
-}
+};
 
-async function listActivity<TDetail extends SelectedFields>(
-  args: RangeArgs,
+const listActivity = async <TDetail extends SelectedFields>(
+  args: ActivityArgs,
   detail: TDetail
-) {
+) => {
   const [lines, shifts, moveDays, qcChecks] = await Promise.all([
     listProcessedLines(args, detail),
     listShiftsInRange(args),
@@ -725,14 +846,13 @@ async function listActivity<TDetail extends SelectedFields>(
     listQcChecksByCleaner(args),
   ]);
   return { lines, shifts, moveDays, qcChecks };
-}
+};
 
-export const listWorkerActivity = (args: RangeArgs) =>
+export const listWorkerActivity = (args: ActivityArgs) =>
   listActivity(args, lineDetail());
 
-export async function listProcessedLineStarts(args: RangeArgs) {
-  return await listProcessedLines(args, {});
-}
+export const listProcessedLineStarts = async (args: RangeArgs) =>
+  await listProcessedLines(args, {});
 
 // The previous stretch only feeds the headline comparison, so it skips the
 // Service names and cleaner lookups that the rows need.
@@ -741,21 +861,22 @@ export const listWorkerSummaryActivity = (args: RangeArgs) =>
 
 // Every QC check on rounds this person cleaned at one Store, newest first: the
 // detail page's QC rejects and each Service's check count come from these.
-export async function listQcChecksOfCleaner({
+export const listQcChecksOfCleaner = async ({
   range,
   storeId,
   userId,
-}: RangeArgs & { userId: number }) {
-  return await db
+}: RangeArgs & { userId: number }) =>
+  await db
     .select({
       checked_at: qcCheckLog.created_at,
       is_reject: sql<boolean>`${eq(qcCheckLog.to_status, "qc_reject")}`,
       note: qcCheckLog.note,
       order_id: ordersTable.id,
       order_service_id: ordersServicesTable.id,
-      item_code: itemsTable.item_code,
+      ...itemNameColumns,
       service_id: ordersServicesTable.service_id,
       service_name: servicesTable.name,
+      checker_id: qcCheckLog.changed_by,
     })
     .from(qcCheckLog)
     .innerJoin(
@@ -775,17 +896,18 @@ export async function listQcChecksOfCleaner({
       )
     )
     .orderBy(desc(qcCheckLog.created_at), desc(qcCheckLog.id));
-}
 
-export function listComplaintItems(orderServiceIds: number[]) {
-  return db
+export const listComplaintItems = (orderServiceIds: number[]) =>
+  db
     .select({
       complaint_id: complaintsTable.id,
       created_at: complaintsTable.created_at,
       reason: complaintsTable.reason,
       order_id: ordersServicesTable.order_id,
       order_service_id: ordersServicesTable.id,
-      item_code: itemsTable.item_code,
+      ...itemNameColumns,
+      status: ordersServicesTable.status,
+      has_live_rework: hasLiveRework,
     })
     .from(complaintsTable)
     .innerJoin(
@@ -794,10 +916,9 @@ export function listComplaintItems(orderServiceIds: number[]) {
     )
     .innerJoin(itemsTable, eq(ordersServicesTable.item_id, itemsTable.id))
     .where(inArray(complaintsTable.order_service_id, orderServiceIds));
-}
 
-export function listItemsInHand({ storeId }: Pick<RangeArgs, "storeId">) {
-  return db
+export const listItemsInHand = ({ storeId }: Pick<RangeArgs, "storeId">) =>
+  db
     .select({
       user_id: sql<number>`${ordersServicesTable.handler_id}`,
       store_id: ordersTable.store_id,
@@ -813,11 +934,10 @@ export function listItemsInHand({ storeId }: Pick<RangeArgs, "storeId">) {
       )
     )
     .groupBy(ordersServicesTable.handler_id, ordersTable.store_id);
-}
 
 // The "right now" half of the Workers tab, whatever stretch the rest covers:
 // `range` is today.
-export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
+export const listWorkerLiveActivity = async ({ range, storeId }: RangeArgs) => {
   const [inHand, lastMoves, shifts] = await Promise.all([
     listItemsInHand({ storeId }),
     db
@@ -865,26 +985,27 @@ export async function listWorkerLiveActivity({ range, storeId }: RangeArgs) {
       ),
   ]);
   return { inHand, lastMoves, shifts };
-}
+};
 
 // Both tables are a shop's worth of rows, so the report reads them whole
 // alongside its other queries rather than waiting to learn which ids it needs.
-export function listUserNames() {
-  return db
-    .select({ id: usersTable.id, name: usersTable.name, role: usersTable.role })
+export const listUserNames = () =>
+  db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      role: usersTable.role,
+      avatar_path: usersTable.avatar_path,
+    })
     .from(usersTable);
-}
 
-export function listStoreNames() {
-  return db
-    .select({ id: storesTable.id, name: storesTable.name })
-    .from(storesTable);
-}
+export const listStoreNames = () =>
+  db.select({ id: storesTable.id, name: storesTable.name }).from(storesTable);
 
-export async function listCampaignEffectivenessRows({
+export const listCampaignEffectivenessRows = async ({
   range,
   storeId,
-}: RangeArgs) {
+}: RangeArgs) => {
   // A Campaign's cost and what it brought in are counted over the same Orders,
   // or the discount is charged against different takings.
   const window = paidOrderWindow({ range, storeId });
@@ -950,5 +1071,5 @@ export async function listCampaignEffectivenessRows({
           metrics.orders > 0 ? metrics.totalSum / metrics.orders : 0,
       };
     })
-    .sort((a, b) => b.orders - a.orders);
-}
+    .toSorted((a, b) => b.orders - a.orders);
+};

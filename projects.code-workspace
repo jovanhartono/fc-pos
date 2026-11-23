@@ -1,13 +1,13 @@
 {
   "folders": [
     {
-      "path": "."
+      "path": ".",
     },
     {
-      "path": "packages/server"
+      "path": "packages/server",
     },
     {
-      "path": "apps/web"
-    }
-  ]
+      "path": "apps/web",
+    },
+  ],
 }

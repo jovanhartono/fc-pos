@@ -1,66 +1,63 @@
-import {
-	createFileRoute,
-	type ErrorComponentProps,
-} from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { DetailedError } from "hono/client";
 import { z } from "zod";
+
 import { ordersQueries } from "@/features/orders/api";
 import {
-	QueueServiceDetail,
-	QueueServiceDetailMessage,
+  QueueServiceDetail,
+  QueueServiceDetailMessage,
 } from "@/features/orders/components/queue-service-detail";
 
 const queueServiceParamsSchema = z.object({
-	orderId: z.coerce.number().int().positive(),
-	serviceId: z.coerce.number().int().positive(),
+  orderId: z.coerce.number().int().positive(),
+  serviceId: z.coerce.number().int().positive(),
 });
 
 const QueueDetailPage = () => {
-	const { orderId, serviceId } = Route.useParams();
+  const { orderId, serviceId } = Route.useParams();
 
-	// Keyed by line: "Open rework" opens one line from another, and a note
-	// typed on the first must not ride along onto the second.
-	return (
-		<QueueServiceDetail
-			key={serviceId}
-			orderId={orderId}
-			serviceId={serviceId}
-		/>
-	);
+  // Keyed by line: "Open rework" opens one line from another, and a note
+  // typed on the first must not ride along onto the second.
+  return (
+    <QueueServiceDetail
+      key={serviceId}
+      orderId={orderId}
+      serviceId={serviceId}
+    />
+  );
 };
 
 const QueueServiceRouteError = ({ error, reset }: ErrorComponentProps) => {
-	if (error instanceof DetailedError && error.statusCode === 404) {
-		return (
-			<QueueServiceDetailMessage
-				tone="muted"
-				title="Queue item not found"
-				description="It may have been removed or reassigned."
-			/>
-		);
-	}
+  if (error instanceof DetailedError && error.statusCode === 404) {
+    return (
+      <QueueServiceDetailMessage
+        tone="muted"
+        title="Queue item not found"
+        description="This line was removed or is at another Store."
+      />
+    );
+  }
 
-	return (
-		<QueueServiceDetailMessage
-			tone="error"
-			title="Failed to load queue item"
-			description={
-				error instanceof Error ? error.message : "Please try again in a moment."
-			}
-			onRetry={reset}
-		/>
-	);
+  return (
+    <QueueServiceDetailMessage
+      tone="error"
+      title="Couldn't load this line"
+      description={error instanceof Error ? error.message : "Tap Retry."}
+      onRetry={reset}
+    />
+  );
 };
 
 export const Route = createFileRoute("/_admin/queue/$orderId/$serviceId")({
-	params: {
-		parse: (params) => queueServiceParamsSchema.parse(params),
-	},
-	loader: async ({ context, params }) => {
-		await context.queryClient.ensureQueryData(
-			ordersQueries.orderService(params.orderId, params.serviceId),
-		);
-	},
-	component: QueueDetailPage,
-	errorComponent: QueueServiceRouteError,
+  params: {
+    parse: (params) => queueServiceParamsSchema.parse(params),
+  },
+  loader: async ({ context, params }) => {
+    await context.queryClient.ensureQueryData(
+      ordersQueries.orderService(params.orderId, params.serviceId)
+    );
+  },
+  component: QueueDetailPage,
+  errorComponent: QueueServiceRouteError,
 });

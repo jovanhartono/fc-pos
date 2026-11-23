@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
+
 import { ForbiddenException, NotFoundException } from "@/http-exceptions";
 import { authorizationDouble } from "@/test-support/authorization-double";
 import type { AuthUser } from "@/types";
@@ -118,7 +120,28 @@ mock.module("@/modules/orders/order-queue.service", () => ({
   updateOrderServiceStatus: marker("updateOrderServiceStatus"),
 }));
 
-const ordersRoutes = (await import("@/routes/admin/orders")).default;
+mock.module("@/modules/orders/order-reversal.service", () => ({
+  cancelOrder: marker("cancelOrder"),
+  createOrderRefund: marker("createOrderRefund"),
+}));
+
+const feeWrites: unknown[] = [];
+
+mock.module("@/modules/orders/order-delivery-fee.service", () => ({
+  updateOrderDeliveryFee: (input: { deliveryFee: number }) => {
+    feeWrites.push(input.deliveryFee);
+    return Promise.resolve({ ok: "updateOrderDeliveryFee" });
+  },
+}));
+
+mock.module("@/modules/payments/payment-charge.service", () => ({
+  cancelPaymentCharge: marker("cancelPaymentCharge"),
+  createPaymentCharge: marker("createPaymentCharge"),
+  getOpenQrisCharge: marker("getOpenQrisCharge"),
+  getPaymentCharge: marker("getPaymentCharge"),
+}));
+
+const { default: ordersRoutes } = await import("@/routes/admin/orders");
 
 // Asep works the Kemang counter. In production adminMiddleware puts him on the
 // context; here that one step stands in for the whole JWT layer.
@@ -146,6 +169,38 @@ const call = (path: string, method = "GET") =>
 beforeEach(() => {
   orderAccessCalls.length = 0;
   reached.length = 0;
+  feeWrites.length = 0;
+});
+
+const patchFee = (orderId: number, deliveryFee: string) =>
+  app.request(`/orders/${orderId}/delivery-fee`, {
+    body: JSON.stringify({ delivery_fee: deliveryFee }),
+    headers: { "Content-Type": "application/json" },
+    method: "PATCH",
+  });
+
+describe("setting a Delivery fee", () => {
+  it("saves the fee a GoSend quote brought in after drop-off", async () => {
+    const res = await patchFee(123, "25.000");
+
+    expect(res.status).toBe(200);
+    expect(feeWrites).toEqual([25_000]);
+    expect(orderAccessCalls).toEqual([{ userId: 7, orderId: 123 }]);
+  });
+
+  it("refuses another Store's Order before touching the fee", async () => {
+    const res = await patchFee(777, "25000");
+
+    expect(res.status).toBe(403);
+    expect(feeWrites).toEqual([]);
+  });
+
+  it("refuses a negative fee", async () => {
+    const res = await patchFee(123, "-5000");
+
+    expect(res.status).toBe(400);
+    expect(feeWrites).toEqual([]);
+  });
 });
 
 describe("the workshop queue is not an order", () => {

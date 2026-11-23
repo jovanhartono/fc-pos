@@ -1,66 +1,68 @@
 import { describe, expect, it } from "bun:test";
+
 import type { OrderDetail } from "@/features/orders/api";
 import type { Me } from "@/features/users/api";
+
 import { getOrderActionGates, startPhotoBlocker } from "./order-action-gates";
 import type { OrderLine } from "./order-lines";
 
 type ServiceOverrides = Record<string, unknown>;
 
 const service = (over: ServiceOverrides = {}) => ({
-	id: 1,
-	status: "queued",
-	reworkOf: null,
-	complaints: [],
-	...over,
+  id: 1,
+  status: "queued",
+  reworkOf: null,
+  complaints: [],
+  ...over,
 });
 
 const product = (over: Record<string, unknown> = {}) => ({
-	id: 1,
-	refunded_at: null,
-	cancelled_at: null,
-	...over,
+  id: 1,
+  refunded_at: null,
+  cancelled_at: null,
+  ...over,
 });
 
 // One Item per OrderService, the pre-ADR-0017 shape most of these gates are
 // about. Tests that care about grouping build `items` themselves.
 const detail = ({
-	services,
-	...over
+  services,
+  ...over
 }: Record<string, unknown> = {}): OrderDetail =>
-	({
-		status: "processing",
-		payment_status: "paid",
-		items: ((services ?? []) as ServiceOverrides[]).map((line, index) => ({
-			id: 100 + index,
-			item_code: `#ORD-S${index + 1}`,
-			brand: null,
-			color: null,
-			model: null,
-			size: null,
-			status: line.status,
-			is_collectable: line.status === "ready_for_pickup",
-			services: [line],
-		})),
-		products: [],
-		...over,
-	}) as unknown as OrderDetail;
+  ({
+    status: "processing",
+    payment_status: "paid",
+    items: ((services ?? []) as ServiceOverrides[]).map((line, index) => ({
+      id: 100 + index,
+      item_code: `#ORD-S${index + 1}`,
+      brand: null,
+      color: null,
+      model: null,
+      size: null,
+      status: line.status,
+      is_collectable: line.status === "ready_for_pickup",
+      services: [line],
+    })),
+    products: [],
+    ...over,
+  }) as unknown as OrderDetail;
 
 // An Item with several OrderServices (ADR-0017). `is_collectable` is passed in:
 // the server owns that rule (a cancelled sibling does NOT hold the Item back).
 const item = (
-	is_collectable: boolean,
-	services: ServiceOverrides[],
-	over: ServiceOverrides = {},
+  is_collectable: boolean,
+  services: ServiceOverrides[],
+  over: ServiceOverrides = {}
 ) => ({
-	id: 900,
-	item_code: "#ORD-S001",
-	brand: null,
-	color: null,
-	model: null,
-	size: null,
-	is_collectable,
-	services,
-	...over,
+  id: 900,
+  item_code: "#ORD-S001",
+  brand: null,
+  color: null,
+  model: null,
+  size: null,
+  is_collectable,
+  services,
+  ...over,
 });
 
 const admin = { role: "admin" } as Me;
@@ -70,315 +72,315 @@ const pickupWorker = { role: "worker", can_process_pickup: true } as Me;
 const courier = { role: "courier", can_process_pickup: false } as Me;
 
 describe("role gates", () => {
-	it("grants the payment card to every shop role, never to a courier", () => {
-		// A worker rings up a drop-off when the counter is unstaffed
-		// (ADR-0004, 2026-09-05 amendment); a courier only clocks in.
-		expect(getOrderActionGates(admin, detail()).isPaymentAllowed).toBe(true);
-		expect(getOrderActionGates(cashier, detail()).isPaymentAllowed).toBe(true);
-		expect(getOrderActionGates(worker, detail()).isPaymentAllowed).toBe(true);
-		expect(getOrderActionGates(courier, detail()).isPaymentAllowed).toBe(false);
-	});
+  it("grants the payment card to every shop role, never to a courier", () => {
+    // A worker rings up a drop-off when the counter is unstaffed
+    // (ADR-0004, 2026-09-05 amendment); a courier only clocks in.
+    expect(getOrderActionGates(admin, detail()).isPaymentAllowed).toBe(true);
+    expect(getOrderActionGates(cashier, detail()).isPaymentAllowed).toBe(true);
+    expect(getOrderActionGates(worker, detail()).isPaymentAllowed).toBe(true);
+    expect(getOrderActionGates(courier, detail()).isPaymentAllowed).toBe(false);
+  });
 
-	it("grants pickup to counter roles and flagged workers only", () => {
-		// Payment and handing the Item back stay separate gates: a worker who
-		// can take payment still needs the pickup flag, as on the server.
-		expect(getOrderActionGates(cashier, detail()).isPickupAllowed).toBe(true);
-		expect(getOrderActionGates(pickupWorker, detail()).isPickupAllowed).toBe(
-			true,
-		);
-		expect(getOrderActionGates(worker, detail()).isPickupAllowed).toBe(false);
-		expect(getOrderActionGates(courier, detail()).isPickupAllowed).toBe(false);
-	});
+  it("grants pickup to counter roles and flagged workers only", () => {
+    // Payment and handing the Item back stay separate gates: a worker who
+    // can take payment still needs the pickup flag, as on the server.
+    expect(getOrderActionGates(cashier, detail()).isPickupAllowed).toBe(true);
+    expect(getOrderActionGates(pickupWorker, detail()).isPickupAllowed).toBe(
+      true
+    );
+    expect(getOrderActionGates(worker, detail()).isPickupAllowed).toBe(false);
+    expect(getOrderActionGates(courier, detail()).isPickupAllowed).toBe(false);
+  });
 
-	it("lets workers manage the drop-off photo", () => {
-		expect(getOrderActionGates(worker, detail()).canManageDropoffPhoto).toBe(
-			true,
-		);
-	});
+  it("lets workers manage the drop-off photo", () => {
+    expect(getOrderActionGates(worker, detail()).canManageDropoffPhoto).toBe(
+      true
+    );
+  });
 
-	it("offers Collect payment only on an unpaid Order that still owes", () => {
-		const unpaid = { payment_status: "unpaid" };
-		expect(getOrderActionGates(cashier, detail(unpaid)).canCollectPayment).toBe(
-			true,
-		);
-		expect(getOrderActionGates(cashier, detail()).canCollectPayment).toBe(
-			false,
-		);
-		expect(
-			getOrderActionGates(
-				cashier,
-				detail({
-					...unpaid,
-					status: "cancelled",
-					services: [service({ status: "cancelled" })],
-				}),
-			).canCollectPayment,
-		).toBe(false);
-		expect(getOrderActionGates(courier, detail(unpaid)).canCollectPayment).toBe(
-			false,
-		);
-	});
+  it("offers Collect payment only on an unpaid Order that still owes", () => {
+    const unpaid = { payment_status: "unpaid" };
+    expect(getOrderActionGates(cashier, detail(unpaid)).canCollectPayment).toBe(
+      true
+    );
+    expect(getOrderActionGates(cashier, detail()).canCollectPayment).toBe(
+      false
+    );
+    expect(
+      getOrderActionGates(
+        cashier,
+        detail({
+          ...unpaid,
+          status: "cancelled",
+          services: [service({ status: "cancelled" })],
+        })
+      ).canCollectPayment
+    ).toBe(false);
+    expect(getOrderActionGates(courier, detail(unpaid)).canCollectPayment).toBe(
+      false
+    );
+  });
 
-	it("denies everything without a user", () => {
-		const gates = getOrderActionGates(undefined, detail());
-		expect(gates.isAdmin).toBe(false);
-		expect(gates.isPaymentAllowed).toBe(false);
-		expect(gates.isPickupAllowed).toBe(false);
-	});
+  it("denies everything without a user", () => {
+    const gates = getOrderActionGates(undefined, detail());
+    expect(gates.isAdmin).toBe(false);
+    expect(gates.isPaymentAllowed).toBe(false);
+    expect(gates.isPickupAllowed).toBe(false);
+  });
 });
 
 describe("refundable lines", () => {
-	it("excludes refunded, cancelled, and rework service lines", () => {
-		const gates = getOrderActionGates(
-			admin,
-			detail({
-				services: [
-					service({ id: 1, status: "picked_up" }),
-					service({ id: 2, status: "refunded" }),
-					service({ id: 3, status: "cancelled" }),
-					service({ id: 4, status: "picked_up", reworkOf: { id: 9 } }),
-				],
-			}),
-		);
+  it("excludes refunded, cancelled, and rework service lines", () => {
+    const gates = getOrderActionGates(
+      admin,
+      detail({
+        services: [
+          service({ id: 1, status: "picked_up" }),
+          service({ id: 2, status: "refunded" }),
+          service({ id: 3, status: "cancelled" }),
+          service({ id: 4, status: "picked_up", reworkOf: { id: 9 } }),
+        ],
+      })
+    );
 
-		expect(gates.refundableServices.map((s) => s.id)).toEqual([1]);
-	});
+    expect(gates.refundableServices.map((s) => s.id)).toEqual([1]);
+  });
 
-	it("excludes product lines that already took an off-ramp", () => {
-		const gates = getOrderActionGates(
-			admin,
-			detail({
-				products: [
-					product({ id: 1 }),
-					product({ id: 2, refunded_at: "2026-07-01" }),
-					product({ id: 3, cancelled_at: "2026-07-01" }),
-				],
-			}),
-		);
+  it("excludes product lines that already took an off-ramp", () => {
+    const gates = getOrderActionGates(
+      admin,
+      detail({
+        products: [
+          product({ id: 1 }),
+          product({ id: 2, refunded_at: "2026-07-01" }),
+          product({ id: 3, cancelled_at: "2026-07-01" }),
+        ],
+      })
+    );
 
-		expect(gates.refundableProducts.map((p) => p.id)).toEqual([1]);
-	});
+    expect(gates.refundableProducts.map((p) => p.id)).toEqual([1]);
+  });
 });
 
 describe("cancellable lines", () => {
-	it("excludes picked_up, refunded, and cancelled service lines", () => {
-		const gates = getOrderActionGates(
-			admin,
-			detail({
-				services: [
-					service({ id: 1, status: "processing" }),
-					service({ id: 2, status: "picked_up" }),
-					service({ id: 3, status: "refunded" }),
-					service({ id: 4, status: "cancelled" }),
-				],
-			}),
-		);
+  it("excludes picked_up, refunded, and cancelled service lines", () => {
+    const gates = getOrderActionGates(
+      admin,
+      detail({
+        services: [
+          service({ id: 1, status: "processing" }),
+          service({ id: 2, status: "picked_up" }),
+          service({ id: 3, status: "refunded" }),
+          service({ id: 4, status: "cancelled" }),
+        ],
+      })
+    );
 
-		expect(gates.cancellableServices.map((s) => s.id)).toEqual([1]);
-	});
+    expect(gates.cancellableServices.map((s) => s.id)).toEqual([1]);
+  });
 });
 
 describe("canOpenPickup (ADR-0009: payment precedes pickup)", () => {
-	const readyPaid = detail({
-		payment_status: "paid",
-		services: [service({ status: "ready_for_pickup" })],
-	});
-	const readyUnpaid = detail({
-		payment_status: "unpaid",
-		services: [service({ status: "ready_for_pickup" })],
-	});
+  const readyPaid = detail({
+    payment_status: "paid",
+    services: [service({ status: "ready_for_pickup" })],
+  });
+  const readyUnpaid = detail({
+    payment_status: "unpaid",
+    services: [service({ status: "ready_for_pickup" })],
+  });
 
-	it("opens for a paid order with ready items", () => {
-		expect(getOrderActionGates(cashier, readyPaid).canOpenPickup).toBe(true);
-	});
+  it("opens for a paid order with ready items", () => {
+    expect(getOrderActionGates(cashier, readyPaid).canOpenPickup).toBe(true);
+  });
 
-	it("blocks an unpaid order and explains why per role", () => {
-		const cashierGates = getOrderActionGates(cashier, readyUnpaid);
-		expect(cashierGates.canOpenPickup).toBe(false);
-		expect(cashierGates.pickupDisabledReason).toBe(
-			"Order must be paid before pickup.",
-		);
+  it("blocks an unpaid order and explains why per role", () => {
+    const cashierGates = getOrderActionGates(cashier, readyUnpaid);
+    expect(cashierGates.canOpenPickup).toBe(false);
+    expect(cashierGates.pickupDisabledReason).toBe(
+      "Order must be paid before pickup."
+    );
 
-		// A flagged worker can now take the payment themselves, so they get
-		// the payer's message; only a flagged user who cannot pay is told to
-		// fetch someone who can.
-		const workerGates = getOrderActionGates(pickupWorker, readyUnpaid);
-		expect(workerGates.pickupDisabledReason).toBe(
-			"Order must be paid before pickup.",
-		);
-		const flaggedCourier = { role: "courier", can_process_pickup: true } as Me;
-		expect(
-			getOrderActionGates(flaggedCourier, readyUnpaid).pickupDisabledReason,
-		).toBe("A cashier must collect payment before pickup.");
-	});
+    // A flagged worker can now take the payment themselves, so they get
+    // the payer's message; only a flagged user who cannot pay is told to
+    // fetch someone who can.
+    const workerGates = getOrderActionGates(pickupWorker, readyUnpaid);
+    expect(workerGates.pickupDisabledReason).toBe(
+      "Order must be paid before pickup."
+    );
+    const flaggedCourier = { role: "courier", can_process_pickup: true } as Me;
+    expect(
+      getOrderActionGates(flaggedCourier, readyUnpaid).pickupDisabledReason
+    ).toBe("A cashier must collect payment before pickup.");
+  });
 
-	it("stays closed with nothing ready", () => {
-		const gates = getOrderActionGates(
-			cashier,
-			detail({ services: [service({ status: "processing" })] }),
-		);
-		expect(gates.canOpenPickup).toBe(false);
-		expect(gates.pickupDisabledReason).toBe(undefined);
-	});
+  it("stays closed with nothing ready", () => {
+    const gates = getOrderActionGates(
+      cashier,
+      detail({ services: [service({ status: "processing" })] })
+    );
+    expect(gates.canOpenPickup).toBe(false);
+    expect(gates.pickupDisabledReason).toBe(undefined);
+  });
 
-	it("will not hand back a shoe whose repaint is still wet", () => {
-		// ADR-0017: one Item, two OrderServices, only one finished: the counter
-		// has nothing to give the Customer.
-		const gates = getOrderActionGates(
-			cashier,
-			detail({
-				items: [
-					item(false, [
-						service({ id: 1, status: "ready_for_pickup" }),
-						service({ id: 2, status: "processing" }),
-					]),
-				],
-			}),
-		);
-		expect(gates.collectableItems).toHaveLength(0);
-		expect(gates.canOpenPickup).toBe(false);
-	});
+  it("will not hand back a shoe whose repaint is still wet", () => {
+    // ADR-0017: one Item, two OrderServices, only one finished: the counter
+    // has nothing to give the Customer.
+    const gates = getOrderActionGates(
+      cashier,
+      detail({
+        items: [
+          item(false, [
+            service({ id: 1, status: "ready_for_pickup" }),
+            service({ id: 2, status: "processing" }),
+          ]),
+        ],
+      })
+    );
+    expect(gates.collectableItems).toHaveLength(0);
+    expect(gates.canOpenPickup).toBe(false);
+  });
 
-	it("offers the pair once every treatment sold on it is done", () => {
-		const gates = getOrderActionGates(
-			cashier,
-			detail({
-				items: [
-					item(true, [
-						service({ id: 1, status: "ready_for_pickup" }),
-						service({ id: 2, status: "ready_for_pickup" }),
-					]),
-				],
-			}),
-		);
-		expect(gates.collectableItems).toHaveLength(1);
-		expect(gates.canOpenPickup).toBe(true);
-	});
+  it("offers the pair once every treatment sold on it is done", () => {
+    const gates = getOrderActionGates(
+      cashier,
+      detail({
+        items: [
+          item(true, [
+            service({ id: 1, status: "ready_for_pickup" }),
+            service({ id: 2, status: "ready_for_pickup" }),
+          ]),
+        ],
+      })
+    );
+    expect(gates.collectableItems).toHaveLength(1);
+    expect(gates.canOpenPickup).toBe(true);
+  });
 });
 
 describe("order off-ramps (ADR-0008: disjoint by payment_status)", () => {
-	it("allows cancel only while unpaid", () => {
-		const unpaid = detail({
-			payment_status: "unpaid",
-			services: [service()],
-		});
-		expect(getOrderActionGates(worker, unpaid).canCancelOrder).toBe(true);
+  it("allows cancel only while unpaid", () => {
+    const unpaid = detail({
+      payment_status: "unpaid",
+      services: [service()],
+    });
+    expect(getOrderActionGates(worker, unpaid).canCancelOrder).toBe(true);
 
-		const paid = detail({ payment_status: "paid", services: [service()] });
-		expect(getOrderActionGates(worker, paid).canCancelOrder).toBe(false);
-	});
+    const paid = detail({ payment_status: "paid", services: [service()] });
+    expect(getOrderActionGates(worker, paid).canCancelOrder).toBe(false);
+  });
 
-	it("never cancels a cancelled order", () => {
-		const gates = getOrderActionGates(
-			worker,
-			detail({
-				status: "cancelled",
-				payment_status: "unpaid",
-				services: [service()],
-			}),
-		);
-		expect(gates.canCancelOrder).toBe(false);
-	});
+  it("never cancels a cancelled order", () => {
+    const gates = getOrderActionGates(
+      worker,
+      detail({
+        status: "cancelled",
+        payment_status: "unpaid",
+        services: [service()],
+      })
+    );
+    expect(gates.canCancelOrder).toBe(false);
+  });
 
-	it("allows refund only for admins on paid orders with refundable lines", () => {
-		const paid = detail({ payment_status: "paid", services: [service()] });
-		expect(getOrderActionGates(admin, paid).canRefundWholeOrder).toBe(true);
-		expect(getOrderActionGates(cashier, paid).canRefundWholeOrder).toBe(false);
+  it("allows refund only for admins on paid orders with refundable lines", () => {
+    const paid = detail({ payment_status: "paid", services: [service()] });
+    expect(getOrderActionGates(admin, paid).canRefundWholeOrder).toBe(true);
+    expect(getOrderActionGates(cashier, paid).canRefundWholeOrder).toBe(false);
 
-		const unpaid = detail({
-			payment_status: "unpaid",
-			services: [service()],
-		});
-		expect(getOrderActionGates(admin, unpaid).canRefundWholeOrder).toBe(false);
-	});
+    const unpaid = detail({
+      payment_status: "unpaid",
+      services: [service()],
+    });
+    expect(getOrderActionGates(admin, unpaid).canRefundWholeOrder).toBe(false);
+  });
 });
 
 describe("complaintable lines (ADR-0013)", () => {
-	it("offers finished lines with no complaint that are not reworks", () => {
-		// Cashier SOP: the Customer inspects the ready Item before taking it,
-		// so a ready line can draw a Complaint as well as a picked-up one.
-		const gates = getOrderActionGates(
-			worker,
-			detail({
-				services: [
-					service({ id: 1, status: "picked_up" }),
-					service({ id: 2, status: "picked_up", complaints: [{ id: 7 }] }),
-					service({ id: 3, status: "picked_up", reworkOf: { id: 1 } }),
-					service({ id: 4, status: "ready_for_pickup" }),
-					service({ id: 5, status: "quality_check" }),
-					service({ id: 6, status: "refunded" }),
-					service({ id: 7, status: "cancelled" }),
-					service({ id: 8, status: "ready_for_pickup", reworkOf: { id: 1 } }),
-				],
-			}),
-		);
+  it("offers finished lines with no complaint that are not reworks", () => {
+    // Cashier SOP: the Customer inspects the ready Item before taking it,
+    // so a ready line can draw a Complaint as well as a picked-up one.
+    const gates = getOrderActionGates(
+      worker,
+      detail({
+        services: [
+          service({ id: 1, status: "picked_up" }),
+          service({ id: 2, status: "picked_up", complaints: [{ id: 7 }] }),
+          service({ id: 3, status: "picked_up", reworkOf: { id: 1 } }),
+          service({ id: 4, status: "ready_for_pickup" }),
+          service({ id: 5, status: "waiting_qc" }),
+          service({ id: 6, status: "refunded" }),
+          service({ id: 7, status: "cancelled" }),
+          service({ id: 8, status: "ready_for_pickup", reworkOf: { id: 1 } }),
+        ],
+      })
+    );
 
-		expect(gates.complaintableServices.map((s) => s.id)).toEqual([1, 4]);
-		expect(gates.canOpenComplaint).toBe(true);
-	});
+    expect(gates.complaintableServices.map((s) => s.id)).toEqual([1, 4]);
+    expect(gates.canOpenComplaint).toBe(true);
+  });
 
-	it("holds a ready line back while another treatment on the pair is in the workshop", () => {
-		// The Customer at the counter has not been shown the Item yet.
-		const gates = getOrderActionGates(
-			worker,
-			detail({
-				items: [
-					item(false, [
-						service({ id: 1, status: "ready_for_pickup" }),
-						service({ id: 2, status: "processing" }),
-					]),
-				],
-			}),
-		);
+  it("holds a ready line back while another treatment on the pair is in the workshop", () => {
+    // The Customer at the counter has not been shown the Item yet.
+    const gates = getOrderActionGates(
+      worker,
+      detail({
+        items: [
+          item(false, [
+            service({ id: 1, status: "ready_for_pickup" }),
+            service({ id: 2, status: "processing" }),
+          ]),
+        ],
+      })
+    );
 
-		expect(gates.complaintableServices).toEqual([]);
-		expect(gates.canOpenComplaint).toBe(false);
-	});
+    expect(gates.complaintableServices).toEqual([]);
+    expect(gates.canOpenComplaint).toBe(false);
+  });
 });
 
 // ADR-0019: one Item photo at drop-off covers every OrderService on it. A Rework
 // is the exception: the Item came back, so first-visit photos say nothing.
 describe("startPhotoBlocker", () => {
-	it("says nothing once the object has a usable photo", () => {
-		expect(
-			startPhotoBlocker({
-				status: "queued",
-				has_start_photo: true,
-				reworkOf: null,
-			}),
-		).toBe(undefined);
-	});
+  it("says nothing once the object has a usable photo", () => {
+    expect(
+      startPhotoBlocker({
+        status: "queued",
+        has_start_photo: true,
+        reworkOf: null,
+      })
+    ).toBe(undefined);
+  });
 
-	it("asks for a photo of an unphotographed object", () => {
-		expect(
-			startPhotoBlocker({
-				status: "queued",
-				has_start_photo: false,
-				reworkOf: null,
-			}),
-		).toBe("Add an item photo before starting work.");
-	});
+  it("asks for a photo of an unphotographed object", () => {
+    expect(
+      startPhotoBlocker({
+        status: "queued",
+        has_start_photo: false,
+        reworkOf: null,
+      })
+    ).toBe("Add an item photo before starting work.");
+  });
 
-	it("asks for a photo of the returned pair on a Rework", () => {
-		expect(
-			startPhotoBlocker({
-				status: "queued",
-				has_start_photo: false,
-				reworkOf: {
-					id: 9,
-					created_at: "2026-09-08T04:00:00.000Z",
-				} as OrderLine["reworkOf"],
-			}),
-		).toBe("Take a new photo of the item before starting this rework.");
-	});
+  it("asks for a photo of the returned pair on a Rework", () => {
+    expect(
+      startPhotoBlocker({
+        status: "queued",
+        has_start_photo: false,
+        reworkOf: {
+          id: 9,
+          created_at: "2026-09-08T04:00:00.000Z",
+        } as OrderLine["reworkOf"],
+      })
+    ).toBe("Take a new photo of the item before starting this rework.");
+  });
 
-	it("is silent once work has started, photos or not", () => {
-		expect(
-			startPhotoBlocker({
-				status: "processing",
-				has_start_photo: false,
-				reworkOf: null,
-			}),
-		).toBe(undefined);
-	});
+  it("is silent once work has started, photos or not", () => {
+    expect(
+      startPhotoBlocker({
+        status: "processing",
+        has_start_photo: false,
+        reworkOf: null,
+      })
+    ).toBe(undefined);
+  });
 });

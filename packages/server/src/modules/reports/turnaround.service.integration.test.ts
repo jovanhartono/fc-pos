@@ -1,6 +1,9 @@
-import "@/test-support/pglite";
 import { beforeEach, describe, expect, it } from "bun:test";
+
+import "@/test-support/pglite";
+
 import { and, eq } from "drizzle-orm";
+
 import {
   categoriesTable,
   complaintsTable,
@@ -10,7 +13,8 @@ import {
   servicesTable,
   storesTable,
 } from "@/db/schema";
-import { type Shop, seedShop } from "@/test-support/fixtures";
+import { seedShop } from "@/test-support/fixtures";
+import type { Shop } from "@/test-support/fixtures";
 import { resetDb, testDb } from "@/test-support/pglite";
 
 // August at the Kemang shop. Every Order is dropped off 1 August 09:00 and the
@@ -20,9 +24,8 @@ import { resetDb, testDb } from "@/test-support/pglite";
 // Loaded after the swap above: a static import would bind the shop's real
 // database before the mock runs.
 const { createOrder } = await import("@/modules/orders/order.service");
-const { getTurnaroundReport, TURNAROUND_MIN_ITEMS } = await import(
-  "@/modules/reports/turnaround.service"
-);
+const { getTurnaroundReport, TURNAROUND_MIN_ITEMS } =
+  await import("@/modules/reports/turnaround.service");
 
 const AUGUST = { from: "2026-08-01", to: "2026-08-05" };
 const HOUR_MS = 3_600_000;
@@ -51,6 +54,7 @@ const placeOrder = async (
     campaign_ids: [],
     customer: { name: "Budi Santoso", phone_number: "+628111222333" },
     discount: 0,
+    delivery_fee: 0,
     items: items.map(({ brand, serviceIds }) => ({
       brand,
       services: serviceIds.map((id) => ({ id })),
@@ -93,7 +97,7 @@ const readyAt = (lineId: number, at: Date) =>
     {
       changed_by: shop.admin.id,
       created_at: at,
-      from_status: "quality_check",
+      from_status: "waiting_qc",
       order_service_id: lineId,
       to_status: "ready_for_pickup",
     },
@@ -107,6 +111,8 @@ const setStatus = (
     .update(ordersServicesTable)
     .set({ status })
     .where(eq(ordersServicesTable.id, lineId));
+
+type Status = (typeof orderServiceStatusLogsTable.$inferInsert)["to_status"];
 
 const lineOf = (placed: Placed, serviceId: number) =>
   placed.lines.get(serviceId) as number;
@@ -230,7 +236,7 @@ describe("the turnaround of Items ready in the stretch", () => {
   it("measures from the Order's drop-off to the Item's last first-ready", async () => {
     await seedAugust();
     const { items } = await getTurnaroundReport({ ...AUGUST });
-    const hours = items.map((item) => item.hours).sort((a, b) => a - b);
+    const hours = items.map((item) => item.hours).toSorted((a, b) => a - b);
 
     expect(hours).toEqual([
       6, 12, 12, 18, 18, 24, 30, 30, 36, 40, 42, 48, 54, 60, 72, 110.5,
@@ -245,8 +251,11 @@ describe("the turnaround of Items ready in the stretch", () => {
 
     expect(byHours(18)?.ready_day).toBe("2026-08-02");
     expect(byHours(110.5)?.ready_day).toBe("2026-08-05");
-    expect(byHours(72)?.categories.sort()).toEqual(["Bags", "Footwear"]);
-    expect(byHours(72)?.services.sort()).toEqual(["Bag Clean", "Deep Clean"]);
+    expect(byHours(72)?.categories.toSorted()).toEqual(["Bags", "Footwear"]);
+    expect(byHours(72)?.services.toSorted()).toEqual([
+      "Bag Clean",
+      "Deep Clean",
+    ]);
     expect(byHours(72)?.store_code).toBe("KMG");
   });
 
@@ -330,6 +339,48 @@ describe("the breakdown", () => {
     // split; Rework and cancelled lines do not count either.
     expect(all.queued_p75).toBe(2);
     expect(all.in_progress_p75).toBe(46);
+    expect(all.waiting_qc_p75).toBe(0);
+  });
+
+  it("takes every stretch on the QC shelf out of In progress", async () => {
+    const placed = await placeOrder(
+      shop.store,
+      Array.from({ length: 10 }, (_, i) => ({
+        brand: `shelf-${i}`,
+        serviceIds: [cleanId],
+      }))
+    );
+    // Picked up at +2h, on the shelf 4h, sent back, redone, on the shelf 6h
+    // more, ready at +26h: 10h waiting QC, 14h of bench work.
+    const steps: [number, Status, Status][] = [
+      [2, "queued", "processing"],
+      [10, "processing", "waiting_qc"],
+      [14, "waiting_qc", "qc_reject"],
+      [15, "qc_reject", "processing"],
+      [20, "processing", "waiting_qc"],
+      [26, "waiting_qc", "ready_for_pickup"],
+    ];
+    const adminId = shop.admin.id;
+    for (const item of Object.values(placed)) {
+      const lineId = lineOf(item, cleanId);
+      await testDb.insert(orderServiceStatusLogsTable).values(
+        steps.map(([hours, from, to]) => ({
+          changed_by: adminId,
+          created_at: afterDropOff(hours),
+          from_status: from,
+          order_service_id: lineId,
+          to_status: to,
+        }))
+      );
+    }
+
+    const { rows } = await getTurnaroundReport({ ...AUGUST });
+
+    expect(rows[0].breakdown).toEqual({
+      queued_p75: 2,
+      in_progress_p75: 14,
+      waiting_qc_p75: 10,
+    });
   });
 
   it("is null for a Category with fewer than 10 lines", async () => {
@@ -340,12 +391,14 @@ describe("the breakdown", () => {
     expect(bags?.breakdown).toEqual({
       in_progress_p75: null,
       queued_p75: null,
+      waiting_qc_p75: null,
     });
   });
 
   it("leaves out a ready line whose Item still has a line in the workshop", async () => {
     await seedAugust();
-    const before = (await getTurnaroundReport({ ...AUGUST })).rows[0].breakdown;
+    const beforeReport = await getTurnaroundReport({ ...AUGUST });
+    const before = beforeReport.rows[0].breakdown;
     const half = await testDb.query.itemsTable.findFirst({
       where: { brand: "half" },
       with: { services: true },
@@ -364,7 +417,8 @@ describe("the breakdown", () => {
           eq(orderServiceStatusLogsTable.to_status, "ready_for_pickup")
         )
       );
-    const after = (await getTurnaroundReport({ ...AUGUST })).rows[0].breakdown;
+    const afterReport = await getTurnaroundReport({ ...AUGUST });
+    const after = afterReport.rows[0].breakdown;
 
     expect(after).toEqual(before);
   });

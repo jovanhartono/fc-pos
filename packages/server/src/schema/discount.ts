@@ -13,17 +13,29 @@ export const applyManualDiscount = (
   manual: number
 ): number => Math.min(manual, Math.max(0, grossTotal - campaignDiscount));
 
+// What the Customer owes on an Order before any Refund, as the Orders list,
+// Receipt, WhatsApp notice and Day close all show it.
+export const orderNetTotal = (order: {
+  delivery_fee: string;
+  discount: string;
+  total: string;
+}): number =>
+  Number(order.total) - Number(order.discount) + Number(order.delivery_fee);
+
 // Clamped to zero: an Order refunded past what it collected must still show
-// nothing left to collect, not a negative amount.
+// nothing left to collect, not a negative amount. The Delivery fee sits outside
+// the clamp because a Refund never returns it (ADR-0029).
 export const orderNetDue = ({
   grossTotal,
   discount,
   refunded,
+  deliveryFee,
 }: {
   grossTotal: number;
   discount: number;
   refunded: number;
-}): number => Math.max(0, grossTotal - discount - refunded);
+  deliveryFee: number;
+}): number => Math.max(0, grossTotal - discount - refunded) + deliveryFee;
 
 export interface CampaignDiscountInput {
   buy_quantity?: number | null;
@@ -63,28 +75,34 @@ export interface StackedDiscount<T extends CampaignDiscountInput> {
   total: number;
 }
 
-function computeBogoContribution(
-  campaign: CampaignDiscountInput,
-  lines: DiscountLine[]
-): number {
-  const buy = campaign.buy_quantity ?? 0;
-  const free = campaign.free_quantity ?? 0;
+// The eligibility check and the discount share this, so a Campaign never
+// shows as Usable while it would settle at Rp 0.
+export const bogoFreeCount = (
+  {
+    buy_quantity,
+    free_quantity,
+  }: Pick<CampaignDiscountInput, "buy_quantity" | "free_quantity">,
+  eligibleCount: number
+): number => {
+  const buy = buy_quantity ?? 0;
+  const free = free_quantity ?? 0;
   if (buy < 1 || free < 1) {
     return 0;
   }
+  return Math.floor(eligibleCount / (buy + free)) * free;
+};
 
-  const eligibleIds = new Set(campaign.eligible_service_ids ?? []);
-  if (eligibleIds.size === 0) {
-    return 0;
-  }
-
+const computeBogoContribution = (
+  campaign: CampaignDiscountInput,
+  lines: DiscountLine[]
+): number => {
+  const eligibleIds = new Set(campaign.eligible_service_ids);
   const eligiblePrices = lines
     .filter((line) => eligibleIds.has(line.service_id))
     .map((line) => line.price)
-    .sort((a, b) => a - b);
+    .toSorted((a, b) => a - b);
 
-  const groupSize = buy + free;
-  const freeCount = Math.floor(eligiblePrices.length / groupSize) * free;
+  const freeCount = bogoFreeCount(campaign, eligiblePrices.length);
   if (freeCount === 0) {
     return 0;
   }
@@ -94,14 +112,14 @@ function computeBogoContribution(
     total += eligiblePrices[i] ?? 0;
   }
   return total;
-}
+};
 
-export function computeCampaignContribution(
+export const computeCampaignContribution = (
   campaign: CampaignDiscountInput,
   grossTotal: number,
   remaining: number,
   lines: DiscountLine[] = []
-): number {
+): number => {
   if (remaining <= 0) {
     return 0;
   }
@@ -129,13 +147,13 @@ export function computeCampaignContribution(
   }
   contribution = Math.min(contribution, remaining);
   return Math.max(0, Math.round(contribution));
-}
+};
 
-export function stackCampaignDiscounts<T extends CampaignDiscountInput>(
+export const stackCampaignDiscounts = <T extends CampaignDiscountInput>(
   grossTotal: number,
   campaigns: T[],
   lines: DiscountLine[] = []
-): StackedDiscount<T> {
+): StackedDiscount<T> => {
   const ordered = campaigns
     .map((campaign) => ({
       campaign,
@@ -146,7 +164,7 @@ export function stackCampaignDiscounts<T extends CampaignDiscountInput>(
         lines
       ),
     }))
-    .sort((a, b) => b.priority - a.priority);
+    .toSorted((a, b) => b.priority - a.priority);
 
   let running = 0;
   const breakdown: CampaignContribution<T>[] = [];
@@ -163,4 +181,4 @@ export function stackCampaignDiscounts<T extends CampaignDiscountInput>(
   }
 
   return { total: running, breakdown };
-}
+};

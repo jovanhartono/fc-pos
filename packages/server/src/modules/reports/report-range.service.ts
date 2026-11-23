@@ -1,15 +1,11 @@
 import { NotFoundException } from "@/http-exceptions";
+import { pickItemName } from "@/modules/orders/order-read.repository";
+import type { ItemNameFields } from "@/modules/orders/order.schema";
 import { revenue } from "@/modules/reports/money-basis";
-import type {
-  ComparableSummary,
-  GetReportRangeQuery,
-  GetWorkerDetailQuery,
-  GetWorkerLiveQuery,
-  KpiDelta,
-} from "@/modules/reports/report.schema";
 import {
   findCumulativeCustomersBefore,
   findRepeatCustomerStats,
+  listBusyHourRows,
   listCampaignEffectivenessRows,
   listCategoryGrossSalesSeries,
   listCollectedSeries,
@@ -21,22 +17,23 @@ import {
   listOrdersOutSeries,
   listPaymentMixSeries,
   listProcessedLineStarts,
-  listProductsCogsSeries,
-  listProductsGrossSalesSeries,
+  listProductsSeries,
   listQcChecksOfCleaner,
   listRefundAmountSeries,
   listReturningCustomerOrdersSeries,
-  listServicesCogsSeries,
-  listServicesGrossSalesSeries,
+  listServicesSeries,
   listStoreCategoryGrossSalesRows,
   listStoreCollectedRows,
   listStoreNames,
   listStoreRefundRows,
   listTopCustomers,
+  listTopServiceRows,
+  listUnpaidOrderAgeRows,
   listUserNames,
   listWorkerActivity,
   listWorkerLiveActivity,
   listWorkerSummaryActivity,
+  UNPAID_AGE_KEYS,
 } from "@/modules/reports/report-range.repository";
 import {
   daysBetween,
@@ -44,7 +41,6 @@ import {
   derivePreviousRange,
   enumerateBuckets,
   enumerateDays,
-  type Granularity,
   getJakartaRange,
   indexBy,
   jakartaDayOf,
@@ -53,7 +49,21 @@ import {
   rate,
   weekStartOf,
 } from "@/modules/reports/report-range.util";
+import type {
+  DateRange,
+  Granularity,
+} from "@/modules/reports/report-range.util";
+import type {
+  ComparableSummary,
+  GetReportRangeQuery,
+  GetWorkerDetailQuery,
+  GetWorkerLiveQuery,
+  KpiDelta,
+} from "@/modules/reports/report.schema";
+import { OTHER_CATEGORY_ID } from "@/schema/category-mix";
+import { complaintOutcome } from "@/schema/complaint";
 import { jakartaNow } from "@/utils/date";
+import { buildMediaUrl } from "@/utils/s3";
 
 interface PeriodWindow {
   buckets: string[];
@@ -71,7 +81,7 @@ interface ReportContext {
   to: string;
 }
 
-export function buildContext(query: GetReportRangeQuery): ReportContext {
+export const buildContext = (query: GetReportRangeQuery): ReportContext => {
   const granularity =
     query.granularity ?? pickGranularity(query.from, query.to);
   const buckets = enumerateBuckets(query.from, query.to, granularity);
@@ -90,20 +100,18 @@ export function buildContext(query: GetReportRangeQuery): ReportContext {
     buckets,
     previous,
   };
-}
+};
 
-function kpi<T extends number>(current: T, previous: T): KpiDelta<T> {
-  return {
-    current,
-    previous,
-    delta_pct: deltaPct(current, previous),
-  };
-}
+const kpi = <T extends number>(current: T, previous: T): KpiDelta<T> => ({
+  current,
+  previous,
+  delta_pct: deltaPct(current, previous),
+});
 
-export function buildDeltas<T extends object>(
+export const buildDeltas = <T extends object>(
   current: T,
   previous: T
-): ComparableSummary<T>["deltas"] {
+): ComparableSummary<T>["deltas"] => {
   const deltas: Record<string, KpiDelta> = {};
   for (const key of Object.keys(current) as (keyof T)[]) {
     const c = current[key];
@@ -113,22 +121,25 @@ export function buildDeltas<T extends object>(
     }
   }
   return deltas as ComparableSummary<T>["deltas"];
-}
+};
 
 interface FinancialSummary {
   cogs: number;
   collected: number;
+  delivery_fees: number;
   discount: number;
+  discount_rate: number;
   gross_profit: number;
   gross_sales: number;
   margin: number;
   products_gross_sales: number;
+  refund_rate: number;
   refunds: number;
   revenue: number;
   services_gross_sales: number;
 }
 
-async function financialSummaryFor({
+const financialSummaryFor = async ({
   range,
   storeId,
   granularity,
@@ -136,41 +147,23 @@ async function financialSummaryFor({
   range: ReturnType<typeof getJakartaRange>;
   storeId?: number;
   granularity: Granularity;
-}) {
-  const [
-    services,
-    products,
-    servicesCogs,
-    productsCogs,
-    discount,
-    collected,
-    refunds,
-  ] = await Promise.all([
-    listServicesGrossSalesSeries({ range, storeId, granularity }),
-    listProductsGrossSalesSeries({ range, storeId, granularity }),
-    listServicesCogsSeries({ range, storeId, granularity }),
-    listProductsCogsSeries({ range, storeId, granularity }),
+}) => {
+  const [services, products, discount, collected, refunds] = await Promise.all([
+    listServicesSeries({ range, storeId, granularity }),
+    listProductsSeries({ range, storeId, granularity }),
     listOrderDiscountSeries({ range, storeId, granularity }),
     listCollectedSeries({ range, storeId, granularity }),
     listRefundAmountSeries({ range, storeId, granularity }),
   ]);
-  return {
-    services,
-    products,
-    servicesCogs,
-    productsCogs,
-    discount,
-    collected,
-    refunds,
-  };
-}
+  return { services, products, discount, collected, refunds };
+};
 
 // A store that took nothing this stretch but handed money back still needs a
 // line of its own, or the store rows stop adding up to the range's Revenue.
-function mergeStoreRows(
+const mergeStoreRows = (
   collectedRows: Awaited<ReturnType<typeof listStoreCollectedRows>>,
   refundRows: Awaited<ReturnType<typeof listStoreRefundRows>>
-) {
+) => {
   const byStore = new Map(
     collectedRows.map((row) => [row.store_id, { ...row, refunds: 0 }])
   );
@@ -182,13 +175,55 @@ function mergeStoreRows(
       byStore.set(row.store_id, { ...row, collected: 0, orders: 0 });
     }
   }
-  return Array.from(byStore.values()).map((row) => ({
+  return [...byStore.values()].map((row) => ({
     ...row,
     revenue: revenue(row.collected, row.refunds),
   }));
-}
+};
 
-export async function getFinancialReport(query: GetReportRangeQuery) {
+const summariseFinancial = (raw: {
+  services: { gross_sales: number; cogs: number }[];
+  products: { gross_sales: number; cogs: number }[];
+  discount: { discount: number }[];
+  collected: { collected: number; delivery_fees: number }[];
+  refunds: { amount: number }[];
+}): FinancialSummary => {
+  const servicesGrossSales = raw.services.reduce(
+    (s, r) => s + r.gross_sales,
+    0
+  );
+  const productsGrossSales = raw.products.reduce(
+    (s, r) => s + r.gross_sales,
+    0
+  );
+  const cogs =
+    raw.services.reduce((s, r) => s + r.cogs, 0) +
+    raw.products.reduce((s, r) => s + r.cogs, 0);
+  const discount = raw.discount.reduce((s, r) => s + r.discount, 0);
+  const collected = raw.collected.reduce((s, r) => s + r.collected, 0);
+  const deliveryFees = raw.collected.reduce((s, r) => s + r.delivery_fees, 0);
+  const refunds = raw.refunds.reduce((s, r) => s + r.amount, 0);
+  const kept = revenue(collected, refunds);
+  const grossProfit = kept - cogs;
+  const grossSalesTotal = servicesGrossSales + productsGrossSales;
+  return {
+    gross_sales: grossSalesTotal,
+    services_gross_sales: servicesGrossSales,
+    products_gross_sales: productsGrossSales,
+    discount,
+    discount_rate: grossSalesTotal > 0 ? discount / grossSalesTotal : 0,
+    collected,
+    delivery_fees: deliveryFees,
+    refunds,
+    refund_rate: collected > 0 ? refunds / collected : 0,
+    revenue: kept,
+    cogs,
+    gross_profit: grossProfit,
+    margin: kept > 0 ? grossProfit / kept : 0,
+  };
+};
+
+export const getFinancialReport = async (query: GetReportRangeQuery) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
@@ -200,6 +235,9 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     storeCollected,
     storeRefunds,
     storeCategoryRows,
+    busyHours,
+    topServices,
+    unpaidRows,
   ] = await Promise.all([
     financialSummaryFor({ range, storeId, granularity: ctx.granularity }),
     financialSummaryFor({
@@ -215,12 +253,22 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     listStoreCollectedRows({ range, storeId }),
     listStoreRefundRows({ range, storeId }),
     listStoreCategoryGrossSalesRows({ range, storeId }),
+    listBusyHourRows({ range, storeId }),
+    listTopServiceRows({ range, storeId }),
+    listUnpaidOrderAgeRows({ storeId }),
   ]);
+
+  const unpaidOrders = UNPAID_AGE_KEYS.map(
+    (key) =>
+      unpaidRows.find((row) => row.key === key) ?? {
+        key,
+        orders: 0,
+        amount: 0,
+      }
+  );
 
   const servicesMap = indexBy(current.services);
   const productsMap = indexBy(current.products);
-  const servicesCogsMap = indexBy(current.servicesCogs);
-  const productsCogsMap = indexBy(current.productsCogs);
   const discountMap = indexBy(current.discount);
   const collectedMap = indexBy(current.collected);
   const refundsMap = indexBy(current.refunds);
@@ -228,8 +276,8 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
   const series = ctx.buckets.map((bucket) => {
     const s = servicesMap.get(bucket)?.gross_sales ?? 0;
     const p = productsMap.get(bucket)?.gross_sales ?? 0;
-    const sc = servicesCogsMap.get(bucket)?.cogs ?? 0;
-    const pc = productsCogsMap.get(bucket)?.cogs ?? 0;
+    const sc = servicesMap.get(bucket)?.cogs ?? 0;
+    const pc = productsMap.get(bucket)?.cogs ?? 0;
     const d = discountMap.get(bucket)?.discount ?? 0;
     const c = collectedMap.get(bucket)?.collected ?? 0;
     const r = refundsMap.get(bucket)?.amount ?? 0;
@@ -268,8 +316,8 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
       });
     }
   }
-  const topCategories = Array.from(categoryTotals.values())
-    .sort((a, b) => b.gross_sales - a.gross_sales)
+  const topCategories = [...categoryTotals.values()]
+    .toSorted((a, b) => b.gross_sales - a.gross_sales)
     .slice(0, 5);
   const topCategoryIds = new Set(topCategories.map((c) => c.category_id));
 
@@ -299,7 +347,7 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     return filled;
   });
 
-  const categoryTreemap = Array.from(categoryTotals.values()).sort(
+  const categoryTreemap = [...categoryTotals.values()].toSorted(
     (a, b) => b.gross_sales - a.gross_sales
   );
 
@@ -310,13 +358,12 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
       ...row,
       share: grandStoreRevenue > 0 ? row.revenue / grandStoreRevenue : 0,
     }))
-    .sort((a, b) => b.revenue - a.revenue);
+    .toSorted((a, b) => b.revenue - a.revenue);
 
   // One top-N Category list across all Stores, so every Store row has the same
   // columns.
   const STORE_CATEGORY_TOP_N = 6;
   const STORE_CATEGORY_MAX_STORES = 12;
-  const OTHER_CATEGORY_ID = -1;
 
   const globalCategoryTotals = new Map<
     number,
@@ -330,13 +377,13 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     });
   }
 
-  const globalSorted = Array.from(globalCategoryTotals.entries())
+  const globalSorted = [...globalCategoryTotals.entries()]
     .map(([id, c]) => ({
       category_id: id,
       label: c.label,
       gross_sales: c.gross_sales,
     }))
-    .sort(
+    .toSorted(
       (a, b) => b.gross_sales - a.gross_sales || a.category_id - b.category_id
     );
 
@@ -394,7 +441,7 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
     storeBuckets.set(row.store_id, bucket);
   }
 
-  const sortedStoreBuckets = Array.from(storeBuckets.values()).sort(
+  const sortedStoreBuckets = [...storeBuckets.values()].toSorted(
     (a, b) => b.total - a.total
   );
   const omittedStoreCount = Math.max(
@@ -440,52 +487,16 @@ export async function getFinancialReport(query: GetReportRangeQuery) {
       rows: storeCategoryRowsOut,
       omitted_stores: omittedStoreCount,
     },
+    busy_hours: busyHours,
+    top_services: topServices,
+    unpaid_orders: unpaidOrders,
     summary: {
       current: summary,
       previous: prevSummary,
       deltas: buildDeltas(summary, prevSummary),
     } satisfies ComparableSummary<FinancialSummary>,
   };
-}
-
-function summariseFinancial(raw: {
-  services: { gross_sales: number }[];
-  products: { gross_sales: number }[];
-  servicesCogs: { cogs: number }[];
-  productsCogs: { cogs: number }[];
-  discount: { discount: number }[];
-  collected: { collected: number }[];
-  refunds: { amount: number }[];
-}): FinancialSummary {
-  const servicesGrossSales = raw.services.reduce(
-    (s, r) => s + r.gross_sales,
-    0
-  );
-  const productsGrossSales = raw.products.reduce(
-    (s, r) => s + r.gross_sales,
-    0
-  );
-  const cogs =
-    raw.servicesCogs.reduce((s, r) => s + r.cogs, 0) +
-    raw.productsCogs.reduce((s, r) => s + r.cogs, 0);
-  const discount = raw.discount.reduce((s, r) => s + r.discount, 0);
-  const collected = raw.collected.reduce((s, r) => s + r.collected, 0);
-  const refunds = raw.refunds.reduce((s, r) => s + r.amount, 0);
-  const kept = revenue(collected, refunds);
-  const grossProfit = kept - cogs;
-  return {
-    gross_sales: servicesGrossSales + productsGrossSales,
-    services_gross_sales: servicesGrossSales,
-    products_gross_sales: productsGrossSales,
-    discount,
-    collected,
-    refunds,
-    revenue: kept,
-    cogs,
-    gross_profit: grossProfit,
-    margin: kept > 0 ? grossProfit / kept : 0,
-  };
-}
+};
 
 interface OrdersFlowSummary {
   net_flow: number;
@@ -493,7 +504,20 @@ interface OrdersFlowSummary {
   orders_out_total: number;
 }
 
-export async function getOrdersFlowReport(query: GetReportRangeQuery) {
+const ordersFlowSummaryFrom = (
+  ordersIn: { orders_in: number }[],
+  ordersOut: { orders_out: number }[]
+): OrdersFlowSummary => {
+  const inTotal = ordersIn.reduce((s, r) => s + r.orders_in, 0);
+  const outTotal = ordersOut.reduce((s, r) => s + r.orders_out, 0);
+  return {
+    orders_in_total: inTotal,
+    orders_out_total: outTotal,
+    net_flow: inTotal - outTotal,
+  };
+};
+
+export const getOrdersFlowReport = async (query: GetReportRangeQuery) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
@@ -537,22 +561,9 @@ export async function getOrdersFlowReport(query: GetReportRangeQuery) {
       deltas: buildDeltas(summary, prevSummary),
     } satisfies ComparableSummary<OrdersFlowSummary>,
   };
-}
+};
 
-function ordersFlowSummaryFrom(
-  ordersIn: { orders_in: number }[],
-  ordersOut: { orders_out: number }[]
-): OrdersFlowSummary {
-  const inTotal = ordersIn.reduce((s, r) => s + r.orders_in, 0);
-  const outTotal = ordersOut.reduce((s, r) => s + r.orders_out, 0);
-  return {
-    orders_in_total: inTotal,
-    orders_out_total: outTotal,
-    net_flow: inTotal - outTotal,
-  };
-}
-
-export async function getPaymentMixReport(query: GetReportRangeQuery) {
+export const getPaymentMixReport = async (query: GetReportRangeQuery) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
@@ -568,6 +579,7 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
     {
       payment_method_id: number;
       payment_method_name: string;
+      payment_method_code: string;
       collected: number;
       orders: number;
     }
@@ -581,18 +593,20 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
       methodTotals.set(row.payment_method_id, {
         payment_method_id: row.payment_method_id,
         payment_method_name: row.payment_method_name,
+        payment_method_code: row.payment_method_code,
         collected: row.collected,
         orders: row.orders,
       });
     }
   }
 
-  const methods = Array.from(methodTotals.values()).sort(
+  const methods = [...methodTotals.values()].toSorted(
     (a, b) => b.collected - a.collected
   );
   const methodKeys = methods.map((m) => ({
     key: `pm_${m.payment_method_id}`,
     label: m.payment_method_name,
+    code: m.payment_method_code,
   }));
 
   const bucketMap = new Map<string, Record<string, number>>();
@@ -631,7 +645,7 @@ export async function getPaymentMixReport(query: GetReportRangeQuery) {
     method_keys: methodKeys,
     summary,
   };
-}
+};
 
 interface CustomerSummary {
   active_customers_in_range: number;
@@ -642,7 +656,29 @@ interface CustomerSummary {
   repeat_rate: number;
 }
 
-export async function getCustomerAcquisitionReport(query: GetReportRangeQuery) {
+const customerSummary = (
+  series: { new_customers: number; cumulative: number }[],
+  priorTotal: number,
+  repeat: { total_customers: number; repeat_customers: number }
+): CustomerSummary => {
+  const addedInRange = series.reduce((s, r) => s + r.new_customers, 0);
+  const cumulativeEnd = series.at(-1)?.cumulative ?? priorTotal;
+  return {
+    new_customers: addedInRange,
+    cumulative_end: cumulativeEnd,
+    cumulative_start: priorTotal,
+    active_customers_in_range: repeat.total_customers,
+    repeat_customers_in_range: repeat.repeat_customers,
+    repeat_rate:
+      repeat.total_customers > 0
+        ? repeat.repeat_customers / repeat.total_customers
+        : 0,
+  };
+};
+
+export const getCustomerAcquisitionReport = async (
+  query: GetReportRangeQuery
+) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
@@ -737,27 +773,7 @@ export async function getCustomerAcquisitionReport(query: GetReportRangeQuery) {
       deltas: buildDeltas(current, previous),
     } satisfies ComparableSummary<CustomerSummary>,
   };
-}
-
-function customerSummary(
-  series: { new_customers: number; cumulative: number }[],
-  priorTotal: number,
-  repeat: { total_customers: number; repeat_customers: number }
-): CustomerSummary {
-  const addedInRange = series.reduce((s, r) => s + r.new_customers, 0);
-  const cumulativeEnd = series.at(-1)?.cumulative ?? priorTotal;
-  return {
-    new_customers: addedInRange,
-    cumulative_end: cumulativeEnd,
-    cumulative_start: priorTotal,
-    active_customers_in_range: repeat.total_customers,
-    repeat_customers_in_range: repeat.repeat_customers,
-    repeat_rate:
-      repeat.total_customers > 0
-        ? repeat.repeat_customers / repeat.total_customers
-        : 0,
-  };
-}
+};
 
 interface WorkerSummary {
   complaint_cohort: number;
@@ -787,6 +803,8 @@ interface ShiftTimes {
 }
 
 interface WorkerTally {
+  // A bench Shift at this Store in the range.
+  clocked_in: boolean;
   complaint_cohort: number;
   complaints: number;
   // Jakarta days they clocked in or moved an Item through the bench.
@@ -813,9 +831,8 @@ const round = (value: number, places: number) => Number(value.toFixed(places));
 
 const workerKey = (userId: number, storeId: number) => `${userId}:${storeId}`;
 
-function sumBy<T>(rows: T[], pick: (row: T) => number) {
-  return rows.reduce((sum, row) => sum + pick(row), 0);
-}
+const sumBy = <T>(rows: T[], pick: (row: T) => number) =>
+  rows.reduce((sum, row) => sum + pick(row), 0);
 
 const noteLatestShift = (tally: WorkerTally, shift: ShiftTimes) => {
   if (
@@ -834,6 +851,7 @@ const tallyLookup =
       return existing;
     }
     const created: WorkerTally = {
+      clocked_in: false,
       complaint_cohort: 0,
       complaints: 0,
       days_worked: new Set(),
@@ -871,11 +889,11 @@ const benchWorkCheck = (
 
 // `inHand` is passed only for Today: an Item in hand then counts as a day at
 // the bench, while an older stretch's figures never move with what happens now.
-function tallyWorkers(
+const tallyWorkers = (
   { lines, shifts, moveDays, qcChecks }: WorkerSummaryActivity,
   roleOf: (userId: number) => string | undefined,
   inHand: WorkerLiveActivity["inHand"] = []
-) {
+) => {
   const tallies = new Map<string, WorkerTally>();
   const tallyFor = tallyLookup(tallies);
 
@@ -910,24 +928,24 @@ function tallyWorkers(
       tally.services_processed > 0 || tally.qc_checks > 0 || tally.in_hand > 0
   );
   for (const shift of shifts.filter(didBenchWork)) {
-    tallyFor(shift.user_id, shift.store_id).days_worked.add(
-      jakartaDayOf(shift.clock_in_at)
-    );
+    const tally = tallyFor(shift.user_id, shift.store_id);
+    tally.clocked_in = true;
+    tally.days_worked.add(jakartaDayOf(shift.clock_in_at));
   }
   // Workers who rarely clock in still have days at the bench.
   for (const move of moveDays.filter(didBenchWork)) {
     tallyFor(move.user_id, move.store_id).days_worked.add(move.day);
   }
   return [...tallies.values()];
-}
+};
 
 // What each person is doing right now, whatever stretch the rest of the tab
 // covers: the owner looking at last week still sees who is on the floor.
-function tallyLiveActivity(
+const tallyLiveActivity = (
   live: WorkerLiveActivity,
   processedToday: Pick<ActivityLine, "started_by" | "store_id">[],
   roleOf: (userId: number) => string | undefined
-) {
+) => {
   const tallies = new Map<string, WorkerTally>();
   const tallyFor = tallyLookup(tallies);
   for (const row of live.inHand) {
@@ -957,14 +975,14 @@ function tallyLiveActivity(
     tallyFor(row.user_id, row.store_id).last_move_at = row.last_move_at;
   }
   return [...tallies.values()];
-}
+};
 
 // Only onto rows that already exist: an Item Bayu cleaned and Citra passed on
 // 1 Sep must not give Bayu an August row with nothing else on it.
-function tallyComplaints(
+const tallyComplaints = (
   tallies: WorkerTally[],
   lines: WorkerActivity["lines"]
-) {
+) => {
   const byKey = new Map(
     tallies.map((tally) => [workerKey(tally.user_id, tally.store_id), tally])
   );
@@ -978,7 +996,7 @@ function tallyComplaints(
       tally.complaints += line.has_complaint ? 1 : 0;
     }
   }
-}
+};
 
 // The same days the bars show: every day worked or with a Service finished.
 // 0 is a day worked where nothing they started reached QC.
@@ -987,7 +1005,7 @@ const dailyCounts = (tally: WorkerTally) =>
     (day) => tally.processed_by_day.get(day) ?? 0
   );
 
-function dailySpread(counts: number[]) {
+const dailySpread = (counts: number[]) => {
   if (counts.length < MIN_SPREAD_DAYS) {
     return null;
   }
@@ -995,29 +1013,52 @@ function dailySpread(counts: number[]) {
     p25: round(percentile(counts, 0.25), 2),
     p75: round(percentile(counts, 0.75), 2),
   };
-}
+};
 
-function dailyBuckets(from: string, to: string) {
+export const dailyBuckets = (from: string, to: string) => {
   const bucket: "day" | "week" =
     daysBetween(from, to) <= MAX_DAILY_BAR_DAYS ? "day" : "week";
   const bucketOf = (day: string) => (bucket === "day" ? day : weekStartOf(day));
   const labels = [...new Set(enumerateDays(from, to).map(bucketOf))];
   return { bucket, bucketOf, labels };
-}
+};
 
 // Only Services started by someone with a day worked count towards the rate:
 // a cashier who started one Item with no day at the bench has nothing to divide by.
-function perDayWorked(tallies: WorkerTally[]) {
+const perDayWorked = (tallies: WorkerTally[]) => {
   const staffed = tallies.filter((tally) => tally.days_worked.size > 0);
   const daysWorked = sumBy(staffed, (tally) => tally.days_worked.size);
   const services = sumBy(staffed, (tally) => tally.services_processed);
   return daysWorked > 0 ? round(services / daysWorked, 2) : null;
-}
+};
 
-function summariseWorkers(
-  activity: WorkerSummaryActivity,
+// One person across every Store: a day at two Stores is one Day worked, and
+// every Service they started counts toward the pace, even a booth's Item
+// finished on a day they spent at the main Store. The Profile page uses it too.
+const personFacts = (own: WorkerTally[]) => {
+  const days = new Set(own.flatMap((tally) => [...tally.days_worked]));
+  const services = sumBy(own, (tally) => tally.services_processed);
+  return {
+    services_processed: services,
+    days_worked: days.size,
+    per_day_worked: days.size > 0 ? round(services / days.size, 2) : null,
+    qc_checks: sumBy(own, (tally) => tally.qc_checks),
+    qc_rejects: sumBy(own, (tally) => tally.qc_rejects),
+    complaints: sumBy(own, (tally) => tally.complaints),
+    complaint_cohort: sumBy(own, (tally) => tally.complaint_cohort),
+  };
+};
+
+const scopeToStore = <T extends { store_id: number }>(
+  rows: T[],
+  storeId: number | undefined
+) =>
+  storeId === undefined ? rows : rows.filter((row) => row.store_id === storeId);
+
+const summariseWorkers = (
+  activity: Pick<WorkerSummaryActivity, "lines" | "qcChecks">,
   tallies: WorkerTally[]
-): WorkerSummary {
+): WorkerSummary => {
   const spread = dailySpread(tallies.flatMap(dailyCounts));
   const qcChecks = sumBy(activity.qcChecks, (row) => row.checks);
   const qcRejects = sumBy(activity.qcChecks, (row) => row.rejects);
@@ -1041,29 +1082,35 @@ function summariseWorkers(
     qc_rejects: qcRejects,
     qc_reject_rate: rate(qcRejects, qcChecks),
   };
-}
+};
 
-function groupByService(lines: ActivityLine[]) {
+const groupByService = (lines: ActivityLine[]) => {
   const byService = new Map<
     number,
-    { service_id: number; service_name: string; lines: ActivityLine[] }
+    {
+      service_id: number;
+      service_name: string;
+      service_code: string;
+      lines: ActivityLine[];
+    }
   >();
   for (const line of lines) {
     const serviceId = line.service_id ?? 0;
     const group = byService.get(serviceId) ?? {
       service_id: serviceId,
       service_name: line.service_name ?? "Unknown",
+      service_code: line.service_code ?? "Unknown",
       lines: [],
     };
     group.lines.push(line);
     byService.set(serviceId, group);
   }
   return [...byService.values()];
-}
+};
 
 type ServiceGroup = ReturnType<typeof groupByService>[number];
 
-function buildServicesMatrix(byService: ServiceGroup[]) {
+const buildServicesMatrix = (byService: ServiceGroup[]) => {
   const services: {
     service_id: number;
     service_name: string;
@@ -1099,25 +1146,145 @@ function buildServicesMatrix(byService: ServiceGroup[]) {
     }
   }
   return {
-    services: services.sort(
+    services: services.toSorted(
       (a, b) =>
         b.total - a.total || a.service_name.localeCompare(b.service_name)
     ),
     cells,
   };
-}
+};
 
-export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
+type UserRow = Awaited<ReturnType<typeof listUserNames>>[number];
+
+const userNameOf = (user: UserRow | undefined) => user?.name ?? "Unknown";
+
+const identityOf = (userId: number, user: UserRow | undefined) => ({
+  user_id: userId,
+  user_name: userNameOf(user),
+  avatar_url: buildMediaUrl(user?.avatar_path),
+  role: user?.role ?? "unknown",
+});
+
+const byStoreName =
+  (storeName: Map<number, string>) =>
+  (a: { store_id: number }, b: { store_id: number }) =>
+    (storeName.get(a.store_id) ?? "").localeCompare(
+      storeName.get(b.store_id) ?? ""
+    );
+
+// A Store's people in By Worker are those who clocked in there, plus those who
+// never clocked in anywhere but did bench work on its Items. A GRH worker who
+// also cleans the BSD booth's Items shows under GRH, not BSD.
+const workedAt = (own: WorkerTally[], storeId: number) => {
+  const clockedIn = own.filter((tally) => tally.clocked_in);
+  const candidates = clockedIn.length > 0 ? clockedIn : own;
+  return candidates.some((tally) => tally.store_id === storeId);
+};
+
+const listPeople = (
+  tallies: WorkerTally[],
+  storeId: number | undefined,
+  userById: Map<number, UserRow>,
+  storeName: Map<number, string>
+) =>
+  [
+    ...Map.groupBy(
+      tallies.toSorted(byStoreName(storeName)),
+      (tally) => tally.user_id
+    ).values(),
+  ]
+    .filter((own) => storeId === undefined || workedAt(own, storeId))
+    .map((own) => {
+      const userId = own[0].user_id;
+      return {
+        ...identityOf(userId, userById.get(userId)),
+        ...personFacts(own),
+        stores: own
+          .filter((tally) => tally.services_processed > 0)
+          .map((tally) => ({
+            store_id: tally.store_id,
+            services: tally.services_processed,
+          }))
+          .toSorted((a, b) => b.services - a.services),
+        row_store_ids: own.map((tally) => tally.store_id),
+        clock_in_store_ids: own
+          .filter((tally) => tally.clocked_in)
+          .map((tally) => tally.store_id),
+      };
+    })
+    .toSorted(
+      (a, b) =>
+        b.services_processed - a.services_processed ||
+        a.user_name.localeCompare(b.user_name)
+    );
+
+const liveOf = (tally: WorkerTally) => ({
+  clock_in_at: tally.latest_shift?.clock_in_at ?? null,
+  clock_out_at: tally.latest_shift?.clock_out_at ?? null,
+  in_hand: tally.in_hand,
+  last_move_at: tally.last_move_at,
+  services_today: tally.services_today,
+});
+
+type LiveFigures = ReturnType<typeof liveOf>;
+
+const shiftOf = (a: LiveFigures, b: LiveFigures) => {
+  if (b.clock_in_at === null) {
+    return a;
+  }
+  if (a.clock_in_at === null) {
+    return b;
+  }
+  const aOpen = a.clock_out_at === null;
+  if (aOpen !== (b.clock_out_at === null)) {
+    return aOpen ? a : b;
+  }
+  return b.clock_in_at > a.clock_in_at ? b : a;
+};
+
+const laterOf = (a: Date | null, b: Date | null) => {
+  if (a === null || b === null) {
+    return a ?? b;
+  }
+  return a > b ? a : b;
+};
+
+// Someone on the GRH bench with a BSD booth pair in hand is one person on the
+// floor: one Shift, every Item in hand, their latest move anywhere.
+const mergeLive = (a: LiveFigures, b: LiveFigures): LiveFigures => {
+  const shift = shiftOf(a, b);
+  return {
+    clock_in_at: shift.clock_in_at,
+    clock_out_at: shift.clock_out_at,
+    in_hand: a.in_hand + b.in_hand,
+    last_move_at: laterOf(a.last_move_at, b.last_move_at),
+    services_today: a.services_today + b.services_today,
+  };
+};
+
+const liveAcross = (own: WorkerTally[]) => {
+  let live = liveOf(own[0]);
+  for (const tally of own.slice(1)) {
+    live = mergeLive(live, liveOf(tally));
+  }
+  return live;
+};
+
+export const getWorkerProductivityReport = async (
+  query: GetReportRangeQuery
+) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
   const today = jakartaNow().format("YYYY-MM-DD");
   const isToday = ctx.from === today && ctx.to === today;
 
+  // Every Store's activity even with one picked: By Worker shows each person's
+  // whole range.
   const [activity, prevActivity, inHand, users, stores] = await Promise.all([
-    listWorkerActivity({ range, storeId }),
+    listWorkerActivity({ range }),
     listWorkerSummaryActivity({ range: ctx.previous.range, storeId }),
-    isToday ? listItemsInHand({ storeId }) : [],
+    isToday ? listItemsInHand({}) : [],
     listUserNames(),
     listStoreNames(),
   ]);
@@ -1125,9 +1292,14 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
   const storeName = new Map(stores.map((store) => [store.id, store.name]));
   const roleOf = (userId: number) => userById.get(userId)?.role;
 
-  const tallies = tallyWorkers(activity, roleOf, inHand);
-  tallyComplaints(tallies, activity.lines);
-  const current = summariseWorkers(activity, tallies);
+  const everyTally = tallyWorkers(activity, roleOf, inHand);
+  tallyComplaints(everyTally, activity.lines);
+  const tallies = scopeToStore(everyTally, storeId);
+  const lines = scopeToStore(activity.lines, storeId);
+  const current = summariseWorkers(
+    { lines, qcChecks: scopeToStore(activity.qcChecks, storeId) },
+    tallies
+  );
   const previous = summariseWorkers(
     prevActivity,
     tallyWorkers(prevActivity, roleOf)
@@ -1139,6 +1311,7 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
       return {
         user_id: tally.user_id,
         user_name: user?.name ?? "Unknown",
+        avatar_url: buildMediaUrl(user?.avatar_path),
         role: user?.role ?? "unknown",
         store_id: tally.store_id,
         store_name: storeName.get(tally.store_id) ?? "Unknown",
@@ -1151,13 +1324,14 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
         complaint_cohort: tally.complaint_cohort,
       };
     })
-    .sort(
+    .toSorted(
       (a, b) =>
         a.store_name.localeCompare(b.store_name) ||
         b.services_processed - a.services_processed ||
         a.user_name.localeCompare(b.user_name)
     );
-  const byService = groupByService(activity.lines);
+  const byService = groupByService(lines);
+  const nameOf = (userId: number) => userNameOf(userById.get(userId));
 
   return {
     from: ctx.from,
@@ -1172,46 +1346,75 @@ export async function getWorkerProductivityReport(query: GetReportRangeQuery) {
       deltas: buildDeltas(current, previous),
     } satisfies ComparableSummary<WorkerSummary>,
     workers,
+    people: listPeople(everyTally, storeId, userById, storeName),
+    // A booth with no bench of its own: who cleans its Items, busiest first.
+    cleaned_by:
+      storeId === undefined
+        ? []
+        : tallies
+            .filter((tally) => tally.services_processed > 0)
+            .toSorted(
+              (a, b) =>
+                b.services_processed - a.services_processed ||
+                nameOf(a.user_id).localeCompare(nameOf(b.user_id))
+            )
+            .map((tally) => nameOf(tally.user_id)),
     services_matrix: buildServicesMatrix(byService),
   };
-}
+};
+
+// A worker's own Workers tab figures for their Profile page, matching their By
+// Worker row.
+export const getOwnWorkerFacts = async (userId: number, range: DateRange) => {
+  const activity = await listWorkerActivity({ range, userId });
+  const tallies = tallyWorkers(activity, (id) =>
+    id === userId ? "worker" : undefined
+  );
+  tallyComplaints(tallies, activity.lines);
+  return personFacts(tallies.filter((tally) => tally.user_id === userId));
+};
 
 // Who is on the floor right now, apart from the range report so the Workers tab
 // can ask every minute on Last 30 days without rescanning the month each time.
-export async function getWorkerLiveReport({ store_id }: GetWorkerLiveQuery) {
+// Every Store is read even with one picked, for the By Worker rows.
+export const getWorkerLiveReport = async ({ store_id }: GetWorkerLiveQuery) => {
   const today = jakartaNow().format("YYYY-MM-DD");
   const todayRange = getJakartaRange(today, today);
   const [live, linesToday, users, stores] = await Promise.all([
-    listWorkerLiveActivity({ range: todayRange, storeId: store_id }),
-    listProcessedLineStarts({ range: todayRange, storeId: store_id }),
+    listWorkerLiveActivity({ range: todayRange }),
+    listProcessedLineStarts({ range: todayRange }),
     listUserNames(),
     listStoreNames(),
   ]);
   const userById = new Map(users.map((user) => [user.id, user]));
   const storeName = new Map(stores.map((store) => [store.id, store.name]));
   const roleOf = (userId: number) => userById.get(userId)?.role;
+  const tallies = tallyLiveActivity(live, linesToday, roleOf);
 
-  return tallyLiveActivity(live, linesToday, roleOf).map((tally) => {
-    const user = userById.get(tally.user_id);
-    return {
-      user_id: tally.user_id,
-      user_name: user?.name ?? "Unknown",
-      role: user?.role ?? "unknown",
+  return {
+    workers: scopeToStore(tallies, store_id).map((tally) => ({
+      ...identityOf(tally.user_id, userById.get(tally.user_id)),
       store_id: tally.store_id,
       store_name: storeName.get(tally.store_id) ?? "Unknown",
-      live: {
-        clock_in_at: tally.latest_shift?.clock_in_at ?? null,
-        clock_out_at: tally.latest_shift?.clock_out_at ?? null,
-        in_hand: tally.in_hand,
-        last_move_at: tally.last_move_at,
-        services_today: tally.services_today,
-      },
-    };
-  });
-}
+      live: liveOf(tally),
+    })),
+    // One per person across every Store, for By Worker.
+    people: [
+      ...Map.groupBy(
+        tallies.toSorted(byStoreName(storeName)),
+        (tally) => tally.user_id
+      ).values(),
+    ].map((own) => ({
+      ...identityOf(own[0].user_id, userById.get(own[0].user_id)),
+      row_store_ids: own.map((tally) => tally.store_id),
+      live: liveAcross(own),
+    })),
+  };
+};
 
 interface ServiceCount {
   count: number;
+  service_code: string;
   service_id: number;
   service_name: string;
 }
@@ -1219,19 +1422,20 @@ interface ServiceCount {
 const byCountThenName = (a: ServiceCount, b: ServiceCount) =>
   b.count - a.count || a.service_name.localeCompare(b.service_name);
 
-function countByService(lines: ActivityLine[]): ServiceCount[] {
-  return groupByService(lines)
-    .map(({ service_id, service_name, lines: group }) => ({
+const countByService = (lines: ActivityLine[]): ServiceCount[] =>
+  groupByService(lines)
+    .map(({ service_id, service_name, service_code, lines: group }) => ({
       service_id,
       service_name,
+      service_code,
       count: group.length,
     }))
-    .sort(byCountThenName);
-}
+    .toSorted(byCountThenName);
 
-function groupChecksByService(
-  checks: Awaited<ReturnType<typeof listQcChecksOfCleaner>>
-) {
+const groupChecksByService = (
+  checks: Awaited<ReturnType<typeof listQcChecksOfCleaner>>,
+  nameOf: (userId: number) => string
+) => {
   const byService = new Map<
     number,
     {
@@ -1239,13 +1443,13 @@ function groupChecksByService(
       service_name: string;
       rejects: number;
       checks: number;
-      items: {
+      items: (ItemNameFields & {
         order_id: number;
         order_service_id: number;
-        item_code: string;
         rejected_at: string;
+        rejected_by_name: string;
         note: string | null;
-      }[];
+      })[];
     }
   >();
   // Newest first, so each Service's items come out newest first too.
@@ -1264,8 +1468,9 @@ function groupChecksByService(
       group.items.push({
         order_id: check.order_id,
         order_service_id: check.order_service_id,
-        item_code: check.item_code,
+        ...pickItemName(check),
         rejected_at: check.checked_at.toISOString(),
+        rejected_by_name: nameOf(check.checker_id),
         note: check.note,
       });
     }
@@ -1273,16 +1478,16 @@ function groupChecksByService(
   }
   return [...byService.values()]
     .filter((group) => group.rejects > 0)
-    .sort(
+    .toSorted(
       (a, b) =>
         b.rejects - a.rejects || a.service_name.localeCompare(b.service_name)
     );
-}
+};
 
-function groupComplaintsByService(
+const groupComplaintsByService = (
   cohort: ActivityLine[],
   complaintItems: Awaited<ReturnType<typeof listComplaintItems>>
-) {
+) => {
   const itemByLine = new Map(
     complaintItems.map((item) => [item.order_service_id, item])
   );
@@ -1294,7 +1499,7 @@ function groupComplaintsByService(
       finished: lines.length,
       items: lines
         .flatMap((line) => itemByLine.get(line.order_service_id) ?? [])
-        .sort(
+        .toSorted(
           (a, b) =>
             b.created_at.getTime() - a.created_at.getTime() ||
             b.complaint_id - a.complaint_id
@@ -1303,22 +1508,25 @@ function groupComplaintsByService(
           complaint_id: item.complaint_id,
           order_id: item.order_id,
           order_service_id: item.order_service_id,
-          item_code: item.item_code,
+          ...pickItemName(item),
           opened_at: item.created_at.toISOString(),
           reason: item.reason,
+          outcome: complaintOutcome(item),
         })),
     }))
     .filter((group) => group.complaints > 0)
-    .sort(
+    .toSorted(
       (a, b) =>
         b.complaints - a.complaints ||
         a.service_name.localeCompare(b.service_name)
     );
-}
+};
 
-// One Store, one person: the page behind a row of the Workers tab. Everything
-// is built from the same tallies as that row, so the two never disagree.
-export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
+// One person at one Store, or across every Store with none picked: the page
+// behind a row of the Workers tab. Everything is built from the same tallies as
+// that row, so the two never disagree.
+// oxlint-disable-next-line eslint/complexity -- one page's worth of figures built in one pass; splitting it would only move the branches
+export const getWorkerDetailReport = async (query: GetWorkerDetailQuery) => {
   const { from, to, store_id: storeId, user_id: userId } = query;
   const range = getJakartaRange(from, to);
   // Same Today rule as the row: an Item in hand counts as a day at the bench.
@@ -1326,7 +1534,11 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
   const isToday = from === today && to === today;
 
   const [activity, inHand, checks, users, stores] = await Promise.all([
-    listWorkerActivity({ range, storeId }),
+    // A Store's sheet needs the whole team for its average; one across every
+    // Store has none, so it reads only this person's work.
+    listWorkerActivity(
+      storeId === undefined ? { range, userId } : { range, storeId }
+    ),
     isToday ? listItemsInHand({ storeId }) : [],
     listQcChecksOfCleaner({ range, storeId, userId }),
     listUserNames(),
@@ -1342,7 +1554,10 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
 
   const tallies = tallyWorkers(activity, roleOf, inHand);
   tallyComplaints(tallies, activity.lines);
-  const tally = tallies.find((t) => t.user_id === userId);
+  const mine = tallies
+    .filter((t) => t.user_id === userId)
+    .toSorted(byStoreName(storeName));
+  const myStoreIds = new Set(mine.map((t) => t.store_id));
 
   const { bucket, bucketOf, labels } = dailyBuckets(from, to);
   const bucketTotals = (t: WorkerTally) => {
@@ -1354,10 +1569,14 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
     return { processed, worked: new Set([...t.days_worked].map(bucketOf)) };
   };
 
-  const myWorked = new Set([...(tally?.days_worked ?? [])].map(bucketOf));
-  const colleagues = tallies
-    .filter((t) => roleOf(t.user_id) === "worker")
-    .map(bucketTotals);
+  const myWorked = new Set(
+    mine.flatMap((t) => [...t.days_worked].map(bucketOf))
+  );
+  // A Store average means nothing across every Store.
+  const colleagues =
+    storeId === undefined
+      ? []
+      : tallies.filter((t) => roleOf(t.user_id) === "worker").map(bucketTotals);
   const myLines = activity.lines.filter((line) => line.started_by === userId);
   const myLinesByBucket = new Map<string, typeof myLines>();
   for (const line of myLines) {
@@ -1380,6 +1599,11 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
       worked,
       total: inBucket.length > 0 || worked ? inBucket.length : null,
       services: countByService(inBucket),
+      // By the Order's Store, so a day at GRH cleaning BSD Items shows both.
+      by_store: [...myStoreIds].flatMap((id) => {
+        const count = inBucket.filter((line) => line.store_id === id).length;
+        return count > 0 ? [{ store_id: id, count }] : [];
+      }),
       store_average:
         crew.length > 0
           ? round(
@@ -1390,14 +1614,18 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
     };
   });
 
-  const qcRejects = groupChecksByService(checks);
+  const qcRejects = groupChecksByService(
+    checks,
+    (id) => userById.get(id)?.name ?? "—"
+  );
 
   // Same cohort and same guard as tallyComplaints: no row, no Complaints.
-  const cohort = tally
-    ? activity.lines.filter(
-        (line) => !line.is_rework && line.passed_cleaner_id === userId
-      )
-    : [];
+  const cohort = activity.lines.filter(
+    (line) =>
+      !line.is_rework &&
+      line.passed_cleaner_id === userId &&
+      myStoreIds.has(line.store_id)
+  );
   const complained = cohort.filter((line) => line.has_complaint);
   const complaintItems =
     complained.length > 0
@@ -1409,46 +1637,43 @@ export async function getWorkerDetailReport(query: GetWorkerDetailQuery) {
   return {
     from,
     to,
-    store_id: storeId,
-    store_name: storeName.get(storeId) ?? "Unknown",
+    store_id: storeId ?? null,
+    store_name:
+      storeId === undefined ? null : (storeName.get(storeId) ?? "Unknown"),
     user_id: userId,
     user_name: user.name,
     role: user.role,
     bucket,
-    facts: {
-      days_worked: tally?.days_worked.size ?? 0,
-      services_processed: tally?.services_processed ?? 0,
-      per_day_worked: tally ? perDayWorked([tally]) : null,
-      qc_checks: tally?.qc_checks ?? 0,
-      qc_rejects: tally?.qc_rejects ?? 0,
-      complaints: tally?.complaints ?? 0,
-      complaint_cohort: tally?.complaint_cohort ?? 0,
-    },
+    facts: personFacts(mine),
+    stores: mine
+      .filter((t) => t.services_processed > 0)
+      .map((t) => ({
+        store_id: t.store_id,
+        store_name: storeName.get(t.store_id) ?? "Unknown",
+        services: t.services_processed,
+      }))
+      .toSorted((a, b) => b.services - a.services),
     buckets,
     services: countByService(myLines),
     qc_rejects: qcRejects,
     complaints: groupComplaintsByService(cohort, complaintItems),
   };
-}
+};
 
-export async function getCampaignEffectivenessReport(
+export const getCampaignEffectivenessReport = async (
   query: GetReportRangeQuery
-) {
+) => {
   const ctx = buildContext(query);
   const range = getJakartaRange(ctx.from, ctx.to);
   const storeId = ctx.store_id ?? undefined;
 
   const rows = await listCampaignEffectivenessRows({ range, storeId });
 
-  const totals = rows.reduce(
-    (acc, row) => {
-      acc.orders += row.orders;
-      acc.collected += row.collected;
-      acc.discount_cost += row.discount_cost;
-      return acc;
-    },
-    { orders: 0, collected: 0, discount_cost: 0 }
-  );
+  const totals = {
+    orders: sumBy(rows, (row) => row.orders),
+    collected: sumBy(rows, (row) => row.collected),
+    discount_cost: sumBy(rows, (row) => row.discount_cost),
+  };
 
   return {
     from: ctx.from,
@@ -1458,4 +1683,4 @@ export async function getCampaignEffectivenessReport(
     campaigns: rows,
     summary: totals,
   };
-}
+};

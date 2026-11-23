@@ -1,138 +1,131 @@
 import { describe, expect, it } from "bun:test";
-import {
-	buildLineTimeline,
-	getFirstPickupAt,
-	type TimelineLine,
-} from "./line-timeline";
+
+import { buildLineTimeline, getFirstPickupAt } from "./line-timeline";
+import type { TimelineLine } from "./line-timeline";
 
 const cashier = { name: "Cahya" };
 const worker = { name: "Sari" };
 
 const complaint = {
-	id: 5,
-	created_at: "2026-09-20T03:00:00.000Z",
-	reason: "Sole still stained",
-	openedBy: cashier,
+  id: 5,
+  created_at: "2026-09-20T03:00:00.000Z",
+  reason: "Sole still stained",
+  openedBy: cashier,
 };
 
 const notOpened = { rework_opened_at: null, rework_opened_by: null };
 
 const log = (
-	id: number,
-	from_status: string | null,
-	to_status: string,
-	created_at: string,
-	changedBy = worker,
+  id: number,
+  from_status: string | null,
+  to_status: string,
+  created_at: string,
+  changedBy = worker
 ) => ({ id, from_status, to_status, created_at, changedBy, note: null });
 
 const summary = (line: TimelineLine) =>
-	buildLineTimeline(line).map((entry) => [entry.label, entry.at, entry.by]);
+  buildLineTimeline(line).map((entry) => [entry.label, entry.at, entry.by]);
 
 describe("a rework line's timeline", () => {
-	it("starts with the round being opened, not a bare Queued", () => {
-		const entries = buildLineTimeline({
-			id: 20,
-			rework_opened_at: "2026-09-22T02:00:00.000Z",
-			rework_opened_by: cashier,
-			statusLogs: [
-				log(1, null, "queued", "2026-09-22T02:00:00.000Z", cashier),
-				log(2, "queued", "processing", "2026-09-22T05:00:00.000Z"),
-			],
-			complaints: [],
-			reworkOf: complaint,
-		});
+  it("starts with the round being opened, not a bare Queued", () => {
+    const entries = buildLineTimeline({
+      id: 20,
+      rework_opened_at: "2026-09-22T02:00:00.000Z",
+      rework_opened_by: cashier,
+      statusLogs: [
+        log(1, null, "queued", "2026-09-22T02:00:00.000Z", cashier),
+        log(2, "queued", "processing", "2026-09-22T05:00:00.000Z"),
+      ],
+      complaints: [],
+      reworkOf: complaint,
+    });
 
-		expect(entries.map((entry) => [entry.label, entry.at, entry.by])).toEqual([
-			["Rework opened", "2026-09-22T02:00:00.000Z", "Cahya"],
-			["In progress", "2026-09-22T05:00:00.000Z", "Sari"],
-		]);
-		expect(entries[0].note).toBe("Sole still stained");
-	});
+    expect(entries.map((entry) => [entry.label, entry.at, entry.by])).toEqual([
+      ["Rework Opened", "2026-09-22T02:00:00.000Z", "Cahya"],
+      ["In Progress", "2026-09-22T05:00:00.000Z", "Sari"],
+    ]);
+    expect(entries[0].note).toBe("Sole still stained");
+  });
 
-	it("leaves a round the server could not date undated", () => {
-		expect(
-			summary({
-				id: 20,
-				...notOpened,
-				statusLogs: [],
-				complaints: [],
-				reworkOf: complaint,
-			}),
-		).toEqual([["Rework opened", null, null]]);
-	});
+  it("leaves a round the server could not date undated", () => {
+    expect(
+      summary({
+        id: 20,
+        ...notOpened,
+        statusLogs: [],
+        complaints: [],
+        reworkOf: complaint,
+      })
+    ).toEqual([["Rework Opened", null, null]]);
+  });
+});
+
+const pickedUpAt = (picked_up_at: string | null) => ({
+  orderService: {
+    pickupEvent: picked_up_at === null ? null : { picked_up_at },
+  },
 });
 
 describe("the original's first pickup, as a rework reads it", () => {
-	const pickedUpAt = (picked_up_at: string | null) => ({
-		orderService: {
-			pickupEvent: picked_up_at === null ? null : { picked_up_at },
-		},
-	});
+  it("is the pickup of a pair that went home before this round was opened", () => {
+    // Turned down at the counter with no rework, taken home anyway, and
+    // brought back two days later for the re-clean.
+    expect(
+      getFirstPickupAt(
+        pickedUpAt("2026-09-20T05:00:00.000Z"),
+        "2026-09-22T02:00:00.000Z"
+      )
+    ).toBe("2026-09-20T05:00:00.000Z");
+  });
 
-	it("is the pickup of a pair that went home before this round was opened", () => {
-		// Turned down at the counter with no rework, taken home anyway, and
-		// brought back two days later for the re-clean.
-		expect(
-			getFirstPickupAt(
-				pickedUpAt("2026-09-20T05:00:00.000Z"),
-				"2026-09-22T02:00:00.000Z",
-			),
-		).toBe("2026-09-20T05:00:00.000Z");
-	});
+  it("is none when the pair only left with its rework", () => {
+    expect(
+      getFirstPickupAt(
+        pickedUpAt("2026-09-24T09:00:00.000Z"),
+        complaint.created_at
+      )
+    ).toBeNull();
+  });
 
-	it("is none when the pair only left with its rework", () => {
-		expect(
-			getFirstPickupAt(
-				pickedUpAt("2026-09-24T09:00:00.000Z"),
-				complaint.created_at,
-			),
-		).toBeNull();
-	});
-
-	it("keeps the pickup of an undated round, from when complaints came only after one", () => {
-		expect(getFirstPickupAt(pickedUpAt("2026-09-19T05:00:00.000Z"), null)).toBe(
-			"2026-09-19T05:00:00.000Z",
-		);
-		expect(getFirstPickupAt(pickedUpAt(null), null)).toBeNull();
-	});
+  it("keeps the pickup of an undated round, from when complaints came only after one", () => {
+    expect(getFirstPickupAt(pickedUpAt("2026-09-19T05:00:00.000Z"), null)).toBe(
+      "2026-09-19T05:00:00.000Z"
+    );
+    expect(getFirstPickupAt(pickedUpAt(null), null)).toBeNull();
+  });
 });
 
 describe("the complained line's timeline", () => {
-	it("reads the counter story in order: ready, complaint, rework, picked up", () => {
-		expect(
-			summary({
-				id: 10,
-				...notOpened,
-				statusLogs: [
-					log(
-						1,
-						"quality_check",
-						"ready_for_pickup",
-						"2026-09-19T08:00:00.000Z",
-					),
-					log(2, "ready_for_pickup", "picked_up", "2026-09-24T09:00:00.000Z"),
-				],
-				complaints: [
-					{
-						...complaint,
-						reworkLines: [
-							{
-								id: 11,
-								rework_opened_at: complaint.created_at,
-								rework_opened_by: cashier,
-							},
-							{ id: 20, ...notOpened },
-						],
-					},
-				],
-				reworkOf: null,
-			}),
-		).toEqual([
-			["Ready for pickup", "2026-09-19T08:00:00.000Z", "Sari"],
-			["Complaint opened", complaint.created_at, "Cahya"],
-			["Rework started", complaint.created_at, "Cahya"],
-			["Rework started", null, null],
-			["Picked up", "2026-09-24T09:00:00.000Z", "Sari"],
-		]);
-	});
+  it("reads the counter story in order: ready, complaint, rework, picked up", () => {
+    expect(
+      summary({
+        id: 10,
+        ...notOpened,
+        statusLogs: [
+          log(1, "waiting_qc", "ready_for_pickup", "2026-09-19T08:00:00.000Z"),
+          log(2, "ready_for_pickup", "picked_up", "2026-09-24T09:00:00.000Z"),
+        ],
+        complaints: [
+          {
+            ...complaint,
+            reworkLines: [
+              {
+                id: 11,
+                rework_opened_at: complaint.created_at,
+                rework_opened_by: cashier,
+              },
+              { id: 20, ...notOpened },
+            ],
+          },
+        ],
+        reworkOf: null,
+      })
+    ).toEqual([
+      ["Ready for Pickup", "2026-09-19T08:00:00.000Z", "Sari"],
+      ["Complaint Opened", complaint.created_at, "Cahya"],
+      ["Rework Started", complaint.created_at, "Cahya"],
+      ["Rework Started", null, null],
+      ["Picked Up", "2026-09-24T09:00:00.000Z", "Sari"],
+    ]);
+  });
 });

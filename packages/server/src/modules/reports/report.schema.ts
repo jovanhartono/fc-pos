@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { dateStringSchema } from "@/schema/common";
 
 // The store gate on the reports router reads store_id off the raw querystring,
@@ -51,7 +52,8 @@ export const GETWorkerDetailQuerySchema = z
   .object({
     from: dateStringSchema("from"),
     to: dateStringSchema("to"),
-    store_id: storeIdQuerySchema,
+    // Left off, the person across every Store (the By Worker sheet).
+    store_id: storeIdQuerySchema.optional(),
     user_id: z.coerce.number().int().positive(),
   })
   .refine(fromNotAfterTo, fromNotAfterToIssue);
@@ -61,6 +63,7 @@ export type GetWorkerDetailQuery = z.infer<typeof GETWorkerDetailQuerySchema>;
 export const GETQcRejectsQuerySchema = z
   .object({
     ...reportRangeFields,
+    checker_id: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().min(1).max(200).optional(),
     offset: z.coerce.number().int().min(0).optional(),
   })

@@ -1,10 +1,10 @@
 import type { DbExecutor } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
+import type { ResolvedCampaignRow } from "@/modules/campaigns/campaign-redemption.service";
 import {
   getUsableCampaigns,
   resolveVoucherCode,
 } from "@/modules/campaigns/campaign.service";
-import type { ResolvedCampaignRow } from "@/modules/campaigns/campaign-redemption.service";
 import { applyManualDiscount, stackCampaignDiscounts } from "@/schema/discount";
 
 // No repository calls here, so the discount maths is testable without a database.
@@ -17,7 +17,7 @@ export interface ResolvedDiscount {
   discountSource: "none" | "manual" | "campaign";
 }
 
-export async function resolveDiscount(
+export const resolveDiscount = async (
   executor: DbExecutor,
   {
     campaignIds,
@@ -36,7 +36,7 @@ export async function resolveDiscount(
     storeCode: string;
     lines: { price: number; service_id: number }[];
   }
-): Promise<ResolvedDiscount> {
+): Promise<ResolvedDiscount> => {
   const manual = Math.max(0, manualDiscount);
 
   if (campaignIds.length === 0 && voucherCodes.length === 0) {
@@ -55,6 +55,7 @@ export async function resolveDiscount(
       ? await getUsableCampaigns(executor, {
           campaignIds,
           grossTotal,
+          lines,
           storeId,
           storeCode,
         })
@@ -62,7 +63,12 @@ export async function resolveDiscount(
 
   const resolvedVouchers = await Promise.all(
     voucherCodes.map((code) =>
-      resolveVoucherCode(executor, code, { storeId, storeCode, grossTotal })
+      resolveVoucherCode(executor, code, {
+        storeId,
+        storeCode,
+        grossTotal,
+        lines,
+      })
     )
   );
 
@@ -144,4 +150,4 @@ export async function resolveDiscount(
     discountSource,
     campaignRows,
   };
-}
+};

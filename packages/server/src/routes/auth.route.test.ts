@@ -1,6 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
 import type { JwtVariables } from "hono/jwt";
+
 import type { usersTable } from "@/db/schema";
 import type { AuthUser } from "@/types/jwt";
 import { errorHandler } from "@/utils/error-handler";
@@ -26,7 +28,7 @@ mock.module("@/db", () => ({
 
 process.env.JWT_SECRET ??= "test-secret";
 
-const authRoutes = (await import("@/routes/auth")).default;
+const { default: authRoutes } = await import("@/routes/auth");
 
 const app = new Hono<{ Variables: JwtVariables<AuthUser> }>().route(
   "/auth",
@@ -75,6 +77,49 @@ describe("logging in with the wrong credentials", () => {
       message: "Invalid username or password",
       success: false,
     });
+  });
+});
+
+// The sign-in must never reach page scripts: an injected script that could read
+// it would act as the cashier until it expires.
+describe("signing in", () => {
+  it("sets an HttpOnly session cookie and returns no token in the body", async () => {
+    executeMock.mockResolvedValue({
+      id: 1,
+      name: "Asep",
+      username: "asep",
+      password: await Bun.password.hash("correct-horse"),
+      role: "cashier",
+      can_process_pickup: false,
+      is_active: true,
+    } as UserRow);
+
+    const res = await login("asep", "correct-horse");
+    const cookie = res.headers.get("set-cookie") ?? "";
+    const body = (await res.json()) as { data: unknown };
+
+    expect(cookie).toStartWith("session=");
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("SameSite=Lax");
+    expect(cookie).toContain(`Max-Age=${60 * 60 * 24 * 30}`);
+    expect(body.data).toEqual({
+      user: {
+        id: 1,
+        name: "Asep",
+        username: "asep",
+        role: "cashier",
+        can_process_pickup: false,
+      },
+    });
+  });
+});
+
+describe("signing out", () => {
+  it("expires the session cookie", async () => {
+    const res = await app.request("/auth/logout", { method: "POST" });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
   });
 });
 

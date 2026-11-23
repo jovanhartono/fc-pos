@@ -1,4 +1,5 @@
 import type z from "zod";
+
 import {
   findServiceById,
   insertService,
@@ -10,17 +11,13 @@ import type {
   PUTServiceSchema,
 } from "@/modules/services/service.schema";
 
-export function getServices() {
-  return listServices();
-}
+export const getServices = () => listServices();
 
-export function getServiceById(id: number) {
-  return findServiceById(id);
-}
+export const getServiceById = (id: number) => findServiceById(id);
 
-export async function createService(
+export const createService = async (
   payload: z.infer<typeof POSTServiceSchema>
-) {
+) => {
   const [service] = await insertService({
     ...payload,
     cogs: payload.cogs.toString(),
@@ -28,12 +25,12 @@ export async function createService(
     price: payload.price === null ? null : payload.price.toString(),
   });
   return service;
-}
+};
 
-export async function updateService(
+export const updateService = async (
   id: number,
   payload: z.infer<typeof PUTServiceSchema>
-) {
+) => {
   const { cogs, price, ...rest } = payload;
   const [service] = await updateServiceById(id, {
     ...rest,
@@ -43,4 +40,4 @@ export async function updateService(
       : { price: price === null ? null : price.toString() }),
   });
   return service ?? null;
-}
+};

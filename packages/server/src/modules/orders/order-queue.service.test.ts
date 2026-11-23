@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { orderServiceHandlerLogsTable, ordersServicesTable } from "@/db/schema";
 import { BadRequestException, ForbiddenException } from "@/http-exceptions";
 import type { PatchOrderServiceStatusInput } from "@/modules/orders/order-admin.schema";
@@ -63,9 +64,9 @@ mock.module("@/db", () => ({
         }),
       },
     },
-    transaction: (cb: (tx: typeof TX) => unknown) => {
+    transaction: (work: (tx: typeof TX) => unknown) => {
       dbState.transactions += 1;
-      return cb(TX);
+      return work(TX);
     },
     // The guard tests below must stop before the list query runs.
     select: () => {
@@ -81,12 +82,11 @@ const authz = {
 mock.module("@/utils/authorization", () => authorizationDouble(authz));
 
 // Restored in afterAll, since order-status-machine.test.ts runs the real one.
-const actualStatusMachine = await import(
-  "@/modules/orders/order-status-machine"
-);
+const actualStatusMachine =
+  await import("@/modules/orders/order-status-machine");
 
 const machine = {
-  calls: [] as Array<{ executor: unknown; input: AnyObj }>,
+  calls: [] as { executor: unknown; input: AnyObj }[],
   from: "queued",
 };
 
@@ -283,13 +283,13 @@ describe("updateOrderServiceStatus", () => {
   });
 
   it("leaves the handler untouched on a non-claim transition", async () => {
-    // Sari sends Budi's finished Item to quality check; the work stays Budi's.
+    // Sari sends Budi's finished Item to Waiting QC; the work stays Budi's.
     dbState.lockedRows = [
       makeLockedRow({ status: "processing", handler_id: 7 }),
     ];
     machine.from = "processing";
 
-    await patchStatus({ status: "quality_check" });
+    await patchStatus({ status: "waiting_qc" });
 
     expect(dbState.updates).toEqual([]);
     expect(dbState.inserts).toEqual([]);

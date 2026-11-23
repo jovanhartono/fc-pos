@@ -1,5 +1,7 @@
 import { and, EmptyFilter, eq, isNull, or, sql } from "drizzle-orm";
-import { type DbExecutor, db } from "@/db";
+
+import { db } from "@/db";
+import type { DbExecutor } from "@/db";
 import {
   campaignCodesTable,
   campaignEligibleServicesTable,
@@ -34,13 +36,14 @@ interface CampaignWritePayload {
 }
 
 // No 0/O/1/I/L, so a Voucher code read off paper is not mistyped at the POS.
-const CROCKFORD_CHARSET = "23456789ABCDEFGHJKMNPQRSTVWXYZ"; // 30 chars
+// 30 chars.
+const CROCKFORD_CHARSET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
 const CODE_LENGTH = 8;
 // Rejection-sample floor: 240 = floor(256/30)*30 — eliminates modulo bias.
 const CROCKFORD_SAMPLE_FLOOR = 240;
 const MAX_COLLISION_RETRIES = 10;
 
-export function generateCrockfordCode(): string {
+export const generateCrockfordCode = (): string => {
   const result: string[] = [];
   while (result.length < CODE_LENGTH) {
     const bytes = crypto.getRandomValues(new Uint8Array(CODE_LENGTH * 2));
@@ -55,13 +58,13 @@ export function generateCrockfordCode(): string {
     }
   }
   return result.join("");
-}
+};
 
-export async function mintCampaignCodes(
+export const mintCampaignCodes = async (
   tx: OrderTx,
   campaignId: number,
   count: number
-): Promise<void> {
+): Promise<void> => {
   let remaining = count;
   let attempts = 0;
 
@@ -82,10 +85,10 @@ export async function mintCampaignCodes(
       .returning({ id: campaignCodesTable.id });
     remaining -= inserted.length;
   }
-}
+};
 
-export function listCampaigns(filters: CampaignFilters) {
-  return db.query.campaignsTable.findMany({
+export const listCampaigns = (filters: CampaignFilters) =>
+  db.query.campaignsTable.findMany({
     where: {
       is_active: filters.is_active ?? EmptyFilter,
       redemption_mode: filters.redemption_mode ?? EmptyFilter,
@@ -125,10 +128,9 @@ export function listCampaigns(filters: CampaignFilters) {
       },
     },
   });
-}
 
-export function findCampaignById(id: number) {
-  return db.query.campaignsTable.findFirst({
+export const findCampaignById = (id: number) =>
+  db.query.campaignsTable.findFirst({
     where: { id },
     with: {
       stores: {
@@ -157,10 +159,9 @@ export function findCampaignById(id: number) {
       },
     },
   });
-}
 
-export function findCampaignByCode(executor: DbExecutor, code: string) {
-  return executor.query.campaignCodesTable.findFirst({
+export const findCampaignByCode = (executor: DbExecutor, code: string) =>
+  executor.query.campaignCodesTable.findFirst({
     where: { code },
     with: {
       campaign: {
@@ -181,10 +182,9 @@ export function findCampaignByCode(executor: DbExecutor, code: string) {
       },
     },
   });
-}
 
-export function findCampaignByIdWithCodes(id: number) {
-  return db.query.campaignsTable.findFirst({
+export const findCampaignByIdWithCodes = (id: number) =>
+  db.query.campaignsTable.findFirst({
     where: { id },
     with: {
       codes: {
@@ -199,23 +199,20 @@ export function findCampaignByIdWithCodes(id: number) {
       },
     },
   });
-}
 
-export function findStoresByIds(storeIds: number[]) {
-  return db.query.storesTable.findMany({
+export const findStoresByIds = (storeIds: number[]) =>
+  db.query.storesTable.findMany({
     where: { id: { in: storeIds } },
     columns: { id: true },
   });
-}
 
-export function findServicesByIds(serviceIds: number[]) {
-  return db.query.servicesTable.findMany({
+export const findServicesByIds = (serviceIds: number[]) =>
+  db.query.servicesTable.findMany({
     where: { id: { in: serviceIds } },
     columns: { id: true },
   });
-}
 
-export function insertCampaignWithStores({
+export const insertCampaignWithStores = ({
   payload,
   actorId,
   storeIds,
@@ -227,8 +224,8 @@ export function insertCampaignWithStores({
   storeIds: number[];
   serviceIds: number[];
   codeCount?: number;
-}) {
-  return db.transaction(async (tx) => {
+}) =>
+  db.transaction(async (tx) => {
     const [campaign] = await tx
       .insert(campaignsTable)
       .values({
@@ -262,9 +259,8 @@ export function insertCampaignWithStores({
 
     return campaign;
   });
-}
 
-export function updateCampaignWithStores({
+export const updateCampaignWithStores = ({
   id,
   payload,
   actorId,
@@ -276,8 +272,8 @@ export function updateCampaignWithStores({
   actorId: number;
   storeIds?: number[];
   serviceIds?: number[];
-}) {
-  return db.transaction(async (tx) => {
+}) =>
+  db.transaction(async (tx) => {
     const rows = await tx
       .update(campaignsTable)
       .set({
@@ -319,42 +315,39 @@ export function updateCampaignWithStores({
 
     return rows[0] ?? null;
   });
-}
 
-export function deleteCampaignById(id: number) {
-  return db
+export const deleteCampaignById = (id: number) =>
+  db
     .delete(campaignsTable)
     .where(eq(campaignsTable.id, id))
     .returning({ id: campaignsTable.id })
     .then((rows) => rows[0] ?? null);
-}
 
-export function findCampaignsByIdsWithEligibility(
-  executor: DbExecutor,
-  ids: number[]
-) {
-  if (ids.length === 0) {
-    return Promise.resolve(
-      [] as Awaited<ReturnType<typeof queryCampaignsWithEligibility>>
-    );
-  }
-  return queryCampaignsWithEligibility(executor, ids);
-}
-
-function queryCampaignsWithEligibility(executor: DbExecutor, ids: number[]) {
-  return executor.query.campaignsTable.findMany({
+const queryCampaignsWithEligibility = (executor: DbExecutor, ids: number[]) =>
+  executor.query.campaignsTable.findMany({
     where: { id: { in: ids } },
     with: {
       stores: { columns: { store_id: true } },
       eligibleServices: { columns: { service_id: true } },
     },
   });
-}
 
-export async function atomicIncrementCampaignRedeemed(
+export const findCampaignsByIdsWithEligibility = (
+  executor: DbExecutor,
+  ids: number[]
+) => {
+  if (ids.length === 0) {
+    return Promise.resolve(
+      [] as Awaited<ReturnType<typeof queryCampaignsWithEligibility>>
+    );
+  }
+  return queryCampaignsWithEligibility(executor, ids);
+};
+
+export const atomicIncrementCampaignRedeemed = async (
   tx: OrderTx,
   campaignId: number
-): Promise<boolean> {
+): Promise<boolean> => {
   const rows = await tx
     .update(campaignsTable)
     .set({ redeemed_count: sql`${campaignsTable.redeemed_count} + 1` })
@@ -369,13 +362,13 @@ export async function atomicIncrementCampaignRedeemed(
     )
     .returning({ id: campaignsTable.id });
   return rows.length > 0;
-}
+};
 
-export async function atomicClaimCampaignCode(
+export const atomicClaimCampaignCode = async (
   tx: OrderTx,
   code: string,
   orderId: number
-): Promise<{ codeId: number } | null> {
+): Promise<{ codeId: number } | null> => {
   const rows = await tx
     .update(campaignCodesTable)
     .set({ redeemed_at: new Date(), redeemed_order_id: orderId })
@@ -387,39 +380,38 @@ export async function atomicClaimCampaignCode(
     )
     .returning({ id: campaignCodesTable.id });
   return rows[0] ? { codeId: rows[0].id } : null;
-}
+};
 
-export async function releaseCampaignCodeRedemption(
+export const releaseCampaignCodeRedemption = async (
   tx: OrderTx,
   codeId: number
-): Promise<void> {
+): Promise<void> => {
   await tx
     .update(campaignCodesTable)
     .set({ redeemed_at: null, redeemed_order_id: null })
     .where(eq(campaignCodesTable.id, codeId));
-}
+};
 
-export async function decrementCampaignRedeemed(
+export const decrementCampaignRedeemed = async (
   tx: OrderTx,
   campaignId: number
-): Promise<void> {
+): Promise<void> => {
   await tx
     .update(campaignsTable)
     .set({
       redeemed_count: sql`GREATEST(${campaignsTable.redeemed_count} - 1, 0)`,
     })
     .where(eq(campaignsTable.id, campaignId));
-}
+};
 
-export function findOrderCampaignsByOrderId(tx: OrderTx, orderId: number) {
-  return tx.query.orderCampaignsTable.findMany({
+export const findOrderCampaignsByOrderId = (tx: OrderTx, orderId: number) =>
+  tx.query.orderCampaignsTable.findMany({
     where: { order_id: orderId },
     columns: { id: true, campaign_id: true, code_id: true },
   });
-}
 
-export function findOrderCampaignMinimums(tx: OrderTx, orderId: number) {
-  return tx
+export const findOrderCampaignMinimums = (tx: OrderTx, orderId: number) =>
+  tx
     .select({ minOrderTotal: campaignsTable.min_order_total })
     .from(orderCampaignsTable)
     .innerJoin(
@@ -427,10 +419,8 @@ export function findOrderCampaignMinimums(tx: OrderTx, orderId: number) {
       eq(campaignsTable.id, orderCampaignsTable.campaign_id)
     )
     .where(eq(orderCampaignsTable.order_id, orderId));
-}
 
-export function deleteOrderCampaignsByOrderId(tx: OrderTx, orderId: number) {
-  return tx
+export const deleteOrderCampaignsByOrderId = (tx: OrderTx, orderId: number) =>
+  tx
     .delete(orderCampaignsTable)
     .where(eq(orderCampaignsTable.order_id, orderId));
-}

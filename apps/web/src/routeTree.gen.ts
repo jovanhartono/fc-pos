@@ -32,6 +32,8 @@ import { Route as AdminCustomersIndexRouteImport } from "./routes/_admin/custome
 import { Route as AdminCustomersCustomerIdRouteImport } from "./routes/_admin/customers.$customerId";
 import { Route as AdminOrdersIndexRouteImport } from "./routes/_admin/orders.index";
 import { Route as AdminOrdersOrderIdRouteImport } from "./routes/_admin/orders.$orderId";
+import { Route as AdminProfileIndexRouteImport } from "./routes/_admin/profile.index";
+import { Route as AdminProfilePasswordRouteImport } from "./routes/_admin/profile.password";
 import { Route as AdminQueueIndexRouteImport } from "./routes/_admin/queue.index";
 import { Route as AdminQueueOrderIdServiceIdRouteImport } from "./routes/_admin/queue.$orderId.$serviceId";
 
@@ -151,6 +153,16 @@ const AdminOrdersOrderIdRoute = AdminOrdersOrderIdRouteImport.update({
   path: "/orders/$orderId",
   getParentRoute: () => AdminRouteRoute,
 } as any);
+const AdminProfileIndexRoute = AdminProfileIndexRouteImport.update({
+  id: "/profile/",
+  path: "/profile/",
+  getParentRoute: () => AdminRouteRoute,
+} as any);
+const AdminProfilePasswordRoute = AdminProfilePasswordRouteImport.update({
+  id: "/profile/password",
+  path: "/profile/password",
+  getParentRoute: () => AdminRouteRoute,
+} as any);
 const AdminQueueIndexRoute = AdminQueueIndexRouteImport.update({
   id: "/queue/",
   path: "/queue/",
@@ -183,9 +195,11 @@ export interface FileRoutesByFullPath {
   "/complaints/$complaintId": typeof AdminComplaintsComplaintIdRoute;
   "/customers/$customerId": typeof AdminCustomersCustomerIdRoute;
   "/orders/$orderId": typeof AdminOrdersOrderIdRoute;
+  "/profile/password": typeof AdminProfilePasswordRoute;
   "/complaints/": typeof AdminComplaintsIndexRoute;
   "/customers/": typeof AdminCustomersIndexRoute;
   "/orders/": typeof AdminOrdersIndexRoute;
+  "/profile/": typeof AdminProfileIndexRoute;
   "/queue/": typeof AdminQueueIndexRoute;
   "/queue/$orderId/$serviceId": typeof AdminQueueOrderIdServiceIdRoute;
 }
@@ -209,9 +223,11 @@ export interface FileRoutesByTo {
   "/complaints/$complaintId": typeof AdminComplaintsComplaintIdRoute;
   "/customers/$customerId": typeof AdminCustomersCustomerIdRoute;
   "/orders/$orderId": typeof AdminOrdersOrderIdRoute;
+  "/profile/password": typeof AdminProfilePasswordRoute;
   "/complaints": typeof AdminComplaintsIndexRoute;
   "/customers": typeof AdminCustomersIndexRoute;
   "/orders": typeof AdminOrdersIndexRoute;
+  "/profile": typeof AdminProfileIndexRoute;
   "/queue": typeof AdminQueueIndexRoute;
   "/queue/$orderId/$serviceId": typeof AdminQueueOrderIdServiceIdRoute;
 }
@@ -237,9 +253,11 @@ export interface FileRoutesById {
   "/_admin/complaints/$complaintId": typeof AdminComplaintsComplaintIdRoute;
   "/_admin/customers/$customerId": typeof AdminCustomersCustomerIdRoute;
   "/_admin/orders/$orderId": typeof AdminOrdersOrderIdRoute;
+  "/_admin/profile/password": typeof AdminProfilePasswordRoute;
   "/_admin/complaints/": typeof AdminComplaintsIndexRoute;
   "/_admin/customers/": typeof AdminCustomersIndexRoute;
   "/_admin/orders/": typeof AdminOrdersIndexRoute;
+  "/_admin/profile/": typeof AdminProfileIndexRoute;
   "/_admin/queue/": typeof AdminQueueIndexRoute;
   "/_admin/queue/$orderId/$serviceId": typeof AdminQueueOrderIdServiceIdRoute;
 }
@@ -265,9 +283,11 @@ export interface FileRouteTypes {
     | "/complaints/$complaintId"
     | "/customers/$customerId"
     | "/orders/$orderId"
+    | "/profile/password"
     | "/complaints/"
     | "/customers/"
     | "/orders/"
+    | "/profile/"
     | "/queue/"
     | "/queue/$orderId/$serviceId";
   fileRoutesByTo: FileRoutesByTo;
@@ -291,9 +311,11 @@ export interface FileRouteTypes {
     | "/complaints/$complaintId"
     | "/customers/$customerId"
     | "/orders/$orderId"
+    | "/profile/password"
     | "/complaints"
     | "/customers"
     | "/orders"
+    | "/profile"
     | "/queue"
     | "/queue/$orderId/$serviceId";
   id:
@@ -318,9 +340,11 @@ export interface FileRouteTypes {
     | "/_admin/complaints/$complaintId"
     | "/_admin/customers/$customerId"
     | "/_admin/orders/$orderId"
+    | "/_admin/profile/password"
     | "/_admin/complaints/"
     | "/_admin/customers/"
     | "/_admin/orders/"
+    | "/_admin/profile/"
     | "/_admin/queue/"
     | "/_admin/queue/$orderId/$serviceId";
   fileRoutesById: FileRoutesById;
@@ -495,6 +519,20 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AdminOrdersOrderIdRouteImport;
       parentRoute: typeof AdminRouteRoute;
     };
+    "/_admin/profile/": {
+      id: "/_admin/profile/";
+      path: "/profile";
+      fullPath: "/profile/";
+      preLoaderRoute: typeof AdminProfileIndexRouteImport;
+      parentRoute: typeof AdminRouteRoute;
+    };
+    "/_admin/profile/password": {
+      id: "/_admin/profile/password";
+      path: "/profile/password";
+      fullPath: "/profile/password";
+      preLoaderRoute: typeof AdminProfilePasswordRouteImport;
+      parentRoute: typeof AdminRouteRoute;
+    };
     "/_admin/queue/": {
       id: "/_admin/queue/";
       path: "/queue";
@@ -529,9 +567,11 @@ interface AdminRouteRouteChildren {
   AdminComplaintsComplaintIdRoute: typeof AdminComplaintsComplaintIdRoute;
   AdminCustomersCustomerIdRoute: typeof AdminCustomersCustomerIdRoute;
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute;
+  AdminProfilePasswordRoute: typeof AdminProfilePasswordRoute;
   AdminComplaintsIndexRoute: typeof AdminComplaintsIndexRoute;
   AdminCustomersIndexRoute: typeof AdminCustomersIndexRoute;
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute;
+  AdminProfileIndexRoute: typeof AdminProfileIndexRoute;
   AdminQueueIndexRoute: typeof AdminQueueIndexRoute;
   AdminQueueOrderIdServiceIdRoute: typeof AdminQueueOrderIdServiceIdRoute;
 }
@@ -553,9 +593,11 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminComplaintsComplaintIdRoute: AdminComplaintsComplaintIdRoute,
   AdminCustomersCustomerIdRoute: AdminCustomersCustomerIdRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
+  AdminProfilePasswordRoute: AdminProfilePasswordRoute,
   AdminComplaintsIndexRoute: AdminComplaintsIndexRoute,
   AdminCustomersIndexRoute: AdminCustomersIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
+  AdminProfileIndexRoute: AdminProfileIndexRoute,
   AdminQueueIndexRoute: AdminQueueIndexRoute,
   AdminQueueOrderIdServiceIdRoute: AdminQueueOrderIdServiceIdRoute,
 };

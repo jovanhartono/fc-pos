@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, max, sql } from "drizzle-orm";
+
 import { db } from "@/db";
 import {
   categoriesTable,
@@ -18,8 +19,8 @@ import {
 import { paidOrderWindow, timeWindow } from "@/modules/reports/money-basis";
 import type { DateRange } from "@/modules/reports/report-range.util";
 
-export function listPaidOrders(storeId: number, range: DateRange) {
-  return db
+export const listPaidOrders = (storeId: number, range: DateRange) =>
+  db
     .select({
       amount: ordersTable.paid_amount,
       code: ordersTable.code,
@@ -40,10 +41,9 @@ export function listPaidOrders(storeId: number, range: DateRange) {
     .leftJoin(usersTable, eq(ordersTable.paid_by, usersTable.id))
     .where(and(...paidOrderWindow({ range, storeId })))
     .orderBy(asc(ordersTable.paid_at), asc(ordersTable.id));
-}
 
-export function listRefundsInDay(storeId: number, range: DateRange) {
-  return db
+export const listRefundsInDay = (storeId: number, range: DateRange) =>
+  db
     .select({
       amount: orderRefundsTable.total_amount,
       customer_name: customersTable.name,
@@ -63,10 +63,9 @@ export function listRefundsInDay(storeId: number, range: DateRange) {
       )
     )
     .orderBy(asc(orderRefundsTable.created_at), asc(orderRefundsTable.id));
-}
 
-export function listRefundReasons(refundIds: number[]) {
-  return db
+export const listRefundReasons = (refundIds: number[]) =>
+  db
     .selectDistinct({
       reason: orderRefundItemsTable.reason,
       refund_id: orderRefundItemsTable.order_refund_id,
@@ -74,16 +73,16 @@ export function listRefundReasons(refundIds: number[]) {
     .from(orderRefundItemsTable)
     .where(inArray(orderRefundItemsTable.order_refund_id, refundIds))
     .orderBy(orderRefundItemsTable.reason);
-}
 
 // Cancelled Orders are in: they were dropped off, even if never paid.
-export function listDroppedOffOrders(storeId: number, range: DateRange) {
-  return db
+export const listDroppedOffOrders = (storeId: number, range: DateRange) =>
+  db
     .select({
       cancelled_at: ordersTable.cancelled_at,
       code: ordersTable.code,
       created_at: ordersTable.created_at,
       customer_name: customersTable.name,
+      delivery_fee: ordersTable.delivery_fee,
       discount: ordersTable.discount,
       items: sql<number>`COUNT(${itemsTable.id})::int`,
       method_name: paymentMethodsTable.name,
@@ -106,11 +105,10 @@ export function listDroppedOffOrders(storeId: number, range: DateRange) {
     )
     .groupBy(ordersTable.id, customersTable.id, paymentMethodsTable.id)
     .orderBy(asc(ordersTable.created_at), asc(ordersTable.id));
-}
 
 // A Rework is a free re-do of work already counted, not new work dropped off.
-export function listDroppedOffServices(storeId: number, range: DateRange) {
-  return db
+export const listDroppedOffServices = (storeId: number, range: DateRange) =>
+  db
     .select({
       category: categoriesTable.name,
       count: sql<number>`COUNT(*)::int`,
@@ -135,10 +133,9 @@ export function listDroppedOffServices(storeId: number, range: DateRange) {
       )
     )
     .groupBy(categoriesTable.id, servicesTable.id);
-}
 
-export function listDroppedOffProducts(storeId: number, range: DateRange) {
-  return db
+export const listDroppedOffProducts = (storeId: number, range: DateRange) =>
+  db
     .select({
       name: productsTable.name,
       product_id: productsTable.id,
@@ -158,10 +155,9 @@ export function listDroppedOffProducts(storeId: number, range: DateRange) {
     )
     .groupBy(productsTable.id)
     .orderBy(asc(productsTable.name));
-}
 
 // A part pickup counts as the Order picked up that day.
-export function listPickedUpOrders(storeId: number, range: DateRange) {
+export const listPickedUpOrders = (storeId: number, range: DateRange) => {
   const lastPickupAt = max(orderPickupEventsTable.picked_up_at);
 
   return db
@@ -188,10 +184,10 @@ export function listPickedUpOrders(storeId: number, range: DateRange) {
     )
     .groupBy(ordersTable.id, customersTable.id)
     .orderBy(asc(lastPickupAt), asc(ordersTable.id));
-}
+};
 
-export function listOrderLinesWithPickup(orderIds: number[]) {
-  return db
+export const listOrderLinesWithPickup = (orderIds: number[]) =>
+  db
     .select({
       item_id: ordersServicesTable.item_id,
       order_id: ordersServicesTable.order_id,
@@ -205,4 +201,3 @@ export function listOrderLinesWithPickup(orderIds: number[]) {
       eq(ordersServicesTable.pickup_event_id, orderPickupEventsTable.id)
     )
     .where(inArray(ordersServicesTable.order_id, orderIds));
-}

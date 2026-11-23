@@ -1,14 +1,22 @@
+import { db } from "@/db";
+import type { DbExecutor } from "@/db";
 import { BadRequestException } from "@/http-exceptions";
 import {
   claimRedemptions,
   releaseRedemptions,
   voidCampaignsBelowMinimum,
 } from "@/modules/campaigns/campaign-redemption.service";
-import type { OrderTx } from "@/modules/orders/order.repository";
 import { resolveDiscount } from "@/modules/orders/order-discount.service";
-import { findOrderState } from "@/modules/orders/order-read.repository";
+import type { ResolvedDiscount } from "@/modules/orders/order-discount.service";
+import {
+  findOrderState,
+  getOrderStateOrThrow,
+} from "@/modules/orders/order-read.repository";
 import { recomputeOrderRollup } from "@/modules/orders/order-status-machine";
-import { type DiscountSource, isBogoSlot } from "@/schema/discount";
+import type { OrderTx } from "@/modules/orders/order.repository";
+import { cancelOrderPendingCharges } from "@/modules/payments/payment-charge-close";
+import { isBogoSlot } from "@/schema/discount";
+import type { DiscountSource } from "@/schema/discount";
 import { hasUnpricedLine } from "@/schema/unpriced-line";
 
 // Where a discount settles on an Order (ADR-0018). Drop-off, payment, Repair
@@ -35,25 +43,25 @@ export interface SettledDiscount {
 }
 
 // 0 already means a free Rework line (ADR-0013); "not priced yet" is blank.
-export function assertLinePrice(price: number): void {
+export const assertLinePrice = (price: number): void => {
   if (price <= 0) {
     throw new BadRequestException("Price must be greater than zero");
   }
-}
+};
 
 // No price, no payment (ADR-0018). Payment is all or nothing (ADR-0001), so one
 // uninspected Repair holds up the whole Order.
-export function assertPayable(lines: SettlementLine[]): void {
+export const assertPayable = (lines: SettlementLine[]): void => {
   if (hasUnpricedLine(lines)) {
     throw new BadRequestException(
-      "Order has an unpriced line — set its price before collecting payment"
+      "Order has an unpriced line. Price it before collecting payment."
     );
   }
-}
+};
 
 // No promo against a guessed Repair price (ADR-0018). Once settled, the discount
 // is on the Customer's Receipt; a second one would spend the Voucher code twice.
-export function assertDiscountRequestAllowed({
+export const assertDiscountRequestAllowed = ({
   hasBlankLine,
   isSettled,
   request,
@@ -61,7 +69,7 @@ export function assertDiscountRequestAllowed({
   hasBlankLine: boolean;
   isSettled: boolean;
   request: DiscountRequest;
-}): void {
+}): void => {
   const asksForOne =
     request.campaign_ids.length > 0 ||
     request.voucher_codes.length > 0 ||
@@ -72,74 +80,88 @@ export function assertDiscountRequestAllowed({
   }
   if (hasBlankLine) {
     throw new BadRequestException(
-      "Order has an unpriced line — promotions wait until every item is priced"
+      "Order has an unpriced line. Add discounts once every line is priced."
     );
   }
   if (isSettled) {
     throw new BadRequestException(
-      "This order's discount was settled at drop-off — collect the printed total"
+      "This Order's discount was settled at drop-off. Collect the printed total."
     );
   }
-}
+};
 
-function bogoSlots(lines: SettlementLine[]) {
-  return lines.flatMap((line) =>
+const bogoSlots = (lines: SettlementLine[]) =>
+  lines.flatMap((line) =>
     line.service_id !== null && isBogoSlot(line)
       ? [{ price: Number(line.price), service_id: line.service_id }]
       : []
   );
+
+export interface SettleDiscountInput {
+  grossTotal: number;
+  lines: SettlementLine[];
+  request: DiscountRequest;
+  settled?: SettledDiscount;
+  storeCode: string;
+  storeId: number;
 }
 
-// The Voucher code and Usage limit slot are claimed as soon as the discount is on
-// the Receipt, since the Customer holds the shop to it. Already settled → skip.
-export async function settleDiscount(
-  tx: OrderTx,
+// What the discount would be, claiming nothing: a counter QRIS shows this
+// amount and the Voucher code is spent only when the money arrives.
+export const previewDiscount = (
+  executor: DbExecutor,
   {
     grossTotal,
     lines,
-    orderId,
     request,
     settled,
     storeCode,
     storeId,
-  }: {
-    grossTotal: number;
-    lines: SettlementLine[];
-    orderId: number;
-    request: DiscountRequest;
-    settled?: SettledDiscount;
-    storeCode: string;
-    storeId: number;
-  }
-): Promise<SettledDiscount> {
+  }: SettleDiscountInput
+): Promise<SettledDiscount & Pick<ResolvedDiscount, "campaignRows">> => {
   if (settled) {
-    return settled;
+    return Promise.resolve({ ...settled, campaignRows: [] });
+  }
+
+  return resolveDiscount(executor, {
+    campaignIds: request.campaign_ids,
+    voucherCodes: request.voucher_codes,
+    grossTotal,
+    manualDiscount: request.discount,
+    storeId,
+    storeCode,
+    lines: bogoSlots(lines),
+  });
+};
+
+// The Voucher code and Usage limit slot are claimed as soon as the discount is on
+// the Receipt, since the Customer holds the shop to it. Already settled → skip.
+export const settleDiscount = async (
+  tx: OrderTx,
+  { orderId, ...input }: SettleDiscountInput & { orderId: number }
+): Promise<SettledDiscount> => {
+  if (input.settled) {
+    return input.settled;
   }
 
   const { campaignRows, discountAmount, discountSource } =
-    await resolveDiscount(tx, {
-      campaignIds: request.campaign_ids,
-      voucherCodes: request.voucher_codes,
-      grossTotal,
-      manualDiscount: request.discount,
-      storeId,
-      storeCode,
-      lines: bogoSlots(lines),
-    });
+    await previewDiscount(tx, input);
 
   await claimRedemptions(tx, campaignRows, orderId);
 
   return { discountAmount, discountSource };
-}
+};
+
+type OrderState = Awaited<ReturnType<typeof getOrderStateOrThrow>>;
 
 // After a cancel or a lowered price on an unpaid Order. A fully cancelled Order
 // gives its redemptions back (ADR-0015); one under its promo's minimum loses it,
 // or "100k off, min 250k" would stay on a 160k Order.
-export async function revalidateSettledPromo(
+const revalidateSettledPromo = async (
   tx: OrderTx,
   orderId: number,
   by: number
-): Promise<void> {
+): Promise<void> => {
   await recomputeOrderRollup(tx, orderId, by);
 
   const order = await findOrderState(tx, orderId);
@@ -153,4 +175,36 @@ export async function revalidateSettledPromo(
   if (order?.payment_status === "unpaid") {
     await voidCampaignsBelowMinimum(tx, orderId, Number(order.total ?? 0));
   }
-}
+};
+
+// A Repair price or a cancelled line moves an unpaid Order's total: its promo
+// is rechecked, and a QR still on the counter for the old amount is closed.
+export const changeUnpaidOrder = async <T>(
+  orderId: number,
+  by: number,
+  change: (tx: OrderTx, order: OrderState) => Promise<T>
+): Promise<T> => {
+  const changed = await db.transaction(async (tx) => {
+    const order = await getOrderStateOrThrow(tx, orderId);
+
+    const result = await change(tx, order);
+
+    // Callers refuse a paid Order with their own wording first; this stops a
+    // new one that forgets from stripping a promo the Customer already paid on.
+    if (order.payment_status === "paid") {
+      throw new BadRequestException("Order has been paid");
+    }
+
+    // An Order already cancelled gave its redemptions back, and doing it again
+    // would hand the Customer a second free Voucher use (ADR-0015).
+    if (order.status !== "cancelled") {
+      await revalidateSettledPromo(tx, orderId, by);
+    }
+
+    return result;
+  });
+
+  await cancelOrderPendingCharges(orderId);
+
+  return changed;
+};

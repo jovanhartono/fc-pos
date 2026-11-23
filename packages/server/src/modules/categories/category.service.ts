@@ -1,4 +1,5 @@
 import type { InferInsertModel } from "drizzle-orm";
+
 import type { categoriesTable } from "@/db/schema";
 import {
   findCategoryById,
@@ -8,25 +9,22 @@ import {
 } from "@/modules/categories/category.repository";
 import type { GetCategoriesQuery } from "@/modules/categories/category.schema";
 
-export function getCategories(query?: GetCategoriesQuery) {
-  return listCategories({ is_active: query?.is_active });
-}
+export const getCategories = (query?: GetCategoriesQuery) =>
+  listCategories({ is_active: query?.is_active });
 
-export function getCategoryById(id: number) {
-  return findCategoryById(id);
-}
+export const getCategoryById = (id: number) => findCategoryById(id);
 
-export async function createCategory(
+export const createCategory = async (
   values: InferInsertModel<typeof categoriesTable>
-) {
+) => {
   const [category] = await insertCategory(values);
   return category;
-}
+};
 
-export async function updateCategory(
+export const updateCategory = async (
   id: number,
   values: Partial<InferInsertModel<typeof categoriesTable>>
-) {
+) => {
   const [category] = await updateCategoryById(id, values);
   return category ?? null;
-}
+};

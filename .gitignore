@@ -4,6 +4,9 @@ node_modules
 # turbo
 .turbo
 .env
+.env.*
+!.env.example
+!apps/web/.env.production
 dist
 dist-ssr
 .DS_Store

@@ -14,78 +14,82 @@ See `GLOSSARY.md` for the domain vocabulary — **Item**, **Order**, **OrderServ
 bun run dev          # turbo dev — server (hot reload + tsdown --watch) and web (vite)
 bun run test         # turbo test — bun test in each package
 bun run type-check   # turbo type-check — web runs generate-routes first
+bun x ultracite check
 ```
+
+A change is done when the last three pass from the repo root. The pre-commit hook only runs `ultracite fix` on staged files.
+
+**Dependency pins:** `bun update --latest` downgrades packages on an `rc` dist-tag. drizzle-orm/drizzle-kit stay pinned at `1.0.0-rc.5`; bump them by hand, on purpose. `oxc-transform-react` (the React Compiler, `apps/web`) must stay in `@vitejs/plugin-react`'s peer range; bump the two together.
 
 ## Environment Variables
 
 The server reads from `process.env`:
+
 - `DATABASE_URL` - Neon PostgreSQL connection string, set per Vercel environment (Production/Preview/Development)
 - `STORAGE_PREFIX` - `dev/` or `prod/`, set per Vercel environment alongside `DATABASE_URL`
 - `JWT_SECRET` - Secret key for JWT authentication
-- `CDN_BASE_URL` - Public base for stored photo keys
-- `CRON_SECRET` - Shared secret for `/api/internal/*`. Vercel sends it as `Authorization: Bearer …` on cron invocations. Unset means those endpoints answer 401 to everyone.
-- `SENTRY_DSN` - Optional. Unset means `reportError` is a no-op; set it to send 5xx errors to Sentry's envelope endpoint.
+- `CDN_BASE_URL` - Public base for stored photo keys: `https://cdn.fresclean.id` in Production, `https://cdn-dev.fresclean.id` in Preview
+- `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` / `S3_REGION` (`auto`) / `S3_ENDPOINT` - the R2 bucket for photos, set per Vercel environment. Without `S3_ENDPOINT`, Bun's client talks to AWS and every upload fails
+- `CRON_SECRET` - Bearer secret Vercel cron sends to `/api/internal/*`; unset answers 401 to everyone
+- `SENTRY_DSN` - Optional; unset turns error reporting off
+- `PAYMENT_GATEWAY` - `midtrans` or `doku`, the gateway new Gateway charges use; unset turns online payment off (ADR-0028)
+- `MIDTRANS_SERVER_KEY`, `MIDTRANS_IS_PRODUCTION` / `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY`, `DOKU_IS_PRODUCTION` - gateway credentials, sandbox unless `*_IS_PRODUCTION=true`
+- `DOKU_PRIVATE_KEY`, `DOKU_QRIS_MERCHANT_ID`, `DOKU_QRIS_TERMINAL_ID`, `DOKU_QRIS_POSTAL_CODE` - Optional; all four set shows DOKU's counter QRIS in the dialog (SNAP), otherwise it opens DOKU's page. The key is the PEM whose public half is uploaded to DOKU, line breaks written as `\n`
+- `PUBLIC_WEB_URL` - Optional, defaults to `https://pos.fresclean.id`; the Track page and webhook URLs sent to the gateway
+- `PAYMENT_GATEWAY_MOCK` - `true` swaps the gateway's outbound calls for a mock page at `/api/mock-gateway/<reference>` whose buttons send signed notifications to the real webhook. Ignored on Production. Set `PUBLIC_WEB_URL` to the local origin (e.g. `http://localhost:5173`) and any non-empty keys for the gateway in use
+
+Each gateway dashboard's notification URL is `https://pos.fresclean.id/api/webhooks/payments/midtrans` or `…/doku`. DOKU takes the same URL twice: Settings → HTTP Notification (Checkout) and the QRIS Notify URL (SNAP QRIS).
 
 Laptop-only, for the drizzle CLI: `DATABASE_URL_DEV` / `DATABASE_URL_PROD`.
 
 ## Deployment Regions
 
-Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as does Neon. Photos live in S3 `ap-southeast-3` (Jakarta), served via `https://cdn.fresclean.id`.
+Both services run in Singapore — `ap-southeast-1`, Vercel region `sin1` — as does Neon. Photos live in Cloudflare R2 (APAC), served via `https://cdn.fresclean.id` (moved off S3 and CloudFront on 2026-10-28).
 
-Dev and production share that bucket, so every key is namespaced by the environment that wrote it: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/s3.ts`. It reads `STORAGE_PREFIX`, set per Vercel environment alongside `DATABASE_URL` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed data has its own `seed/` prefix and is outside both.
+Each environment has its own bucket, `fresclean-prod` and `fresclean-dev`, and an R2 token that reaches only that bucket, so a laptop can't touch a Complaint's evidence. Keys still carry the environment that wrote them: `dev/orders/…` or `prod/orders/…`, from `STORAGE_ENV_PREFIX` in `src/utils/photo-key.ts`. It reads `STORAGE_PREFIX`, set per Vercel environment alongside `DATABASE_URL` — the two must agree, or the photo sweep judges one environment's bucket against the other's database. Seed rows point at `seed/` keys that were never uploaded, so seeded photos show broken.
 
-The API's region is pinned by the top-level `"regions": ["sin1"]` in `vercel.json`, matching the project setting; `services.*` takes no `regions` key of its own. A project without it falls back to `iad1`. Keeping it beside Neon is what makes an order commit a same-region round trip rather than a cross-region one.
+Indonesian ISPs block `*.r2.dev`, so the bucket's r2.dev URL stays off; photos go through the custom domains and uploads through `<account>.r2.cloudflarestorage.com`. Cloudflare keeps a photo for a year at the edge and in the browser (`immutable`), since a key's photo never changes; errors aren't cached.
+
+The API's region is pinned by the top-level `"regions": ["sin1"]` in `vercel.json` (`services.*` takes no `regions` key; without it Vercel falls back to `iad1`, a cross-region hop to Neon on every order).
 
 The API is a plain Bun function, not a Docker container: a container bills its memory until 5 quiet minutes pass, which at the counter's pace meant every open hour.
 
 ## Edge protection
 
-Vercel WAF rate limit rules to keep, since the API scales to zero and an
-in-process limiter would reset with it — no in-process limiter is by design:
+Vercel WAF rate limit rules to keep, since the API scales to zero and an in-process limiter would reset with it — no in-process limiter is by design:
 
 - `/api/auth/login` — 10 requests per 60s per IP, deny
 - `/api/public/*` — 60 requests per 60s per IP, deny (Pro plan)
 - `/api/health` — 30 requests per 60s per IP, deny (Pro plan) — it opens a database connection per hit
+- `/api/admin/users/me/password` — 10 requests per 60s per IP, deny — slows guessing the current password from a stolen session
 
 ## Scheduled Jobs
 
 `vercel.json` `crons` → HTTP GET to the production URL, routed through the `/api/(.*)` rewrite to the API. **Schedules are UTC only**, so a Jakarta time is written 7 hours earlier: `0 20 * * *` is 03:00 Jakarta.
 
-- `/api/internal/photo-sweep` — deletes order photos no order points at. The counter uploads a photo before the batch is confirmed, so an abandoned batch leaves the file behind with nothing filed against it. Compares its own environment's prefix to the database each run and ignores anything under 24h old. No per-run cap — a backlog clears in one pass. Delivery is best-effort: Vercel may skip or repeat a run, which is safe here. Needs `s3:ListBucket` on the bucket; the object-level rights the presign flow uses are not enough, and without it every run fails with AccessDenied.
-- `/api/internal/close-open-shifts` — closes yesterday's Auto-closed Shifts at 00:00 Jakarta (ADR-0025). Best-effort like the sweep: the next Clock in or Clock out closes one the same way, so a skipped run locks nobody out.
+Vercel may skip or repeat a run; both jobs are safe either way.
+
+Cron log lines carry `region=iad1`: that is where Vercel's scheduler enters, not where the job runs. The `(sin1)` at the end of each job's own line is `VERCEL_REGION` from inside the function (checked on prod 2026-10-26).
+
+- `/api/internal/photo-sweep` — deletes photos no order points at, left behind when the counter uploads and then abandons a batch. Checks only its own environment's prefix and skips files under 24h old. Its R2 token needs Object Read & Write, which includes listing, or every run fails with AccessDenied.
+- `/api/internal/close-open-shifts` — closes yesterday's Auto-closed Shifts at 00:00 Jakarta (ADR-0025). A skipped run locks nobody out: the next Clock in or Clock out closes it the same way.
+- `/api/internal/settle-payment-charges` — daily at 02:00 Jakarta. Asks the gateway once about each QRIS that ended more than 10 minutes ago while pending or cancelled on our side, in case its notice never arrived (ADR-0028). Money found books the Order or lands in Needs Review. A charge the gateway fails to answer on is asked again next run.
 
 ## RPC / Type Sharing
 
 The server exports `AppType` from `src/index.ts`. The web app uses Hono's `hc<AppType>()` client for fully typed API calls.
 
-## Code Quality
+## Linting & Formatting
 
-### Linting & Formatting
+**Ultracite** (oxlint + oxfmt presets, followed as shipped): `bun x ultracite fix` / `check`. Always from the repo root — running from `apps/web` or `packages/server` mangles paths. The few rules switched off in `oxlint.config.ts` carry their reason there; read it before turning one back on. A one-off exception is `// oxlint-disable-next-line <rule> -- <reason>`.
 
-Uses **Ultracite** (Biome preset):
+## Domain, Decisions, Scope (read first)
 
-```bash
-bun x ultracite fix      # Auto-fix formatting and lint issues
-bun x ultracite check    # Check without fixing
-```
-
-Always run from the repo root — running from `apps/web` or `packages/server` mangles paths.
-
-## Domain & Decisions (read first)
-
-- `GLOSSARY.md` — domain glossary: what each term means, and the words to avoid. Use these terms exactly.
-- `docs/adr/` — Architecture Decision Records. Hard-to-reverse choices with rationale, and the business rules behind the glossary's terms.
-
-## Scope Source of Truth
-
+- `GLOSSARY.md` — what each term means and the words to avoid. Use these terms exactly in code, copy, comments and PRs; don't coin synonyms.
+- `docs/adr/` — hard-to-reverse choices and the business rules behind the glossary's terms. Check for an ADR before changing a rule it covers.
 - `TODO.md` — the task list, plus the v1 deferred rows and what each one waits for.
 
-## Detailed Standards
-
-Loaded automatically when working under their own directory, not before:
-
-- `packages/server/AGENTS.md` — server/API standards
-- `apps/web/AGENTS.md` — web standards
+Package standards load when working under their directory: `packages/server/AGENTS.md`, `apps/web/AGENTS.md`.
 
 ## Agent skills
 

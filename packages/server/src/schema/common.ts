@@ -1,10 +1,11 @@
 import { z } from "zod";
+
 import { isValidPhoneNumber, normalizePhoneNumber } from "@/schema/phone";
 
 // Indonesian prices are written 1.500 for fifteen hundred: the dot is a
 // thousands separator, never a decimal point, and the counter has no sen.
 const parseIndonesianCurrency = (formattedValue: string): number =>
-  Number(formattedValue.replaceAll(/[^\d]/g, ""));
+  Number(formattedValue.replaceAll(/[^\d]/gu, ""));
 
 export const varcharSchema = (field: string, maxLength = 255) =>
   z
@@ -15,7 +16,7 @@ export const varcharSchema = (field: string, maxLength = 255) =>
           : `${field} must be a string`,
     })
     .trim()
-    .min(1, `${field} cannot be empty`)
+    .min(1, `${field} is required`)
     .max(maxLength, `${field} must be at most ${maxLength} characters`);
 
 export const optionalVarcharSchema = (field: string, maxLength = 255) =>
@@ -39,6 +40,14 @@ export const textSchema = (field: string) =>
     .transform((val) => (val.length === 0 ? null : val));
 
 export const isActiveSchema = z.boolean("Active status must be true or false");
+
+export const photoContentTypeSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => ["image/jpeg", "image/png", "image/webp"].includes(value),
+    "Unsupported content type"
+  );
 
 export const currencySchema = (field: string) =>
   z
@@ -73,7 +82,7 @@ export const voucherCodesSchema = z
     "Duplicate voucher codes are not allowed"
   );
 
-const DATE_YYYY_MM_DD_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_YYYY_MM_DD_REGEX = /^\d{4}-\d{2}-\d{2}$/u;
 
 export const dateStringSchema = (field: string) =>
   z

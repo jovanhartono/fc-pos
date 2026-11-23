@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
+
 import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
 
@@ -11,6 +13,7 @@ mock.module("@/modules/shifts/shift.service", () => ({
   clockIn: () => Promise.resolve({ message: "", shift: null }),
   clockOut: () => Promise.resolve({ message: "", shift: null }),
   createShift: () => Promise.resolve(null),
+  deleteShift: () => Promise.resolve(null),
   getCurrentShift: () => Promise.resolve(null),
   getShifts: () => Promise.resolve({ items: [], meta: {} }),
   getShiftsOverview: (_user: AuthUser, query: unknown) => {
@@ -20,7 +23,7 @@ mock.module("@/modules/shifts/shift.service", () => ({
   updateShift: () => Promise.resolve(null),
 }));
 
-const shiftRoutes = (await import("@/routes/admin/shifts")).default;
+const { default: shiftRoutes } = await import("@/routes/admin/shifts");
 
 const buAdmin: AuthUser = {
   can_process_pickup: false,

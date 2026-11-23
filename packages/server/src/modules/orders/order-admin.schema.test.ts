@@ -1,28 +1,29 @@
 import { describe, expect, it } from "bun:test";
+
 import {
   PATCHOrderServiceStatusSchema,
   POSTItemPhotoPresignSchema,
 } from "@/modules/orders/order-admin.schema";
 
-describe("PATCHOrderServiceStatusSchema", () => {
-  // The owner reads each QC reject's note on the Quality report, so a reject
-  // with no note is refused.
-  const refusal = (body: Record<string, unknown>) => {
-    const result = PATCHOrderServiceStatusSchema.safeParse(body);
-    return result.success
-      ? null
-      : result.error.issues.map((issue) => [issue.path, issue.message]);
-  };
+// The owner reads each QC reject's note on the Quality report, so a reject
+// with no note is refused.
+const refusal = (body: Record<string, unknown>) => {
+  const result = PATCHOrderServiceStatusSchema.safeParse(body);
+  return result.success
+    ? null
+    : result.error.issues.map((issue) => [issue.path, issue.message]);
+};
 
+describe("PATCHOrderServiceStatusSchema", () => {
   it("refuses a QC reject with no note", () => {
     expect(refusal({ status: "qc_reject" })).toEqual([
-      [["note"], "Say what's wrong"],
+      [["note"], "Write reject reason"],
     ]);
   });
 
   it("refuses a QC reject whose note is only spaces", () => {
     expect(refusal({ status: "qc_reject", note: "   " })).toEqual([
-      [["note"], "Say what's wrong"],
+      [["note"], "Write reject reason"],
     ]);
   });
 
@@ -36,7 +37,7 @@ describe("PATCHOrderServiceStatusSchema", () => {
   });
 
   it("still lets every other move go without a note", () => {
-    for (const status of ["processing", "quality_check", "ready_for_pickup"]) {
+    for (const status of ["processing", "waiting_qc", "ready_for_pickup"]) {
       expect(refusal({ status })).toBeNull();
     }
   });

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
+
 import { Hono } from "hono";
+
 import { ForbiddenException } from "@/http-exceptions";
 import type { AuthUser } from "@/types";
 import { errorHandler } from "@/utils/error-handler";
@@ -38,7 +40,7 @@ mock.module("@/modules/stores/store.service", () => ({
     Promise.resolve({ id: 10, name: "Kemang", is_active: true }),
 }));
 
-const storeRoutes = (await import("@/routes/admin/stores")).default;
+const { default: storeRoutes } = await import("@/routes/admin/stores");
 
 const asep: AuthUser = {
   id: 7,
@@ -127,14 +129,18 @@ describe("registering a Bluetooth device from the POS", () => {
 // and each handler asks it for itself — so each one is tested for itself.
 describe("reading and removing another store's devices", () => {
   it("refuses to list them", async () => {
-    expect((await listDevices(BINTARO)).status).toBe(403);
-    expect((await listDevices(KEMANG)).status).toBe(200);
+    const elsewhere = await listDevices(BINTARO);
+    expect(elsewhere.status).toBe(403);
+    const own = await listDevices(KEMANG);
+    expect(own.status).toBe(200);
   });
 
   it("refuses to remove one", async () => {
-    expect((await removeDevice(BINTARO, 1)).status).toBe(403);
+    const elsewhere = await removeDevice(BINTARO, 1);
+    expect(elsewhere.status).toBe(403);
     // Kemang clears the Store check; the Store has no such device to remove.
-    expect((await removeDevice(KEMANG, 1)).status).toBe(404);
+    const own = await removeDevice(KEMANG, 1);
+    expect(own.status).toBe(404);
   });
 });
 
@@ -173,30 +179,37 @@ const setStoreStatusAs = (user: AuthUser) =>
 // printer at the counter is not, so a cashier keeps that one.
 describe("admin-only store writes", () => {
   it("refuses a cashier's new store", async () => {
-    expect((await createStoreAs(asep)).status).toBe(403);
+    const res = await createStoreAs(asep);
+    expect(res.status).toBe(403);
   });
 
   it("lets an admin open a new store", async () => {
-    expect((await createStoreAs(buAdmin)).status).toBe(201);
+    const res = await createStoreAs(buAdmin);
+    expect(res.status).toBe(201);
   });
 
   it("refuses a cashier's store edit", async () => {
-    expect((await editStoreAs(asep)).status).toBe(403);
+    const res = await editStoreAs(asep);
+    expect(res.status).toBe(403);
   });
 
   it("lets an admin edit a store", async () => {
-    expect((await editStoreAs(buAdmin)).status).toBe(200);
+    const res = await editStoreAs(buAdmin);
+    expect(res.status).toBe(200);
   });
 
   it("refuses a cashier's activate/deactivate", async () => {
-    expect((await setStoreStatusAs(asep)).status).toBe(403);
+    const res = await setStoreStatusAs(asep);
+    expect(res.status).toBe(403);
   });
 
   it("lets an admin activate/deactivate a store", async () => {
-    expect((await setStoreStatusAs(buAdmin)).status).toBe(200);
+    const res = await setStoreStatusAs(buAdmin);
+    expect(res.status).toBe(200);
   });
 
   it("still lets a cashier with store access register a device", async () => {
-    expect((await register(KEMANG, { name: "CBT-80-0F2A" })).status).toBe(201);
+    const res = await register(KEMANG, { name: "CBT-80-0F2A" });
+    expect(res.status).toBe(201);
   });
 });

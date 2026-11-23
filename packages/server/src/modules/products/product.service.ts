@@ -1,4 +1,5 @@
 import type z from "zod";
+
 import {
   findProductById,
   insertProduct,
@@ -10,29 +11,25 @@ import type {
   PUTProductSchema,
 } from "@/modules/products/product.schema";
 
-export function getProducts() {
-  return listProducts();
-}
+export const getProducts = () => listProducts();
 
-export function getProductById(id: number) {
-  return findProductById(id);
-}
+export const getProductById = (id: number) => findProductById(id);
 
-export async function createProduct(
+export const createProduct = async (
   payload: z.infer<typeof POSTProductSchema>
-) {
+) => {
   const [product] = await insertProduct({
     ...payload,
     cogs: payload.cogs.toString(),
     price: payload.price.toString(),
   });
   return product;
-}
+};
 
-export async function updateProduct(
+export const updateProduct = async (
   id: number,
   payload: z.infer<typeof PUTProductSchema>
-) {
+) => {
   const { cogs, price, ...rest } = payload;
   const [product] = await updateProductById(id, {
     ...rest,
@@ -40,4 +37,4 @@ export async function updateProduct(
     ...(price === undefined ? {} : { price: price.toString() }),
   });
   return product ?? null;
-}
+};

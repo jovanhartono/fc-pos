@@ -2,6 +2,7 @@ import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { JwtVariables } from "hono/jwt";
 import { StatusCodes } from "http-status-codes";
+
 import type { AuthUser } from "@/types/jwt";
 import { failure } from "@/utils/http";
 import {
@@ -52,7 +53,7 @@ export const errorHandler: ErrorHandler<{
   console.error("unhandled error", request, err);
   await reportError(err, c.req.raw);
   return c.json(
-    failure("Something went wrong"),
+    failure("The server hit a problem. Try again."),
     StatusCodes.INTERNAL_SERVER_ERROR
   );
 };

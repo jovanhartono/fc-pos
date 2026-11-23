@@ -1,155 +1,6 @@
-import z from "zod";
+import { z } from "zod";
+
 import { orderPaymentStatusEnum } from "@/db/schema";
-import {
-  CampaignPayloadSchema as _CampaignPayloadSchema,
-  type CampaignRedemptionMode as _CampaignRedemptionMode,
-  CampaignUpdatePayloadSchema as _CampaignUpdatePayloadSchema,
-} from "@/modules/campaigns/campaign.schema";
-import { POSTCategorySchema as _POSTCategorySchema } from "@/modules/categories/category.schema";
-import {
-  isComplainableLine as _isComplainableLine,
-  isReworkedRound as _isReworkedRound,
-} from "@/modules/complaints/complaint.schema";
-import {
-  POSTCustomerSchema as _POSTCustomerSchema,
-  PUTCustomerSchema as _PUTCustomerSchema,
-} from "@/modules/customers/customer.schema";
-import {
-  POSTOrderPickupEventPresignSchema as _POSTOrderPickupEventPresignSchema,
-  POSTOrderPickupEventSchema as _POSTOrderPickupEventSchema,
-  QUEUE_CATEGORY_MODES as _QUEUE_CATEGORY_MODES,
-} from "@/modules/orders/order-admin.schema";
-import {
-  type DerivedItemStatus as _DerivedItemStatus,
-  type ItemStatusLine as _ItemStatusLine,
-  isCollectableItemStatus as _isCollectableItemStatus,
-  isHandedOverByPickup as _isHandedOverByPickup,
-  isInWorkshop as _isInWorkshop,
-  ORDER_SERVICE_TRANSITIONS as _ORDER_SERVICE_TRANSITIONS,
-  ORDER_TERMINAL_SERVICE_STATUSES as _ORDER_TERMINAL_SERVICE_STATUSES,
-  WORKSHOP_SERVICE_STATUSES as _WORKSHOP_SERVICE_STATUSES,
-} from "@/modules/orders/order-status-machine";
-import { POSTPaymentMethodSchema as _POSTPaymentMethodSchema } from "@/modules/payment-methods/payment-method.schema";
-import { POSTProductSchema as _POSTProductSchema } from "@/modules/products/product.schema";
-import { POSTServiceSchema as _POSTServiceSchema } from "@/modules/services/service.schema";
-import {
-  CLOCK_IN_RADIUS_KM as _CLOCK_IN_RADIUS_KM,
-  type ClockInCoordinates as _ClockInCoordinates,
-  clockInRequiresLocation as _clockInRequiresLocation,
-} from "@/modules/shifts/shift.schema";
-import { POSTStoreSchema as _POSTStoreSchema } from "@/modules/stores/store.schema";
-import { POSTStoreDeviceSchema as _POSTStoreDeviceSchema } from "@/modules/stores/store-device.schema";
-import {
-  type Coordinates as _Coordinates,
-  distanceKm as _distanceKm,
-} from "@/utils/geo";
-
-export const ORDER_SERVICE_TRANSITIONS = _ORDER_SERVICE_TRANSITIONS;
-export const ORDER_TERMINAL_SERVICE_STATUSES = _ORDER_TERMINAL_SERVICE_STATUSES;
-export const WORKSHOP_SERVICE_STATUSES = _WORKSHOP_SERVICE_STATUSES;
-export const QUEUE_CATEGORY_MODES = _QUEUE_CATEGORY_MODES;
-export type DerivedItemStatus = _DerivedItemStatus;
-export type ItemStatusLine = _ItemStatusLine;
-export const isCollectableItemStatus = _isCollectableItemStatus;
-export const isHandedOverByPickup = _isHandedOverByPickup;
-export const isInWorkshop = _isInWorkshop;
-export const isComplainableLine = _isComplainableLine;
-export const isReworkedRound = _isReworkedRound;
-export const POSTOrderPickupEventPresignSchema =
-  _POSTOrderPickupEventPresignSchema;
-export const POSTOrderPickupEventSchema = _POSTOrderPickupEventSchema;
-export const CampaignPayloadSchema = _CampaignPayloadSchema;
-export const CampaignUpdatePayloadSchema = _CampaignUpdatePayloadSchema;
-export type CampaignRedemptionMode = _CampaignRedemptionMode;
-export const POSTCustomerSchema = _POSTCustomerSchema;
-export const PUTCustomerSchema = _PUTCustomerSchema;
-export const POSTCategorySchema = _POSTCategorySchema;
-export const POSTPaymentMethodSchema = _POSTPaymentMethodSchema;
-export const POSTProductSchema = _POSTProductSchema;
-export const POSTServiceSchema = _POSTServiceSchema;
-export const POSTStoreSchema = _POSTStoreSchema;
-export const POSTStoreDeviceSchema = _POSTStoreDeviceSchema;
-export const CLOCK_IN_RADIUS_KM = _CLOCK_IN_RADIUS_KM;
-export const clockInRequiresLocation = _clockInRequiresLocation;
-export type ClockInCoordinates = _ClockInCoordinates;
-// The clock-in screen ranks Stores by distance to preselect the nearest one.
-// It borrows the server's formula so the Store it offers is the one the server
-// will measure against a moment later.
-export const distanceKm = _distanceKm;
-export type Coordinates = _Coordinates;
-
-import {
-  applyManualDiscount as _applyManualDiscount,
-  type BogoSlotLine as _BogoSlotLine,
-  type CampaignContribution as _CampaignContribution,
-  type CampaignDiscountInput as _CampaignDiscountInput,
-  computeCampaignContribution as _computeCampaignContribution,
-  type DiscountLine as _DiscountLine,
-  type DiscountSource as _DiscountSource,
-  isBogoSlot as _isBogoSlot,
-  isDiscountSettled as _isDiscountSettled,
-  orderNetDue as _orderNetDue,
-  type StackedDiscount as _StackedDiscount,
-  stackCampaignDiscounts as _stackCampaignDiscounts,
-} from "@/schema/discount";
-
-export type DiscountSource = _DiscountSource;
-export const isDiscountSettled = _isDiscountSettled;
-export type CampaignContribution<T extends _CampaignDiscountInput> =
-  _CampaignContribution<T>;
-export type CampaignDiscountInput = _CampaignDiscountInput;
-export type DiscountLine = _DiscountLine;
-export type StackedDiscount<T extends _CampaignDiscountInput> =
-  _StackedDiscount<T>;
-export const computeCampaignContribution = _computeCampaignContribution;
-export const stackCampaignDiscounts = _stackCampaignDiscounts;
-export const applyManualDiscount = _applyManualDiscount;
-export const orderNetDue = _orderNetDue;
-export type BogoSlotLine = _BogoSlotLine;
-export const isBogoSlot = _isBogoSlot;
-
-import {
-  type CampaignEligibilityContext as _CampaignEligibilityContext,
-  type CampaignEligibilityInput as _CampaignEligibilityInput,
-  campaignIneligibilityReason as _campaignIneligibilityReason,
-} from "@/schema/campaign-eligibility";
-
-export type CampaignEligibilityContext = _CampaignEligibilityContext;
-export type CampaignEligibilityInput = _CampaignEligibilityInput;
-export const campaignIneligibilityReason = _campaignIneligibilityReason;
-
-import {
-  PICKUP_OVERDUE_HOURS as _PICKUP_OVERDUE_HOURS,
-  TURNAROUND_PROMISE_HOURS as _TURNAROUND_PROMISE_HOURS,
-} from "@/schema/turnaround";
-
-export const PICKUP_OVERDUE_HOURS = _PICKUP_OVERDUE_HOURS;
-export const TURNAROUND_PROMISE_HOURS = _TURNAROUND_PROMISE_HOURS;
-
-import {
-  hasUnpricedLine as _hasUnpricedLine,
-  isUnpricedLine as _isUnpricedLine,
-  type UnpricedLineState as _UnpricedLineState,
-} from "@/schema/unpriced-line";
-
-export type UnpricedLineState = _UnpricedLineState;
-export const hasUnpricedLine = _hasUnpricedLine;
-export const isUnpricedLine = _isUnpricedLine;
-
-import {
-  allocateRefund as _allocateRefund,
-  lineKey as _lineKey,
-  lineRefundCap as _lineRefundCap,
-  type RefundLineKind as _RefundLineKind,
-  type RefundLineRef as _RefundLineRef,
-} from "@/schema/refund-allocation";
-
-export type RefundLineKind = _RefundLineKind;
-export type RefundLineRef = _RefundLineRef;
-export const allocateRefund = _allocateRefund;
-export const lineKey = _lineKey;
-export const lineRefundCap = _lineRefundCap;
-
 import {
   campaignIdsSchema,
   currencySchema,
@@ -160,23 +11,42 @@ import {
   voucherCodesSchema,
 } from "@/schema/common";
 
-import {
-  isValidPhoneNumber as _isValidPhoneNumber,
-  normalizePhoneNumber as _normalizePhoneNumber,
-} from "@/schema/phone";
+// The web's form schemas. The rules both sides run live in ./rules, which
+// stays free of zod and the tables.
+export {
+  POSTOrderPickupEventPresignSchema,
+  POSTOrderPickupEventSchema,
+} from "@/modules/orders/order-admin.schema";
+export {
+  CampaignPayloadSchema,
+  CampaignUpdatePayloadSchema,
+} from "@/modules/campaigns/campaign.schema";
+export type { CampaignRedemptionMode } from "@/modules/campaigns/campaign.schema";
+export {
+  POSTCustomerSchema,
+  PUTCustomerSchema,
+} from "@/modules/customers/customer.schema";
+export { POSTCategorySchema } from "@/modules/categories/category.schema";
+export { POSTPaymentMethodSchema } from "@/modules/payment-methods/payment-method.schema";
+export { GATEWAY_LABELS } from "@/modules/payments/gateways/types";
+export { POSTProductSchema } from "@/modules/products/product.schema";
+export { POSTServiceSchema } from "@/modules/services/service.schema";
+export { POSTStoreSchema } from "@/modules/stores/store.schema";
+export { POSTStoreDeviceSchema } from "@/modules/stores/store-device.schema";
 
-export const isValidPhoneNumber = _isValidPhoneNumber;
-export const normalizePhoneNumber = _normalizePhoneNumber;
+// The phone parser stays here with the forms rather than in ./rules. Given its
+// own entry, it split the app's first download into dozens of small files.
+export { isValidPhoneNumber, normalizePhoneNumber } from "@/schema/phone";
 
 const passwordPairSchema = z.object({
   password: z
-    .string("Minimum 8 characters")
+    .string("Use at least 8 characters.")
     .trim()
-    .min(8, "Minimum 8 characters"),
+    .min(8, "Use at least 8 characters."),
   confirm_password: z
-    .string("Minimum 8 characters")
+    .string("Use at least 8 characters.")
     .trim()
-    .min(8, "Minimum 8 characters"),
+    .min(8, "Use at least 8 characters."),
 });
 
 const matchesConfirmation = (data: {
@@ -185,7 +55,7 @@ const matchesConfirmation = (data: {
 }) => data.password === data.confirm_password;
 
 const confirmationMismatch = {
-  error: "Password does not match",
+  error: "Passwords don't match.",
   path: ["confirm_password"],
   when: (payload: { value: unknown }) =>
     passwordPairSchema.safeParse(payload.value).success,
@@ -193,9 +63,9 @@ const confirmationMismatch = {
 
 const userSchema = z.object({
   username: z
-    .string("Minimum 5 characters")
+    .string("Username needs at least 5 characters")
     .trim()
-    .min(5, "Minimum 5 characters"),
+    .min(5, "Username needs at least 5 characters"),
   name: z.string("Name is required").trim().min(1, "Name is required"),
   ...passwordPairSchema.shape,
   role: z.literal(
@@ -220,6 +90,17 @@ export const PUTUserPasswordSchema = passwordPairSchema.refine(
   matchesConfirmation,
   confirmationMismatch
 );
+
+export const PATCHOwnProfileSchema = userSchema.pick({ name: true });
+
+export const PUTOwnPasswordSchema = z
+  .object({
+    current_password: z
+      .string("Enter your current password")
+      .min(1, "Enter your current password"),
+    ...passwordPairSchema.shape,
+  })
+  .refine(matchesConfirmation, confirmationMismatch);
 
 export const POSTOrderSchema = z
   .object({
@@ -250,7 +131,7 @@ export const POSTOrderSchema = z
         z.object(
           {
             brand: optionalVarcharSchema("Brand"),
-            color: optionalVarcharSchema("Item Color"),
+            color: optionalVarcharSchema("Color"),
             model: optionalVarcharSchema("Model"),
             size: optionalVarcharSchema("Size", 64),
             services: z
@@ -276,6 +157,7 @@ export const POSTOrderSchema = z
       )
       .optional(),
     discount: currencySchema("Discount").default(0),
+    delivery_fee: currencySchema("Delivery fee").default(0),
     payment_method_id: z.number().optional(),
     payment_status: z.enum(
       orderPaymentStatusEnum.enumValues,
