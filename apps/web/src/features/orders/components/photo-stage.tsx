@@ -25,9 +25,23 @@ import type {
   Size,
   ZoomTransform,
 } from "@/features/orders/lib/photo-zoom";
+import { photoTileUrl } from "@/features/orders/utils/photo-tile";
+import { useBlockEdgeSwipe } from "@/hooks/use-block-edge-swipe";
 import { cn } from "@/lib/utils";
 
-const SWIPE_THRESHOLD = 56;
+const DRAG_LOCK_SLOP = 10;
+const PAGE_GAP = 16;
+const PAGE_COMMIT_RATIO = 0.3;
+const DISMISS_COMMIT_RATIO = 0.2;
+const DISMISS_FADE_RATIO = 0.4;
+const DISMISS_MIN_SCALE = 0.75;
+// px per ms: a quick flick turns the page or closes even when it travels only a little.
+const FLICK_VELOCITY = 0.4;
+const FLICK_MIN_TRAVEL = 40;
+const FLICK_WINDOW_MS = 80;
+// Phones batch touch moves a millisecond apart; timing those alone reads as a huge speed.
+const MIN_SAMPLE_MS = 8;
+const SETTLE_MS = 220;
 const DOUBLE_TAP_WINDOW_MS = 350;
 const TAP_SLOP = 24;
 const WHEEL_ZOOM_DIVISOR = 180;
@@ -46,6 +60,30 @@ interface Stage {
   viewport: Size;
 }
 
+interface Swipe {
+  axis: "x" | "y" | "none" | null;
+  deltaX: number;
+  deltaY: number;
+  id: number | null;
+  lastAt: number;
+  startX: number;
+  startY: number;
+  velocityX: number;
+  velocityY: number;
+}
+
+const idleSwipe = (): Swipe => ({
+  axis: null,
+  deltaX: 0,
+  deltaY: 0,
+  id: null,
+  lastAt: 0,
+  startX: 0,
+  startY: 0,
+  velocityX: 0,
+  velocityY: 0,
+});
+
 export interface PhotoStageItem {
   alt: string;
   id: number | string;
@@ -55,8 +93,95 @@ export interface PhotoStageItem {
 interface PhotoStageProps {
   activeIndex: number;
   items: PhotoStageItem[];
+  /** Pull-down-to-close. Left off in capture review, where a stray pull would drop unsaved shots. */
+  onDismiss?: () => void;
+  /** 0 to 1 while pulling down, back to 0 on a spring-back, so the owner can fade its backdrop. */
+  onDismissProgress?: (progress: number) => void;
   onIndexChange: (index: number) => void;
 }
+
+interface PhotoPageProps {
+  contentRef?: React.Ref<HTMLDivElement>;
+  hasFull: boolean;
+  isSettled: boolean;
+  item: PhotoStageItem;
+  onSettle: (id: PhotoStageItem["id"], size: Size | null) => void;
+  slot: -1 | 0 | 1;
+  zoom?: string;
+}
+
+interface TilePlaceholderProps {
+  url: string;
+}
+
+// The small copy already shown on the Order sits under the full photo, so a slow
+// connection shows the shoe at once instead of a black screen.
+const TilePlaceholder = ({ url }: TilePlaceholderProps) => {
+  const tileUrl = photoTileUrl(url);
+  if (tileUrl === url) {
+    return null;
+  }
+  return (
+    <img
+      alt=""
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 h-full w-full object-contain select-none"
+      draggable={false}
+      onError={(event) => {
+        event.currentTarget.hidden = true;
+      }}
+      src={tileUrl}
+    />
+  );
+};
+
+// One page per photo, kept by id: the photo a swipe drags in is the same element
+// once it's the current one, so it never reloads or flashes at the swap.
+const PhotoPage = ({
+  contentRef,
+  hasFull,
+  isSettled,
+  item,
+  onSettle,
+  slot,
+  zoom,
+}: PhotoPageProps) => (
+  <div
+    aria-hidden={slot === 0 ? undefined : true}
+    className="absolute inset-0 overflow-hidden"
+    style={
+      slot === 0
+        ? undefined
+        : {
+            transform: `translateX(calc(${slot * 100}% + ${slot * PAGE_GAP}px))`,
+          }
+    }
+  >
+    <div
+      className="relative h-full w-full"
+      ref={contentRef}
+      style={zoom ? { transform: zoom } : undefined}
+    >
+      {isSettled ? null : <TilePlaceholder url={item.image_url} />}
+      {hasFull ? (
+        <img
+          alt={slot === 0 ? item.alt : ""}
+          className="pointer-events-none relative h-full w-full object-contain select-none [-webkit-touch-callout:none]"
+          decoding="async"
+          draggable={false}
+          onError={() => onSettle(item.id, null)}
+          onLoad={(event) =>
+            onSettle(item.id, {
+              height: event.currentTarget.naturalHeight,
+              width: event.currentTarget.naturalWidth,
+            })
+          }
+          src={item.image_url}
+        />
+      ) : null}
+    </div>
+  </div>
+);
 
 /**
  * The photo staff and a Customer argue over: pinch onto a torn thread, swipe to the next.
@@ -65,6 +190,8 @@ interface PhotoStageProps {
 export const PhotoStage = ({
   activeIndex,
   items,
+  onDismiss,
+  onDismissProgress,
   onIndexChange,
 }: PhotoStageProps) => {
   const [transform, setTransform] = useState<ZoomTransform>(resetTransform);
@@ -75,7 +202,11 @@ export const PhotoStage = ({
   const [surfaceNode, setSurfaceNode] = useState<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const naturalRef = useRef<{ id: number | string; size: Size } | null>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
+  const naturalSizesRef = useRef(new Map<PhotoStageItem["id"], Size>());
   const pointersRef = useRef(new Map<number, Point>());
   const gestureRef = useRef({
     pinchDist: 0,
@@ -86,24 +217,17 @@ export const PhotoStage = ({
     startY: 0,
   });
   const lastTapRef = useRef<{ at: number; x: number; y: number } | null>(null);
-  const pointerStateRef = useRef<{
-    deltaX: number;
-    deltaY: number;
-    id: number | null;
-    startX: number;
-    startY: number;
-  }>({
-    deltaX: 0,
-    deltaY: 0,
-    id: null,
-    startX: 0,
-    startY: 0,
-  });
+  const pointerStateRef = useRef<Swipe>(idleSwipe());
+  const [settledIds, setSettledIds] = useState<
+    ReadonlySet<PhotoStageItem["id"]>
+  >(() => new Set());
 
   const imageCount = items.length;
   const canNavigate = imageCount > 1;
   const activeItem = items[activeIndex];
   const activeId = activeItem?.id;
+  const previousIndex = (activeIndex - 1 + imageCount) % imageCount;
+  const nextIndex = (activeIndex + 1) % imageCount;
 
   const commitTransform = useEffectEvent((next: ZoomTransform) => {
     transformRef.current = next;
@@ -134,41 +258,59 @@ export const PhotoStage = ({
     resetIndexRef.current = openedIndex;
     transformRef.current = resetTransform();
     lastTapRef.current = null;
+    // Whatever changed the photo — the swipe's own slide ending, a Filmstrip tap, an
+    // arrow key mid-slide — the track comes home in the frame the new photo paints.
+    clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = undefined;
+    if (trackRef.current) {
+      trackRef.current.style.transition = "none";
+      trackRef.current.style.transform = "";
+    }
   }, [openedIndex]);
 
   const showPrevious = () => {
-    if (!canNavigate) {
-      return;
+    if (canNavigate) {
+      onIndexChange(previousIndex);
     }
-    onIndexChange(activeIndex === 0 ? imageCount - 1 : activeIndex - 1);
   };
 
   const showNext = () => {
-    if (!canNavigate) {
-      return;
+    if (canNavigate) {
+      onIndexChange(nextIndex);
     }
-    onIndexChange(activeIndex === imageCount - 1 ? 0 : activeIndex + 1);
   };
 
   // Listeners read the current photo from here: as effect deps they re-attached on
   // every photo change, mid-gesture, under the fingers of whoever was pinching.
-  const latestRef = useRef({ activeId, canNavigate, showNext, showPrevious });
+  const latestRef = useRef({
+    activeId,
+    canNavigate,
+    onDismiss,
+    onDismissProgress,
+    showNext,
+    showPrevious,
+  });
   useEffect(() => {
-    latestRef.current = { activeId, canNavigate, showNext, showPrevious };
+    latestRef.current = {
+      activeId,
+      canNavigate,
+      onDismiss,
+      onDismissProgress,
+      showNext,
+      showPrevious,
+    };
   });
 
-  const handleImageLoad: React.ReactEventHandler<HTMLImageElement> = (
-    event
-  ) => {
-    const { naturalHeight, naturalWidth } = event.currentTarget;
-    if (activeId === undefined || naturalWidth === 0 || naturalHeight === 0) {
-      return;
+  const handleSettle = (id: PhotoStageItem["id"], size: Size | null) => {
+    if (size && size.width > 0 && size.height > 0) {
+      naturalSizesRef.current.set(id, size);
     }
-    naturalRef.current = {
-      id: activeId,
-      size: { height: naturalHeight, width: naturalWidth },
-    };
+    setSettledIds((settled) =>
+      settled.has(id) ? settled : new Set(settled).add(id)
+    );
   };
+  // On a slow connection the neighbours wait, so the photo just tapped isn't sharing it.
+  const isActiveSettled = activeId !== undefined && settledIds.has(activeId);
 
   useEffect(() => {
     const surface = surfaceNode;
@@ -202,13 +344,18 @@ export const PhotoStage = ({
     };
 
     const resetPointerState = () => {
-      pointerStateRef.current = {
-        deltaX: 0,
-        deltaY: 0,
-        id: null,
-        startX: 0,
-        startY: 0,
-      };
+      pointerStateRef.current = idleSwipe();
+    };
+
+    const moveTrack = (trackTransform: string, isSettling: boolean) => {
+      const track = trackRef.current;
+      if (!track) {
+        return;
+      }
+      track.style.transition = isSettling
+        ? `transform ${SETTLE_MS}ms ease-out`
+        : "none";
+      track.style.transform = trackTransform;
     };
 
     const measureStage = (): Stage | null => {
@@ -224,11 +371,13 @@ export const PhotoStage = ({
     };
 
     const photoBox = (stage: Stage) => {
-      const loaded = naturalRef.current;
-      if (!loaded || loaded.id !== latestRef.current.activeId) {
+      const { activeId: id } = latestRef.current;
+      const size =
+        id === undefined ? undefined : naturalSizesRef.current.get(id);
+      if (!size) {
         return null;
       }
-      const fitted = fittedSize(stage.viewport, loaded.size);
+      const fitted = fittedSize(stage.viewport, size);
       return fitted.width > 0 && fitted.height > 0 ? fitted : null;
     };
 
@@ -254,9 +403,126 @@ export const PhotoStage = ({
       gesture.pinchMid = geometry?.mid ?? { x: 0, y: 0 };
     };
 
+    const isDragging = (swipe: Swipe) =>
+      swipe.axis === "x" || swipe.axis === "y";
+
+    const cancelDrag = () => {
+      const wasDragging = isDragging(pointerStateRef.current);
+      resetPointerState();
+      if (wasDragging) {
+        moveTrack("", true);
+        latestRef.current.onDismissProgress?.(0);
+      }
+    };
+
+    let dragFrame = 0;
+    const paintDrag = (stage: Stage) => {
+      if (dragFrame !== 0) {
+        return;
+      }
+      dragFrame = requestAnimationFrame(() => {
+        dragFrame = 0;
+        const swipe = pointerStateRef.current;
+        if (swipe.axis === "x") {
+          moveTrack(`translate3d(${swipe.deltaX}px, 0, 0)`, false);
+          return;
+        }
+        if (swipe.axis !== "y") {
+          return;
+        }
+        const pull = Math.max(0, swipe.deltaY);
+        const shrink =
+          Math.min(pull / stage.viewport.height, 1) * (1 - DISMISS_MIN_SCALE);
+        moveTrack(
+          `translate3d(${swipe.deltaX}px, ${pull}px, 0) scale(${1 - shrink})`,
+          false
+        );
+        latestRef.current.onDismissProgress?.(
+          Math.min(pull / (stage.viewport.height * DISMISS_FADE_RATIO), 1)
+        );
+      });
+    };
+
+    // The turn a released swipe is sliding towards, run when the slide ends.
+    let pendingTurn: (() => void) | undefined;
+    const finishTurn = () => {
+      // A Filmstrip tap or arrow key mid-slide already changed the photo and
+      // cleared the timer; the slide's own turn must not land on top of it.
+      const turn =
+        settleTimerRef.current === undefined ? undefined : pendingTurn;
+      pendingTurn = undefined;
+      clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = undefined;
+      turn?.();
+    };
+
+    const settleDrag = (stage: Stage | null, releasedAt: number) => {
+      const swipe = pointerStateRef.current;
+      resetPointerState();
+      if (!stage) {
+        moveTrack("", false);
+        return;
+      }
+      // Pulled down to look, held still, then let go: that's a spring-back, not a
+      // flick. A flick back the other way changes the mind and springs back too.
+      const isStillMoving = releasedAt - swipe.lastAt < FLICK_WINDOW_MS;
+      const commits = (travel: number, velocity: number, span: number) => {
+        const flick =
+          isStillMoving && Math.abs(velocity) > FLICK_VELOCITY
+            ? Math.sign(velocity) * Math.sign(travel)
+            : 0;
+        return (
+          flick >= 0 &&
+          (Math.abs(travel) > span ||
+            (flick > 0 && Math.abs(travel) >= FLICK_MIN_TRAVEL))
+        );
+      };
+      if (swipe.axis === "y") {
+        if (
+          swipe.deltaY > 0 &&
+          commits(
+            swipe.deltaY,
+            swipe.velocityY,
+            stage.viewport.height * DISMISS_COMMIT_RATIO
+          )
+        ) {
+          latestRef.current.onDismiss?.();
+          return;
+        }
+        moveTrack("", true);
+        latestRef.current.onDismissProgress?.(0);
+        return;
+      }
+      if (
+        !commits(
+          swipe.deltaX,
+          swipe.velocityX,
+          stage.viewport.width * PAGE_COMMIT_RATIO
+        )
+      ) {
+        moveTrack("", true);
+        return;
+      }
+      const direction = swipe.deltaX < 0 ? -1 : 1;
+      moveTrack(
+        `translate3d(${direction * (stage.viewport.width + PAGE_GAP)}px, 0, 0)`,
+        true
+      );
+      pendingTurn =
+        direction < 0
+          ? () => latestRef.current.showNext()
+          : () => latestRef.current.showPrevious();
+      settleTimerRef.current = setTimeout(finishTurn, SETTLE_MS);
+    };
+
     const handleDown = (event: PointerEvent) => {
       if ((event.target as Element | null)?.closest("button")) {
         return;
+      }
+      // Flicking through a batch: the next touch lands mid-slide, so the turn
+      // finishes now rather than swallowing the new swipe.
+      if (pendingTurn) {
+        finishTurn();
       }
       if (pointers.size === 0) {
         gesture.stage = measureStage();
@@ -273,20 +539,21 @@ export const PhotoStage = ({
       if (pointers.size >= 2) {
         gesture.pinched = true;
         lastTapRef.current = null;
-        resetPointerState();
+        cancelDrag();
         rebasePinch(stage);
         return;
       }
       if (transformRef.current.scale > MIN_SCALE) {
         return;
       }
-      if (!latestRef.current.canNavigate || event.pointerType === "mouse") {
+      const { canNavigate: canTurn, onDismiss: dismiss } = latestRef.current;
+      if (!(canTurn || dismiss) || event.pointerType === "mouse") {
         return;
       }
       pointerStateRef.current = {
-        deltaX: 0,
-        deltaY: 0,
+        ...idleSwipe(),
         id: event.pointerId,
+        lastAt: event.timeStamp,
         startX: event.clientX,
         startY: event.clientY,
       };
@@ -355,28 +622,31 @@ export const PhotoStage = ({
       if (swipe.id !== event.pointerId) {
         return;
       }
-      swipe.deltaX = event.clientX - swipe.startX;
-      swipe.deltaY = event.clientY - swipe.startY;
-    };
+      const elapsed = Math.max(event.timeStamp - swipe.lastAt, MIN_SAMPLE_MS);
+      const deltaX = event.clientX - swipe.startX;
+      const deltaY = event.clientY - swipe.startY;
+      swipe.velocityX = (deltaX - swipe.deltaX) / elapsed;
+      swipe.velocityY = (deltaY - swipe.deltaY) / elapsed;
+      swipe.deltaX = deltaX;
+      swipe.deltaY = deltaY;
+      swipe.lastAt = event.timeStamp;
 
-    const commitSwipe = () => {
-      const { deltaX, deltaY, id } = pointerStateRef.current;
-      if (id === null) {
-        return;
-      }
-
-      if (
-        Math.abs(deltaX) >= SWIPE_THRESHOLD &&
-        Math.abs(deltaX) > Math.abs(deltaY)
-      ) {
-        if (deltaX < 0) {
-          latestRef.current.showNext();
+      if (swipe.axis === null) {
+        if (Math.hypot(swipe.deltaX, swipe.deltaY) < DRAG_LOCK_SLOP) {
+          return;
+        }
+        const { canNavigate: canTurn, onDismiss: dismiss } = latestRef.current;
+        if (Math.abs(swipe.deltaX) > Math.abs(swipe.deltaY)) {
+          swipe.axis = canTurn ? "x" : "none";
         } else {
-          latestRef.current.showPrevious();
+          swipe.axis = swipe.deltaY > 0 && dismiss ? "y" : "none";
         }
       }
-
-      resetPointerState();
+      if (swipe.axis === "none") {
+        return;
+      }
+      event.preventDefault();
+      paintDrag(stage);
     };
 
     const handleTap = (event: PointerEvent, stage: Stage | null) => {
@@ -386,10 +656,9 @@ export const PhotoStage = ({
       );
       if (travelled > TAP_SLOP) {
         lastTapRef.current = null;
-        commitSwipe();
+        resetPointerState();
         return;
       }
-
       const at = Date.now();
       const firstTap = lastTapRef.current;
       lastTapRef.current = { at, x: event.clientX, y: event.clientY };
@@ -398,13 +667,12 @@ export const PhotoStage = ({
         at - firstTap.at <= DOUBLE_TAP_WINDOW_MS &&
         Math.hypot(event.clientX - firstTap.x, event.clientY - firstTap.y) <=
           TAP_SLOP;
+      resetPointerState();
       if (!isDoubleTap) {
-        commitSwipe();
         return;
       }
 
       lastTapRef.current = null;
-      resetPointerState();
       const fitted = stage ? photoBox(stage) : null;
       if (!(stage && fitted)) {
         return;
@@ -446,7 +714,14 @@ export const PhotoStage = ({
 
       if (!tapEligible || pinched) {
         lastTapRef.current = null;
-        resetPointerState();
+        cancelDrag();
+        return;
+      }
+      // A nudge that started turning the page is a drag, so it can't be the
+      // first half of a double-tap zoom.
+      if (isDragging(pointerStateRef.current)) {
+        lastTapRef.current = null;
+        settleDrag(stage, event.timeStamp);
         return;
       }
       handleTap(event, stage);
@@ -500,6 +775,11 @@ export const PhotoStage = ({
 
     return () => {
       clearTimeout(wheelCommit);
+      cancelAnimationFrame(dragFrame);
+      clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = undefined;
+      pendingTurn = undefined;
+      moveTrack("", false);
       surface.removeEventListener("pointerdown", handleDown);
       surface.removeEventListener("pointermove", handleMove);
       surface.removeEventListener("pointerup", handleUp);
@@ -563,6 +843,8 @@ export const PhotoStage = ({
     };
   }, [surfaceNode]);
 
+  useBlockEdgeSwipe(surfaceNode);
+
   // Turning the phone to show the Customer resizes the stage under a zoomed photo, and the
   // offsets it was panned to can now sit entirely outside it — a blank screen mid-dispute.
   useEffect(() => {
@@ -572,8 +854,10 @@ export const PhotoStage = ({
     const observer = new ResizeObserver(() => {
       const { current } = transformRef;
       const rect = stageRef.current?.getBoundingClientRect();
-      const loaded = naturalRef.current;
-      if (current.scale === MIN_SCALE || !rect || !loaded) {
+      const id = latestRef.current.activeId;
+      const size =
+        id === undefined ? undefined : naturalSizesRef.current.get(id);
+      if (current.scale === MIN_SCALE || !rect || !size) {
         return;
       }
       const viewport = { height: rect.height, width: rect.width };
@@ -581,7 +865,7 @@ export const PhotoStage = ({
         current.scale,
         { x: current.offsetX, y: current.offsetY },
         viewport,
-        fittedSize(viewport, loaded.size)
+        fittedSize(viewport, size)
       );
       commitTransform({
         offsetX: offset.x,
@@ -604,20 +888,47 @@ export const PhotoStage = ({
       ref={setSurfaceNode}
     >
       {activeItem ? (
-        <div className="relative h-full w-full overflow-hidden" ref={stageRef}>
-          <div
-            className="h-full w-full"
-            ref={contentRef}
-            style={{ transform: toCssTransform(transform) }}
-          >
-            <img
-              alt={activeItem.alt}
-              className="pointer-events-none h-full w-full object-contain select-none [-webkit-touch-callout:none]"
-              draggable={false}
+        // Sideways clipping keeps the neighbours out of view on an iPad; a pulled
+        // photo still floats over the toolbar like iOS.
+        <div className="relative h-full w-full overflow-x-clip" ref={stageRef}>
+          <div className="relative h-full w-full" ref={trackRef}>
+            {canNavigate ? (
+              <PhotoPage
+                hasFull={
+                  isActiveSettled || settledIds.has(items[previousIndex].id)
+                }
+                isSettled={settledIds.has(items[previousIndex].id)}
+                item={items[previousIndex]}
+                // With two photos the same one sits on both sides.
+                key={
+                  previousIndex === nextIndex
+                    ? `${items[previousIndex].id}-before`
+                    : items[previousIndex].id
+                }
+                onSettle={handleSettle}
+                slot={-1}
+              />
+            ) : null}
+            <PhotoPage
+              contentRef={contentRef}
+              hasFull
+              isSettled={settledIds.has(activeItem.id)}
+              item={activeItem}
               key={activeItem.id}
-              onLoad={handleImageLoad}
-              src={activeItem.image_url}
+              onSettle={handleSettle}
+              slot={0}
+              zoom={toCssTransform(transform)}
             />
+            {canNavigate ? (
+              <PhotoPage
+                hasFull={isActiveSettled || settledIds.has(items[nextIndex].id)}
+                isSettled={settledIds.has(items[nextIndex].id)}
+                item={items[nextIndex]}
+                key={items[nextIndex].id}
+                onSettle={handleSettle}
+                slot={1}
+              />
+            ) : null}
           </div>
         </div>
       ) : null}
