@@ -64,8 +64,7 @@ export const PATCHShiftSchema = z
   .object({
     clock_in_at: shiftTime,
     clock_out_at: shiftTime.optional(),
-    // Optional: a page still on the old build sends only the times.
-    store_id: z.number().int().positive().optional(),
+    store_id: z.number().int().positive(),
   })
   .superRefine(checkShiftTimes);
 

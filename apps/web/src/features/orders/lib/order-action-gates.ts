@@ -29,8 +29,7 @@ export interface OrderActionGates {
   canCancelOrder: boolean;
   canRefundWholeOrder: boolean;
   canOpenComplaint: boolean;
-  // ADR-0018: no price, no payment — any live unpriced line refuses the
-  // Order's move to paid.
+  // ADR-0018.
   hasUnpricedLine: boolean;
   complaintableServices: OrderLine[];
   // ADR-0017: what leaves the counter is an Item, not an OrderService; half a

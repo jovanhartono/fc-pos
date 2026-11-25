@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import { is, SQL } from "drizzle-orm";
 
+import type { DbExecutor } from "@/db";
 import { orderServiceStatusEnum } from "@/db/schema";
 import { BadRequestException } from "@/http-exceptions";
 import {
@@ -15,7 +16,6 @@ import {
   summarizeOrderFulfillment,
   transitionOrderService,
 } from "@/modules/orders/order-status-machine";
-import type { DbExecutor } from "@/modules/orders/order-status-machine";
 import {
   isHandedOverByPickup,
   isWaitingQcOnly,

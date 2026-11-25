@@ -25,10 +25,6 @@ import type {
 
 type CancelReason = (typeof cancelReasonEnum.enumValues)[number];
 
-// Lived here before it had other callers; re-exported so nothing that already
-// imports it has to move.
-export type { DbExecutor } from "@/db";
-
 type DerivedOrderStatus =
   | "created"
   | "processing"

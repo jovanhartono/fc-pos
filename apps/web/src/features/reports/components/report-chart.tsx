@@ -80,7 +80,6 @@ interface ReportChartProps {
   head: (index: number | null) => ChartHead;
 }
 
-// One series' value in the picked bucket, or its total for the range.
 export const valueAt = (series: ChartSeries, index: number | null) =>
   index === null
     ? series.values.reduce((sum, value) => sum + value, 0)

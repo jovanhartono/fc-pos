@@ -125,7 +125,7 @@ export const useBarcodeScanner = (
           return;
         }
       } catch {
-        // ignore frame-level errors
+        // One unreadable frame is skipped; the next frame tries again.
       }
 
       if (!alive) {

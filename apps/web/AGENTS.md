@@ -60,7 +60,7 @@ Every saved/uploaded image rendered anywhere must be clickable and open in `Phot
 - Keys: `all` → `lists()` → `list(query)` → `detail(id)`, so one prefix invalidates every screen the domain owns.
 - Transport helpers (`parseSuccessData`, `toSearchParams`, `toPaginated`, uploads) in `src/lib/http.ts`; shared staleTimes in `src/lib/query-defaults.ts`.
 - RPC: `rpc` from `src/lib/rpc.ts` (sends the session cookie); `rpcPublic` from `src/lib/rpc-public.ts` for endpoints nobody signs in for, and only that one keeps `/track` free of the sign-in code.
-- Loaders prefetch into cache via `ensureQueryData`; components read via `useQuery`.
+- Loaders prefetch into cache via `ensureQueryData`; components read via `useQuery`, or `useSuspenseQuery` when the route's loader awaits that same query and its `pendingComponent` is a separate skeleton, never the page itself (the page would suspend inside its own fallback).
 - Mutations: `useMutation` + invalidate in `onSuccess`. A write that several screens react to gets a named function in `src/lib/cache-events.ts` — one site, so no caller can forget a screen.
 
 ## State

@@ -133,7 +133,7 @@ describe("describeServerFailure", () => {
   });
 
   test("the server's unpriced-line rejection still matches the existing rule", () => {
-    // Pin against packages/server/src/modules/orders/order.service.ts's exact
+    // Pin against packages/server/src/modules/orders/order-settlement.service.ts's exact
     // wording — ADR-0018's blank-price gate has to keep landing on payment.
     expect(
       describeServerFailure(

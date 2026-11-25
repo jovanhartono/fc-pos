@@ -26,8 +26,6 @@ describe("GET /health", () => {
   });
 
   it("answers 503 when the database is unreachable", async () => {
-    // Vercel's cron and uptime checks hit this route to decide whether the
-    // container is healthy — a dropped Neon connection must fail loud, not 200.
     executeMock.mockImplementation(() =>
       Promise.reject(new Error("connection refused"))
     );

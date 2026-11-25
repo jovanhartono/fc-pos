@@ -32,7 +32,6 @@ export type ShiftsOverview = InferResponseType<
 export type ShiftPerson = ShiftsOverview["people"][number];
 export type ShiftDay = ShiftsOverview["days"][number];
 
-// Types, not interfaces: toSearchParams needs them to index by string.
 export interface FetchShiftsOverviewQuery {
   from: string;
   to: string;

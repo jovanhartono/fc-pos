@@ -84,8 +84,6 @@ const SidebarProvider = ({
     }
   };
 
-  // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen);
   const open = openProp ?? uncontrolledOpen;
   const setOpen = (value: boolean | ((value: boolean) => boolean)) => {
@@ -100,14 +98,12 @@ const SidebarProvider = ({
     document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
   };
 
-  // Helper to toggle the sidebar.
   const toggleSidebar = () =>
     isMobile
       ? setOpenMobile((wasOpen) => !wasOpen)
       : setOpen((wasOpen) => !wasOpen);
   const onToggleShortcut = React.useEffectEvent(toggleSidebar);
 
-  // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
@@ -123,8 +119,6 @@ const SidebarProvider = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // We add a state so that we can do data-state="expanded" or "collapsed".
-  // This makes it easier to style the sidebar with Tailwind classes.
   const state = open ? "expanded" : "collapsed";
 
   const contextValue: SidebarContextProps = {
@@ -242,7 +236,6 @@ const Sidebar = ({
       data-side={side}
       data-slot="sidebar"
     >
-      {/* This is what handles the sidebar gap on desktop */}
       <div
         data-slot="sidebar-gap"
         className={cn(
@@ -259,7 +252,6 @@ const Sidebar = ({
         data-side={side}
         className={cn(
           "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) pb-[env(safe-area-inset-bottom)] transition-[left,right,width] duration-200 ease-linear data-[side=left]:left-0 data-[side=left]:pl-[env(safe-area-inset-left)] data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)] md:flex",
-          // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
             : "bg-sidebar group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
@@ -623,7 +615,6 @@ const SidebarMenuSkeleton = ({
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean;
 }) => {
-  // Random width between 50 to 90%.
   const width = useMountValue(() => `${Math.floor(Math.random() * 40) + 50}%`);
 
   return (

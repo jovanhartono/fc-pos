@@ -207,7 +207,6 @@ export const PhotoCaptureProvider = ({
     if (!open) {
       return;
     }
-    // Intake flows: skip the chooser, go straight to the live camera.
     if (autoOpenCamera) {
       void openCameraFromEffect();
     }

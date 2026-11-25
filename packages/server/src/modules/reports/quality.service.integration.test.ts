@@ -413,7 +413,7 @@ describe("the Quality report", () => {
         days: expect.any(Array),
       },
       {
-        // Citra passed her own redo of Adi's pair: a Self-check.
+        // Citra passed her own redo of Adi's pair: a Self-pass.
         user_id: citra,
         user_name: "Citra",
         checks: 4,

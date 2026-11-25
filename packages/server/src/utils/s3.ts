@@ -1,21 +1,17 @@
 import { s3 } from "bun";
 
 import { BadRequestException } from "@/http-exceptions";
+import {
+  PHOTO_MAX_DIMENSION,
+  PHOTO_MAX_PASSTHROUGH_BYTES,
+  PHOTO_WEBP_QUALITY,
+} from "@/schema/photo-encoding";
 import { PHOTO_TILE_SIZE } from "@/schema/photo-thumbnail";
 import { thumbnailKey } from "@/utils/photo-key";
 import { reportError } from "@/utils/report-error";
 
 const DEFAULT_PRESIGNED_EXPIRES_SECONDS = 300;
-// 2560px keeps a 5mm stain visible in a whole-Item shot, which a damage dispute turns on.
-// The counter app scales to the same bound; raise one without the other and they stop matching.
-const MAX_IMAGE_DIMENSION = 2560;
-// Matches the counter app, so its shots are stored as they arrive. Change one without the other
-// and every upload is converted again.
-const WEBP_QUALITY = 85;
 const METADATA_PROBE_BYTES = 65_536;
-// Mirrors apps/web normalize-image.ts. A lossless WebP within 2560px can run to tens of MB and
-// load slowly for every operator opening the gallery, so anything heavier is converted.
-const MAX_PASSTHROUGH_BYTES = 4_000_000;
 // Every Order screen tiles its photos; a small copy filed beside each one keeps those tiles off
 // Cloudflare's monthly free transformations, which ran out within a week.
 const THUMBNAIL_QUALITY = 75;
@@ -33,8 +29,8 @@ const isAlreadyOptimized = async (
 
     return (
       header.format === "webp" &&
-      Math.max(header.width, header.height) <= MAX_IMAGE_DIMENSION &&
-      stats.size <= MAX_PASSTHROUGH_BYTES
+      Math.max(header.width, header.height) <= PHOTO_MAX_DIMENSION &&
+      stats.size <= PHOTO_MAX_PASSTHROUGH_BYTES
     );
   } catch {
     return false;
@@ -84,7 +80,7 @@ export const createPresignedUploadUrl = ({
   };
 };
 
-// A link to a missing file swaps the Order screen for S3's error page, so check first. An
+// A link to a missing file swaps the Order screen for R2's error page, so check first. An
 // outage is not a missing photo and is thrown as it is.
 export const isStoredObjectReadable = async (key: string): Promise<boolean> => {
   try {
@@ -98,7 +94,7 @@ export const isStoredObjectReadable = async (key: string): Promise<boolean> => {
   }
 };
 
-// A link that saves the photo as a file instead of showing it, straight from S3 — so the CDN
+// A link that saves the photo as a file instead of showing it, straight from the R2 bucket — so the CDN
 // needs no CORS and no bytes pass through this server.
 export const createPresignedDownloadUrl = ({
   key,
@@ -172,11 +168,11 @@ const encodeStoredWebp = async (
   try {
     return await file
       .image()
-      .resize(MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, {
+      .resize(PHOTO_MAX_DIMENSION, PHOTO_MAX_DIMENSION, {
         fit: "inside",
         withoutEnlargement: true,
       })
-      .webp({ quality: WEBP_QUALITY })
+      .webp({ quality: PHOTO_WEBP_QUALITY })
       .bytes();
   } catch (error) {
     // Keeping an undecodable original left a Drop-off photo broken outside Safari, so the

@@ -218,8 +218,6 @@ export const useTransactionsPageBootstrap = (): TransactionsPageBootstrap => {
     try {
       const created = await createMutation.mutateAsync(toOrderPayload(values));
 
-      // A failed drop-off photo must not fail the Order; the cashier
-      // retries it from the Order page.
       const orderId = getCreatedOrderId(created);
 
       // A Receipt failure never delays the Order; the cashier reprints
@@ -252,6 +250,8 @@ export const useTransactionsPageBootstrap = (): TransactionsPageBootstrap => {
 
       const { dropoffPhoto } = useTransactionsPageStore.getState();
       if (orderId && dropoffPhoto && isAcceptedImage(dropoffPhoto.type)) {
+        // A failed drop-off photo must not fail the Order; the cashier
+        // retries it from the Order page.
         try {
           await uploadOrderDropoffPhoto(orderId, {
             file: dropoffPhoto,

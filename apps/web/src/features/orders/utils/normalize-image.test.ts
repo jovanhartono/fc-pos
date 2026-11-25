@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 
-import { MAX_UPLOAD_DIMENSION, normalizeImageFile } from "./normalize-image";
+import { PHOTO_MAX_DIMENSION } from "@fresclean/api/rules";
+
+import { normalizeImageFile } from "./normalize-image";
 
 interface CounterPhone {
   /** null stands for a phone with no codec for what staff picked. */
@@ -111,7 +113,7 @@ const failureOf = async (run: () => Promise<unknown>) => {
 
 describe("normalizeImageFile", () => {
   it("sends an iPad camera shot up untouched rather than burning a second lossy generation on the evidence", async () => {
-    const ipad = counterIpad({ height: 1920, width: MAX_UPLOAD_DIMENSION });
+    const ipad = counterIpad({ height: 1920, width: PHOTO_MAX_DIMENSION });
     const shot = picked("photo-1754200000000.jpg", "image/jpeg", 2_400_000);
 
     await onCounterPhone(ipad, async () => {
@@ -123,7 +125,7 @@ describe("normalizeImageFile", () => {
   it("trades an in-budget gallery JPEG for WebP where the phone can encode it, halving the upload without costing a generation", async () => {
     // The server's WebP pass is the one being replaced, not added to — so this is the same
     // two lossy passes as before over roughly half the shop-floor 4G.
-    const phone = counterPhone({ height: 1920, width: MAX_UPLOAD_DIMENSION });
+    const phone = counterPhone({ height: 1920, width: PHOTO_MAX_DIMENSION });
 
     await onCounterPhone(phone, async () => {
       const normalized = await normalizeImageFile(
@@ -137,7 +139,7 @@ describe("normalizeImageFile", () => {
   });
 
   it("leaves an in-budget WebP alone, because it already is what the server would have stored", async () => {
-    const phone = counterPhone({ height: 1920, width: MAX_UPLOAD_DIMENSION });
+    const phone = counterPhone({ height: 1920, width: PHOTO_MAX_DIMENSION });
     const shot = picked("photo-1754200000000.webp", "image/webp", 600_000);
 
     await onCounterPhone(phone, async () => {

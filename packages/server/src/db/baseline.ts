@@ -37,7 +37,7 @@ const pool = new Pool({ connectionString });
 
 try {
   await pool.query('CREATE SCHEMA IF NOT EXISTS "drizzle"');
-  // Matches the shape drizzle-orm beta expects. `name` is the column that
+  // Matches the shape drizzle-orm rc expects. `name` is the column that
   // decides what has run; the older push-era ledger predates it.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ${LEDGER} (

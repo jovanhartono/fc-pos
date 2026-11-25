@@ -27,7 +27,7 @@ const app = new Hono<{ Variables: JwtVariables<AuthUser> }>()
     })
   )
   .use(
-    // Photos go straight to S3, so 1 MiB covers the largest Order the counter sends.
+    // Photos go straight to the bucket, so 1 MiB covers the largest Order the counter sends.
     bodyLimit({ maxSize: 1024 * 1024 })
   );
 

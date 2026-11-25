@@ -133,7 +133,6 @@ const buildQcRejects = async (lines: WaitingLine[], now: Date) => {
     .toSorted((a, b) => b.days - a.days);
 };
 
-// What one Store looks like right now, for whoever stands at its Counter.
 export const getCounter = async (
   storeId: number,
   now = new Date()

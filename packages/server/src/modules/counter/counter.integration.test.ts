@@ -86,7 +86,6 @@ const placeOrder = async (
   );
 };
 
-// One Item with one Service each.
 const placeLines = async (
   store: Store,
   count: number,

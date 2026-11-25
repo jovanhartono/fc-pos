@@ -119,10 +119,10 @@ beforeEach(() => {
     answers[key] = noRows();
   }
 
-  // Saturday: a full day of laundry plus soap sold off the shelf, with a
+  // Saturday: a full day of cleaning plus laces sold off the shelf, with a
   // Rp20.000 promo off the whole order — so Rp620.000 quoted, Rp600.000 taken.
   // Sunday: shut — Postgres returns no row for it at all.
-  // Monday: services only, and Rp75.000 handed back for Saturday's ruined shirt.
+  // Monday: services only, and Rp75.000 handed back for a pair of shoes dropped off Saturday.
   answers.services.now = [
     sales("2026-08-01", 500_000, 150_000),
     sales("2026-08-03", 300_000, 90_000),
@@ -184,7 +184,7 @@ describe("the day-by-day money chart", () => {
   });
 
   it("charges Monday's refund to Monday, leaving Saturday's sale untouched", async () => {
-    // The refund undoes a Saturday shirt but was handed back on Monday, so
+    // The refund undoes a Saturday pair of shoes but was handed back on Monday, so
     // Monday's bar carries it. Saturday's profit is not restated.
     const report = await financial();
 
@@ -258,7 +258,7 @@ describe("the headline figures for the whole stretch", () => {
 
   it("adds a day's takings instead of stringing them together", async () => {
     // numeric(12,0) arrives as text. Left as text, Saturday's Rp500.000 of
-    // laundry and Rp120.000 of soap would render as "500000120000".
+    // Services and Rp120.000 of laces would render as "500000120000".
     const report = await financial();
 
     expect(report.summary.current.gross_sales).toBe(920_000);
@@ -380,16 +380,16 @@ describe("splitting the takings between stores", () => {
 
 describe("which services earn the money", () => {
   it("charts the five biggest categories and lumps the rest into Other", async () => {
-    // Seven categories on the price list, six bars on the chart: sepatu, karpet
-    // and boneka are a rounding error next to cuci setrika.
+    // Seven Categories on the price list, six bars on the chart: Sole Protector
+    // and Add-Ons are a rounding error next to Deep Clean.
     const priceList: [number, string, number][] = [
-      [1, "Cuci Setrika", 400_000],
-      [2, "Cuci Kering", 200_000],
-      [3, "Setrika Saja", 100_000],
-      [4, "Dry Clean", 50_000],
-      [5, "Sepatu", 25_000],
-      [6, "Karpet", 10_000],
-      [7, "Boneka", 5000],
+      [1, "Deep Clean", 400_000],
+      [2, "Leather Care", 200_000],
+      [3, "Suede Care", 100_000],
+      [4, "Repaint", 50_000],
+      [5, "Repair", 25_000],
+      [6, "Sole Protector", 10_000],
+      [7, "Add-Ons", 5000],
     ];
     answers.categoryGrossSales.now = priceList.map(([id, name, grossSales]) => [
       "2026-08-01",
@@ -401,11 +401,11 @@ describe("which services earn the money", () => {
     const report = await financial();
 
     expect(report.category_keys).toEqual([
-      { key: "cat_1", label: "Cuci Setrika" },
-      { key: "cat_2", label: "Cuci Kering" },
-      { key: "cat_3", label: "Setrika Saja" },
-      { key: "cat_4", label: "Dry Clean" },
-      { key: "cat_5", label: "Sepatu" },
+      { key: "cat_1", label: "Deep Clean" },
+      { key: "cat_2", label: "Leather Care" },
+      { key: "cat_3", label: "Suede Care" },
+      { key: "cat_4", label: "Repaint" },
+      { key: "cat_5", label: "Repair" },
       { key: "cat_other", label: "Other" },
     ]);
     expect(report.category_series[0]).toEqual({
@@ -421,7 +421,7 @@ describe("which services earn the money", () => {
     expect(report.category_treemap).toHaveLength(7);
     expect(report.category_treemap[0]).toEqual({
       category_id: 1,
-      category_name: "Cuci Setrika",
+      category_name: "Deep Clean",
       gross_sales: 400_000,
     });
   });

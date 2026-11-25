@@ -1,4 +1,3 @@
-// when dealing with cross-package types, use relative import
 import type { usersTable } from "../db/schema";
 
 type User = typeof usersTable.$inferSelect;

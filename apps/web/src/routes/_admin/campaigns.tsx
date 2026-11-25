@@ -313,7 +313,7 @@ const columnsFor = ({
 const CampaignsPage = () => {
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
-  // DB-fresh role — JWT claim goes stale on mid-session role changes.
+  // ADR-0006.
   const meQuery = useQuery(usersQueries.me());
   const isAdmin = meQuery.data?.role === "admin";
   const queryClient = useQueryClient();

@@ -96,7 +96,6 @@ export const updatePaymentChargeById = (
     .where(eq(paymentChargesTable.id, id))
     .returning();
 
-// Every pending charge on the Order, or `only` that one, or all `except` it.
 export const updatePendingChargesCancelled = (
   orderId: number,
   { only, except }: { only?: number; except?: number } = {}

@@ -1,18 +1,14 @@
-// Big enough that a 5mm stain still shows in a photo of the whole Item, what a Complaint
-// turns on. The server keeps the same bound; raise both together.
-export const MAX_UPLOAD_DIMENSION = 2560;
+import {
+  PHOTO_MAX_DIMENSION,
+  PHOTO_MAX_PASSTHROUGH_BYTES,
+  PHOTO_WEBP_QUALITY,
+} from "@fresclean/api/rules";
 
-// The server's own setting, so a photo encoded here is stored as it arrived: one lossy
-// pass, about half the bytes over shop 4G.
-const WEBP_QUALITY = 0.85;
+const WEBP_QUALITY = PHOTO_WEBP_QUALITY / 100;
 
 // Safari can't encode WebP, so iPad photos go up as JPEG; kept high so the faint
 // discoloration a Complaint is argued from survives the trip.
 const JPEG_QUALITY = 0.88;
-
-// A screenshot can be 10MB inside the size budget. Set above a full camera photo, so
-// a live photo still passes through untouched.
-const MAX_PASSTHROUGH_BYTES = 4_000_000;
 
 const PASSTHROUGH_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -80,8 +76,8 @@ export const normalizeImageFile = async (file: File): Promise<File> => {
   try {
     const longEdge = Math.max(bitmap.width, bitmap.height);
     const isInBudget =
-      longEdge <= MAX_UPLOAD_DIMENSION &&
-      file.size <= MAX_PASSTHROUGH_BYTES &&
+      longEdge <= PHOTO_MAX_DIMENSION &&
+      file.size <= PHOTO_MAX_PASSTHROUGH_BYTES &&
       PASSTHROUGH_TYPES.has(file.type);
 
     // Asked once: a five-photo gallery pick was otherwise testing the device ten times.
@@ -93,7 +89,7 @@ export const normalizeImageFile = async (file: File): Promise<File> => {
       return file;
     }
 
-    const scale = Math.min(1, MAX_UPLOAD_DIMENSION / longEdge);
+    const scale = Math.min(1, PHOTO_MAX_DIMENSION / longEdge);
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(bitmap.width * scale);
     canvas.height = Math.round(bitmap.height * scale);

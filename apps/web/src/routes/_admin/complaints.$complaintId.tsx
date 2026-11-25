@@ -73,7 +73,6 @@ const ComplaintDetailPage = () => {
 
   const complaintQuery = useQuery(complaintsQueries.detail(id));
 
-  // 0 until data loads; the rework button only renders after the guard below.
   const reworkMutation = useAddReworkMutation(id);
   const openDialog = useDialog((state) => state.openDialog);
   const closeDialog = useDialog((state) => state.closeDialog);

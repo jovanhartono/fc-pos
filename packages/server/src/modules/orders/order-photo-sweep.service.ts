@@ -5,7 +5,7 @@ import { deleteStoredObject, listStoredObjects } from "@/utils/s3";
 // A cashier can leave a batch unconfirmed while serving the Customer. A batch left
 // longer than this, like a POS open over a weekend, loses its photos.
 const SETTLE_HOURS = 24;
-// The bucket is in Jakarta and the API in Singapore, so one-by-one deletes of a
+// Each delete is a round trip to Cloudflare R2, so one-by-one deletes of a
 // backlog would hold the cron open for minutes.
 const DELETE_CONCURRENCY = 10;
 

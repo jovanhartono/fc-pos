@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import type { DbExecutor } from "@/db";
 import { BadRequestException, NotFoundException } from "@/http-exceptions";
 import {
   findComplaintById,
@@ -16,7 +17,6 @@ import type {
   PostComplaintInput,
 } from "@/modules/complaints/complaint.schema";
 import { queueReworkLine } from "@/modules/orders/order-status-machine";
-import type { DbExecutor } from "@/modules/orders/order-status-machine";
 import { isComplainableLine, isComplainableStatus } from "@/schema/complaint";
 import { isInWorkshop } from "@/schema/order-status";
 import type { AuthUser } from "@/types";

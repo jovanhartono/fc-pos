@@ -14,6 +14,7 @@ import {
   LINE_NAME,
   LINE_PRICE,
   META_LINE,
+  MONEY_LIST,
   PAID_LIST,
   PAID_ROW,
   SERVICE_LIST,
@@ -22,7 +23,6 @@ import {
   TILE_GRID,
   TileCaption,
 } from "@/features/orders/components/order-detail-parts";
-import { OrderMoneySummarySkeleton } from "@/features/orders/components/order-money-summary";
 import { OrderSectionHeader } from "@/features/orders/components/order-section-header";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +67,6 @@ const ItemPhotoStripSkeleton = () => (
   </div>
 );
 
-// One OrderService while the Order loads: name, status pill and price.
 const OrderServiceRowSkeleton = () => (
   <div className="flex py-2.5">
     <span className={LINE_GRID}>
@@ -108,6 +107,29 @@ const OrderItemsSkeleton = () => (
   </section>
 );
 
+// Subtotal over Net, the bill of an Order with no discount.
+const OrderMoneySummarySkeleton = () => (
+  <div className="px-4 py-4">
+    <dl className={MONEY_LIST}>
+      <div className="flex justify-between gap-4">
+        <dt className="text-muted-foreground">Subtotal</dt>
+        <dd>
+          <TextSkeleton />
+        </dd>
+      </div>
+    </dl>
+    <Separator className="my-2.5" />
+    <dl className={MONEY_LIST}>
+      <div className="flex justify-between gap-4 font-medium">
+        <dt>Net</dt>
+        <dd>
+          <TextSkeleton />
+        </dd>
+      </div>
+    </dl>
+  </div>
+);
+
 // A paid Order's bill and how it was paid, the shape most open Orders show.
 const OrderPaymentSkeleton = () => (
   <section className="grid gap-3">
@@ -129,7 +151,6 @@ const OrderPaymentSkeleton = () => (
   </section>
 );
 
-// A drop-off photo with its time and Replace button, beside the pickup tile.
 const OrderAttachmentsSkeleton = () => (
   <section className="grid gap-3">
     <OrderSectionHeader>Attachments</OrderSectionHeader>

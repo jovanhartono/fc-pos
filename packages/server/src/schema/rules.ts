@@ -56,6 +56,11 @@ export {
 export type { RefundLineRef } from "@/schema/refund-allocation";
 
 export {
+  PHOTO_MAX_DIMENSION,
+  PHOTO_MAX_PASSTHROUGH_BYTES,
+  PHOTO_WEBP_QUALITY,
+} from "@/schema/photo-encoding";
+export {
   PHOTO_THUMBNAIL_SUFFIX,
   PHOTO_TILE_SIZE,
 } from "@/schema/photo-thumbnail";

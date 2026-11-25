@@ -325,20 +325,6 @@ describe("updateShift", () => {
     expect(clockedOut.edited_by).toBe(shop.admin.id);
   });
 
-  it("keeps the Store when an older page sends only the times", async () => {
-    const shift = await openShift(shop.cashier.id, jkt("2026-10-12T08:00"));
-    setSystemTime(jkt("2026-10-12T11:00"));
-
-    await updateShift({
-      user: admin(),
-      shiftId: shift.id,
-      body: { clock_in_at: jkt("2026-10-12T08:30") },
-    });
-
-    const edited = await reload(shift.id);
-    expect(edited.store_id).toBe(shop.store.id);
-  });
-
   it("does not reopen a Shift the worker clocked out of mid-edit", async () => {
     const { updateShiftById } =
       await import("@/modules/shifts/shift.repository");
@@ -591,6 +577,13 @@ describe("PATCHShiftSchema", () => {
 
   it("takes no clock-out, for a worker still on shift", () => {
     expect(parse("2026-10-11T01:00:00Z", undefined)).toBe(true);
+  });
+
+  it("refuses an edit that names no Store", () => {
+    expect(
+      PATCHShiftSchema.safeParse({ clock_in_at: "2026-10-11T01:00:00Z" })
+        .success
+    ).toBe(false);
   });
 });
 

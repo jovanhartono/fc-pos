@@ -13,8 +13,9 @@ import {
 } from "@/modules/campaigns/campaign.repository";
 import type { OrderTx } from "@/modules/orders/order.repository";
 
-// ADR-0015: a Campaign is claimed at checkout and given back only when a
-// Cancellation closes the whole Order, never on a Refund or a partial cancel.
+// ADR-0015: a Campaign is claimed at checkout and given back when a
+// Cancellation closes the whole Order, or when a partial cancel or lowered
+// price drops an unpaid Order under a Campaign minimum. Never on a Refund.
 
 export interface CampaignRedemptionFields {
   applied_amount: string;
@@ -40,7 +41,6 @@ export const claimRedemptions = async (
     return;
   }
 
-  // campaignId -> codeId
   const resolvedCodeIds = new Map<number, number>();
 
   for (const row of campaignRows) {
@@ -84,7 +84,8 @@ export const claimRedemptions = async (
   );
 };
 
-// Only called when a Cancellation closes the whole Order.
+// Called when a Cancellation closes the whole Order, or an unpaid Order drops
+// under a Campaign minimum.
 export const releaseRedemptions = async (tx: OrderTx, orderId: number) => {
   const orderCampaigns = await findOrderCampaignsByOrderId(tx, orderId);
   for (const oc of orderCampaigns) {

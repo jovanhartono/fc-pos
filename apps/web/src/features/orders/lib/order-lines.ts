@@ -11,8 +11,6 @@ export const flattenOrderLines = (detail: OrderDetail): OrderLine[] =>
     item.services.map((service) => ({ ...service, item }))
   );
 
-// Both detail sheets read their line live out of the cached order, so a status
-// change made in the sheet shows immediately instead of pinning a stale prop.
 export const findOrderLine = (
   detail: OrderDetail | undefined,
   serviceId: number
