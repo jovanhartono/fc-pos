@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { CopyValue } from "@/components/copy-value";
 import { EmptyState } from "@/components/empty-state";
 import { SectionTitle } from "@/components/section";
+import { TextSkeleton } from "@/components/text-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -29,6 +30,7 @@ import type {
 } from "@/features/orders/api";
 import { HoldToConfirmButton } from "@/features/orders/components/hold-to-confirm-button";
 import { ItemPhotoStrip } from "@/features/orders/components/item-photo-strip";
+import { TILE_CLASS } from "@/features/orders/components/order-detail-parts";
 import { ReworkOriginCallout } from "@/features/orders/components/rework-origin-callout";
 import { StatusTimeline } from "@/features/orders/components/status-timeline";
 import { useNotifyCustomer } from "@/features/orders/hooks/use-notify-customer";
@@ -158,16 +160,65 @@ const ReadyNote = ({ order }: ReadyNoteProps) => {
   );
 };
 
+const SKELETON_FIELDS = [
+  "Order",
+  "Store",
+  "Customer",
+  "Phone",
+  "Items ready",
+  "Received",
+];
+
 export const QueueServiceDetailSkeleton = () => (
-  <div className="grid gap-5">
-    <Skeleton className="h-8 w-48" />
-    <Skeleton className="h-12 w-full" />
-    <div className="grid gap-3">
-      <Skeleton className="h-5 w-40" />
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-24 w-full" />
+  <>
+    <div className="mb-5">
+      <p className="mt-1 text-title-1 leading-tight">
+        <TextSkeleton className="w-64 max-w-full" />
+      </p>
+      <p className="text-title-1 leading-tight">
+        <TextSkeleton className="w-48" />
+      </p>
+      <p className="mt-1 text-body">
+        <TextSkeleton className="w-40" />
+      </p>
     </div>
-  </div>
+
+    <div className="grid gap-5">
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton className="h-5 w-24 rounded-full" />
+        <p className="text-footnote">
+          <TextSkeleton className="w-28" />
+        </p>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-4 border-t pt-5">
+        {SKELETON_FIELDS.map((label) => (
+          <div key={label} className="grid content-start gap-1">
+            <dt className={LABEL_CLASS}>{label}</dt>
+            <dd className="text-body">
+              <TextSkeleton className="w-24" />
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <section className="grid gap-2.5 border-t pt-5">
+        <div className="flex min-h-7 items-center">
+          <SectionTitle title="Photos" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className={TILE_CLASS} />
+          <Skeleton className={TILE_CLASS} />
+        </div>
+      </section>
+
+      <section className="border-t pt-5">
+        <p className="text-headline">
+          <TextSkeleton className="w-28" />
+        </p>
+      </section>
+    </div>
+  </>
 );
 
 export const QueueServiceDetailMessage = ({
