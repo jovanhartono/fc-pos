@@ -184,7 +184,7 @@ export const WorkersPanel = ({
 
       {isReady ? (
         <>
-          <NeedsALook workers={workers} />
+          <NeedsALook workers={workers} livePeople={liveQuery.data?.people} />
 
           <Section
             id="workers-rows"

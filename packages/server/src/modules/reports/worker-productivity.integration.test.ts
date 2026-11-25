@@ -360,6 +360,7 @@ describe("the Workers report over August", () => {
       in_hand: 0,
       last_move_at: null,
       services_today: 0,
+      clocked_in_today: true,
     });
     // Nothing he started reached QC on 4 or 5 August.
     expect(await barsOf(adi, shop.store.id)).toEqual({
@@ -1344,6 +1345,7 @@ describe("the Workers report for today", () => {
       in_hand: 1,
       last_move_at: at(5),
       services_today: 1,
+      clocked_in_today: true,
     });
   });
 
@@ -1388,6 +1390,7 @@ describe("the Workers report for today", () => {
           in_hand: 2,
           last_move_at: at(6),
           services_today: 1,
+          clocked_in_today: true,
         },
       }),
     ]);
@@ -1399,6 +1402,43 @@ describe("the Workers report for today", () => {
     const { workers } = await getWorkerLiveReport({ store_id: shop.store.id });
 
     expect(workers.map((row) => row.user_id)).toEqual([adi]);
+  });
+
+  it("counts a Shift at another Store as clocked in on the Store whose Item they moved", async () => {
+    // Bayu clocked in at Bintaro and cleaned an Item from Kemang.
+    const { kemang } = await placeOrder(shop.store, [
+      { brand: "kemang", serviceId: shop.serviceId },
+    ]);
+    await clockIn(bayu, bintaro.id, at(1), null);
+    await log(kemang.lineId, [["queued", "processing", bayu, at(2)]]);
+
+    expect(await liveAt(bayu)).toEqual(
+      expect.objectContaining({ clock_in_at: null, clocked_in_today: true })
+    );
+  });
+
+  it("counts a cashier's counter Shift at another Store as clocked in on the Store whose Item she checked", async () => {
+    const { checked } = await placeOrder(shop.store, [
+      { brand: "checked", serviceId: shop.serviceId },
+    ]);
+    await log(checked.lineId, [
+      ["queued", "processing", adi, at(-40)],
+      ["processing", "waiting_qc", adi, at(-39)],
+      ["waiting_qc", "ready_for_pickup", shop.cashier.id, at(4)],
+    ]);
+    await clockIn(shop.cashier.id, bintaro.id, at(3), null);
+
+    const { workers, people } = await getWorkerLiveReport({
+      store_id: shop.store.id,
+    });
+    const isHers = (row: { user_id: number }) =>
+      row.user_id === shop.cashier.id;
+
+    // Her counter Shift stays off the bench, but she did clock in.
+    expect(workers.find(isHers)?.live).toEqual(
+      expect.objectContaining({ clock_in_at: null, clocked_in_today: true })
+    );
+    expect(people.find(isHers)?.live.clocked_in_today).toBe(true);
   });
 
   it("lists someone with pairs in hand before anything they started reaches QC", async () => {
@@ -1431,6 +1471,7 @@ describe("the Workers report for today", () => {
       in_hand: 2,
       last_move_at: null,
       services_today: 0,
+      clocked_in_today: false,
     });
   });
 
@@ -1443,6 +1484,7 @@ describe("the Workers report for today", () => {
       in_hand: 0,
       last_move_at: null,
       services_today: 0,
+      clocked_in_today: true,
     });
   });
 

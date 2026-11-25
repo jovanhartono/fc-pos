@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import type {
+  PersonLiveRow,
   PersonRangeRow,
   WorkerLiveRow,
   WorkerProductivityReport,
@@ -34,6 +35,7 @@ const quiet: WorkerRow["live"] = {
   in_hand: 0,
   last_move_at: null,
   services_today: 0,
+  clocked_in_today: false,
 };
 
 const worker = (overrides: Partial<WorkerRow>): WorkerRow =>
@@ -54,6 +56,9 @@ const worker = (overrides: Partial<WorkerRow>): WorkerRow =>
     live: quiet,
     ...overrides,
   }) as WorkerRow;
+
+const personLive = (figures: Partial<WorkerRow["live"]>) =>
+  ({ user_id: 1, live: { ...quiet, ...figures } }) as PersonLiveRow;
 
 describe("QC reject tone", () => {
   it("stays grey under 20 checks, however many rejects", () => {
@@ -220,15 +225,9 @@ describe("right now", () => {
   it("misses a clock-in only for someone who worked today with no Shift today", () => {
     expect(isMissingClockIn(live({ services_today: 1 }))).toBe(true);
     expect(isMissingClockIn(live({ last_move_at: at("09:00") }))).toBe(true);
-    // Went home after a Shift today.
+    // Went home after a Shift today, or is on shift at another Store.
     expect(
-      isMissingClockIn(
-        live({
-          services_today: 1,
-          clock_in_at: at("07:00"),
-          clock_out_at: at("09:00"),
-        })
-      )
+      isMissingClockIn(live({ services_today: 1, clocked_in_today: true }))
     ).toBe(false);
     // Items in hand from an earlier day are not work today.
     expect(isMissingClockIn(live({ in_hand: 3 }))).toBe(false);
@@ -265,6 +264,11 @@ describe("Needs a look", () => {
     );
   const since = (minutes: number) =>
     new Date(now - minutes * 60_000).toISOString();
+  const flagsOf = (rows: WorkerRow[], wholeDay: PersonLiveRow) =>
+    needsALook(rows, now, [wholeDay]).map(({ problem, storeIds }) => ({
+      problem,
+      storeIds,
+    }));
 
   it("flags work today with no Shift", () => {
     expect(
@@ -277,20 +281,21 @@ describe("Needs a look", () => {
   });
 
   it("flags an open Shift past the idle limit with nothing reaching QC today", () => {
+    const onShift = { ...quiet, clocked_in_today: true };
     expect(
-      flagText(worker({ live: { ...quiet, clock_in_at: since(355) } }))
+      flagText(worker({ live: { ...onShift, clock_in_at: since(355) } }))
     ).toEqual(["on shift 5h 55m, [0 Services today]"]);
     expect(
-      flagText(worker({ live: { ...quiet, clock_in_at: since(305) } }))
+      flagText(worker({ live: { ...onShift, clock_in_at: since(305) } }))
     ).toEqual(["on shift 5h 05m, [0 Services today]"]);
     expect(
-      flagText(worker({ live: { ...quiet, clock_in_at: since(50 * 60) } }))
+      flagText(worker({ live: { ...onShift, clock_in_at: since(50 * 60) } }))
     ).toEqual(["on shift 2d 2h, [0 Services today]"]);
     expect(
       flagText(
         worker({
           live: {
-            ...quiet,
+            ...onShift,
             clock_in_at: since(NEEDS_A_LOOK.idleShiftMinutes),
           },
         })
@@ -299,7 +304,7 @@ describe("Needs a look", () => {
     expect(
       flagText(
         worker({
-          live: { ...quiet, clock_in_at: since(355), services_today: 1 },
+          live: { ...onShift, clock_in_at: since(355), services_today: 1 },
         })
       )
     ).toEqual([]);
@@ -308,7 +313,7 @@ describe("Needs a look", () => {
       flagText(
         worker({
           live: {
-            ...quiet,
+            ...onShift,
             clock_in_at: since(355),
             last_move_at: since(5),
           },
@@ -319,7 +324,7 @@ describe("Needs a look", () => {
       flagText(
         worker({
           live: {
-            ...quiet,
+            ...onShift,
             clock_in_at: since(355),
             last_move_at: since(NEEDS_A_LOOK.idleShiftMinutes + 1),
           },
@@ -336,6 +341,7 @@ describe("Needs a look", () => {
           live: {
             ...quiet,
             clock_in_at: shift,
+            clocked_in_today: true,
             in_hand: 39,
             services_today: 14,
           },
@@ -348,6 +354,7 @@ describe("Needs a look", () => {
           live: {
             ...quiet,
             clock_in_at: shift,
+            clocked_in_today: true,
             in_hand: NEEDS_A_LOOK.maxInHand,
             services_today: 1,
           },
@@ -363,6 +370,45 @@ describe("Needs a look", () => {
       "1 Service today, 25 in hand — [not clocked in]",
       "[25 in hand], 1 reached QC today",
     ]);
+  });
+
+  describe("someone clocked in at GRH who cleans BSD booth Items", () => {
+    const grh = worker({ store_id: 1, store_name: "Grand Indonesia" });
+    const bsd = worker({ store_id: 2, store_name: "BSD" });
+
+    it("is clocked in on the BSD row too", () => {
+      const bsdRow = { ...bsd, live: { ...quiet, services_today: 3 } };
+      expect(
+        flagsOf(
+          [bsdRow],
+          personLive({ services_today: 3, clocked_in_today: true })
+        )
+      ).toEqual([]);
+    });
+
+    it("is not idle at GRH while finishing BSD Items", () => {
+      const grhRow = { ...grh, live: { ...quiet, clock_in_at: since(300) } };
+      const bsdRow = { ...bsd, live: { ...quiet, services_today: 5 } };
+      expect(
+        flagsOf(
+          [grhRow, bsdRow],
+          personLive({
+            clock_in_at: since(300),
+            clocked_in_today: true,
+            services_today: 5,
+            last_move_at: since(10),
+          })
+        )
+      ).toEqual([]);
+    });
+
+    it("gets one not-clocked-in line naming both Stores", () => {
+      const grhRow = { ...grh, live: { ...quiet, services_today: 1 } };
+      const bsdRow = { ...bsd, live: { ...quiet, services_today: 2 } };
+      expect(
+        flagsOf([grhRow, bsdRow], personLive({ services_today: 3 }))
+      ).toEqual([{ problem: "not clocked in", storeIds: [1, 2] }]);
+    });
   });
 });
 
