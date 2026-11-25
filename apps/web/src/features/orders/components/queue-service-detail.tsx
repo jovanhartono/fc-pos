@@ -18,6 +18,7 @@ import { SectionTitle } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { CustomerLink } from "@/features/customers/components/customer-link";
@@ -156,6 +157,18 @@ const ReadyNote = ({ order }: ReadyNoteProps) => {
     </div>
   );
 };
+
+export const QueueServiceDetailSkeleton = () => (
+  <div className="grid gap-5">
+    <Skeleton className="h-8 w-48" />
+    <Skeleton className="h-12 w-full" />
+    <div className="grid gap-3">
+      <Skeleton className="h-5 w-40" />
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-24 w-full" />
+    </div>
+  </div>
+);
 
 export const QueueServiceDetailMessage = ({
   description,

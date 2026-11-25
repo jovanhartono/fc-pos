@@ -7,6 +7,7 @@ import { ordersQueries } from "@/features/orders/api";
 import {
   QueueServiceDetail,
   QueueServiceDetailMessage,
+  QueueServiceDetailSkeleton,
 } from "@/features/orders/components/queue-service-detail";
 
 const queueServiceParamsSchema = z.object({
@@ -59,5 +60,7 @@ export const Route = createFileRoute("/_admin/queue/$orderId/$serviceId")({
     );
   },
   component: QueueDetailPage,
+  // Past a second, a line-shaped skeleton, not the generic placeholder.
+  pendingComponent: QueueServiceDetailSkeleton,
   errorComponent: QueueServiceRouteError,
 });
