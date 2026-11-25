@@ -32,8 +32,7 @@ interface ServicePriceSectionProps {
   isRework: boolean;
 }
 
-// ADR-0018: blank until agreed with the Customer, open to any staff while the
-// Order is unpaid, frozen once paid, and 0 on a Rework.
+// ADR-0018.
 const ServicePriceSection = ({
   orderId,
   serviceId,
@@ -120,8 +119,7 @@ export const OrderServiceDetail = ({
   const actions = orderServiceActions(service);
 
   const isOrderPaid = detailQuery.data?.payment_status === "paid";
-  // ADR-0018: while true, this line holds the whole Order's payment — the
-  // same predicate the server's paid transition runs.
+  // While true, this line holds the whole Order's payment (ADR-0018).
   const isUnpriced = isUnpricedLine(service);
 
   return (

@@ -247,8 +247,7 @@ export const ordersOutTrendSeries = async ({
   }));
 };
 
-// Counted on the day the money was taken: by Order date, a line the Customer
-// pays for tomorrow landed in today's panel.
+// Counted on the day the money was taken (ADR-0023).
 export const categoryGrossSalesForRange = async ({
   range,
   storeId,

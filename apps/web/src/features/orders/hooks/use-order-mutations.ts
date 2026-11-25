@@ -45,7 +45,7 @@ export const useUpdateServiceStatusMutation = (orderId: number) => {
   });
 };
 
-// ADR-0018: any staff may set or correct a price; the price log is the oversight.
+// ADR-0018.
 export const useSetServicePriceMutation = (orderId: number) => {
   const refreshOrder = useRefreshOrder();
 

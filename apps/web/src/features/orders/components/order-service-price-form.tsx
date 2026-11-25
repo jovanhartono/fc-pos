@@ -28,8 +28,7 @@ interface OrderServicePriceFormProps {
   onSuccess?: () => void;
 }
 
-// ADR-0018: any staff may set or correct a price; the server's price log is
-// the oversight, not a role. Payment freezes prices.
+// ADR-0018.
 export const OrderServicePriceForm = ({
   orderId,
   serviceId,

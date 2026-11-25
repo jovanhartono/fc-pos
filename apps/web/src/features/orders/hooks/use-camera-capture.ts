@@ -1,9 +1,7 @@
+import { PHOTO_MAX_DIMENSION } from "@fresclean/api/rules";
 import { useEffect, useRef, useState } from "react";
 
-import {
-  encodeForUpload,
-  MAX_UPLOAD_DIMENSION,
-} from "@/features/orders/utils/normalize-image";
+import { encodeForUpload } from "@/features/orders/utils/normalize-image";
 import type { EncodedUpload } from "@/features/orders/utils/normalize-image";
 
 const waitForVideoReady = (video: HTMLVideoElement) =>
@@ -93,8 +91,8 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
       const nextStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: 2560 },
-          height: { ideal: 2560 },
+          width: { ideal: PHOTO_MAX_DIMENSION },
+          height: { ideal: PHOTO_MAX_DIMENSION },
         },
         audio: false,
       });
@@ -161,7 +159,7 @@ export const useCameraCapture = (): UseCameraCaptureResult => {
     // not two, over the faint mark a Complaint is argued from.
     const outputScale = Math.min(
       1,
-      MAX_UPLOAD_DIMENSION / Math.max(frameWidth, frameHeight)
+      PHOTO_MAX_DIMENSION / Math.max(frameWidth, frameHeight)
     );
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(frameWidth * outputScale);

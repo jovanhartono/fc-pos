@@ -243,7 +243,7 @@ describe("getCartPricing", () => {
   });
 
   test("campaigns run on the full order total — repair spend counts (ADR-0018)", () => {
-    // Reverses ADR-0019: deep clean 150k + repair 200k is a 350k Order, and a
+    // Deep clean 150k + repair 200k is a 350k Order, and a
     // 20% Campaign takes 20% of all of it, since every price is final by then.
     const pricing = getCartPricing({
       subtotal: 350_000,

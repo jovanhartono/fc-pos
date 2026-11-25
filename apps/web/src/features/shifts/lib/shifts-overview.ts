@@ -215,7 +215,6 @@ export const buildStoreGroups = (
       );
     return { store, rows };
   });
-  // Stores where someone worked come first; the empty ones sink to the end.
   return groups.toSorted(
     (a, b) => Number(b.rows.length > 0) - Number(a.rows.length > 0)
   );

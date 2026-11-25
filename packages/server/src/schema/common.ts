@@ -56,8 +56,9 @@ export const currencySchema = (field: string) =>
     .refine((value) => !value.includes("-"), `${field} cannot be negative`)
     .transform(parseIndonesianCurrency);
 
-// Discounts settle at drop-off or at pickup, whichever is paid (ADR-0018). One
-// definition keeps both refusing a double-ticked Campaign or a twice-scanned Voucher code.
+// Discounts settle once every line is priced (ADR-0018), so Campaigns arrive at
+// drop-off or at payment. One definition keeps both refusing a double-ticked
+// Campaign or a twice-scanned Voucher code.
 export const campaignIdsSchema = z
   .array(z.number().int().positive())
   .default([])

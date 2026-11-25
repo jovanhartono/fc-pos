@@ -30,6 +30,10 @@ import {
   userStoresTable,
   usersTable,
 } from "@/db/schema";
+import {
+  CODE_LENGTH,
+  CROCKFORD_CHARSET,
+} from "@/modules/campaigns/campaign.repository";
 
 const SEED_NUMBER = 260_306;
 const ADMIN_PASSWORD = "rojpyp-2cuzdo-rozmoP";
@@ -48,10 +52,6 @@ const DAY_MS = 86_400_000;
 const JAKARTA_OFFSET_MS = 7 * HOUR_MS;
 // Of the first checks, the share that ends in a QC reject.
 const QC_REJECT_RATE = 0.065;
-
-// Same alphabet campaign.repository.ts mints Voucher codes with (no 0/O/1/I/L).
-const CROCKFORD_CHARSET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
-const VOUCHER_CODE_LENGTH = 8;
 
 const STORE_PRESETS = [
   {
@@ -562,7 +562,7 @@ const sanitizeForS3 = (value: string): string =>
 
 // Deterministic (faker-seeded) voucher code so re-seeds are reproducible.
 const generateVoucherCode = (): string =>
-  Array.from({ length: VOUCHER_CODE_LENGTH }, () =>
+  Array.from({ length: CODE_LENGTH }, () =>
     faker.helpers.arrayElement(CROCKFORD_CHARSET.split(""))
   ).join("");
 
@@ -1505,7 +1505,7 @@ interface PlannedWork {
 }
 
 // Someone checks an Item a little after the cleaner hands it over: now and then
-// the cleaner (a self-check), more often the other worker, else the cashier or
+// the cleaner (a Self-pass), more often the other worker, else the cashier or
 // admin. A worker only checks while clocked in.
 const pickChecker = (
   crew: Crew,
@@ -1886,7 +1886,6 @@ interface OrderEnv {
   courierIds: number[];
   customerIds: number[];
   customersByStore: Map<number, number[]>;
-  hasIntakeChannel: boolean;
   now: number;
   paymentMethods: { id: number }[];
   products: { cogs: string; id: number; price: string }[];
@@ -1907,7 +1906,6 @@ interface DraftOrder {
   campaign: { applied: number; campaign: CampaignRow; at: Date } | null;
   cashierId: number;
   code: string;
-  courierId: number | null;
   items: DraftItem[];
   pickup: { at: Date; imagePath: string } | null;
   products: DraftProductLine[];
@@ -2202,8 +2200,8 @@ const buildDraftOrder = (
     )
   );
 
-  // Drop-off photo is required for every Order (ADR-0014); the ~10% miss
-  // exercises the "Missing" recovery path on the Order page.
+  // Drop-off photo is required for every Order (ADR-0014); the ~10% miss shows
+  // the Order page's empty tile with its Upload Photo button.
   const hasDropoffPhoto = chance(0.9);
   const customerPool = env.customersByStore.get(store.id) ?? env.customerIds;
   const collectedBy =
@@ -2220,9 +2218,6 @@ const buildDraftOrder = (
     campaign: campaign ? { applied: discount, at: createdAt, campaign } : null,
     cashierId,
     code,
-    // The dev database may already carry the intake_channel check, which ties
-    // a courier to the channel; then the courier is written after the insert.
-    courierId: env.hasIntakeChannel ? collectedBy : null,
     items,
     pickup: settled.pickupAt
       ? {
@@ -2235,7 +2230,7 @@ const buildDraftOrder = (
     row: {
       cancelled_at: null,
       code,
-      collected_by: env.hasIntakeChannel ? null : collectedBy,
+      collected_by: collectedBy,
       completed_at: completedAt === null ? null : new Date(completedAt),
       created_at: createdAt,
       created_by: cashierId,
@@ -2275,14 +2270,6 @@ const requireId = (ids: Map<string, number>, key: string): number => {
     throw new Error(`Seed lost the id of ${key}`);
   }
   return id;
-};
-
-const ordersHaveIntakeChannel = async (): Promise<boolean> => {
-  const rows = await db.execute(
-    sql`select 1 from information_schema.columns where table_name = 'orders' and column_name = 'intake_channel'`,
-    "objects"
-  );
-  return rows.length > 0;
 };
 
 const COMPLAINT_REASONS = [
@@ -2462,7 +2449,6 @@ const insertDrafts = async (drafts: DraftOrder[], now: number) => {
       const itemId = requireId(itemIds, item.item_code);
       return item.photos.map((photo, photoIndex) => ({
         created_at: photo.created_at,
-        // Mirrors the live key layout, keyed by the Item's row id (ADR-0019).
         image_path: `seed/orders/${sanitizeForS3(draft.code)}/items/${itemId}/item-${photoIndex + 1}.jpg`,
         item_id: itemId,
         note: photo.note,
@@ -2545,22 +2531,6 @@ const insertDrafts = async (drafts: DraftOrder[], now: number) => {
   if (complaintRows.length > 0) {
     await db.insert(complaintsTable).values(complaintRows);
   }
-
-  const courierRows = drafts.flatMap((draft) =>
-    draft.courierId === null
-      ? []
-      : [{ courierId: draft.courierId, orderId: idOf(draft) }]
-  );
-  for (const chunk of chunked(courierRows, 500)) {
-    await db.execute(sql`
-      update orders set intake_channel = 'courier', collected_by = v.courier_id
-      from (values ${sql.join(
-        chunk.map((row) => sql`(${row.orderId}::int, ${row.courierId}::int)`),
-        sql`, `
-      )}) as v(order_id, courier_id)
-      where orders.id = v.order_id
-    `);
-  }
 };
 
 const seedOrders = async (params: {
@@ -2639,7 +2609,6 @@ const seedOrders = async (params: {
     courierIds: params.courierIds,
     customerIds: params.customers.map((customer) => customer.id),
     customersByStore,
-    hasIntakeChannel: await ordersHaveIntakeChannel(),
     now,
     paymentMethods: params.paymentMethods.filter((method) => method.is_active),
     products: params.products.filter((product) => product.is_active),

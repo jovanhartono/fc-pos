@@ -7,7 +7,7 @@ import {
   Search01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -18,7 +18,6 @@ import { SectionTitle } from "@/components/section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { WhatsappIcon } from "@/components/whatsapp-icon";
 import { CustomerLink } from "@/features/customers/components/customer-link";
@@ -158,18 +157,6 @@ const ReadyNote = ({ order }: ReadyNoteProps) => {
   );
 };
 
-const QueueServiceDetailSkeleton = () => (
-  <div className="grid gap-5">
-    <Skeleton className="h-8 w-48" />
-    <Skeleton className="h-12 w-full" />
-    <div className="grid gap-3">
-      <Skeleton className="h-5 w-40" />
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-24 w-full" />
-    </div>
-  </div>
-);
-
 export const QueueServiceDetailMessage = ({
   description,
   title,
@@ -219,20 +206,11 @@ export const QueueServiceDetail = ({
   const [isNoteMissing, setIsNoteMissing] = useState(false);
   const statusNoteRef = useRef<HTMLTextAreaElement>(null);
 
-  const detailQuery = useQuery(ordersQueries.orderService(orderId, serviceId));
-  const detail = detailQuery.data?.order;
-  const selectedService = detailQuery.data?.line;
+  const {
+    data: { order: detail, line: selectedService },
+  } = useSuspenseQuery(ordersQueries.orderService(orderId, serviceId));
 
   const updateStatusMutation = useUpdateServiceStatusMutation(orderId);
-
-  if (detailQuery.isPending) {
-    return <QueueServiceDetailSkeleton />;
-  }
-
-  // The route loader already resolved this; only here for the type checker.
-  if (!(detail && selectedService)) {
-    return null;
-  }
 
   const actions = orderServiceActions(selectedService, currentUser?.id);
   const { moves, start, photoBlocker } = actions;
@@ -326,7 +304,7 @@ export const QueueServiceDetail = ({
           />
         )}
 
-        {/* Emerald, the done tone every other screen uses for ready: the
+        {/* Green, the done tone every other screen uses for ready: the
 				    workshop's part is finished, and grey read as a warning. */}
         {isReady && runningRework === undefined && <ReadyNote order={detail} />}
 

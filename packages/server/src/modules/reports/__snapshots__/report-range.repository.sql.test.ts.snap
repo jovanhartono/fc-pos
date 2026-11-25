@@ -218,7 +218,7 @@ exports[`what each money report asks Postgres for one store asks the same questi
       3,
       10,
     ],
-    "sql": "select "customers"."id", "customers"."name", "customers"."phone_number", COUNT(*)::int, COALESCE(SUM("orders"."paid_amount"), 0) from "orders" inner join "customers" on "orders"."customer_id" = "customers"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and (("orders"."customer_id" is not null)) and ("orders"."store_id" = $3)) group by "customers"."id", "customers"."name", "customers"."phone_number" order by SUM("orders"."paid_amount") desc limit $4",
+    "sql": "select "customers"."id", "customers"."name", "customers"."phone_number", COUNT(*)::int, COALESCE(SUM("orders"."paid_amount"), 0) from "orders" inner join "customers" on "orders"."customer_id" = "customers"."id" where (("orders"."paid_at" >= $1) and ("orders"."paid_at" < $2) and (("orders"."paid_at" is not null)) and ("orders"."store_id" = $3) and (("orders"."customer_id" is not null))) group by "customers"."id", "customers"."name", "customers"."phone_number" order by SUM("orders"."paid_amount") desc limit $4",
   },
 ]
 `;

@@ -130,8 +130,8 @@ const PaymentDetails = ({
       </>
     );
   }
-  // ADR-0018: no price, no payment. Say so rather than offer a Collect payment
-  // button the server would refuse.
+  // ADR-0018: say so rather than offer a Collect payment button the server
+  // would refuse.
   if (gates.hasUnpricedLine) {
     return (
       <>
@@ -353,7 +353,7 @@ const SettledDiscountPaymentForm = ({
           });
         })}
       >
-        {/* Same emerald as a captured drop-off photo: settled is a done state,
+        {/* Same green as a captured drop-off photo: settled is a done state,
 				    not a warning. The breakdown itself is on the page under this sheet. */}
         <p className="flex items-start gap-2 rounded-md border border-success/40 bg-tone-good px-3 py-2.5 text-body text-foreground">
           <HugeiconsIcon

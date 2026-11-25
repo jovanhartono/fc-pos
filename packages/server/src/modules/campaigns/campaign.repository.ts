@@ -37,8 +37,8 @@ interface CampaignWritePayload {
 
 // No 0/O/1/I/L, so a Voucher code read off paper is not mistyped at the POS.
 // 30 chars.
-const CROCKFORD_CHARSET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
-const CODE_LENGTH = 8;
+export const CROCKFORD_CHARSET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
+export const CODE_LENGTH = 8;
 // Rejection-sample floor: 240 = floor(256/30)*30 — eliminates modulo bias.
 const CROCKFORD_SAMPLE_FLOOR = 240;
 const MAX_COLLISION_RETRIES = 10;

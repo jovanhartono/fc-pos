@@ -8,7 +8,7 @@ export const rangeLabel = (from: string, to: string) =>
     ? dayjs(to).format("D MMM YYYY")
     : `${dayjs(from).format("D MMM")} – ${dayjs(to).format("D MMM YYYY")}`;
 
-// "1,204 checks", "1 check".
+// "1.204 checks", "1 check".
 export const pluralCount = (count: number, word: string) =>
   `${numberFormatter.format(count)} ${word}${count === 1 ? "" : "s"}`;
 

@@ -39,8 +39,7 @@ export const OrderServiceRow = ({
   const serviceName = service.service?.name ?? "Service";
   const isNestedRework = reworkRound !== undefined;
   const isRework = Boolean(service.reworkOf);
-  // ADR-0018: a blank price holds the whole Order's payment ("no price, no
-  // payment") — the same predicate the server's paid transition runs.
+  // A blank price holds the whole Order's payment (ADR-0018).
   const isUnpriced = isUnpricedLine(service);
 
   const handleClick = () => {

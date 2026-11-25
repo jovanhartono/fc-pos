@@ -3,7 +3,7 @@ import { oneDecimalFormatter } from "@/features/reports/utils/format";
 
 export type DeltaAs = "percent" | "points";
 
-// A first-pass rate going from 50% to 60% is "+10.0 pts", not "+20.0%": the
+// A first-pass rate going from 50% to 60% is "+10,0 pts", not "+20,0%": the
 // owner compares rates by how far they moved, counts by how much they grew.
 // Rounded to the one decimal shown, so a move that reads 0.0 gets no arrow.
 export const kpiDeltaChange = (

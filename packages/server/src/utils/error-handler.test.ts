@@ -70,7 +70,7 @@ describe("errorHandler", () => {
 
   it("does not echo the whole submitted row back when the database connection drops mid-save", async () => {
     // Drizzle builds its message from the query and every bound parameter, so
-    // this is the shape a thawed container produces on the first write — and on
+    // this is the shape a cold start produces on the first write — and on
     // POST /admin/users those parameters include the new password hash.
     const { body, status } = await respondTo(
       new Error(

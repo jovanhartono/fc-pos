@@ -98,8 +98,7 @@ const PaymentMethodTile = ({
   </label>
 );
 
-// A discount settles once every line is priced, not once money arrives
-// (ADR-0018), so a Customer paying at pickup still gets it on the Receipt.
+// ADR-0018: a Customer paying at pickup still gets the discount on the Receipt.
 export const CheckoutPaymentStep = () => {
   const { visibleStores } = useTransactionsPageContext();
   const {

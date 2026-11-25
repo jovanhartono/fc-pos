@@ -7,8 +7,7 @@ import { handlePaymentNotification } from "@/modules/payments/payment-charge.ser
 import { success } from "@/utils/http";
 import { zodValidator } from "@/utils/zod-validator-wrapper";
 
-// Both gateways stay reachable whatever PAYMENT_GATEWAY says, so a payment
-// made just before a switch still marks its Order paid.
+// Both gateways, whatever PAYMENT_GATEWAY says (ADR-0028).
 const app = new Hono().post(
   "/payments/:gateway",
   zodValidator("param", z.object({ gateway: z.enum(PAYMENT_GATEWAYS) })),

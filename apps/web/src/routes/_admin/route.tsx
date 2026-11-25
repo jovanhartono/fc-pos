@@ -42,7 +42,7 @@ const AdminLayout = () => {
 export const Route = createFileRoute("/_admin")({
   beforeLoad: async ({ context }) => {
     requireAuth();
-    // DB-fresh role — JWT claim goes stale on mid-session role changes.
+    // ADR-0006.
     const me = await context.queryClient.ensureQueryData(usersQueries.me());
     return { me };
   },

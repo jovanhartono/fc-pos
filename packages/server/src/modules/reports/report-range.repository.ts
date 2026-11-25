@@ -515,14 +515,9 @@ export const listTopCustomers = async ({
   storeId?: number;
   limit?: number;
 }) => {
-  // Spelled out rather than reusing paidOrderWindow: that helper puts the store
-  // filter before "has a customer", and reordering these renumbers the binds
-  // against the LIMIT below.
   const conditions = [
-    ...timeWindow(ordersTable.paid_at, range),
-    isNotNull(ordersTable.paid_at),
+    ...paidOrderWindow({ range, storeId }),
     isNotNull(ordersTable.customer_id),
-    storeScope(ordersTable.store_id, storeId),
   ];
 
   const rows = await db

@@ -136,7 +136,6 @@ export const StoreCategoryMixCard = ({ matrix }: StoreCategoryMixCardProps) => {
   // Column totals cover every Store, including any left off the list.
   const allStores = columns.reduce((sum, col) => sum + col.gross_sales, 0);
   const average = picked && allStores > 0 ? picked.gross_sales / allStores : 0;
-  // A second click on the same slice goes back to All.
   const handlePick = (categoryId: number) =>
     setPickedValue(
       categoryId === picked?.category_id ? ALL : String(categoryId)

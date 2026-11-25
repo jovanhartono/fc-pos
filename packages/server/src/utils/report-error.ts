@@ -1,6 +1,4 @@
-// Bytecode-compiled builds break @sentry/bun, so this sends Sentry's envelope
-// format by hand instead of pulling in the SDK. Best-effort only: a Sentry
-// outage must never turn one broken request into two.
+// Best-effort only: a Sentry outage must never turn one broken request into two.
 
 const LEADING_SLASH_REGEX = /^\//u;
 

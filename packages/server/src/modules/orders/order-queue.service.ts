@@ -309,7 +309,6 @@ export const getOrderServiceQueue = async (
         store_code: storesTable.code,
         store_id: storesTable.id,
         store_name: storesTable.name,
-        // An Item is Priority if any line on it is.
         is_priority: sql<boolean>`bool_or(${ordersServicesTable.is_priority})`,
       })
       .from(ordersServicesTable)

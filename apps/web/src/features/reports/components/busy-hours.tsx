@@ -16,7 +16,6 @@ export const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export const mondayFirst = (date: string | dayjs.Dayjs) =>
   (dayjs(date).day() + 6) % 7;
 
-// How many of each weekday the range holds.
 export const weekdayCounts = (from: string, to: string) => {
   const counts = WEEKDAYS.map(() => 0);
   const end = dayjs(to);

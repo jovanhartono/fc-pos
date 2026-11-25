@@ -128,7 +128,7 @@ export const seedShop = async () => {
 export type Shop = Awaited<ReturnType<typeof seedShop>>;
 
 // The Item photo, filed straight onto the Item: the presign/upload round
-// trip is S3's business, and the gates under test only read the row.
+// trip is the bucket's business, and the gates under test only read the row.
 export const addItemPhoto = async (itemId: number, uploadedBy: number) => {
   const [photo] = await testDb
     .insert(itemImagesTable)

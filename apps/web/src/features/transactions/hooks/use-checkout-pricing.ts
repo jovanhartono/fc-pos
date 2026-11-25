@@ -22,8 +22,7 @@ export const useAvailableCampaigns = (
     enabled: selectedStoreNumber !== undefined,
   });
 
-  // Campaigns are judged against the Cart total (ADR-0018): a discount
-  // settles only once every line is priced, so the total is the base.
+  // ADR-0018.
   const availableCampaigns = filterEligibleCampaigns(campaignsQuery.data, {
     grossTotal: subtotal,
     lines: serviceLines,

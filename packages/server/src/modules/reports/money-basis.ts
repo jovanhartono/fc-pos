@@ -42,8 +42,7 @@ export const discount = () => sumMoney(ordersTable.discount);
 
 export const refunded = () => sumMoney(orderRefundsTable.total_amount);
 
-// Money handed back is dated by the day it was handed back, not by the day of
-// the sale it undoes, so the two amounts come off different tables on different
-// clocks and can only meet here.
+// ADR-0023: refunds and collected money are dated on different clocks, so the
+// two can only meet here.
 export const revenue = (collectedAmount: number, refundedAmount: number) =>
   collectedAmount - refundedAmount;

@@ -82,7 +82,7 @@ export const GlobalSheet = () => {
         <SheetContent className="w-full overflow-hidden" isInstant={isInstant}>
           {title || description ? (
             <SheetHeader className="shrink-0 border-b">
-              {/* O12: one row for both, so a sheet opened over another (an Order,
+              {/* One row for both, so a sheet opened over another (an Order,
 							    Collect payment) keeps the header height and its body starts where
 							    the one below did; mb-0.5 stands in for the Order's hidden title. */}
               {back || actions ? (

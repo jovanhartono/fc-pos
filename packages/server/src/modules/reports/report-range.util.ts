@@ -169,7 +169,6 @@ export const indexBy = <T extends { bucket: string }>(rows: T[]) => {
   return map;
 };
 
-// The Jakarta calendar day an instant falls on.
 export const jakartaDayOf = (instant: Date): string =>
   formatYmd(new Date(instant.getTime() + JAKARTA_OFFSET_MINUTES * 60_000));
 

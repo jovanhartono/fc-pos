@@ -1,6 +1,6 @@
 import { lineKey } from "@fresclean/api/rules";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Fragment } from "react";
+import { Fragment, useId } from "react";
 import {
   Controller,
   FormProvider,
@@ -232,9 +232,7 @@ const ReversalItemRow = ({
   const { control, register } = useFormContext<ReversalFormValues>();
   const selected =
     useWatch({ control, name: `items.${index}.selected` }) ?? false;
-  // Only one reversal dialog mounts at a time (single GlobalDialog slot), so
-  // a static prefix is safe and keeps ids decoupled from display copy.
-  const checkboxId = `reversal-item-${index}`;
+  const checkboxId = useId();
 
   return (
     <div className="grid gap-2 rounded-md border p-3">

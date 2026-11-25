@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import type { DbExecutor } from "@/db";
 import {
   orderRefundItemsTable,
   orderRefundsTable,
@@ -18,7 +19,6 @@ import {
   applyRefundTransition,
   cancelOrderServices,
 } from "@/modules/orders/order-status-machine";
-import type { DbExecutor } from "@/modules/orders/order-status-machine";
 import type { OrderTx } from "@/modules/orders/order.repository";
 import {
   assertCanCancelOrderService,

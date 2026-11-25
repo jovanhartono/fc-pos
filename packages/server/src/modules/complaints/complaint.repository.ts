@@ -2,6 +2,7 @@ import { and, desc, eq, exists, ilike, inArray, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
+import type { DbExecutor } from "@/db";
 import {
   complaintsTable,
   customersTable,
@@ -18,7 +19,6 @@ import {
   itemNameColumns,
   orderRefColumns,
 } from "@/modules/orders/order-read.repository";
-import type { DbExecutor } from "@/modules/orders/order-status-machine";
 
 type ComplaintInsert = typeof complaintsTable.$inferInsert;
 
@@ -70,7 +70,7 @@ export const findComplaintSubjectService = (serviceId: number) =>
   });
 
 // Another cashier may hand over, cancel or refund this Item meanwhile. The Order
-// is held first, as a refund holds it, so the two never wait on each other.
+// is held first, as a refund holds it, so the two queue up instead of deadlocking.
 export const lockOrderServiceState = async (
   executor: DbExecutor,
   { orderId, serviceId }: { orderId: number; serviceId: number }

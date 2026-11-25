@@ -46,8 +46,7 @@ export const trackQueries = {
       retry: false,
       refetchOnWindowFocus: false,
       staleTime: 0,
-      // While a QR is up, so Paid shows within seconds: SNAP QRIS sends no
-      // webhook, and this read is what asks DOKU.
+      // While a QR is up, so Paid shows within seconds.
       refetchInterval: (query) =>
         hasQris(query.state.data?.open_charge) ? 5000 : false,
     }),

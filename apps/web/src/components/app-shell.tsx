@@ -287,8 +287,7 @@ export const AppShell = ({ title, children }: AppShellProps) => {
   // Read once on purpose: following the window width re-rendered the whole shell
   // mid-resize and fought a cashier who had collapsed the sidebar by hand.
   const startsCollapsed = useMountValue(() => window.innerWidth < 1280);
-  // Nav visibility follows the DB-fresh role from /admin/users/me, not the
-  // stale JWT claim — role changes apply without re-login.
+  // Nav follows the role from /admin/users/me (ADR-0006).
   const meQuery = useQuery(usersQueries.me());
   const role = meQuery.data?.role;
   const parentPath = useParentPath();

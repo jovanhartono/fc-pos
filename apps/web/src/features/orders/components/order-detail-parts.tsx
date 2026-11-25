@@ -28,6 +28,8 @@ export const LINE_HANDLER =
 export const LINE_PRICE =
   "flex items-center gap-1 justify-self-end text-body tabular-nums compact:text-subhead";
 
+export const MONEY_LIST =
+  "grid gap-1.5 text-body tabular-nums compact:text-subhead";
 export const PAID_LIST = "grid gap-2 px-4 py-4 text-body compact:text-subhead";
 export const PAID_ROW = "flex items-center justify-between gap-4";
 

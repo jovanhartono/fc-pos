@@ -10,7 +10,6 @@ interface PersonNameProps {
   detail?: ReactNode;
 }
 
-// A person's row title: their photo or initials, the name, and an optional line under it.
 export const PersonName = ({
   name,
   avatarUrl,

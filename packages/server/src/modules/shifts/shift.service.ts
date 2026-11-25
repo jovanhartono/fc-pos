@@ -216,11 +216,10 @@ export const updateShift = async ({
     );
   }
 
-  const storeId = body.store_id ?? shift.store_id;
-  if (storeId !== shift.store_id) {
+  if (body.store_id !== shift.store_id) {
     const [worker, store] = await Promise.all([
       findUserDetailById(shift.user_id),
-      findStoreById(storeId),
+      findStoreById(body.store_id),
     ]);
     assertStoreForWorker(worker, store);
   }
@@ -231,7 +230,6 @@ export const updateShift = async ({
     ...body,
     clock_out_at: body.clock_out_at ?? null,
     edited_by: user.id,
-    store_id: storeId,
   });
   // Reopening a finished Shift was ruled out: delete it and clock in again.
   if (!updated) {
