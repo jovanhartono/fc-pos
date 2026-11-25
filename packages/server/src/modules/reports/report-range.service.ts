@@ -1390,13 +1390,19 @@ export const getWorkerLiveReport = async ({ store_id }: GetWorkerLiveQuery) => {
   const storeName = new Map(stores.map((store) => [store.id, store.name]));
   const roleOf = (userId: number) => userById.get(userId)?.role;
   const tallies = tallyLiveActivity(live, linesToday, roleOf);
+  // A worker clocked in at GRH who cleans BSD booth Items, or a cashier on the
+  // PIK counter, did clock in: any Store's Shift counts.
+  const clockedIn = new Set(live.shifts.map((shift) => shift.user_id));
 
   return {
     workers: scopeToStore(tallies, store_id).map((tally) => ({
       ...identityOf(tally.user_id, userById.get(tally.user_id)),
       store_id: tally.store_id,
       store_name: storeName.get(tally.store_id) ?? "Unknown",
-      live: liveOf(tally),
+      live: {
+        ...liveOf(tally),
+        clocked_in_today: clockedIn.has(tally.user_id),
+      },
     })),
     // One per person across every Store, for By Worker.
     people: [
@@ -1407,7 +1413,10 @@ export const getWorkerLiveReport = async ({ store_id }: GetWorkerLiveQuery) => {
     ].map((own) => ({
       ...identityOf(own[0].user_id, userById.get(own[0].user_id)),
       row_store_ids: own.map((tally) => tally.store_id),
-      live: liveAcross(own),
+      live: {
+        ...liveAcross(own),
+        clocked_in_today: clockedIn.has(own[0].user_id),
+      },
     })),
   };
 };

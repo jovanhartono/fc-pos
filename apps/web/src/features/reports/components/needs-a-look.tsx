@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { Section } from "@/components/section";
 import { TextSkeleton } from "@/components/text-skeleton";
-import type { WorkerRow } from "@/features/reports/api";
+import type { PersonLiveRow, WorkerRow } from "@/features/reports/api";
 import { WorkerName } from "@/features/reports/components/workers-table";
 import { useStoreCodes } from "@/features/reports/hooks/use-store-codes";
 import { needsALook } from "@/features/reports/utils/workers-report";
@@ -73,20 +73,23 @@ export const NeedsALookPlaceholder = () => (
 
 interface NeedsALookProps {
   workers: WorkerRow[];
+  livePeople?: PersonLiveRow[];
 }
 
 // What the owner should ask about today, whatever range the rest shows.
-export const NeedsALook = ({ workers }: NeedsALookProps) => {
+export const NeedsALook = ({ workers, livePeople }: NeedsALookProps) => {
   const now = useMinuteClock();
   const storeCodes = useStoreCodes();
   return (
     <NeedsALookList
       id="workers-needs-a-look"
-      items={needsALook(workers, now).map(({ row, ...flag }) => ({
-        ...flag,
-        name: <WorkerName name={row.user_name} role={row.role} />,
-        aside: storeCodes.get(row.store_id) ?? row.store_name,
-      }))}
+      items={needsALook(workers, now, livePeople).map(
+        ({ row, storeIds, ...flag }) => ({
+          ...flag,
+          name: <WorkerName name={row.user_name} role={row.role} />,
+          aside: storeIds.map((id) => storeCodes.get(id) ?? id).join(", "),
+        })
+      )}
     />
   );
 };
