@@ -205,9 +205,7 @@ export const useTransactionsPageBootstrap = (): TransactionsPageBootstrap => {
   });
 
   const resetCart = () => {
-    const { setSubmitError, setDropoffPhoto } =
-      useTransactionsPageStore.getState();
-    resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
+    resetTransactionDraft(form, useTransactionsPageStore.getState());
   };
 
   // A rejected checkout lands in the footer error; a photo or Receipt failure
@@ -216,7 +214,12 @@ export const useTransactionsPageBootstrap = (): TransactionsPageBootstrap => {
     useTransactionsPageStore.getState().setSubmitError("");
 
     try {
-      const created = await createMutation.mutateAsync(toOrderPayload(values));
+      const created = await createMutation.mutateAsync(
+        toOrderPayload(
+          values,
+          useTransactionsPageStore.getState().orderRequestId
+        )
+      );
 
       const orderId = getCreatedOrderId(created);
 
@@ -296,7 +299,11 @@ export const useTransactionsPageBootstrap = (): TransactionsPageBootstrap => {
   });
 
   const handleStoreChange = (value: string) => {
-    useTransactionsPageStore.getState().setSubmitError("");
+    const { setSubmitError, renewOrderRequestId } =
+      useTransactionsPageStore.getState();
+    setSubmitError("");
+    // An Order already saved at the old Store must not answer this checkout.
+    renewOrderRequestId();
     form.setValue("selectedStoreId", value, {
       shouldDirty: true,
       shouldValidate: true,

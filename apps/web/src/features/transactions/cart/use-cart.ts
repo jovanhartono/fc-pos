@@ -67,9 +67,6 @@ export const useCartOps = (): CartOps => {
   const setSubmitError = useTransactionsPageStore(
     (state) => state.setSubmitError
   );
-  const setDropoffPhoto = useTransactionsPageStore(
-    (state) => state.setDropoffPhoto
-  );
 
   const setProductCart = (nextCart: ProductCartLine[]) => {
     form.setValue("productCart", nextCart, {
@@ -92,7 +89,7 @@ export const useCartOps = (): CartOps => {
   );
 
   const resetCart = () => {
-    resetTransactionDraft(form, { setSubmitError, setDropoffPhoto });
+    resetTransactionDraft(form, useTransactionsPageStore.getState());
   };
 
   const removeProduct = (productId: number) => {

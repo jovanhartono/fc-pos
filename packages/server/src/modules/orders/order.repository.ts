@@ -432,6 +432,12 @@ export const reserveNextOrderNumber = async (
   return counter.last_number;
 };
 
+export const findOrderByRequestId = (requestId: string, storeId: number) =>
+  db.query.ordersTable.findFirst({
+    columns: { code: true, discount: true, id: true, total: true },
+    where: { request_id: requestId, store_id: storeId },
+  });
+
 export const insertOrder = async (
   tx: OrderTx,
   values: InferInsertModel<typeof ordersTable>

@@ -27,6 +27,7 @@ import {
 } from "@/modules/orders/order-status-machine";
 import {
   countOrdersByStatus,
+  findOrderByRequestId,
   findOrders,
   insertItems,
   insertOrder,
@@ -50,6 +51,7 @@ import type { Store } from "@/types/entity";
 import { resolveStoreScope, unhandledStoreScope } from "@/utils/authorization";
 import { jakartaNow } from "@/utils/date";
 import { buildPaginationMeta } from "@/utils/pagination";
+import { isUniqueViolation } from "@/utils/pg-error";
 import { buildMediaUrl } from "@/utils/s3";
 
 const formatOrderCode = (
@@ -281,6 +283,24 @@ const reserveBasketStock = async (
   }
 };
 
+// Strings, like every Order read, so the POS sees one shape.
+const toCreatedOrder = ({
+  code,
+  discount,
+  id,
+  total,
+}: {
+  code: string;
+  discount: string;
+  id: number;
+  total: string;
+}) => ({
+  code,
+  id,
+  total,
+  total_after_discount: (Number(total) - Number(discount)).toString(),
+});
+
 export const createOrder = async (
   userId: number,
   store: Store,
@@ -291,24 +311,32 @@ export const createOrder = async (
     items = [],
     campaign_ids = [],
     voucher_codes = [],
+    request_id,
     ...orderPayload
   } = payload;
 
   const isPaidAtDropoff = orderPayload.payment_status === "paid";
-
-  if (orderPayload.collected_by != null) {
-    await assertActiveCourier(orderPayload.collected_by);
-  }
 
   const services = expandOrderServices(items);
 
   const productIds = [...new Set(products.map((item) => item.id))];
   const serviceIds = [...new Set(services.map((item) => item.id))];
 
-  const [dbProducts, dbServices] = await Promise.all([
+  const [saved, dbProducts, dbServices] = await Promise.all([
+    request_id ? findOrderByRequestId(request_id, store.id) : undefined,
     productIds.length > 0 ? findProducts(productIds) : Promise.resolve([]),
     serviceIds.length > 0 ? findServices(serviceIds) : Promise.resolve([]),
   ]);
+
+  // Returned before any check: the first tap may have used up the last Voucher
+  // redemption, which must not turn the cashier's retry into an error.
+  if (saved) {
+    return toCreatedOrder(saved);
+  }
+
+  if (orderPayload.collected_by != null) {
+    await assertActiveCourier(orderPayload.collected_by);
+  }
 
   const productLines = resolveCatalogLines("Product", products, dbProducts);
   const serviceLines: PricedServiceLine[] = resolveCatalogLines(
@@ -352,7 +380,7 @@ export const createOrder = async (
     request: discountRequest,
   });
 
-  return db.transaction(async (tx) => {
+  const saveOrder = db.transaction(async (tx) => {
     const dateStr = jakartaNow().format("DDMMYYYY");
     const sequence = await reserveNextOrderNumber(tx, store.code, dateStr);
     const code = formatOrderCode(store.code, dateStr, sequence);
@@ -380,6 +408,7 @@ export const createOrder = async (
       paid_at: null,
       store_id: store.id,
       collected_by: orderPayload.collected_by ?? null,
+      request_id,
       created_by: userId,
       updated_by: userId,
     });
@@ -435,8 +464,6 @@ export const createOrder = async (
       storeId: store.id,
     });
 
-    const netTotal = grossTotal - discountAmount;
-
     await tx
       .update(ordersTable)
       .set({
@@ -456,14 +483,28 @@ export const createOrder = async (
       })
       .where(eq(ordersTable.id, orderId));
 
-    // Strings, like every Order read, so the POS sees one shape.
-    return {
+    return toCreatedOrder({
       code,
+      discount: discountAmount.toString(),
       id: orderId,
       total: grossTotal.toString(),
-      total_after_discount: netTotal.toString(),
-    };
+    });
   });
+
+  try {
+    return await saveOrder;
+  } catch (error) {
+    // The retry arrived while the first tap was still saving; answer with the
+    // Order that won instead of "That record already exists".
+    const raced =
+      request_id && isUniqueViolation(error)
+        ? await findOrderByRequestId(request_id, store.id)
+        : undefined;
+    if (raced) {
+      return toCreatedOrder(raced);
+    }
+    throw error;
+  }
 };
 
 export const getOrderDetailById = async (id: number) => {
