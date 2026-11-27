@@ -95,6 +95,7 @@ export const defaultDraftValues: TransactionDraftValues = {
 interface TransactionResetActions {
   setSubmitError: (message: string) => void;
   setDropoffPhoto: (file: File | null) => void;
+  renewOrderRequestId: () => void;
 }
 
 export const createCartLineId = (prefix: string) =>
@@ -168,11 +169,16 @@ export const resolveActiveItemId = (
 // copies once let the drop-off photo carry over to the next Customer's Order.
 export const resetTransactionDraft = (
   form: UseFormReturn<TransactionDraftValues>,
-  { setSubmitError, setDropoffPhoto }: TransactionResetActions
+  {
+    setSubmitError,
+    setDropoffPhoto,
+    renewOrderRequestId,
+  }: TransactionResetActions
 ) => {
   const selectedStoreId = form.getValues("selectedStoreId");
   setSubmitError("");
   setDropoffPhoto(null);
+  renewOrderRequestId();
   form.reset({ ...defaultDraftValues, selectedStoreId });
 };
 
@@ -307,20 +313,23 @@ export const countUnpricedServiceLines = (
   serviceRows: SubtotalServiceRow[]
 ): number => serviceRows.filter(isUnpricedServiceLine).length;
 
-export const toOrderPayload = ({
-  customerName,
-  customerPhone,
-  selectedStoreId,
-  selectedCampaignIds,
-  appliedVouchers,
-  selectedPaymentMethodId,
-  selectedCourierId,
-  manualDiscount,
-  deliveryFee,
-  notes,
-  productCart,
-  itemCart,
-}: TransactionDraftValues): CreateOrderPayload => {
+export const toOrderPayload = (
+  {
+    customerName,
+    customerPhone,
+    selectedStoreId,
+    selectedCampaignIds,
+    appliedVouchers,
+    selectedPaymentMethodId,
+    selectedCourierId,
+    manualDiscount,
+    deliveryFee,
+    notes,
+    productCart,
+    itemCart,
+  }: TransactionDraftValues,
+  orderRequestId: string
+): CreateOrderPayload => {
   const isPaidAtDropoff = selectedPaymentMethodId !== "";
 
   return {
@@ -341,6 +350,7 @@ export const toOrderPayload = ({
     collected_by: selectedCourierId ? Number(selectedCourierId) : undefined,
     payment_status: isPaidAtDropoff ? "paid" : "unpaid",
     notes: notes.trim() || undefined,
+    request_id: orderRequestId,
     products: productCart.map((line) => ({
       id: line.id,
       qty: line.qty,

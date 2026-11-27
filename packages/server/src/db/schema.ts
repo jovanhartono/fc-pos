@@ -14,6 +14,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
   varchar,
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
@@ -540,6 +541,9 @@ export const ordersTable = pgTable(
     refunded_amount: decimal("refunded_amount", { precision: 12, scale: 0 })
       .default("0")
       .notNull(),
+    // One per cart at the counter: a Create Order tapped again after a lost
+    // reply finds the Order already saved instead of charging twice.
+    request_id: uuid("request_id"),
     status: orderStatusEnum("status").default("created").notNull(),
 
     store_id: integer("store_id")
@@ -565,6 +569,7 @@ export const ordersTable = pgTable(
     index("order_created_at_idx").on(table.created_at),
     index("order_paid_at_idx").on(table.paid_at),
     uniqueIndex("order_code_idx").on(table.code),
+    uniqueIndex("order_request_id_idx").on(table.request_id),
     check("total_non_negative_check", sql`${table.total} >= 0`),
     check("paid_amount_non_negative_check", sql`${table.paid_amount} >= 0`),
     check(

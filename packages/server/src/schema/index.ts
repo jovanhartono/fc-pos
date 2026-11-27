@@ -165,6 +165,8 @@ export const POSTOrderSchema = z
     ),
     notes: z.string().trim().optional(),
     collected_by: z.number().int().positive().optional(),
+    // Optional so a tablet still on an older build can check out.
+    request_id: z.uuid().optional(),
   })
   .refine(
     (val) => {

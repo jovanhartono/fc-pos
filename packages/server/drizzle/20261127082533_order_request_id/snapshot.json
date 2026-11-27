@@ -1,0 +1,91 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "357ad8af-4786-4dcc-a79c-9da320106d0f",
+  "prevIds": [
+    "290feae5-f625-4941-aa7a-882d5a3fa979"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "orders",
+        "request_id"
+      ],
+      "writes": [
+        "s|col|public.orders.request_id",
+        "n|col|public.orders.request_id",
+        "e|col|public.orders.request_id"
+      ],
+      "reads": [
+        "n|tbl|public.orders",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "orders",
+        "order_request_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.order_request_id_idx",
+        "n|idx|public.order_request_id_idx",
+        "e|idx|public.order_request_id_idx",
+        "n|rel|public.order_request_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.orders",
+        "n|sch|public",
+        "n|col|public.orders.request_id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "orders",
+        "name": "request_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "orders",
+        "name": "order_request_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "request_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

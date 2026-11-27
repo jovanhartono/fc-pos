@@ -280,6 +280,9 @@ describe("getCartPricing", () => {
   });
 });
 
+const toPayload = (values: TransactionDraftValues) =>
+  toOrderPayload(values, "6f1c1f9e-2b7a-4d3e-9a51-0c2d8e4b7f10");
+
 describe("toOrderPayload", () => {
   const draft: TransactionDraftValues = {
     selectedStoreId: "2",
@@ -303,7 +306,7 @@ describe("toOrderPayload", () => {
   };
 
   test("maps draft to CreateOrderPayload with trimmed optional fields", () => {
-    expect(toOrderPayload(draft)).toEqual({
+    expect(toPayload(draft)).toEqual({
       customer: {
         name: "budi santoso",
         phone_number: "+6281234567890",
@@ -317,6 +320,7 @@ describe("toOrderPayload", () => {
       collected_by: undefined,
       payment_status: "unpaid",
       notes: undefined,
+      request_id: "6f1c1f9e-2b7a-4d3e-9a51-0c2d8e4b7f10",
       products: [{ id: 1, qty: 2 }],
       items: [
         {
@@ -332,7 +336,7 @@ describe("toOrderPayload", () => {
 
   test("sends the typed Delivery fee, with or without a Courier", () => {
     // A GoSend trip has no Courier to pick (ADR-0029).
-    const payload = toOrderPayload({ ...draft, deliveryFee: "25000" });
+    const payload = toPayload({ ...draft, deliveryFee: "25000" });
     expect(payload.delivery_fee).toBe("25000");
     expect(payload.collected_by).toBe(undefined);
   });
@@ -340,7 +344,7 @@ describe("toOrderPayload", () => {
   test("sends one pair sold three treatments as a single object", () => {
     // ADR-0017: the shoe is described once, however many Services the
     // counter upsold onto it.
-    const payload = toOrderPayload({
+    const payload = toPayload({
       ...draft,
       itemCart: [
         itemLine(
@@ -358,7 +362,7 @@ describe("toOrderPayload", () => {
   test("drops an object the cashier opened but never sold anything", () => {
     // An empty card is a correction in progress, not a drop-off: it stays on
     // screen but is never sent.
-    const payload = toOrderPayload({
+    const payload = toPayload({
       ...draft,
       itemCart: [itemLine("i1", []), itemLine("i2", [serviceLine("a", 5)])],
     });
@@ -369,7 +373,7 @@ describe("toOrderPayload", () => {
   test("carries an agreed repair price onto the line, and omits a blank one", () => {
     // ADR-0018: blank means not priced yet, so the field is left out, never
     // sent as "" or 0.
-    const payload = toOrderPayload({
+    const payload = toPayload({
       ...draft,
       itemCart: [
         itemLine("i1", [
@@ -385,7 +389,7 @@ describe("toOrderPayload", () => {
   test("a selected payment method marks the order paid and carries discounts", () => {
     // Paying at drop-off settles the Order (ADR-0018), so Campaigns, Voucher
     // codes and the manual discount go with it.
-    const payload = toOrderPayload({
+    const payload = toPayload({
       ...draft,
       selectedPaymentMethodId: "9",
       selectedCampaignIds: ["3", "4"],
@@ -404,7 +408,7 @@ describe("toOrderPayload", () => {
   test("carries per-treatment notes, trimmed, and drops blank ones", () => {
     // Notes stay on the Service, not the Item: "no bleach" is for the clean,
     // and the same shoe's repaint may want none.
-    const payload = toOrderPayload({
+    const payload = toPayload({
       ...draft,
       itemCart: [
         itemLine("i1", [
@@ -420,7 +424,7 @@ describe("toOrderPayload", () => {
   });
 
   test("carries applied voucher codes into voucher_codes, trimmed", () => {
-    const payload = toOrderPayload({
+    const payload = toPayload({
       ...draft,
       selectedPaymentMethodId: "9",
       appliedVouchers: ["  ABC123DE  ", "XYZ789FG"].map((code) => ({
